@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Meu Cronograma</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h2>Olá, <span id="nome-aluno"></span> 👮</h2>
+      <button onclick="sair()">Sair</button>
+    </header>
+
+    <div class="card">
+      <h3>📅 Cronograma de Hoje</h3>
+      <div id="cronograma-hoje"></div>
+    </div>
+
+    <div class="card">
+      <h3>✅ Registro do Dia</h3>
+      <div id="form-registro"></div>
+      <button onclick="salvarRegistro()">Salvar meu desempenho</button>
+    </div>
+
+    <div class="card">
+      <h3>📊 Minha Semana</h3>
+      <div id="resumo-semana"></div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="dashboard.js"></script>
+</body>
+</html>
