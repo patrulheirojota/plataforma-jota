@@ -29,3 +29,13 @@ header button { width: auto; padding: 8px 20px; }
 .registro-item label { display: block; margin-bottom: 6px; }
 .registro-item input[type="number"] { flex: 1; padding: 8px; border-radius: 6px;
   border: 1px solid #2a4a6a; background: #1a2f45; color: #fff; }
+.abas { display: flex; gap: 8px; margin-bottom: 20px; }
+.aba-btn { width: auto; padding: 10px 20px; background: #1a2f45; color: #aaa; }
+.aba-btn.ativa { background: #C9A83C; color: #0d1b2a; }
+
+select { width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px;
+  border: 1px solid #2a4a6a; background: #0d1b2a; color: #fff; font-size: 16px; }
+
+.item-lista { background: #0d1b2a; border-radius: 8px; padding: 12px;
+  margin-bottom: 8px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.item-lista strong { flex: 1; min-width: 120px; }
