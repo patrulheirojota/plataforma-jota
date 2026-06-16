@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Patrulheiros de Elite — Login</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="login-box">
+    <h1>Patrulheiros de Elite</h1>
+    <p>Acesse sua plataforma de estudos</p>
+    <input type="email" id="email" placeholder="Seu e-mail">
+    <input type="password" id="senha" placeholder="Sua senha">
+    <button onclick="login()">Entrar</button>
+    <p id="msg-erro" style="color:red;display:none"></p>
+  </div>
+  <script src="config.js"></script>
+  <script src="auth.js"></script>
+</body>
+</html>
