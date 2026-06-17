@@ -2,7 +2,7 @@ async function login() {
   const email = document.getElementById('email').value
   const senha = document.getElementById('senha').value
   
-  const { data, error } = await supabase.auth.signInWithPassword({
+  const { data, error } = await _supabase.auth.signInWithPassword({
     email: email,
     password: senha
   })
