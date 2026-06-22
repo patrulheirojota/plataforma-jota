@@ -42,8 +42,9 @@ function mostrarAba(id) {
   document.getElementById(id).style.display = 'block'
   event.target.classList.add('ativa')
 
-  if (id === 'aba-alunos') carregarAlunos()
+ if (id === 'aba-alunos') carregarAlunos()
   if (id === 'aba-cronograma') carregarSelectsCronograma()
+  if (id === 'aba-desempenho') carregarSelectDesempenho()
 }
 
 // ---------- CONCURSOS ----------
@@ -213,4 +214,77 @@ async function carregarCronogramaPorConcurso() {
         <span>${i.meta_questoes} questões</span>
       </div>`
   })
+}
+// ---------- DESEMPENHO ----------
+function carregarSelectDesempenho() {
+  const select = document.getElementById('filtro-desempenho-concurso')
+  select.innerHTML = '<option value="">Selecione o concurso</option>'
+  window._concursos.forEach(c => {
+    select.innerHTML += `<option value="${c.id}">${c.nome}</option>`
+  })
+}
+
+async function carregarDesempenho() {
+  const concurso_id = document.getElementById('filtro-desempenho-concurso').value
+  if (!concurso_id) return
+
+  // Busca alunos daquele concurso
+  const { data: alunos } = await _supabase
+    .from('alunos')
+    .select('*')
+    .eq('concurso_id', concurso_id)
+
+  if (!alunos || alunos.length === 0) {
+    document.getElementById('lista-desempenho').innerHTML = '<p>Nenhum aluno cadastrado nesse concurso ainda.</p>'
+    return
+  }
+
+  // Data de 7 dias atrás
+  const seteDiasAtras = new Date()
+  seteDiasAtras.setDate(seteDiasAtras.getDate() - 7)
+  const dataLimite = seteDiasAtras.toISOString().split('T')[0]
+
+  const div = document.getElementById('lista-desempenho')
+  div.innerHTML = '<p>Carregando...</p>'
+
+  const linhas = []
+
+  for (const aluno of alunos) {
+    const { data: registros } = await _supabase
+      .from('registros_diarios')
+      .select('*')
+      .eq('aluno_id', aluno.id)
+      .gte('data', dataLimite)
+
+    const totalDias = registros.length
+    const diasCumpridos = registros.filter(r => r.cumpriu).length
+    const totalQuestoes = registros.reduce((soma, r) => soma + (r.questoes_feitas || 0), 0)
+    const totalCertas = registros.reduce((soma, r) => soma + (r.questoes_certas || 0), 0)
+    const percentualAcerto = totalQuestoes > 0 ? Math.round((totalCertas / totalQuestoes) * 100) : 0
+    const percentualCumprimento = totalDias > 0 ? Math.round((diasCumpridos / totalDias) * 100) : 0
+
+    let corStatus = '#e57373' // vermelho
+    if (percentualCumprimento >= 70) corStatus = '#81c784' // verde
+    else if (percentualCumprimento >= 40) corStatus = '#ffb74d' // amarelo
+
+    linhas.push({ aluno, totalDias, diasCumpridos, totalQuestoes, totalCertas, percentualAcerto, percentualCumprimento, corStatus })
+  }
+
+  // Ordena por quem cumpriu menos primeiro (quem precisa de mais atenção aparece no topo)
+  linhas.sort((a, b) => a.percentualCumprimento - b.percentualCumprimento)
+
+  div.innerHTML = ''
+  linhas.forEach(l => {
+    div.innerHTML += `
+      <div class="item-lista" style="border-left: 4px solid ${l.corStatus}">
+        <strong>${l.aluno.nome}</strong>
+        <span>📅 ${l.diasCumpridos}/${l.totalDias} dias cumpridos (${l.percentualCumprimento}%)</span>
+        <span>📝 ${l.totalQuestoes} questões feitas</span>
+        <span>✅ ${l.percentualAcerto}% de acerto</span>
+      </div>`
+  })
+
+  if (linhas.length === 0) {
+    div.innerHTML = '<p>Nenhum registro de estudo encontrado nos últimos 7 dias.</p>'
+  }
 }
