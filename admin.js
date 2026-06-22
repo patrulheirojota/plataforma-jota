@@ -207,13 +207,71 @@ async function carregarCronogramaPorConcurso() {
   div.innerHTML = ''
   itens.forEach(i => {
     div.innerHTML += `
-      <div class="item-lista">
+      <div class="item-lista" id="cron-item-${i.id}">
         <strong>${nomeDias[i.dia_semana]}</strong>
-        <span>${i.disciplina}</span>
+        <span id="cron-disc-${i.id}">${i.disciplina}</span>
         <span>${i.tempo_minutos} min</span>
         <span>${i.meta_questoes} questões</span>
+        <div style="display:flex;gap:6px;margin-left:auto">
+          <button class="btn-acao btn-editar" onclick="editarCronograma('${i.id}','${i.dia_semana}','${i.disciplina}',${i.tempo_minutos},${i.meta_questoes})">✏️ Editar</button>
+          <button class="btn-acao btn-excluir" onclick="excluirCronograma('${i.id}')">🗑️ Excluir</button>
+        </div>
       </div>`
   })
+}
+
+async function excluirCronograma(id) {
+  if (!confirm('Excluir esse item do cronograma?')) return
+  const { error } = await _supabase.from('cronograma').delete().eq('id', id)
+  if (error) { alert('Erro ao excluir: ' + error.message); return }
+  carregarCronogramaPorConcurso()
+}
+
+function editarCronograma(id, dia, disciplina, tempo, questoes) {
+  // Preenche o formulário de cadastro com os dados do item
+  document.getElementById('cron-dia').value = dia
+  document.getElementById('cron-disciplina').value = disciplina
+  document.getElementById('cron-tempo').value = tempo
+  document.getElementById('cron-questoes').value = questoes
+
+  // Troca o botão para "Salvar edição"
+  const btn = document.querySelector('[onclick="criarCronograma()"]')
+  btn.textContent = '💾 Salvar edição'
+  btn.setAttribute('onclick', `salvarEdicaoCronograma('${id}')`)
+
+  // Rola para o topo do formulário
+  document.getElementById('cron-disciplina').scrollIntoView({ behavior: 'smooth' })
+}
+
+async function salvarEdicaoCronograma(id) {
+  const dia_semana = document.getElementById('cron-dia').value
+  const disciplina = document.getElementById('cron-disciplina').value
+  const tempo_minutos = parseInt(document.getElementById('cron-tempo').value)
+  const meta_questoes = parseInt(document.getElementById('cron-questoes').value) || 30
+
+  if (!disciplina || !tempo_minutos) {
+    alert('Preencha disciplina e tempo.')
+    return
+  }
+
+  const { error } = await _supabase
+    .from('cronograma')
+    .update({ dia_semana, disciplina, tempo_minutos, meta_questoes })
+    .eq('id', id)
+
+  if (error) { alert('Erro ao salvar: ' + error.message); return }
+
+  // Restaura o botão original
+  const btn = document.querySelector(`[onclick="salvarEdicaoCronograma('${id}')"]`)
+  btn.textContent = 'Adicionar ao cronograma'
+  btn.setAttribute('onclick', 'criarCronograma()')
+
+  document.getElementById('cron-disciplina').value = ''
+  document.getElementById('cron-tempo').value = ''
+  document.getElementById('cron-questoes').value = '30'
+
+  alert('✅ Item atualizado!')
+  carregarCronogramaPorConcurso()
 }
 // ---------- DESEMPENHO ----------
 function carregarSelectDesempenho() {
