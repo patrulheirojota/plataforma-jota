@@ -31,6 +31,7 @@
       <button class="aba-btn ativa" onclick="mostrarAba('aba-concursos')">Concursos</button>
       <button class="aba-btn" onclick="mostrarAba('aba-alunos')">Alunos</button>
       <button class="aba-btn" onclick="mostrarAba('aba-cronograma')">Cronograma</button>
+      <button class="aba-btn" onclick="mostrarAba('aba-desempenho')">Desempenho</button>
     </div>
 
     <!-- ABA: CONCURSOS -->
@@ -90,6 +91,17 @@
         <div id="lista-cronograma"></div>
       </div>
     </div>
+
+    <!-- ABA: DESEMPENHO -->
+    <div id="aba-desempenho" class="aba-conteudo" style="display:none">
+      <div class="card">
+        <h3>Desempenho dos alunos — últimos 7 dias</h3>
+        <select id="filtro-desempenho-concurso" onchange="carregarDesempenho()"></select>
+        <div id="lista-desempenho"></div>
+      </div>
+    </div>
+
+  </div>
 
   </div>
 
