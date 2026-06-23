@@ -36,7 +36,8 @@ function mostrarAbaAluno(id) {
 
   if (id === 'aba-semana') carregarSemana()
   if (id === 'aba-historico') carregarHistorico()
-  if (id === 'aba-grafico') carregarGrafico()
+ if (id === 'aba-grafico') carregarGrafico()
+  if (id === 'aba-avisos') carregarAvisosAluno()
 }
 
 // -------- ABA HOJE --------
@@ -291,7 +292,128 @@ async function carregarGrafico() {
     }
   })
 }
+// -------- AVISOS --------
+async function carregarAvisosAluno() {
+  const { data: aluno } = await _supabase
+    .from('alunos')
+    .select('concurso_id')
+    .eq('id', _alunoId)
+    .single()
 
+  const { data: avisos } = await _supabase
+    .from('avisos')
+    .select('*')
+    .eq('concurso_id', aluno.concurso_id)
+    .order('criado_em', { ascending: false })
+
+  const div = document.getElementById('lista-avisos-aluno')
+  div.innerHTML = ''
+
+  if (!avisos || avisos.length === 0) {
+    div.innerHTML = '<p style="color:#aaa">Nenhum aviso no momento. Fique atento!</p>'
+    return
+  }
+
+  avisos.forEach(a => {
+    const data = new Date(a.criado_em).toLocaleDateString('pt-BR', {
+      day: '2-digit', month: '2-digit', year: 'numeric'
+    })
+    div.innerHTML += `
+      <div style="background:#0d1b2a;border-left:4px solid #C9A83C;border-radius:8px;padding:16px;margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <strong style="color:#C9A83C">${a.titulo}</strong>
+          <span style="color:#aaa;font-size:12px">${data}</span>
+        </div>
+        <p style="color:#ddd;font-size:14px;margin:0;line-height:1.5">${a.mensagem}</p>
+      </div>`
+  })
+}
+
+// -------- PDF --------
+async function exportarPDF() {
+  const { jsPDF } = window.jspdf
+  const doc = new jsPDF()
+
+  const { data: aluno } = await _supabase
+    .from('alunos')
+    .select('nome, concursos(nome)')
+    .eq('id', _alunoId)
+    .single()
+
+  const { data: registros } = await _supabase
+    .from('registros_diarios')
+    .select('*')
+    .eq('aluno_id', _alunoId)
+    .order('data', { ascending: false })
+
+  // Cabeçalho
+  doc.setFillColor(26, 58, 92)
+  doc.rect(0, 0, 210, 35, 'F')
+  doc.setTextColor(201, 168, 60)
+  doc.setFontSize(18)
+  doc.setFont('helvetica', 'bold')
+  doc.text('Patrulheiros de Elite', 14, 15)
+  doc.setFontSize(11)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(255, 255, 255)
+  doc.text(`Relatório de Desempenho — ${aluno.nome}`, 14, 25)
+  doc.text(`Concurso: ${aluno.concursos?.nome || ''}`, 14, 32)
+
+  // Data de geração
+  doc.setTextColor(100, 100, 100)
+  doc.setFontSize(9)
+  doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, 14, 44)
+
+  // Resumo geral
+  const totalQ = registros.reduce((s, r) => s + (r.questoes_feitas || 0), 0)
+  const totalC = registros.reduce((s, r) => s + (r.questoes_certas || 0), 0)
+  const diasCumpridos = registros.filter(r => r.cumpriu).length
+  const pctGeral = totalQ > 0 ? Math.round((totalC / totalQ) * 100) : 0
+
+  doc.setFillColor(240, 240, 240)
+  doc.rect(14, 50, 182, 28, 'F')
+  doc.setTextColor(26, 58, 92)
+  doc.setFontSize(11)
+  doc.setFont('helvetica', 'bold')
+  doc.text('Resumo Geral', 18, 60)
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(10)
+  doc.text(`Total de questões: ${totalQ}   |   Acertos: ${totalC}   |   Aproveitamento: ${pctGeral}%`, 18, 70)
+  doc.text(`Dias com registro: ${registros.length}   |   Dias cumpridos: ${diasCumpridos}`, 18, 76)
+
+  // Por disciplina
+  const porDisc = {}
+  registros.forEach(r => {
+    if (!porDisc[r.disciplina]) porDisc[r.disciplina] = { feitas: 0, certas: 0 }
+    porDisc[r.disciplina].feitas += r.questoes_feitas || 0
+    porDisc[r.disciplina].certas += r.questoes_certas || 0
+  })
+
+  doc.setTextColor(26, 58, 92)
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(11)
+  doc.text('Desempenho por Disciplina', 14, 92)
+
+  let y = 100
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(10)
+
+  Object.entries(porDisc).forEach(([disc, dados]) => {
+    const pct = dados.feitas > 0 ? Math.round((dados.certas / dados.feitas) * 100) : 0
+    const cor = pct >= 70 ? [129, 199, 132] : pct >= 50 ? [255, 183, 77] : [229, 115, 115]
+
+    doc.setFillColor(...cor)
+    doc.rect(14, y - 4, 4, 8, 'F')
+    doc.setTextColor(50, 50, 50)
+    doc.text(`${disc}`, 22, y + 1)
+    doc.text(`${dados.feitas} questões  |  ${dados.certas} certas  |  ${pct}% acerto`, 120, y + 1)
+    y += 12
+
+    if (y > 270) { doc.addPage(); y = 20 }
+  })
+
+  doc.save(`relatorio-${aluno.nome.replace(/ /g, '-')}.pdf`)
+}
 // -------- SAIR --------
 async function sair() {
   await _supabase.auth.signOut()
