@@ -45,6 +45,7 @@ function mostrarAba(id) {
  if (id === 'aba-alunos') carregarAlunos()
   if (id === 'aba-cronograma') carregarSelectsCronograma()
   if (id === 'aba-desempenho') carregarSelectDesempenho()
+  if (id === 'aba-avisos') carregarSelectsAvisos()
 }
 
 // ---------- CONCURSOS ----------
@@ -345,4 +346,81 @@ async function carregarDesempenho() {
   if (linhas.length === 0) {
     div.innerHTML = '<p>Nenhum registro de estudo encontrado nos últimos 7 dias.</p>'
   }
+}
+// ---------- AVISOS ----------
+function carregarSelectsAvisos() {
+  const selects = [
+    document.getElementById('aviso-concurso'),
+    document.getElementById('filtro-avisos-concurso')
+  ]
+  selects.forEach(select => {
+    select.innerHTML = '<option value="">Selecione o concurso</option>'
+    window._concursos.forEach(c => {
+      select.innerHTML += `<option value="${c.id}">${c.nome}</option>`
+    })
+  })
+}
+
+async function criarAviso() {
+  const concurso_id = document.getElementById('aviso-concurso').value
+  const titulo = document.getElementById('aviso-titulo').value
+  const mensagem = document.getElementById('aviso-mensagem').value
+
+  if (!concurso_id || !titulo || !mensagem) {
+    alert('Preencha todos os campos do aviso.')
+    return
+  }
+
+  const { error } = await _supabase.from('avisos').insert({ concurso_id, titulo, mensagem })
+
+  if (error) { alert('Erro: ' + error.message); return }
+
+  document.getElementById('aviso-titulo').value = ''
+  document.getElementById('aviso-mensagem').value = ''
+  alert('✅ Aviso publicado!')
+  document.getElementById('filtro-avisos-concurso').value = concurso_id
+  carregarAvisos()
+}
+
+async function carregarAvisos() {
+  const concurso_id = document.getElementById('filtro-avisos-concurso').value
+  if (!concurso_id) return
+
+  const { data: avisos } = await _supabase
+    .from('avisos')
+    .select('*')
+    .eq('concurso_id', concurso_id)
+    .order('criado_em', { ascending: false })
+
+  const div = document.getElementById('lista-avisos')
+  div.innerHTML = ''
+
+  if (!avisos || avisos.length === 0) {
+    div.innerHTML = '<p style="color:#aaa">Nenhum aviso publicado ainda.</p>'
+    return
+  }
+
+  avisos.forEach(a => {
+    const data = new Date(a.criado_em).toLocaleDateString('pt-BR', {
+      day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
+    })
+    div.innerHTML += `
+      <div class="item-lista" style="flex-direction:column;align-items:flex-start;gap:6px">
+        <div style="display:flex;justify-content:space-between;width:100%;align-items:center">
+          <strong>${a.titulo}</strong>
+          <div style="display:flex;gap:6px">
+            <span style="color:#aaa;font-size:12px">${data}</span>
+            <button class="btn-acao btn-excluir" onclick="excluirAviso('${a.id}')">🗑️</button>
+          </div>
+        </div>
+        <p style="color:#ccc;font-size:14px;margin:0">${a.mensagem}</p>
+      </div>`
+  })
+}
+
+async function excluirAviso(id) {
+  if (!confirm('Excluir este aviso?')) return
+  const { error } = await _supabase.from('avisos').delete().eq('id', id)
+  if (error) { alert('Erro: ' + error.message); return }
+  carregarAvisos()
 }
