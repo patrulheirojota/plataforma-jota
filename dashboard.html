@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Meu Cronograma — Patrulheiros de Elite</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+ <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -21,6 +22,7 @@
       <button class="aba-btn" onclick="mostrarAbaAluno('aba-semana')">Semana</button>
       <button class="aba-btn" onclick="mostrarAbaAluno('aba-historico')">Histórico</button>
       <button class="aba-btn" onclick="mostrarAbaAluno('aba-grafico')">Desempenho</button>
+      <button class="aba-btn" onclick="mostrarAbaAluno('aba-avisos')">Avisos</button>
     </div>
 
     <!-- ABA: HOJE -->
@@ -62,6 +64,17 @@
         <div id="sem-dados-grafico" style="display:none;color:#aaa;text-align:center;padding:20px">
           Nenhum registro encontrado ainda. Comece a registrar seus estudos!
         </div>
+        <button onclick="exportarPDF()" style="margin-top:16px;background:#1a3a5c;color:#C9A83C;border:1px solid #C9A83C">
+          📄 Exportar relatório em PDF
+        </button>
+      </div>
+    </div>
+
+    <!-- ABA: AVISOS -->
+    <div id="aba-avisos" class="aba-conteudo" style="display:none">
+      <div class="card">
+        <h3>📢 Avisos do Mentor</h3>
+        <div id="lista-avisos-aluno"></div>
       </div>
     </div>
 
