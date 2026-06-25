@@ -44,3 +44,18 @@ select { width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px;
 .btn-editar:hover { background: #C9A83C; color: #0d1b2a; }
 .btn-excluir { background: #3a1a1a; color: #e57373; border: 1px solid #e57373; }
 .btn-excluir:hover { background: #e57373; color: #fff; }
+/* Mobile responsivo */
+@media (max-width: 600px) {
+  .container { padding: 12px; }
+  header { flex-wrap: wrap; gap: 8px; }
+  header h2 { font-size: 18px; }
+  .abas { flex-wrap: wrap; }
+  .aba-btn { padding: 8px 12px; font-size: 13px; flex: 1; min-width: 80px; text-align: center; }
+  .card { padding: 14px; }
+  .disciplina-card { flex-direction: column; gap: 4px; }
+  .disciplina-card strong { font-size: 15px; }
+  .registro-item input[type="number"] { width: 100%; }
+  .item-lista { flex-direction: column; gap: 6px; }
+  .btn-acao { width: 100%; text-align: center; }
+  input, select, button { font-size: 16px; } /* Evita zoom no iOS */
+}
