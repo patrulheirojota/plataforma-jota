@@ -89,7 +89,10 @@
        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
           <div style="flex:1;min-width:200px">
             <label style="color:#aaa;font-size:12px;display:block;margin-bottom:4px">Aluno</label>
-            <select id="cron-aluno" onchange="carregarPlanoAluno()"></select>
+           <select id="cron-aluno" onchange="carregarConcursosParaCronograma()"></select>
+        <select id="cron-concurso-filtro" onchange="carregarPlanoAluno()" style="margin-top:8px">
+          <option value="">Selecione o concurso</option>
+        </select>
           </div>
           <div style="flex:1;min-width:200px">
             <label style="color:#aaa;font-size:12px;display:block;margin-bottom:4px">Copiar plano de outro aluno</label>
