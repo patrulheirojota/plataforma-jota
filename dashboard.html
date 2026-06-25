@@ -12,8 +12,14 @@
 <body>
   <div class="container">
     <header>
-      <h2>Olá, <span id="nome-aluno"></span> 👮</h2>
-      <button onclick="sair()">Sair</button>
+      <div>
+        <h2>Olá, <span id="nome-aluno"></span> 👮</h2>
+        <div id="streak-display" style="color:#C9A83C;font-size:13px;margin-top:2px"></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button onclick="window.location.href='perfil.html'" style="width:auto;padding:8px 14px;background:#1a2f45;color:#aaa;border:1px solid #2a4a6a">⚙️ Perfil</button>
+        <button onclick="sair()" style="width:auto;padding:8px 14px">Sair</button>
+      </div>
     </header>
 
     <!-- ABAS DO ALUNO -->
@@ -22,7 +28,9 @@
       <button class="aba-btn" onclick="mostrarAbaAluno('aba-semana')">Semana</button>
       <button class="aba-btn" onclick="mostrarAbaAluno('aba-historico')">Histórico</button>
       <button class="aba-btn" onclick="mostrarAbaAluno('aba-grafico')">Desempenho</button>
-      <button class="aba-btn" onclick="mostrarAbaAluno('aba-avisos')">Avisos</button>
+      <button class="aba-btn" onclick="mostrarAbaAluno('aba-avisos')" id="btn-aba-avisos">
+        Avisos <span id="badge-avisos" style="display:none;background:#e57373;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px"></span>
+      </button>
     </div>
 
     <!-- ABA: HOJE -->
