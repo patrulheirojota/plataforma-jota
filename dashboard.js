@@ -46,26 +46,36 @@ async function carregarHoje() {
   const diaAtual = diasSemana[hoje.getDay()]
   const dataHoje = hoje.toISOString().split('T')[0]
 
-  const { data: cronograma } = await _supabase
-    .from('cronograma')
+  // Busca plano individual do aluno
+  const { data: plano } = await _supabase
+    .from('plano_aluno')
     .select('*')
-    .eq('concurso_id', _concursoId)
+    .eq('aluno_id', _alunoId)
     .eq('dia_semana', diaAtual)
-    .order('ordem')
+
+  // Busca revisões do dia
+  const { data: revisoesDia } = await _supabase
+    .from('revisoes_programadas')
+    .select('*')
+    .eq('aluno_id', _alunoId)
+    .eq('data_revisao', dataHoje)
+    .eq('concluida', false)
 
   const divCron = document.getElementById('cronograma-hoje')
   const divForm = document.getElementById('form-registro')
   const cardRegistro = document.getElementById('card-registro')
 
-  if (!cronograma || cronograma.length === 0) {
+  const temPlano = plano && plano.length > 0
+  const temRevisoes = revisoesDia && revisoesDia.length > 0
+
+  if (!temPlano && !temRevisoes) {
     divCron.innerHTML = '<p style="color:#aaa">Hoje é dia de descanso! Aproveite para revisar ou descansar. 🔋</p>'
     return
   }
 
-  _cronogramaHoje = cronograma
   cardRegistro.style.display = 'block'
+  _cronogramaHoje = plano || []
 
-  // Busca registros já salvos hoje
   const { data: registrosHoje } = await _supabase
     .from('registros_diarios')
     .select('*')
@@ -75,60 +85,53 @@ async function carregarHoje() {
   divCron.innerHTML = ''
   divForm.innerHTML = ''
 
-  cronograma.forEach(item => {
-    const jaRegistrado = registrosHoje?.find(r => r.disciplina === item.disciplina)
+  // Revisões do dia (aparecem primeiro, com destaque)
+  if (temRevisoes) {
+    divCron.innerHTML += `<p style="color:#C9A83C;font-weight:bold;font-size:13px;margin-bottom:8px">🔔 Revisões programadas para hoje</p>`
+    revisoesDia.forEach(r => {
+      const icone = r.tipo === 'exercicios' ? '📝' : '🔄'
+      const label = r.tipo === 'exercicios' ? 'Exercícios de fixação' : 'Revisão'
+      divCron.innerHTML += `
+        <div class="disciplina-card" style="border-left:3px solid #C9A83C">
+          <strong>${icone} ${label} — ${r.disciplina}</strong>
+          <button class="btn-acao btn-editar" onclick="concluirRevisao('${r.id}')" style="margin-left:auto">✅ Concluir</button>
+        </div>`
+    })
+  }
 
-    divCron.innerHTML += `
-      <div class="disciplina-card">
-        <strong>${item.disciplina}</strong>
-        <span>⏱ ${item.tempo_minutos} min</span>
-        <span>🎯 Meta: ${item.meta_questoes} questões</span>
-        ${jaRegistrado ? `<span style="color:#81c784;margin-left:auto">✅ Registrado</span>` : ''}
-      </div>`
+  // Plano do dia
+  if (temPlano) {
+    if (temRevisoes) divCron.innerHTML += `<p style="color:#aaa;font-size:13px;margin:12px 0 8px">📚 Estudos do dia</p>`
+    plano.forEach(item => {
+      const jaRegistrado = registrosHoje?.find(r => r.disciplina === item.disciplina)
+      divCron.innerHTML += `
+        <div class="disciplina-card">
+          <strong>${item.disciplina}</strong>
+          <span>⏱ ${item.tempo_minutos} min</span>
+          <span>🎯 Meta: ${item.meta_questoes} questões</span>
+          ${jaRegistrado ? `<span style="color:#81c784;margin-left:auto">✅ Registrado</span>` : ''}
+        </div>`
 
-    divForm.innerHTML += `
-      <div class="registro-item">
-        <label><strong>${item.disciplina}</strong></label>
-        <label style="display:flex;align-items:center;gap:8px;margin:8px 0">
-          <input type="checkbox" id="cumpriu-${item.id}" ${jaRegistrado?.cumpriu ? 'checked' : ''}>
-          Cumpri o tempo de estudo
-        </label>
-        <div style="display:flex;gap:8px;margin-top:6px">
-          <input type="number" id="feitas-${item.id}" placeholder="Questões feitas" min="0" value="${jaRegistrado?.questoes_feitas || ''}">
-          <input type="number" id="certas-${item.id}" placeholder="Acertos" min="0" value="${jaRegistrado?.questoes_certas || ''}">
-        </div>
-      </div>`
-  })
+      divForm.innerHTML += `
+        <div class="registro-item">
+          <label><strong>${item.disciplina}</strong> · ${item.tempo_minutos} min</label>
+          <label style="display:flex;align-items:center;gap:8px;margin:8px 0">
+            <input type="checkbox" id="cumpriu-${item.id}" ${jaRegistrado?.cumpriu ? 'checked' : ''}>
+            Cumpri o tempo de estudo
+          </label>
+          <div style="display:flex;gap:8px;margin-top:6px">
+            <input type="number" id="feitas-${item.id}" placeholder="Questões feitas" min="0" value="${jaRegistrado?.questoes_feitas || ''}">
+            <input type="number" id="certas-${item.id}" placeholder="Acertos" min="0" value="${jaRegistrado?.questoes_certas || ''}">
+          </div>
+        </div>`
+    })
+  }
 }
 
-async function salvarRegistro() {
-  const hoje = new Date().toISOString().split('T')[0]
-
-  const registros = _cronogramaHoje.map(item => {
-    const feitas = parseInt(document.getElementById(`feitas-${item.id}`)?.value) || 0
-    const certas = parseInt(document.getElementById(`certas-${item.id}`)?.value) || 0
-    return {
-      aluno_id: _alunoId,
-      data: hoje,
-      disciplina: item.disciplina,
-      cumpriu: document.getElementById(`cumpriu-${item.id}`)?.checked || false,
-      questoes_feitas: feitas,
-      questoes_certas: certas,
-      questoes_erradas: Math.max(0, feitas - certas)
-    }
-  })
-
-  const { error } = await _supabase
-    .from('registros_diarios')
-    .upsert(registros, { onConflict: 'aluno_id,data,disciplina' })
-
-  if (error) { alert('Erro ao salvar: ' + error.message); return }
-
-  document.getElementById('msg-salvo').style.display = 'block'
-  setTimeout(() => document.getElementById('msg-salvo').style.display = 'none', 3000)
+async function concluirRevisao(id) {
+  await _supabase.from('revisoes_programadas').update({ concluida: true }).eq('id', id)
   carregarHoje()
 }
-
 // -------- ABA SEMANA --------
 async function carregarSemana() {
   const { data: itens } = await _supabase
