@@ -171,11 +171,51 @@ async function carregarAlunosParaCronograma() {
     .select('id, nome')
     .order('nome')
 
-  const select = document.getElementById('cron-aluno')
-  select.innerHTML = '<option value="">Selecione o aluno</option>'
-  alunos.forEach(a => {
-    select.innerHTML += `<option value="${a.id}">${a.nome}</option>`
+  const selects = [
+    document.getElementById('cron-aluno'),
+    document.getElementById('cron-aluno-origem')
+  ]
+
+  selects.forEach(select => {
+    select.innerHTML = '<option value="">Selecione o aluno</option>'
+    alunos.forEach(a => {
+      select.innerHTML += `<option value="${a.id}">${a.nome}</option>`
+    })
   })
+}
+
+async function copiarPlano() {
+  const aluno_destino = document.getElementById('cron-aluno').value
+  const aluno_origem = document.getElementById('cron-aluno-origem').value
+
+  if (!aluno_destino || !aluno_origem) {
+    alert('Selecione o aluno de destino e o aluno de origem.')
+    return
+  }
+  if (aluno_destino === aluno_origem) {
+    alert('Selecione alunos diferentes.')
+    return
+  }
+  if (!confirm('Isso vai ADICIONAR o plano do aluno de origem ao aluno selecionado (sem apagar o que já existe). Confirmar?')) return
+
+  const { data: itens } = await _supabase
+    .from('plano_aluno')
+    .select('disciplina, dia_semana, tempo_minutos, meta_questoes, ordem')
+    .eq('aluno_id', aluno_origem)
+
+  if (!itens || itens.length === 0) {
+    alert('O aluno de origem não tem plano cadastrado.')
+    return
+  }
+
+  const novosItens = itens.map(i => ({ ...i, aluno_id: aluno_destino }))
+
+  const { error } = await _supabase.from('plano_aluno').insert(novosItens)
+
+  if (error) { alert('Erro ao copiar: ' + error.message); return }
+
+  alert(`✅ Plano copiado com sucesso! ${itens.length} itens adicionados.`)
+  renderizarPlano(aluno_destino)
 }
 
 async function carregarPlanoAluno() {
