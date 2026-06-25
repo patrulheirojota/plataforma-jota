@@ -6,7 +6,16 @@ async function loginAdmin() {
   const email = document.getElementById('admin-email').value
   const senha = document.getElementById('admin-senha').value
 
-  const { data, error } = await _supabase.auth.signInWithPassword({ email, password: senha })
+  if (!email || !senha) {
+    document.getElementById('msg-erro-admin').style.display = 'block'
+    document.getElementById('msg-erro-admin').textContent = 'Preencha e-mail e senha.'
+    return
+  }
+
+  const { data, error } = await _supabase.auth.signInWithPassword({
+    email: email,
+    password: senha
+  })
 
   if (error) {
     document.getElementById('msg-erro-admin').style.display = 'block'
@@ -16,8 +25,21 @@ async function loginAdmin() {
 
   document.getElementById('tela-login').style.display = 'none'
   document.getElementById('painel-admin').style.display = 'block'
-  carregarConcursos()
+
+  try { await carregarConcursos() } catch(e) { console.error('Erro ao carregar concursos:', e) }
+  try { await carregarAlunosParaCronograma() } catch(e) { console.error('Erro ao carregar alunos:', e) }
 }
+
+async function verificarSessao() {
+  const { data: { user } } = await _supabase.auth.getUser()
+  if (user) {
+    document.getElementById('tela-login').style.display = 'none'
+    document.getElementById('painel-admin').style.display = 'block'
+    try { await carregarConcursos() } catch(e) { console.error(e) }
+    try { await carregarAlunosParaCronograma() } catch(e) { console.error(e) }
+  }
+}
+verificarSessao()
 
 async function sairAdmin() {
   await _supabase.auth.signOut()
