@@ -135,15 +135,39 @@
 
     </div>
 
-    <!-- ABA: DESEMPENHO -->
+   <!-- ABA: DESEMPENHO -->
     <div id="aba-desempenho" class="aba-conteudo" style="display:none">
+
+      <!-- Alertas de inatividade -->
       <div class="card">
-        <h3>Desempenho dos alunos — últimos 7 dias</h3>
+        <h3>🚨 Alertas de inatividade</h3>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+          <span style="color:#aaa;font-size:14px">Alunos sem registro há mais de</span>
+          <input type="number" id="dias-inatividade" value="3" min="1" max="30"
+            style="width:60px;padding:6px;border-radius:6px;border:1px solid #2a4a6a;background:#0d1b2a;color:#fff">
+          <span style="color:#aaa;font-size:14px">dias</span>
+          <button onclick="verificarInatividade()" style="width:auto;padding:8px 16px">Verificar</button>
+        </div>
+        <div id="lista-inatividade"></div>
+      </div>
+
+      <!-- Desempenho geral -->
+      <div class="card">
+        <h3>📊 Desempenho — últimos 7 dias</h3>
         <select id="filtro-desempenho-concurso" onchange="carregarDesempenho()"></select>
         <div id="lista-desempenho"></div>
       </div>
-    </div>
 
+      <!-- Relatório individual -->
+      <div class="card" id="card-relatorio-individual" style="display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <h3 id="titulo-relatorio-individual">Histórico do aluno</h3>
+          <button onclick="fecharRelatorioIndividual()" style="width:auto;padding:6px 14px;background:#1a2f45;color:#aaa">✕ Fechar</button>
+        </div>
+        <div id="conteudo-relatorio-individual"></div>
+      </div>
+
+    </div>
   </div>
 
   </div>
