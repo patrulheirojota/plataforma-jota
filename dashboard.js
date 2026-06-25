@@ -24,6 +24,9 @@ async function init() {
   document.getElementById('nome-aluno').textContent = aluno.nome
   _concursoId = aluno.concurso_id
 
+  calcularStreak()
+  verificarAvisosNovos()
+
   carregarHoje()
 }
 
@@ -296,18 +299,28 @@ async function carregarGrafico() {
   })
 }
 // -------- AVISOS --------
-async function carregarAvisosAluno() {
-  const { data: aluno } = await _supabase
-    .from('alunos')
-    .select('concurso_id')
-    .eq('id', _alunoId)
-    .single()
+async function verificarAvisosNovos() {
+  const { data: avisos } = await _supabase
+    .from('avisos')
+    .select('id')
+    .eq('concurso_id', _concursoId)
 
+  if (avisos && avisos.length > 0) {
+    const badge = document.getElementById('badge-avisos')
+    badge.style.display = 'inline'
+    badge.textContent = avisos.length
+  }
+}
+
+async function carregarAvisosAluno() {
   const { data: avisos } = await _supabase
     .from('avisos')
     .select('*')
-    .eq('concurso_id', aluno.concurso_id)
+    .eq('concurso_id', _concursoId)
     .order('criado_em', { ascending: false })
+
+  // Some o badge quando o aluno clica em avisos
+  document.getElementById('badge-avisos').style.display = 'none'
 
   const div = document.getElementById('lista-avisos-aluno')
   div.innerHTML = ''
@@ -318,9 +331,7 @@ async function carregarAvisosAluno() {
   }
 
   avisos.forEach(a => {
-    const data = new Date(a.criado_em).toLocaleDateString('pt-BR', {
-      day: '2-digit', month: '2-digit', year: 'numeric'
-    })
+    const data = new Date(a.criado_em).toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric' })
     div.innerHTML += `
       <div style="background:#0d1b2a;border-left:4px solid #C9A83C;border-radius:8px;padding:16px;margin-bottom:12px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
@@ -330,6 +341,53 @@ async function carregarAvisosAluno() {
         <p style="color:#ddd;font-size:14px;margin:0;line-height:1.5">${a.mensagem}</p>
       </div>`
   })
+}
+
+// -------- STREAK --------
+async function calcularStreak() {
+  const { data: registros } = await _supabase
+    .from('registros_diarios')
+    .select('data, cumpriu')
+    .eq('aluno_id', _alunoId)
+    .eq('cumpriu', true)
+    .order('data', { ascending: false })
+
+  if (!registros || registros.length === 0) {
+    document.getElementById('streak-display').textContent = 'Comece a registrar seus estudos! 🚀'
+    return
+  }
+
+  // Datas únicas cumpridas
+  const datas = [...new Set(registros.map(r => r.data))].sort((a, b) => b.localeCompare(a))
+
+  let streak = 0
+  let dataRef = new Date()
+  dataRef.setHours(0, 0, 0, 0)
+
+  for (const data of datas) {
+    const d = new Date(data + 'T12:00:00')
+    const diff = Math.round((dataRef - d) / (1000 * 60 * 60 * 24))
+
+    if (diff <= 1) {
+      streak++
+      dataRef = d
+    } else {
+      break
+    }
+  }
+
+  const div = document.getElementById('streak-display')
+  if (streak === 0) {
+    div.textContent = 'Nenhum dia seguido ainda. Bora começar! 💪'
+  } else if (streak === 1) {
+    div.textContent = '🔥 1 dia seguido — continue amanhã!'
+  } else if (streak < 7) {
+    div.textContent = `🔥 ${streak} dias seguidos — ótimo ritmo!`
+  } else if (streak < 14) {
+    div.textContent = `🔥🔥 ${streak} dias seguidos — disciplina de policial!`
+  } else {
+    div.textContent = `🔥🔥🔥 ${streak} dias seguidos — ELITE!`
+  }
 }
 
 // -------- PDF --------
