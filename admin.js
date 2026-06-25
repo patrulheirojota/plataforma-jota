@@ -331,30 +331,100 @@ function carregarSelectDesempenho() {
   window._concursos.forEach(c => {
     select.innerHTML += `<option value="${c.id}">${c.nome}</option>`
   })
+  verificarInatividade()
+}
+
+async function verificarInatividade() {
+  const dias = parseInt(document.getElementById('dias-inatividade').value) || 3
+  const limite = new Date()
+  limite.setDate(limite.getDate() - dias)
+  const dataLimite = limite.toISOString().split('T')[0]
+
+  const { data: alunos } = await _supabase
+    .from('alunos')
+    .select('id, nome, email, concursos(nome)')
+
+  const div = document.getElementById('lista-inatividade')
+  div.innerHTML = '<p style="color:#aaa;font-size:13px">Verificando...</p>'
+
+  const inativos = []
+
+  for (const aluno of alunos) {
+    const { data: registros } = await _supabase
+      .from('registros_diarios')
+      .select('data')
+      .eq('aluno_id', aluno.id)
+      .gte('data', dataLimite)
+      .limit(1)
+
+    if (!registros || registros.length === 0) {
+      // Busca último registro
+      const { data: ultimo } = await _supabase
+        .from('registros_diarios')
+        .select('data')
+        .eq('aluno_id', aluno.id)
+        .order('data', { ascending: false })
+        .limit(1)
+
+      const ultimaData = ultimo?.[0]?.data
+      const diasSemRegistro = ultimaData
+        ? Math.floor((new Date() - new Date(ultimaData + 'T12:00:00')) / (1000 * 60 * 60 * 24))
+        : null
+
+      inativos.push({ aluno, ultimaData, diasSemRegistro })
+    }
+  }
+
+  div.innerHTML = ''
+
+  if (inativos.length === 0) {
+    div.innerHTML = `<p style="color:#81c784">✅ Nenhum aluno inativo nos últimos ${dias} dias!</p>`
+    return
+  }
+
+  inativos.sort((a, b) => (b.diasSemRegistro || 999) - (a.diasSemRegistro || 999))
+
+  inativos.forEach(({ aluno, ultimaData, diasSemRegistro }) => {
+    const cor = diasSemRegistro > 7 ? '#e57373' : '#ffb74d'
+    const msg = ultimaData
+      ? `Último registro há ${diasSemRegistro} dias (${new Date(ultimaData + 'T12:00:00').toLocaleDateString('pt-BR')})`
+      : 'Nunca registrou'
+
+    div.innerHTML += `
+      <div class="item-lista" style="border-left:4px solid ${cor}">
+        <div>
+          <strong>${aluno.nome}</strong>
+          <div style="color:#aaa;font-size:12px">${aluno.email}</div>
+          <div style="color:#aaa;font-size:12px">${aluno.concursos?.nome || ''}</div>
+        </div>
+        <span style="color:${cor};font-size:13px">${msg}</span>
+        <button class="btn-acao btn-editar" onclick="verRelatorioIndividual('${aluno.id}','${aluno.nome}')">
+          📋 Ver histórico
+        </button>
+      </div>`
+  })
 }
 
 async function carregarDesempenho() {
   const concurso_id = document.getElementById('filtro-desempenho-concurso').value
   if (!concurso_id) return
 
-  // Busca alunos daquele concurso
   const { data: alunos } = await _supabase
     .from('alunos')
     .select('*')
     .eq('concurso_id', concurso_id)
 
   if (!alunos || alunos.length === 0) {
-    document.getElementById('lista-desempenho').innerHTML = '<p>Nenhum aluno cadastrado nesse concurso ainda.</p>'
+    document.getElementById('lista-desempenho').innerHTML = '<p>Nenhum aluno nesse concurso.</p>'
     return
   }
 
-  // Data de 7 dias atrás
   const seteDiasAtras = new Date()
   seteDiasAtras.setDate(seteDiasAtras.getDate() - 7)
   const dataLimite = seteDiasAtras.toISOString().split('T')[0]
 
   const div = document.getElementById('lista-desempenho')
-  div.innerHTML = '<p>Carregando...</p>'
+  div.innerHTML = '<p style="color:#aaa">Carregando...</p>'
 
   const linhas = []
 
@@ -367,35 +437,110 @@ async function carregarDesempenho() {
 
     const totalDias = registros.length
     const diasCumpridos = registros.filter(r => r.cumpriu).length
-    const totalQuestoes = registros.reduce((soma, r) => soma + (r.questoes_feitas || 0), 0)
-    const totalCertas = registros.reduce((soma, r) => soma + (r.questoes_certas || 0), 0)
+    const totalQuestoes = registros.reduce((s, r) => s + (r.questoes_feitas || 0), 0)
+    const totalCertas = registros.reduce((s, r) => s + (r.questoes_certas || 0), 0)
     const percentualAcerto = totalQuestoes > 0 ? Math.round((totalCertas / totalQuestoes) * 100) : 0
     const percentualCumprimento = totalDias > 0 ? Math.round((diasCumpridos / totalDias) * 100) : 0
+    const corStatus = percentualCumprimento >= 70 ? '#81c784' : percentualCumprimento >= 40 ? '#ffb74d' : '#e57373'
 
-    let corStatus = '#e57373' // vermelho
-    if (percentualCumprimento >= 70) corStatus = '#81c784' // verde
-    else if (percentualCumprimento >= 40) corStatus = '#ffb74d' // amarelo
-
-    linhas.push({ aluno, totalDias, diasCumpridos, totalQuestoes, totalCertas, percentualAcerto, percentualCumprimento, corStatus })
+    linhas.push({ aluno, totalDias, diasCumpridos, totalQuestoes, percentualAcerto, percentualCumprimento, corStatus })
   }
 
-  // Ordena por quem cumpriu menos primeiro (quem precisa de mais atenção aparece no topo)
   linhas.sort((a, b) => a.percentualCumprimento - b.percentualCumprimento)
 
   div.innerHTML = ''
   linhas.forEach(l => {
     div.innerHTML += `
-      <div class="item-lista" style="border-left: 4px solid ${l.corStatus}">
+      <div class="item-lista" style="border-left:4px solid ${l.corStatus}">
         <strong>${l.aluno.nome}</strong>
-        <span>📅 ${l.diasCumpridos}/${l.totalDias} dias cumpridos (${l.percentualCumprimento}%)</span>
-        <span>📝 ${l.totalQuestoes} questões feitas</span>
-        <span>✅ ${l.percentualAcerto}% de acerto</span>
+        <span>📅 ${l.diasCumpridos}/${l.totalDias} dias (${l.percentualCumprimento}%)</span>
+        <span>📝 ${l.totalQuestoes} questões</span>
+        <span>✅ ${l.percentualAcerto}% acerto</span>
+        <button class="btn-acao btn-editar" onclick="verRelatorioIndividual('${l.aluno.id}','${l.aluno.nome}')">
+          📋 Detalhar
+        </button>
       </div>`
   })
+}
 
-  if (linhas.length === 0) {
-    div.innerHTML = '<p>Nenhum registro de estudo encontrado nos últimos 7 dias.</p>'
+async function verRelatorioIndividual(aluno_id, nome) {
+  document.getElementById('card-relatorio-individual').style.display = 'block'
+  document.getElementById('titulo-relatorio-individual').textContent = `Histórico — ${nome}`
+  document.getElementById('card-relatorio-individual').scrollIntoView({ behavior: 'smooth' })
+
+  const { data: registros } = await _supabase
+    .from('registros_diarios')
+    .select('*')
+    .eq('aluno_id', aluno_id)
+    .order('data', { ascending: false })
+    .limit(30)
+
+  const div = document.getElementById('conteudo-relatorio-individual')
+  div.innerHTML = ''
+
+  if (!registros || registros.length === 0) {
+    div.innerHTML = '<p style="color:#aaa">Nenhum registro encontrado.</p>'
+    return
   }
+
+  // Resumo geral
+  const totalQ = registros.reduce((s, r) => s + (r.questoes_feitas || 0), 0)
+  const totalC = registros.reduce((s, r) => s + (r.questoes_certas || 0), 0)
+  const pctGeral = totalQ > 0 ? Math.round((totalC / totalQ) * 100) : 0
+  const diasCumpridos = registros.filter(r => r.cumpriu).length
+
+  div.innerHTML = `
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px">
+      <div style="background:#0d1b2a;border-radius:8px;padding:12px;flex:1;min-width:120px;text-align:center">
+        <div style="color:#C9A83C;font-size:22px;font-weight:bold">${registros.length}</div>
+        <div style="color:#aaa;font-size:12px">registros</div>
+      </div>
+      <div style="background:#0d1b2a;border-radius:8px;padding:12px;flex:1;min-width:120px;text-align:center">
+        <div style="color:#81c784;font-size:22px;font-weight:bold">${diasCumpridos}</div>
+        <div style="color:#aaa;font-size:12px">dias cumpridos</div>
+      </div>
+      <div style="background:#0d1b2a;border-radius:8px;padding:12px;flex:1;min-width:120px;text-align:center">
+        <div style="color:#C9A83C;font-size:22px;font-weight:bold">${totalQ}</div>
+        <div style="color:#aaa;font-size:12px">questões feitas</div>
+      </div>
+      <div style="background:#0d1b2a;border-radius:8px;padding:12px;flex:1;min-width:120px;text-align:center">
+        <div style="color:#81c784;font-size:22px;font-weight:bold">${pctGeral}%</div>
+        <div style="color:#aaa;font-size:12px">de acerto</div>
+      </div>
+    </div>`
+
+  // Registros agrupados por data
+  const porData = {}
+  registros.forEach(r => {
+    if (!porData[r.data]) porData[r.data] = []
+    porData[r.data].push(r)
+  })
+
+  Object.keys(porData).sort((a, b) => b.localeCompare(a)).forEach(data => {
+    const itens = porData[data]
+    const totalDia = itens.reduce((s, r) => s + (r.questoes_feitas || 0), 0)
+    const certasDia = itens.reduce((s, r) => s + (r.questoes_certas || 0), 0)
+    const pctDia = totalDia > 0 ? Math.round((certasDia / totalDia) * 100) : 0
+    const dataFmt = new Date(data + 'T12:00:00').toLocaleDateString('pt-BR', { weekday:'short', day:'2-digit', month:'2-digit' })
+
+    div.innerHTML += `
+      <div style="background:#0d1b2a;border-radius:8px;padding:12px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+          <strong style="color:#C9A83C">${dataFmt}</strong>
+          <span style="color:#aaa;font-size:12px">${totalDia} questões · ${pctDia}% acerto</span>
+        </div>
+        ${itens.map(r => `
+          <div style="display:flex;gap:10px;padding:4px 0;border-bottom:1px solid #1a2f45;flex-wrap:wrap">
+            <span>${r.cumpriu ? '✅' : '❌'}</span>
+            <span style="flex:1">${r.disciplina}</span>
+            <span style="color:#aaa;font-size:12px">${r.questoes_feitas || 0} feitas · ${r.questoes_certas || 0} certas</span>
+          </div>`).join('')}
+      </div>`
+  })
+}
+
+function fecharRelatorioIndividual() {
+  document.getElementById('card-relatorio-individual').style.display = 'none'
 }
 // ---------- AVISOS ----------
 function carregarSelectsAvisos() {
