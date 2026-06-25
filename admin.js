@@ -133,10 +133,87 @@ async function carregarAlunos() {
   alunos.forEach(a => {
     div.innerHTML += `
       <div class="item-lista">
-        <strong>${a.nome}</strong>
-        <span>${a.email}</span>
-        <span>${a.concursos?.nome || 'Sem concurso'}</span>
+        <div>
+          <strong>${a.nome}</strong>
+          <div style="color:#aaa;font-size:12px">${a.email}</div>
+        </div>
+        <button class="btn-acao btn-editar" onclick="gerenciarConcursosAluno('${a.id}','${a.nome}')">
+          🏆 Concursos
+        </button>
       </div>`
+  })
+}
+
+async function gerenciarConcursosAluno(aluno_id, nome) {
+  window._alunoGerenciando = aluno_id
+  document.getElementById('card-concursos-aluno').style.display = 'block'
+  document.getElementById('titulo-concursos-aluno').textContent = `Concursos — ${nome}`
+  document.getElementById('card-concursos-aluno').scrollIntoView({ behavior: 'smooth' })
+
+  // Preenche select de concursos disponíveis
+  const select = document.getElementById('select-add-concurso')
+  select.innerHTML = '<option value="">Selecione o concurso</option>'
+  window._concursos.forEach(c => {
+    select.innerHTML += `<option value="${c.id}">${c.nome}</option>`
+  })
+
+  await carregarConcursosDoAluno(aluno_id)
+}
+
+async function carregarConcursosDoAluno(aluno_id) {
+  const { data: vinculos } = await _supabase
+    .from('aluno_concursos')
+    .select('*, concursos(nome, banca)')
+    .eq('aluno_id', aluno_id)
+
+  const div = document.getElementById('lista-concursos-aluno')
+  div.innerHTML = ''
+
+  if (!vinculos || vinculos.length === 0) {
+    div.innerHTML = '<p style="color:#aaa">Nenhum concurso vinculado ainda.</p>'
+    return
+  }
+
+  vinculos.forEach(v => {
+    div.innerHTML += `
+      <div class="item-lista">
+        <div>
+          <strong>${v.concursos?.nome}</strong>
+          <div style="color:#aaa;font-size:12px">${v.concursos?.banca || ''}</div>
+        </div>
+        <span style="color:${v.ativo ? '#81c784' : '#aaa'};font-size:12px">${v.ativo ? 'Ativo' : 'Inativo'}</span>
+        <button class="btn-acao btn-excluir" onclick="removerConcursoAluno('${v.id}')">🗑️ Remover</button>
+      </div>`
+  })
+}
+
+async function adicionarConcursoAluno() {
+  const aluno_id = window._alunoGerenciando
+  const concurso_id = document.getElementById('select-add-concurso').value
+
+  if (!concurso_id) { alert('Selecione um concurso.'); return }
+
+  const { error } = await _supabase.from('aluno_concursos').insert({ aluno_id, concurso_id })
+
+  if (error) {
+    if (error.code === '23505') { alert('Esse concurso já está vinculado a este aluno.'); return }
+    alert('Erro: ' + error.message)
+    return
+  }
+
+  alert('✅ Concurso adicionado!')
+  carregarConcursosDoAluno(aluno_id)
+}
+
+async function removerConcursoAluno(vinculo_id) {
+  if (!confirm('Remover este concurso do aluno?')) return
+  await _supabase.from('aluno_concursos').delete().eq('id', vinculo_id)
+  carregarConcursosDoAluno(window._alunoGerenciando)
+}
+
+function fecharConcursosAluno() {
+  document.getElementById('card-concursos-aluno').style.display = 'none'
+}
   })
 }
 
