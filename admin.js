@@ -281,10 +281,11 @@ async function carregarPlanoAluno() {
   await renderizarRevisoes(aluno_id)
 }
 
-async function renderizarPlano(aluno_id) {
+async function renderizarPlano(aluno_id, concurso_id) {
   const { data: itens } = await _supabase
-    .from('plano_aluno').select('*').eq('aluno_id', aluno_id)
-
+    .from('plano_aluno').select('*')
+    .eq('aluno_id', aluno_id)
+    .eq('concurso_id', concurso_id)
   const div = document.getElementById('lista-plano-aluno')
   div.innerHTML = ''
 
