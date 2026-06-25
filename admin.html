@@ -59,11 +59,25 @@
         <input type="password" id="novo-aluno-senha" placeholder="Senha provisória (mín. 6 caracteres)">
         <select id="novo-aluno-concurso"></select>
         <button onclick="criarAluno()">Cadastrar aluno</button>
+        <p style="color:#aaa;font-size:12px;margin-top:6px">Você poderá adicionar mais concursos ao aluno depois, na lista abaixo.</p>
         <p id="msg-aluno" style="margin-top:10px"></p>
       </div>
       <div class="card">
         <h3>Alunos cadastrados</h3>
         <div id="lista-alunos"></div>
+      </div>
+
+      <div class="card" id="card-concursos-aluno" style="display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <h3 id="titulo-concursos-aluno">Concursos do aluno</h3>
+          <button onclick="fecharConcursosAluno()" style="width:auto;padding:6px 14px;background:#1a2f45;color:#aaa;border:1px solid #2a4a6a">✕ Fechar</button>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+          <select id="select-add-concurso" style="flex:1"></select>
+          <button onclick="adicionarConcursoAluno()" style="width:auto;padding:10px 16px">+ Adicionar concurso</button>
+        </div>
+        <div id="lista-concursos-aluno"></div>
+      </div>
       </div>
     </div>
 
