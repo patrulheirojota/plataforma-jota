@@ -14,19 +14,50 @@ async function init() {
   _alunoId = user.id
 
   const { data: aluno } = await _supabase
-    .from('alunos')
-    .select('*, concursos(*)')
-    .eq('id', user.id)
-    .single()
+    .from('alunos').select('nome').eq('id', user.id).single()
 
   if (!aluno) { alert('Aluno não encontrado. Contate o mentor.'); return }
-
   document.getElementById('nome-aluno').textContent = aluno.nome
-  _concursoId = aluno.concurso_id
 
+  // Busca concursos do aluno
+  const { data: vinculos } = await _supabase
+    .from('aluno_concursos')
+    .select('concurso_id, concursos(nome)')
+    .eq('aluno_id', _alunoId)
+
+  if (!vinculos || vinculos.length === 0) {
+    document.getElementById('cronograma-hoje').innerHTML = '<p style="color:#aaa">Nenhum concurso vinculado. Contate o mentor.</p>'
+    return
+  }
+
+  if (vinculos.length === 1) {
+    // Só um concurso — entra direto
+    _concursoId = vinculos[0].concurso_id
+    calcularStreak()
+    verificarAvisosNovos()
+    carregarHoje()
+  } else {
+    // Múltiplos concursos — mostra seletor
+    mostrarSeletorConcurso(vinculos)
+  }
+}
+
+function mostrarSeletorConcurso(vinculos) {
+  const div = document.getElementById('cronograma-hoje')
+  div.innerHTML = `
+    <p style="color:#C9A83C;font-weight:bold;margin-bottom:12px">Selecione o concurso que deseja estudar hoje:</p>
+    ${vinculos.map(v => `
+      <button onclick="selecionarConcurso('${v.concurso_id}')"
+        style="display:block;width:100%;text-align:left;padding:14px;margin-bottom:8px;background:#1a2f45;border:1px solid #2a4a6a;border-radius:8px;color:#fff;font-size:15px;cursor:pointer">
+        🏆 ${v.concursos?.nome}
+      </button>`).join('')}
+  `
+}
+
+async function selecionarConcurso(concurso_id) {
+  _concursoId = concurso_id
   calcularStreak()
   verificarAvisosNovos()
-
   carregarHoje()
 }
 
