@@ -157,122 +157,172 @@ async function carregarAlunos() {
   })
 }
 
-// ---------- CRONOGRAMA ----------
+// ---------- CRONOGRAMA INDIVIDUAL ----------
 function carregarSelectsCronograma() {
-  const selects = [document.getElementById('cron-concurso'), document.getElementById('filtro-cronograma')]
-  selects.forEach(select => {
-    select.innerHTML = '<option value="">Selecione o concurso</option>'
-    window._concursos.forEach(c => {
-      select.innerHTML += `<option value="${c.id}">${c.nome}</option>`
-    })
+  const select = document.getElementById('cron-aluno')
+  select.innerHTML = '<option value="">Selecione o aluno</option>'
+  // Carrega alunos do array já em memória
+  carregarAlunosParaCronograma()
+}
+
+async function carregarAlunosParaCronograma() {
+  const { data: alunos } = await _supabase
+    .from('alunos')
+    .select('id, nome')
+    .order('nome')
+
+  const select = document.getElementById('cron-aluno')
+  select.innerHTML = '<option value="">Selecione o aluno</option>'
+  alunos.forEach(a => {
+    select.innerHTML += `<option value="${a.id}">${a.nome}</option>`
   })
 }
 
-async function criarCronograma() {
-  const concurso_id = document.getElementById('cron-concurso').value
-  const dia_semana = document.getElementById('cron-dia').value
-  const disciplina = document.getElementById('cron-disciplina').value
-  const tempo_minutos = parseInt(document.getElementById('cron-tempo').value)
-  const meta_questoes = parseInt(document.getElementById('cron-questoes').value) || 30
-
-  if (!concurso_id || !disciplina || !tempo_minutos) {
-    alert('Preencha concurso, disciplina e tempo de estudo.')
+async function carregarPlanoAluno() {
+  const aluno_id = document.getElementById('cron-aluno').value
+  if (!aluno_id) {
+    document.getElementById('form-plano').style.display = 'none'
+    document.getElementById('card-plano-atual').style.display = 'none'
+    document.getElementById('card-revisoes').style.display = 'none'
     return
   }
 
-  const { error } = await _supabase.from('cronograma').insert({
-    concurso_id, dia_semana, disciplina, tempo_minutos, meta_questoes
-  })
+  document.getElementById('form-plano').style.display = 'block'
+  document.getElementById('card-plano-atual').style.display = 'block'
+  document.getElementById('card-revisoes').style.display = 'block'
 
-  if (error) { alert('Erro: ' + error.message); return }
-
-  document.getElementById('cron-disciplina').value = ''
-  document.getElementById('cron-tempo').value = ''
-  document.getElementById('cron-questoes').value = '30'
-
-  alert('✅ Item adicionado ao cronograma!')
+  await renderizarPlano(aluno_id)
+  await renderizarRevisoes(aluno_id)
 }
 
-async function carregarCronogramaPorConcurso() {
-  const concurso_id = document.getElementById('filtro-cronograma').value
-  if (!concurso_id) return
+async function renderizarPlano(aluno_id) {
+  const diasOrdemLocal = { segunda:1, terca:2, quarta:3, quinta:4, sexta:5, sabado:6, domingo:7 }
+  const nomeDiasLocal = { segunda:'Segunda', terca:'Terça', quarta:'Quarta', quinta:'Quinta', sexta:'Sexta', sabado:'Sábado', domingo:'Domingo' }
 
   const { data: itens } = await _supabase
-    .from('cronograma')
+    .from('plano_aluno')
     .select('*')
-    .eq('concurso_id', concurso_id)
+    .eq('aluno_id', aluno_id)
 
-  itens.sort((a, b) => diasOrdem[a.dia_semana] - diasOrdem[b.dia_semana])
+  itens.sort((a, b) => diasOrdemLocal[a.dia_semana] - diasOrdemLocal[b.dia_semana])
 
-  const div = document.getElementById('lista-cronograma')
+  const div = document.getElementById('lista-plano-aluno')
   div.innerHTML = ''
+
+  if (!itens || itens.length === 0) {
+    div.innerHTML = '<p style="color:#aaa">Nenhuma disciplina no plano ainda.</p>'
+    return
+  }
+
   itens.forEach(i => {
     div.innerHTML += `
-      <div class="item-lista" id="cron-item-${i.id}">
-        <strong>${nomeDias[i.dia_semana]}</strong>
-        <span id="cron-disc-${i.id}">${i.disciplina}</span>
-        <span>${i.tempo_minutos} min</span>
-        <span>${i.meta_questoes} questões</span>
-        <div style="display:flex;gap:6px;margin-left:auto">
-          <button class="btn-acao btn-editar" onclick="editarCronograma('${i.id}','${i.dia_semana}','${i.disciplina}',${i.tempo_minutos},${i.meta_questoes})">✏️ Editar</button>
-          <button class="btn-acao btn-excluir" onclick="excluirCronograma('${i.id}')">🗑️ Excluir</button>
-        </div>
+      <div class="item-lista">
+        <strong>${nomeDiasLocal[i.dia_semana]}</strong>
+        <span>${i.disciplina}</span>
+        <span>⏱ ${i.tempo_minutos} min</span>
+        <span>🎯 ${i.meta_questoes} questões</span>
+        <button class="btn-acao btn-excluir" onclick="excluirItemPlano('${i.id}','${aluno_id}')">🗑️</button>
       </div>`
   })
 }
 
-async function excluirCronograma(id) {
-  if (!confirm('Excluir esse item do cronograma?')) return
-  const { error } = await _supabase.from('cronograma').delete().eq('id', id)
-  if (error) { alert('Erro ao excluir: ' + error.message); return }
-  carregarCronogramaPorConcurso()
-}
+async function renderizarRevisoes(aluno_id) {
+  const { data: revisoes } = await _supabase
+    .from('revisoes_programadas')
+    .select('*')
+    .eq('aluno_id', aluno_id)
+    .eq('concluida', false)
+    .order('data_revisao')
 
-function editarCronograma(id, dia, disciplina, tempo, questoes) {
-  // Preenche o formulário de cadastro com os dados do item
-  document.getElementById('cron-dia').value = dia
-  document.getElementById('cron-disciplina').value = disciplina
-  document.getElementById('cron-tempo').value = tempo
-  document.getElementById('cron-questoes').value = questoes
+  const div = document.getElementById('lista-revisoes-admin')
+  div.innerHTML = ''
 
-  // Troca o botão para "Salvar edição"
-  const btn = document.querySelector('[onclick="criarCronograma()"]')
-  btn.textContent = '💾 Salvar edição'
-  btn.setAttribute('onclick', `salvarEdicaoCronograma('${id}')`)
-
-  // Rola para o topo do formulário
-  document.getElementById('cron-disciplina').scrollIntoView({ behavior: 'smooth' })
-}
-
-async function salvarEdicaoCronograma(id) {
-  const dia_semana = document.getElementById('cron-dia').value
-  const disciplina = document.getElementById('cron-disciplina').value
-  const tempo_minutos = parseInt(document.getElementById('cron-tempo').value)
-  const meta_questoes = parseInt(document.getElementById('cron-questoes').value) || 30
-
-  if (!disciplina || !tempo_minutos) {
-    alert('Preencha disciplina e tempo.')
+  if (!revisoes || revisoes.length === 0) {
+    div.innerHTML = '<p style="color:#aaa">Nenhuma revisão programada.</p>'
     return
   }
 
-  const { error } = await _supabase
-    .from('cronograma')
-    .update({ dia_semana, disciplina, tempo_minutos, meta_questoes })
-    .eq('id', id)
+  revisoes.forEach(r => {
+    const data = new Date(r.data_revisao + 'T12:00:00').toLocaleDateString('pt-BR', { weekday:'short', day:'2-digit', month:'2-digit' })
+    const icone = r.tipo === 'exercicios' ? '📝' : '🔄'
+    const label = r.tipo === 'exercicios' ? 'Exercícios' : 'Revisão'
+    div.innerHTML += `
+      <div class="item-lista">
+        <span>${icone} ${label}</span>
+        <strong>${r.disciplina}</strong>
+        <span style="color:#C9A83C">${data}</span>
+        <button class="btn-acao btn-excluir" onclick="excluirRevisao('${r.id}','${aluno_id}')">🗑️</button>
+      </div>`
+  })
+}
 
-  if (error) { alert('Erro ao salvar: ' + error.message); return }
+async function adicionarAoPlano() {
+  const aluno_id = document.getElementById('cron-aluno').value
+  const disciplina = document.getElementById('cron-disciplina').value
+  const dia_semana = document.getElementById('cron-dia').value
+  const tempo_minutos = parseInt(document.getElementById('cron-tempo').value)
+  const meta_questoes = parseInt(document.getElementById('cron-questoes').value) || 30
+  const usarRevisao = document.getElementById('usar-revisao').checked
+  const diasExercicios = parseInt(document.getElementById('dias-exercicios').value) || 5
+  const diasRevisao = parseInt(document.getElementById('dias-revisao').value) || 12
 
-  // Restaura o botão original
-  const btn = document.querySelector(`[onclick="salvarEdicaoCronograma('${id}')"]`)
-  btn.textContent = 'Adicionar ao cronograma'
-  btn.setAttribute('onclick', 'criarCronograma()')
+  if (!disciplina || !tempo_minutos) {
+    alert('Preencha a disciplina e o tempo de estudo.')
+    return
+  }
+
+  // Adiciona ao plano
+  const { error } = await _supabase.from('plano_aluno').insert({
+    aluno_id, disciplina, dia_semana, tempo_minutos, meta_questoes
+  })
+
+  if (error) { alert('Erro: ' + error.message); return }
+
+  // Gera revisões espaçadas se ativado
+  if (usarRevisao) {
+    const hoje = new Date()
+
+    const dataExercicios = new Date(hoje)
+    dataExercicios.setDate(hoje.getDate() + diasExercicios)
+
+    const dataRevisao = new Date(hoje)
+    dataRevisao.setDate(hoje.getDate() + diasRevisao)
+
+    await _supabase.from('revisoes_programadas').insert([
+      {
+        aluno_id,
+        disciplina,
+        data_revisao: dataExercicios.toISOString().split('T')[0],
+        tipo: 'exercicios'
+      },
+      {
+        aluno_id,
+        disciplina,
+        data_revisao: dataRevisao.toISOString().split('T')[0],
+        tipo: 'revisao'
+      }
+    ])
+  }
 
   document.getElementById('cron-disciplina').value = ''
   document.getElementById('cron-tempo').value = ''
   document.getElementById('cron-questoes').value = '30'
 
-  alert('✅ Item atualizado!')
-  carregarCronogramaPorConcurso()
+  alert(`✅ ${disciplina} adicionada ao plano!${usarRevisao ? `\n📝 Exercícios programados para daqui ${diasExercicios} dias\n🔄 Revisão programada para daqui ${diasRevisao} dias` : ''}`)
+  renderizarPlano(aluno_id)
+  renderizarRevisoes(aluno_id)
+}
+
+async function excluirItemPlano(id, aluno_id) {
+  if (!confirm('Remover esta disciplina do plano?')) return
+  await _supabase.from('plano_aluno').delete().eq('id', id)
+  renderizarPlano(aluno_id)
+}
+
+async function excluirRevisao(id, aluno_id) {
+  if (!confirm('Cancelar esta revisão?')) return
+  await _supabase.from('revisoes_programadas').delete().eq('id', id)
+  renderizarRevisoes(aluno_id)
 }
 // ---------- DESEMPENHO ----------
 function carregarSelectDesempenho() {
