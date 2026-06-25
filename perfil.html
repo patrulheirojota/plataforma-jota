@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meu Perfil — Patrulheiros de Elite</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h2>Meu Perfil 👮</h2>
+      <button onclick="window.location.href='dashboard.html'">← Voltar</button>
+    </header>
+    <div class="card">
+      <h3>Alterar senha</h3>
+      <input type="password" id="senha-nova" placeholder="Nova senha (mín. 6 caracteres)">
+      <input type="password" id="senha-confirma" placeholder="Confirme a nova senha">
+      <button onclick="alterarSenha()" style="margin-top:8px">Salvar nova senha</button>
+      <p id="msg-perfil" style="margin-top:10px;display:none"></p>
+    </div>
+  </div>
+  <script src="config.js"></script>
+  <script>
+    async function alterarSenha() {
+      const nova = document.getElementById('senha-nova').value
+      const confirma = document.getElementById('senha-confirma').value
+      const msg = document.getElementById('msg-perfil')
+
+      msg.style.display = 'block'
+      if (nova.length < 6) { msg.style.color='#e57373'; msg.textContent='Senha precisa ter pelo menos 6 caracteres.'; return }
+      if (nova !== confirma) { msg.style.color='#e57373'; msg.textContent='As senhas não coincidem.'; return }
+
+      const { error } = await _supabase.auth.updateUser({ password: nova })
+      if (error) { msg.style.color='#e57373'; msg.textContent='Erro: '+error.message; return }
+
+      msg.style.color='#81c784'
+      msg.textContent='✅ Senha alterada com sucesso!'
+    }
+  </script>
+</body>
+</html>
