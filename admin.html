@@ -72,9 +72,17 @@
 
       <div class="card">
         <h3>Montar plano individual do aluno</h3>
-        <select id="cron-aluno" onchange="carregarPlanoAluno()">
-          <option value="">Selecione o aluno</option>
-        </select>
+       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+          <div style="flex:1;min-width:200px">
+            <label style="color:#aaa;font-size:12px;display:block;margin-bottom:4px">Aluno</label>
+            <select id="cron-aluno" onchange="carregarPlanoAluno()"></select>
+          </div>
+          <div style="flex:1;min-width:200px">
+            <label style="color:#aaa;font-size:12px;display:block;margin-bottom:4px">Copiar plano de outro aluno</label>
+            <select id="cron-aluno-origem"></select>
+          </div>
+          <button onclick="copiarPlano()" style="width:auto;padding:10px 16px">📋 Copiar plano</button>
+        </div>
 
         <div id="form-plano" style="display:none;margin-top:16px">
           <div style="background:#0d1b2a;border-radius:8px;padding:14px;margin-bottom:12px">
