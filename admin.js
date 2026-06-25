@@ -244,6 +244,99 @@ async function renderizarPlano(aluno_id) {
     .select('*')
     .eq('aluno_id', aluno_id)
 
+  const div = document.getElementById('lista-plano-aluno')
+  div.innerHTML = ''
+
+  if (!itens || itens.length === 0) {
+    div.innerHTML = '<p style="color:#aaa">Nenhuma disciplina no plano ainda. Adicione acima.</p>'
+    return
+  }
+
+  itens.sort((a, b) => diasOrdemLocal[a.dia_semana] - diasOrdemLocal[b.dia_semana])
+
+  // Agrupa por dia
+  const porDia = {}
+  itens.forEach(i => {
+    if (!porDia[i.dia_semana]) porDia[i.dia_semana] = []
+    porDia[i.dia_semana].push(i)
+  })
+
+  Object.keys(porDia).sort((a, b) => diasOrdemLocal[a] - diasOrdemLocal[b]).forEach(dia => {
+    const itensDia = porDia[dia]
+    const totalMin = itensDia.reduce((s, i) => s + i.tempo_minutos, 0)
+    const horas = Math.floor(totalMin / 60)
+    const min = totalMin % 60
+
+    div.innerHTML += `
+      <div style="margin-bottom:20px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <strong style="color:#C9A83C">${nomeDiasLocal[dia]}</strong>
+          <span style="color:#aaa;font-size:12px">Total: ${horas > 0 ? horas+'h ' : ''}${min > 0 ? min+'min' : ''} · ${itensDia.length} disciplina${itensDia.length > 1 ? 's' : ''}</span>
+        </div>
+        ${itensDia.map(i => `
+          <div class="item-lista" id="item-${i.id}" style="flex-wrap:wrap;gap:8px">
+            <div id="view-${i.id}" style="display:flex;gap:10px;align-items:center;flex:1;flex-wrap:wrap">
+              <strong style="min-width:160px">${i.disciplina}</strong>
+              <span style="color:#aaa;font-size:13px">⏱ ${i.tempo_minutos} min</span>
+              <span style="color:#aaa;font-size:13px">🎯 ${i.meta_questoes} questões</span>
+              <div style="display:flex;gap:6px;margin-left:auto">
+                <button class="btn-acao btn-editar" onclick="editarItemPlano('${i.id}')">✏️</button>
+                <button class="btn-acao btn-excluir" onclick="excluirItemPlano('${i.id}','${aluno_id}')">🗑️</button>
+              </div>
+            </div>
+            <div id="edit-${i.id}" style="display:none;width:100%;background:#0d1b2a;border-radius:8px;padding:10px;margin-top:4px">
+              <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                <input type="text" id="edit-disc-${i.id}" value="${i.disciplina}" style="flex:2;min-width:140px">
+                <input type="number" id="edit-tempo-${i.id}" value="${i.tempo_minutos}" placeholder="Minutos" style="width:80px">
+                <input type="number" id="edit-quest-${i.id}" value="${i.meta_questoes}" placeholder="Questões" style="width:80px">
+                <select id="edit-dia-${i.id}" style="flex:1;min-width:120px">
+                  ${['segunda','terca','quarta','quinta','sexta','sabado','domingo'].map(d =>
+                    `<option value="${d}" ${d === i.dia_semana ? 'selected' : ''}>${nomeDiasLocal[d]}</option>`
+                  ).join('')}
+                </select>
+                <button class="btn-acao btn-editar" onclick="salvarEdicaoItemPlano('${i.id}','${aluno_id}')">💾 Salvar</button>
+                <button class="btn-acao" onclick="cancelarEdicaoItem('${i.id}')" style="background:#1a2f45;color:#aaa;border:1px solid #2a4a6a">✕</button>
+              </div>
+            </div>
+          </div>`).join('')}
+      </div>`
+  })
+}
+
+function editarItemPlano(id) {
+  document.getElementById(`view-${id}`).style.display = 'none'
+  document.getElementById(`edit-${id}`).style.display = 'block'
+}
+
+function cancelarEdicaoItem(id) {
+  document.getElementById(`view-${id}`).style.display = 'flex'
+  document.getElementById(`edit-${id}`).style.display = 'none'
+}
+
+async function salvarEdicaoItemPlano(id, aluno_id) {
+  const disciplina = document.getElementById(`edit-disc-${id}`).value
+  const tempo_minutos = parseInt(document.getElementById(`edit-tempo-${id}`).value)
+  const meta_questoes = parseInt(document.getElementById(`edit-quest-${id}`).value)
+  const dia_semana = document.getElementById(`edit-dia-${id}`).value
+
+  if (!disciplina || !tempo_minutos) {
+    alert('Preencha disciplina e tempo.')
+    return
+  }
+
+  const { error } = await _supabase
+    .from('plano_aluno')
+    .update({ disciplina, tempo_minutos, meta_questoes, dia_semana })
+    .eq('id', id)
+
+  if (error) { alert('Erro: ' + error.message); return }
+  renderizarPlano(aluno_id)
+}
+  const { data: itens } = await _supabase
+    .from('plano_aluno')
+    .select('*')
+    .eq('aluno_id', aluno_id)
+
   itens.sort((a, b) => diasOrdemLocal[a.dia_semana] - diasOrdemLocal[b.dia_semana])
 
   const div = document.getElementById('lista-plano-aluno')
