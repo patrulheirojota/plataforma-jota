@@ -403,31 +403,41 @@ async function renderizarRevisoes(aluno_id) {
 
 async function adicionarAoPlano() {
   const aluno_id = document.getElementById('cron-aluno').value
+  const concurso_id = window._concursoAtivoCronograma
   const disciplina = document.getElementById('cron-disciplina').value
   const dia_semana = document.getElementById('cron-dia').value
   const tempo_minutos = parseInt(document.getElementById('cron-tempo').value)
   const meta_questoes = parseInt(document.getElementById('cron-questoes').value) || 30
   const usarRevisao = document.getElementById('usar-revisao').checked
   const diasExercicios = parseInt(document.getElementById('dias-exercicios').value) || 5
-  const diasRevisao = parseInt(document.getElementById('dias-revisao').value) || 12
+  const diasRevisaoVal = parseInt(document.getElementById('dias-revisao').value) || 12
 
   if (!disciplina || !tempo_minutos) { alert('Preencha a disciplina e o tempo de estudo.'); return }
 
   const { error } = await _supabase.from('plano_aluno').insert({
-    aluno_id, disciplina, dia_semana, tempo_minutos, meta_questoes
+    aluno_id, concurso_id, disciplina, dia_semana, tempo_minutos, meta_questoes
   })
   if (error) { alert('Erro: ' + error.message); return }
 
   if (usarRevisao) {
     const hoje = new Date()
     const dataEx = new Date(hoje); dataEx.setDate(hoje.getDate() + diasExercicios)
-    const dataRev = new Date(hoje); dataRev.setDate(hoje.getDate() + diasRevisao)
+    const dataRev = new Date(hoje); dataRev.setDate(hoje.getDate() + diasRevisaoVal)
 
     await _supabase.from('revisoes_programadas').insert([
       { aluno_id, disciplina, data_revisao: dataEx.toISOString().split('T')[0], tipo: 'exercicios' },
       { aluno_id, disciplina, data_revisao: dataRev.toISOString().split('T')[0], tipo: 'revisao' }
     ])
   }
+
+  document.getElementById('cron-disciplina').value = ''
+  document.getElementById('cron-tempo').value = ''
+  document.getElementById('cron-questoes').value = '30'
+
+  alert(`✅ ${disciplina} adicionada!`)
+  renderizarPlano(aluno_id, concurso_id)
+  renderizarRevisoes(aluno_id)
+}
 
   document.getElementById('cron-disciplina').value = ''
   document.getElementById('cron-tempo').value = ''
