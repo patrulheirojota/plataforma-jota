@@ -235,24 +235,49 @@ async function carregarAlunosParaCronograma() {
     alunos.forEach(a => { select.innerHTML += `<option value="${a.id}">${a.nome}</option>` })
   })
 }
-
-async function carregarPlanoAluno() {
+async function carregarConcursosParaCronograma() {
   const aluno_id = document.getElementById('cron-aluno').value
-  const formPlano = document.getElementById('form-plano')
-  const cardPlano = document.getElementById('card-plano-atual')
-  const cardRevisoes = document.getElementById('card-revisoes')
+  const selectConcurso = document.getElementById('cron-concurso-filtro')
+  selectConcurso.innerHTML = '<option value="">Selecione o concurso</option>'
 
-  if (!aluno_id) {
-    formPlano.style.display = 'none'
-    cardPlano.style.display = 'none'
-    cardRevisoes.style.display = 'none'
+  document.getElementById('form-plano').style.display = 'none'
+  document.getElementById('card-plano-atual').style.display = 'none'
+  document.getElementById('card-revisoes').style.display = 'none'
+
+  if (!aluno_id) return
+
+  const { data: vinculos } = await _supabase
+    .from('aluno_concursos')
+    .select('concurso_id, concursos(nome)')
+    .eq('aluno_id', aluno_id)
+
+  if (!vinculos || vinculos.length === 0) {
+    selectConcurso.innerHTML = '<option value="">Aluno sem concurso vinculado</option>'
     return
   }
 
-  formPlano.style.display = 'block'
-  cardPlano.style.display = 'block'
-  cardRevisoes.style.display = 'block'
-  await renderizarPlano(aluno_id)
+  vinculos.forEach(v => {
+    selectConcurso.innerHTML += `<option value="${v.concurso_id}">${v.concursos?.nome}</option>`
+  })
+}
+async function carregarPlanoAluno() {
+  const aluno_id = document.getElementById('cron-aluno').value
+  const concurso_id = document.getElementById('cron-concurso-filtro').value
+
+  if (!aluno_id || !concurso_id) {
+    document.getElementById('form-plano').style.display = 'none'
+    document.getElementById('card-plano-atual').style.display = 'none'
+    document.getElementById('card-revisoes').style.display = 'none'
+    return
+  }
+
+  window._concursoAtivoCronograma = concurso_id
+
+  document.getElementById('form-plano').style.display = 'block'
+  document.getElementById('card-plano-atual').style.display = 'block'
+  document.getElementById('card-revisoes').style.display = 'block'
+
+  await renderizarPlano(aluno_id, concurso_id)
   await renderizarRevisoes(aluno_id)
 }
 
