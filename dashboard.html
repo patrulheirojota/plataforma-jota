@@ -5,28 +5,114 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Meu Cronograma — Patrulheiros de Elite</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
- <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <link rel="stylesheet" href="style.css">
+  <style>
+    .streak-card {
+      background: linear-gradient(135deg, #1a3a5c, #0d1b2a);
+      border-radius: 16px;
+      padding: 24px 20px;
+      margin-bottom: 16px;
+      border: 1px solid #2a4a6a;
+    }
+    .streak-numero {
+      font-size: 52px;
+      font-weight: bold;
+      color: #C9A83C;
+      line-height: 1;
+    }
+    .streak-dias-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 6px;
+      margin: 16px 0;
+    }
+    .streak-dia {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    .streak-circulo {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      font-weight: bold;
+      transition: all 0.3s;
+    }
+    .streak-circulo.cumpriu {
+      background: #C9A83C22;
+      border: 2px solid #C9A83C;
+      color: #C9A83C;
+    }
+    .streak-circulo.hoje {
+      background: #1a3a5c;
+      border: 2px solid #4a8ab5;
+      color: #4a8ab5;
+      box-shadow: 0 0 12px #4a8ab533;
+    }
+    .streak-circulo.futuro {
+      background: transparent;
+      border: 2px solid #2a4a6a;
+      color: #2a4a6a;
+    }
+    .streak-circulo.perdeu {
+      background: #1a1a1a;
+      border: 2px solid #333;
+      color: #555;
+    }
+    .streak-label {
+      font-size: 11px;
+      color: #aaa;
+    }
+    .streak-label.hoje { color: #fff; font-weight: bold; }
+    .streak-stats {
+      background: #0d1b2a;
+      border-radius: 10px;
+      padding: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 4px;
+    }
+    .streak-stat { text-align: center; }
+    .streak-stat-num { font-size: 20px; font-weight: bold; }
+    .streak-stat-label { color: #aaa; font-size: 11px; margin-top: 2px; }
+    .streak-divider { width: 1px; height: 30px; background: #1a2f45; }
+    .nivel-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: bold;
+      margin-top: 6px;
+    }
+  </style>
 </head>
 <body>
   <div class="container">
     <header>
       <div>
-        <h2>Olá, <span id="nome-aluno"></span> 👮</h2>
-        <div id="streak-display" style="color:#C9A83C;font-size:13px;margin-top:2px"></div>
+        <h2>Ola, <span id="nome-aluno"></span> 👮</h2>
+        <div id="streak-mini" style="color:#C9A83C;font-size:13px;margin-top:2px"></div>
       </div>
       <div style="display:flex;gap:8px;align-items:center">
-        <button onclick="window.location.href='perfil.html'" style="width:auto;padding:8px 14px;background:#1a2f45;color:#aaa;border:1px solid #2a4a6a">⚙️ Perfil</button>
+        <button onclick="window.location.href='perfil.html'" style="width:auto;padding:8px 14px;background:#1a2f45;color:#aaa;border:1px solid #2a4a6a">Perfil</button>
         <button onclick="sair()" style="width:auto;padding:8px 14px">Sair</button>
       </div>
     </header>
 
-    <!-- ABAS DO ALUNO -->
     <div class="abas">
       <button class="aba-btn ativa" onclick="mostrarAbaAluno('aba-hoje')">Hoje</button>
       <button class="aba-btn" onclick="mostrarAbaAluno('aba-semana')">Semana</button>
-      <button class="aba-btn" onclick="mostrarAbaAluno('aba-historico')">Histórico</button>
+      <button class="aba-btn" onclick="mostrarAbaAluno('aba-sequencia')">Sequencia 🔥</button>
+      <button class="aba-btn" onclick="mostrarAbaAluno('aba-historico')">Historico</button>
       <button class="aba-btn" onclick="mostrarAbaAluno('aba-grafico')">Desempenho</button>
       <button class="aba-btn" onclick="mostrarAbaAluno('aba-avisos')" id="btn-aba-avisos">
         Avisos <span id="badge-avisos" style="display:none;background:#e57373;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px"></span>
@@ -36,44 +122,49 @@
     <!-- ABA: HOJE -->
     <div id="aba-hoje" class="aba-conteudo">
       <div class="card">
-        <h3>📅 Cronograma de Hoje</h3>
+        <h3>Cronograma de Hoje</h3>
         <div id="cronograma-hoje"></div>
       </div>
       <div class="card" id="card-registro" style="display:none">
-        <h3>✅ Registrar meu estudo de hoje</h3>
+        <h3>Registrar meu estudo de hoje</h3>
         <div id="form-registro"></div>
         <button onclick="salvarRegistro()" style="margin-top:12px">Salvar desempenho</button>
-        <p id="msg-salvo" style="color:#81c784;display:none;margin-top:8px">✅ Salvo com sucesso!</p>
+        <p id="msg-salvo" style="color:#81c784;display:none;margin-top:8px">Salvo com sucesso!</p>
       </div>
     </div>
 
     <!-- ABA: SEMANA -->
     <div id="aba-semana" class="aba-conteudo" style="display:none">
       <div class="card">
-        <h3>📆 Cronograma da Semana</h3>
+        <h3>Cronograma da Semana</h3>
         <div id="cronograma-semana"></div>
       </div>
     </div>
 
-    <!-- ABA: HISTÓRICO -->
+    <!-- ABA: SEQUENCIA (STREAK) -->
+    <div id="aba-sequencia" class="aba-conteudo" style="display:none">
+      <div id="streak-card-container"></div>
+    </div>
+
+    <!-- ABA: HISTORICO -->
     <div id="aba-historico" class="aba-conteudo" style="display:none">
       <div class="card">
-        <h3>📋 Meus últimos 14 dias</h3>
+        <h3>Meus ultimos 14 dias</h3>
         <div id="lista-historico"></div>
       </div>
     </div>
 
-    <!-- ABA: GRÁFICO -->
+    <!-- ABA: GRAFICO -->
     <div id="aba-grafico" class="aba-conteudo" style="display:none">
       <div class="card">
-        <h3>📊 Meu desempenho por disciplina</h3>
+        <h3>Meu desempenho por disciplina</h3>
         <p style="color:#aaa;font-size:13px;margin-bottom:16px">Baseado em todos os registros</p>
         <canvas id="grafico-disciplinas" height="300"></canvas>
         <div id="sem-dados-grafico" style="display:none;color:#aaa;text-align:center;padding:20px">
-          Nenhum registro encontrado ainda. Comece a registrar seus estudos!
+          Nenhum registro encontrado ainda.
         </div>
         <button onclick="exportarPDF()" style="margin-top:16px;background:#1a3a5c;color:#C9A83C;border:1px solid #C9A83C">
-          📄 Exportar relatório em PDF
+          Exportar relatorio PDF
         </button>
       </div>
     </div>
@@ -81,7 +172,7 @@
     <!-- ABA: AVISOS -->
     <div id="aba-avisos" class="aba-conteudo" style="display:none">
       <div class="card">
-        <h3>📢 Avisos do Mentor</h3>
+        <h3>Avisos do Mentor</h3>
         <div id="lista-avisos-aluno"></div>
       </div>
     </div>
