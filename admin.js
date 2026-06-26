@@ -1,5 +1,5 @@
 const diasOrdem = { segunda:1, terca:2, quarta:3, quinta:4, sexta:5, sabado:6, domingo:7 }
-const nomeDias = { segunda:'Segunda', terca:'Terça', quarta:'Quarta', quinta:'Quinta', sexta:'Sexta', sabado:'Sábado', domingo:'Domingo' }
+const nomeDias = { segunda:'Segunda', terca:'Terca', quarta:'Quarta', quinta:'Quinta', sexta:'Sexta', sabado:'Sabado', domingo:'Domingo' }
 
 // ========== LOGIN ==========
 async function loginAdmin() {
@@ -76,13 +76,13 @@ async function carregarConcursos() {
         <span>${c.data_prova ? new Date(c.data_prova).toLocaleDateString('pt-BR') : 'Sem data'}</span>
       </div>`
   })
-  const selectAluno = document.getElementById('novo-aluno-concurso')
-  if (selectAluno) {
-    selectAluno.innerHTML = '<option value="">Selecione o concurso</option>'
-    concursos.forEach(c => {
-      selectAluno.innerHTML += `<option value="${c.id}">${c.nome}</option>`
-    })
-  }
+  const selects = ['novo-aluno-concurso','editar-aluno-concurso','filtro-cron-concurso']
+  selects.forEach(sid => {
+    const s = document.getElementById(sid)
+    if (!s) return
+    s.innerHTML = '<option value="">Selecione o concurso</option>'
+    concursos.forEach(c => { s.innerHTML += `<option value="${c.id}">${c.nome}</option>` })
+  })
   window._concursos = concursos
 }
 
@@ -99,10 +99,9 @@ async function criarAluno() {
   if (error) { msg.style.color='#e57373'; msg.textContent='Erro: '+error.message; return }
   const { error: erroAluno } = await _supabase.from('alunos').insert({ id: data.user.id, nome, email, concurso_id })
   if (erroAluno) { msg.style.color='#e57373'; msg.textContent='Login criado, erro ao salvar: '+erroAluno.message; return }
-  // Vincula também na nova tabela
   await _supabase.from('aluno_concursos').insert({ aluno_id: data.user.id, concurso_id }).catch(() => {})
   msg.style.color='#81c784'
-  msg.textContent=`✅ Aluno ${nome} cadastrado! Login: ${email} / Senha: ${senha}`
+  msg.textContent='Aluno ' + nome + ' cadastrado! Login: ' + email + ' / Senha: ' + senha
   document.getElementById('novo-aluno-nome').value = ''
   document.getElementById('novo-aluno-email').value = ''
   document.getElementById('novo-aluno-senha').value = ''
@@ -113,28 +112,63 @@ async function carregarAlunos() {
   const { data: alunos } = await _supabase.from('alunos').select('*, concursos(nome)').order('criado_em', { ascending: false })
   const div = document.getElementById('lista-alunos')
   div.innerHTML = ''
+  if (!alunos || alunos.length === 0) {
+    div.innerHTML = '<p style="color:#aaa">Nenhum aluno cadastrado ainda.</p>'
+    return
+  }
   alunos.forEach(a => {
     div.innerHTML += `
-      <div class="item-lista">
-        <div>
+      <div class="item-lista" style="flex-wrap:wrap;gap:8px">
+        <div style="flex:1;min-width:150px">
           <strong>${a.nome}</strong>
           <div style="color:#aaa;font-size:12px">${a.email}</div>
+          <div style="color:#aaa;font-size:12px">${a.concursos?.nome || 'Sem concurso'}</div>
         </div>
-        <button class="btn-acao btn-editar" onclick="gerenciarConcursosAluno('${a.id}','${a.nome}')">🏆 Concursos</button>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn-acao btn-editar" onclick="abrirEditarAluno('${a.id}','${a.nome}','${a.email}','${a.concurso_id || ''}')">Editar</button>
+          <button class="btn-acao btn-editar" onclick="gerenciarConcursosAluno('${a.id}','${a.nome}')">Concursos</button>
+        </div>
       </div>`
   })
+}
+
+function abrirEditarAluno(id, nome, email, concurso_id) {
+  document.getElementById('card-editar-aluno').style.display = 'block'
+  document.getElementById('titulo-editar-aluno').textContent = 'Editar — ' + nome
+  document.getElementById('editar-aluno-id').value = id
+  document.getElementById('editar-aluno-nome').value = nome
+  document.getElementById('editar-aluno-email').value = email
+  const sel = document.getElementById('editar-aluno-concurso')
+  if (sel && concurso_id) sel.value = concurso_id
+  document.getElementById('card-editar-aluno').scrollIntoView({ behavior: 'smooth' })
+  document.getElementById('msg-editar-aluno').textContent = ''
+}
+
+async function salvarEdicaoAluno() {
+  const id = document.getElementById('editar-aluno-id').value
+  const nome = document.getElementById('editar-aluno-nome').value
+  const email = document.getElementById('editar-aluno-email').value
+  const concurso_id = document.getElementById('editar-aluno-concurso').value
+  const msg = document.getElementById('msg-editar-aluno')
+  if (!nome || !email) { msg.style.color='#e57373'; msg.textContent='Preencha nome e e-mail.'; return }
+  const { error } = await _supabase.from('alunos').update({ nome, email, concurso_id: concurso_id || null }).eq('id', id)
+  if (error) { msg.style.color='#e57373'; msg.textContent='Erro: '+error.message; return }
+  msg.style.color='#81c784'; msg.textContent='Salvo com sucesso!'
+  carregarAlunos()
+}
+
+function fecharEditarAluno() {
+  document.getElementById('card-editar-aluno').style.display = 'none'
 }
 
 async function gerenciarConcursosAluno(aluno_id, nome) {
   window._alunoGerenciando = aluno_id
   document.getElementById('card-concursos-aluno').style.display = 'block'
-  document.getElementById('titulo-concursos-aluno').textContent = `Concursos — ${nome}`
+  document.getElementById('titulo-concursos-aluno').textContent = 'Concursos — ' + nome
   document.getElementById('card-concursos-aluno').scrollIntoView({ behavior: 'smooth' })
   const select = document.getElementById('select-add-concurso')
   select.innerHTML = '<option value="">Selecione o concurso</option>'
-  window._concursos.forEach(c => {
-    select.innerHTML += `<option value="${c.id}">${c.nome}</option>`
-  })
+  window._concursos.forEach(c => { select.innerHTML += `<option value="${c.id}">${c.nome}</option>` })
   await carregarConcursosDoAluno(aluno_id)
 }
 
@@ -154,7 +188,7 @@ async function carregarConcursosDoAluno(aluno_id) {
           <strong>${v.concursos?.nome}</strong>
           <div style="color:#aaa;font-size:12px">${v.concursos?.banca || ''}</div>
         </div>
-        <button class="btn-acao btn-excluir" onclick="removerConcursoAluno('${v.id}')">🗑️ Remover</button>
+        <button class="btn-acao btn-excluir" onclick="removerConcursoAluno('${v.id}')">Remover</button>
       </div>`
   })
 }
@@ -165,10 +199,10 @@ async function adicionarConcursoAluno() {
   if (!concurso_id) { alert('Selecione um concurso.'); return }
   const { error } = await _supabase.from('aluno_concursos').insert({ aluno_id, concurso_id })
   if (error) {
-    if (error.code === '23505') { alert('Esse concurso já está vinculado a este aluno.'); return }
+    if (error.code === '23505') { alert('Esse concurso ja esta vinculado a este aluno.'); return }
     alert('Erro: ' + error.message); return
   }
-  alert('✅ Concurso adicionado!')
+  alert('Concurso adicionado!')
   carregarConcursosDoAluno(aluno_id)
 }
 
@@ -182,22 +216,77 @@ function fecharConcursosAluno() {
   document.getElementById('card-concursos-aluno').style.display = 'none'
 }
 
-// ========== CRONOGRAMA INDIVIDUAL ==========
+// ========== CRONOGRAMA ==========
 function carregarSelectsCronograma() {
   carregarAlunosParaCronograma()
+  const s = document.getElementById('filtro-cron-concurso')
+  if (s && window._concursos) {
+    s.innerHTML = '<option value="">Selecione o concurso</option>'
+    window._concursos.forEach(c => { s.innerHTML += `<option value="${c.id}">${c.nome}</option>` })
+  }
 }
 
 async function carregarAlunosParaCronograma() {
   const { data: alunos } = await _supabase.from('alunos').select('id, nome').order('nome')
-  const selects = [
-    document.getElementById('cron-aluno'),
-    document.getElementById('cron-aluno-origem')
-  ]
-  selects.forEach(select => {
-    if (!select) return
-    select.innerHTML = '<option value="">Selecione o aluno</option>'
-    alunos.forEach(a => { select.innerHTML += `<option value="${a.id}">${a.nome}</option>` })
+  const selects = ['cron-aluno','cron-aluno-origem']
+  selects.forEach(sid => {
+    const s = document.getElementById(sid)
+    if (!s) return
+    s.innerHTML = '<option value="">Selecione o aluno</option>'
+    alunos.forEach(a => { s.innerHTML += `<option value="${a.id}">${a.nome}</option>` })
   })
+}
+
+async function visualizarCronogramaConcurso() {
+  const concurso_id = document.getElementById('filtro-cron-concurso').value
+  const div = document.getElementById('viz-cronograma-concurso')
+  div.innerHTML = ''
+  if (!concurso_id) return
+
+  const { data: vinculos } = await _supabase
+    .from('aluno_concursos').select('aluno_id, alunos(nome)').eq('concurso_id', concurso_id)
+
+  if (!vinculos || vinculos.length === 0) {
+    div.innerHTML = '<p style="color:#aaa">Nenhum aluno vinculado a este concurso.</p>'
+    return
+  }
+
+  div.innerHTML = '<p style="color:#aaa;font-size:13px;margin-bottom:12px">' + vinculos.length + ' aluno(s) neste concurso</p>'
+
+  for (const v of vinculos) {
+    const { data: itens } = await _supabase
+      .from('plano_aluno').select('*')
+      .eq('aluno_id', v.aluno_id).eq('concurso_id', concurso_id)
+
+    if (!itens || itens.length === 0) {
+      div.innerHTML += `
+        <div style="background:#0d1b2a;border-radius:8px;padding:12px;margin-bottom:8px">
+          <strong style="color:#C9A83C">${v.alunos?.nome}</strong>
+          <span style="color:#aaa;font-size:13px;margin-left:10px">Sem plano cadastrado</span>
+        </div>`
+      continue
+    }
+
+    itens.sort((a, b) => diasOrdem[a.dia_semana] - diasOrdem[b.dia_semana])
+    const totalMin = itens.reduce((s, i) => s + i.tempo_minutos, 0)
+    const horas = Math.floor(totalMin / 60)
+    const min = totalMin % 60
+
+    div.innerHTML += `
+      <div style="background:#0d1b2a;border-radius:8px;padding:12px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <strong style="color:#C9A83C">${v.alunos?.nome}</strong>
+          <span style="color:#aaa;font-size:12px">${itens.length} disciplinas · ${horas > 0 ? horas+'h ' : ''}${min > 0 ? min+'min' : ''}/semana</span>
+        </div>
+        ${itens.map(i => `
+          <div style="display:flex;gap:10px;padding:4px 0;border-bottom:1px solid #1a2f45;flex-wrap:wrap;font-size:13px">
+            <span style="color:#aaa;min-width:70px">${nomeDias[i.dia_semana]}</span>
+            <span style="flex:1">${i.disciplina}</span>
+            <span style="color:#aaa">${i.tempo_minutos}min</span>
+            <span style="color:#aaa">${i.meta_questoes}q</span>
+          </div>`).join('')}
+      </div>`
+  }
 }
 
 async function carregarConcursosParaCronograma() {
@@ -214,9 +303,7 @@ async function carregarConcursosParaCronograma() {
     selectConcurso.innerHTML = '<option value="">Aluno sem concurso vinculado</option>'
     return
   }
-  vinculos.forEach(v => {
-    selectConcurso.innerHTML += `<option value="${v.concurso_id}">${v.concursos?.nome}</option>`
-  })
+  vinculos.forEach(v => { selectConcurso.innerHTML += `<option value="${v.concurso_id}">${v.concursos?.nome}</option>` })
 }
 
 async function carregarPlanoAluno() {
@@ -237,9 +324,9 @@ async function carregarPlanoAluno() {
 }
 
 async function renderizarPlano(aluno_id, concurso_id) {
-  const query = _supabase.from('plano_aluno').select('*').eq('aluno_id', aluno_id)
-  if (concurso_id) query.eq('concurso_id', concurso_id)
-  const { data: itens } = await query
+  const { data: itens } = await _supabase
+    .from('plano_aluno').select('*')
+    .eq('aluno_id', aluno_id).eq('concurso_id', concurso_id)
   const div = document.getElementById('lista-plano-aluno')
   div.innerHTML = ''
   if (!itens || itens.length === 0) {
@@ -266,26 +353,26 @@ async function renderizarPlano(aluno_id, concurso_id) {
         ${itensDia.map(i => `
           <div class="item-lista" id="item-${i.id}" style="flex-wrap:wrap;gap:8px">
             <div id="view-${i.id}" style="display:flex;gap:10px;align-items:center;flex:1;flex-wrap:wrap">
-              <strong style="min-width:160px">${i.disciplina}</strong>
-              <span style="color:#aaa;font-size:13px">⏱ ${i.tempo_minutos} min</span>
-              <span style="color:#aaa;font-size:13px">🎯 ${i.meta_questoes} questões</span>
+              <strong style="min-width:140px">${i.disciplina}</strong>
+              <span style="color:#aaa;font-size:13px">${i.tempo_minutos} min</span>
+              <span style="color:#aaa;font-size:13px">${i.meta_questoes} questoes</span>
               <div style="display:flex;gap:6px;margin-left:auto">
-                <button class="btn-acao btn-editar" onclick="editarItemPlano('${i.id}')">✏️</button>
-                <button class="btn-acao btn-excluir" onclick="excluirItemPlano('${i.id}','${aluno_id}','${concurso_id}')">🗑️</button>
+                <button class="btn-acao btn-editar" onclick="editarItemPlano('${i.id}')">Editar</button>
+                <button class="btn-acao btn-excluir" onclick="excluirItemPlano('${i.id}','${aluno_id}','${concurso_id}')">Excluir</button>
               </div>
             </div>
             <div id="edit-${i.id}" style="display:none;width:100%;background:#0d1b2a;border-radius:8px;padding:10px;margin-top:4px">
               <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-                <input type="text" id="edit-disc-${i.id}" value="${i.disciplina}" style="flex:2;min-width:140px">
-                <input type="number" id="edit-tempo-${i.id}" value="${i.tempo_minutos}" placeholder="Minutos" style="width:80px">
-                <input type="number" id="edit-quest-${i.id}" value="${i.meta_questoes}" placeholder="Questões" style="width:80px">
-                <select id="edit-dia-${i.id}" style="flex:1;min-width:120px">
+                <input type="text" id="edit-disc-${i.id}" value="${i.disciplina}" style="flex:2;min-width:120px">
+                <input type="number" id="edit-tempo-${i.id}" value="${i.tempo_minutos}" style="width:80px">
+                <input type="number" id="edit-quest-${i.id}" value="${i.meta_questoes}" style="width:80px">
+                <select id="edit-dia-${i.id}" style="flex:1;min-width:110px">
                   ${['segunda','terca','quarta','quinta','sexta','sabado','domingo'].map(d =>
                     `<option value="${d}" ${d === i.dia_semana ? 'selected' : ''}>${nomeDias[d]}</option>`
                   ).join('')}
                 </select>
-                <button class="btn-acao btn-editar" onclick="salvarEdicaoItemPlano('${i.id}','${aluno_id}','${concurso_id}')">💾 Salvar</button>
-                <button class="btn-acao" onclick="cancelarEdicaoItem('${i.id}')" style="background:#1a2f45;color:#aaa;border:1px solid #2a4a6a">✕</button>
+                <button class="btn-acao btn-editar" onclick="salvarEdicaoItemPlano('${i.id}','${aluno_id}','${concurso_id}')">Salvar</button>
+                <button class="btn-acao" onclick="cancelarEdicaoItem('${i.id}')" style="background:#1a2f45;color:#aaa;border:1px solid #2a4a6a">X</button>
               </div>
             </div>
           </div>`).join('')}
@@ -294,20 +381,20 @@ async function renderizarPlano(aluno_id, concurso_id) {
 }
 
 function editarItemPlano(id) {
-  document.getElementById(`view-${id}`).style.display = 'none'
-  document.getElementById(`edit-${id}`).style.display = 'block'
+  document.getElementById('view-'+id).style.display = 'none'
+  document.getElementById('edit-'+id).style.display = 'block'
 }
 
 function cancelarEdicaoItem(id) {
-  document.getElementById(`view-${id}`).style.display = 'flex'
-  document.getElementById(`edit-${id}`).style.display = 'none'
+  document.getElementById('view-'+id).style.display = 'flex'
+  document.getElementById('edit-'+id).style.display = 'none'
 }
 
 async function salvarEdicaoItemPlano(id, aluno_id, concurso_id) {
-  const disciplina = document.getElementById(`edit-disc-${id}`).value
-  const tempo_minutos = parseInt(document.getElementById(`edit-tempo-${id}`).value)
-  const meta_questoes = parseInt(document.getElementById(`edit-quest-${id}`).value)
-  const dia_semana = document.getElementById(`edit-dia-${id}`).value
+  const disciplina = document.getElementById('edit-disc-'+id).value
+  const tempo_minutos = parseInt(document.getElementById('edit-tempo-'+id).value)
+  const meta_questoes = parseInt(document.getElementById('edit-quest-'+id).value)
+  const dia_semana = document.getElementById('edit-dia-'+id).value
   if (!disciplina || !tempo_minutos) { alert('Preencha disciplina e tempo.'); return }
   const { error } = await _supabase.from('plano_aluno')
     .update({ disciplina, tempo_minutos, meta_questoes, dia_semana }).eq('id', id)
@@ -328,19 +415,18 @@ async function renderizarRevisoes(aluno_id) {
   const div = document.getElementById('lista-revisoes-admin')
   div.innerHTML = ''
   if (!revisoes || revisoes.length === 0) {
-    div.innerHTML = '<p style="color:#aaa">Nenhuma revisão programada.</p>'
+    div.innerHTML = '<p style="color:#aaa">Nenhuma revisao programada.</p>'
     return
   }
   revisoes.forEach(r => {
     const data = new Date(r.data_revisao + 'T12:00:00').toLocaleDateString('pt-BR', { weekday:'short', day:'2-digit', month:'2-digit' })
-    const icone = r.tipo === 'exercicios' ? '📝' : '🔄'
-    const label = r.tipo === 'exercicios' ? 'Exercícios' : 'Revisão'
+    const label = r.tipo === 'exercicios' ? 'Exercicios' : 'Revisao'
     div.innerHTML += `
       <div class="item-lista">
-        <span>${icone} ${label}</span>
+        <span>${label}</span>
         <strong>${r.disciplina}</strong>
         <span style="color:#C9A83C">${data}</span>
-        <button class="btn-acao btn-excluir" onclick="excluirRevisao('${r.id}','${aluno_id}')">🗑️</button>
+        <button class="btn-acao btn-excluir" onclick="excluirRevisao('${r.id}','${aluno_id}')">Excluir</button>
       </div>`
   })
 }
@@ -372,13 +458,13 @@ async function adicionarAoPlano() {
   document.getElementById('cron-disciplina').value = ''
   document.getElementById('cron-tempo').value = ''
   document.getElementById('cron-questoes').value = '30'
-  alert(`✅ ${disciplina} adicionada!`)
+  alert(disciplina + ' adicionada!')
   renderizarPlano(aluno_id, concurso_id)
   renderizarRevisoes(aluno_id)
 }
 
 async function excluirRevisao(id, aluno_id) {
-  if (!confirm('Cancelar esta revisão?')) return
+  if (!confirm('Cancelar esta revisao?')) return
   await _supabase.from('revisoes_programadas').delete().eq('id', id)
   renderizarRevisoes(aluno_id)
 }
@@ -392,10 +478,10 @@ async function copiarPlano() {
   const { data: itens } = await _supabase.from('plano_aluno')
     .select('disciplina, dia_semana, tempo_minutos, meta_questoes, ordem, concurso_id')
     .eq('aluno_id', aluno_origem)
-  if (!itens || itens.length === 0) { alert('O aluno de origem não tem plano cadastrado.'); return }
+  if (!itens || itens.length === 0) { alert('O aluno de origem nao tem plano cadastrado.'); return }
   const { error } = await _supabase.from('plano_aluno').insert(itens.map(i => ({ ...i, aluno_id: aluno_destino })))
   if (error) { alert('Erro ao copiar: ' + error.message); return }
-  alert(`✅ Plano copiado! ${itens.length} itens adicionados.`)
+  alert('Plano copiado! ' + itens.length + ' itens adicionados.')
   renderizarPlano(aluno_destino, window._concursoAtivoCronograma)
 }
 
@@ -403,9 +489,7 @@ async function copiarPlano() {
 function carregarSelectDesempenho() {
   const select = document.getElementById('filtro-desempenho-concurso')
   select.innerHTML = '<option value="">Selecione o concurso</option>'
-  window._concursos.forEach(c => {
-    select.innerHTML += `<option value="${c.id}">${c.nome}</option>`
-  })
+  window._concursos.forEach(c => { select.innerHTML += `<option value="${c.id}">${c.nome}</option>` })
   verificarInatividade()
 }
 
@@ -433,24 +517,23 @@ async function verificarInatividade() {
   }
   div.innerHTML = ''
   if (inativos.length === 0) {
-    div.innerHTML = `<p style="color:#81c784">✅ Nenhum aluno inativo nos últimos ${dias} dias!</p>`
+    div.innerHTML = '<p style="color:#81c784">Nenhum aluno inativo nos ultimos ' + dias + ' dias!</p>'
     return
   }
   inativos.sort((a, b) => (b.diasSemRegistro || 999) - (a.diasSemRegistro || 999))
   inativos.forEach(({ aluno, ultimaData, diasSemRegistro }) => {
     const cor = diasSemRegistro > 7 ? '#e57373' : '#ffb74d'
     const msg = ultimaData
-      ? `Último registro há ${diasSemRegistro} dias (${new Date(ultimaData + 'T12:00:00').toLocaleDateString('pt-BR')})`
+      ? 'Ultimo registro ha ' + diasSemRegistro + ' dias (' + new Date(ultimaData + 'T12:00:00').toLocaleDateString('pt-BR') + ')'
       : 'Nunca registrou'
     div.innerHTML += `
       <div class="item-lista" style="border-left:4px solid ${cor}">
         <div>
           <strong>${aluno.nome}</strong>
           <div style="color:#aaa;font-size:12px">${aluno.email}</div>
-          <div style="color:#aaa;font-size:12px">${aluno.concursos?.nome || ''}</div>
         </div>
         <span style="color:${cor};font-size:13px">${msg}</span>
-        <button class="btn-acao btn-editar" onclick="verRelatorioIndividual('${aluno.id}','${aluno.nome}')">📋 Ver histórico</button>
+        <button class="btn-acao btn-editar" onclick="verRelatorioIndividual('${aluno.id}','${aluno.nome}')">Ver historico</button>
       </div>`
   })
 }
@@ -490,17 +573,17 @@ async function carregarDesempenho() {
     div.innerHTML += `
       <div class="item-lista" style="border-left:4px solid ${l.corStatus}">
         <strong>${l.aluno.nome}</strong>
-        <span>📅 ${l.diasCumpridos}/${l.totalDias} dias (${l.percentualCumprimento}%)</span>
-        <span>📝 ${l.totalQuestoes} questões</span>
-        <span>✅ ${l.percentualAcerto}% acerto</span>
-        <button class="btn-acao btn-editar" onclick="verRelatorioIndividual('${l.aluno.id}','${l.aluno.nome}')">📋 Detalhar</button>
+        <span>${l.diasCumpridos}/${l.totalDias} dias (${l.percentualCumprimento}%)</span>
+        <span>${l.totalQuestoes} questoes</span>
+        <span>${l.percentualAcerto}% acerto</span>
+        <button class="btn-acao btn-editar" onclick="verRelatorioIndividual('${l.aluno.id}','${l.aluno.nome}')">Detalhar</button>
       </div>`
   })
 }
 
 async function verRelatorioIndividual(aluno_id, nome) {
   document.getElementById('card-relatorio-individual').style.display = 'block'
-  document.getElementById('titulo-relatorio-individual').textContent = `Histórico — ${nome}`
+  document.getElementById('titulo-relatorio-individual').textContent = 'Historico — ' + nome
   document.getElementById('card-relatorio-individual').scrollIntoView({ behavior: 'smooth' })
   const { data: registros } = await _supabase.from('registros_diarios')
     .select('*').eq('aluno_id', aluno_id).order('data', { ascending: false }).limit(30)
@@ -516,21 +599,21 @@ async function verRelatorioIndividual(aluno_id, nome) {
   const diasCumpridos = registros.filter(r => r.cumpriu).length
   div.innerHTML = `
     <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px">
-      <div style="background:#0d1b2a;border-radius:8px;padding:12px;flex:1;min-width:100px;text-align:center">
+      <div style="background:#0d1b2a;border-radius:8px;padding:12px;flex:1;min-width:80px;text-align:center">
         <div style="color:#C9A83C;font-size:22px;font-weight:bold">${registros.length}</div>
         <div style="color:#aaa;font-size:12px">registros</div>
       </div>
-      <div style="background:#0d1b2a;border-radius:8px;padding:12px;flex:1;min-width:100px;text-align:center">
+      <div style="background:#0d1b2a;border-radius:8px;padding:12px;flex:1;min-width:80px;text-align:center">
         <div style="color:#81c784;font-size:22px;font-weight:bold">${diasCumpridos}</div>
         <div style="color:#aaa;font-size:12px">dias cumpridos</div>
       </div>
-      <div style="background:#0d1b2a;border-radius:8px;padding:12px;flex:1;min-width:100px;text-align:center">
+      <div style="background:#0d1b2a;border-radius:8px;padding:12px;flex:1;min-width:80px;text-align:center">
         <div style="color:#C9A83C;font-size:22px;font-weight:bold">${totalQ}</div>
-        <div style="color:#aaa;font-size:12px">questões feitas</div>
+        <div style="color:#aaa;font-size:12px">questoes</div>
       </div>
-      <div style="background:#0d1b2a;border-radius:8px;padding:12px;flex:1;min-width:100px;text-align:center">
+      <div style="background:#0d1b2a;border-radius:8px;padding:12px;flex:1;min-width:80px;text-align:center">
         <div style="color:#81c784;font-size:22px;font-weight:bold">${pctGeral}%</div>
-        <div style="color:#aaa;font-size:12px">de acerto</div>
+        <div style="color:#aaa;font-size:12px">acerto</div>
       </div>
     </div>`
   const porData = {}
@@ -548,11 +631,11 @@ async function verRelatorioIndividual(aluno_id, nome) {
       <div style="background:#0d1b2a;border-radius:8px;padding:12px;margin-bottom:8px">
         <div style="display:flex;justify-content:space-between;margin-bottom:8px">
           <strong style="color:#C9A83C">${dataFmt}</strong>
-          <span style="color:#aaa;font-size:12px">${totalDia} questões · ${pctDia}% acerto</span>
+          <span style="color:#aaa;font-size:12px">${totalDia} questoes · ${pctDia}% acerto</span>
         </div>
         ${itens.map(r => `
           <div style="display:flex;gap:10px;padding:4px 0;border-bottom:1px solid #1a2f45;flex-wrap:wrap">
-            <span>${r.cumpriu ? '✅' : '❌'}</span>
+            <span>${r.cumpriu ? 'OK' : 'X'}</span>
             <span style="flex:1">${r.disciplina}</span>
             <span style="color:#aaa;font-size:12px">${r.questoes_feitas || 0} feitas · ${r.questoes_certas || 0} certas</span>
           </div>`).join('')}
@@ -566,16 +649,12 @@ function fecharRelatorioIndividual() {
 
 // ========== AVISOS ==========
 function carregarSelectsAvisos() {
-  const selects = [
-    document.getElementById('aviso-concurso'),
-    document.getElementById('filtro-avisos-concurso')
-  ]
-  selects.forEach(select => {
-    if (!select) return
-    select.innerHTML = '<option value="">Selecione o concurso</option>'
-    window._concursos.forEach(c => {
-      select.innerHTML += `<option value="${c.id}">${c.nome}</option>`
-    })
+  const selects = ['aviso-concurso','filtro-avisos-concurso']
+  selects.forEach(sid => {
+    const s = document.getElementById(sid)
+    if (!s) return
+    s.innerHTML = '<option value="">Selecione o concurso</option>'
+    window._concursos.forEach(c => { s.innerHTML += `<option value="${c.id}">${c.nome}</option>` })
   })
 }
 
@@ -588,7 +667,7 @@ async function criarAviso() {
   if (error) { alert('Erro: ' + error.message); return }
   document.getElementById('aviso-titulo').value = ''
   document.getElementById('aviso-mensagem').value = ''
-  alert('✅ Aviso publicado!')
+  alert('Aviso publicado!')
   document.getElementById('filtro-avisos-concurso').value = concurso_id
   carregarAvisos()
 }
@@ -612,7 +691,7 @@ async function carregarAvisos() {
           <strong>${a.titulo}</strong>
           <div style="display:flex;gap:6px">
             <span style="color:#aaa;font-size:12px">${data}</span>
-            <button class="btn-acao btn-excluir" onclick="excluirAviso('${a.id}')">🗑️</button>
+            <button class="btn-acao btn-excluir" onclick="excluirAviso('${a.id}')">Excluir</button>
           </div>
         </div>
         <p style="color:#ccc;font-size:14px;margin:0">${a.mensagem}</p>
