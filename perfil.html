@@ -10,34 +10,82 @@
 <body>
   <div class="container">
     <header>
-      <h2>Meu Perfil 👮</h2>
-      <button onclick="window.location.href='dashboard.html'">← Voltar</button>
+      <div>
+        <h2>Meu Perfil</h2>
+        <div style="color:#aaa;font-size:13px" id="email-display"></div>
+      </div>
+      <button onclick="window.location.href='dashboard.html'" style="width:auto;padding:8px 16px;background:#1a2f45;color:#aaa;border:1px solid #2a4a6a">
+        Voltar
+      </button>
     </header>
+
     <div class="card">
       <h3>Alterar senha</h3>
-      <input type="password" id="senha-nova" placeholder="Nova senha (mín. 6 caracteres)">
+      <p style="color:#aaa;font-size:13px;margin-bottom:16px">
+        Escolha uma senha forte com pelo menos 6 caracteres.
+      </p>
+      <input type="password" id="senha-nova" placeholder="Nova senha (minimo 6 caracteres)">
       <input type="password" id="senha-confirma" placeholder="Confirme a nova senha">
       <button onclick="alterarSenha()" style="margin-top:8px">Salvar nova senha</button>
-      <p id="msg-perfil" style="margin-top:10px;display:none"></p>
+      <p id="msg-perfil" style="margin-top:12px;display:none;padding:10px;border-radius:8px;text-align:center"></p>
+    </div>
+
+    <div class="card">
+      <h3>Sair da conta</h3>
+      <p style="color:#aaa;font-size:13px;margin-bottom:16px">
+        Voce sera redirecionado para a tela de login.
+      </p>
+      <button onclick="sair()" style="background:#3a1a1a;color:#e57373;border:1px solid #e57373;">
+        Sair da plataforma
+      </button>
     </div>
   </div>
+
   <script src="config.js"></script>
   <script>
+    async function init() {
+      const { data: { user } } = await _supabase.auth.getUser()
+      if (!user) { window.location.href = 'index.html'; return }
+      document.getElementById('email-display').textContent = user.email
+    }
+
     async function alterarSenha() {
       const nova = document.getElementById('senha-nova').value
       const confirma = document.getElementById('senha-confirma').value
       const msg = document.getElementById('msg-perfil')
-
       msg.style.display = 'block'
-      if (nova.length < 6) { msg.style.color='#e57373'; msg.textContent='Senha precisa ter pelo menos 6 caracteres.'; return }
-      if (nova !== confirma) { msg.style.color='#e57373'; msg.textContent='As senhas não coincidem.'; return }
+
+      if (nova.length < 6) {
+        msg.style.background = '#3a1a1a'; msg.style.color = '#e57373'
+        msg.textContent = 'A senha precisa ter pelo menos 6 caracteres.'
+        return
+      }
+      if (nova !== confirma) {
+        msg.style.background = '#3a1a1a'; msg.style.color = '#e57373'
+        msg.textContent = 'As senhas nao coincidem.'
+        return
+      }
 
       const { error } = await _supabase.auth.updateUser({ password: nova })
-      if (error) { msg.style.color='#e57373'; msg.textContent='Erro: '+error.message; return }
 
-      msg.style.color='#81c784'
-      msg.textContent='✅ Senha alterada com sucesso!'
+      if (error) {
+        msg.style.background = '#3a1a1a'; msg.style.color = '#e57373'
+        msg.textContent = 'Erro: ' + error.message
+        return
+      }
+
+      msg.style.background = '#1a3a1a'; msg.style.color = '#81c784'
+      msg.textContent = 'Senha alterada com sucesso!'
+      document.getElementById('senha-nova').value = ''
+      document.getElementById('senha-confirma').value = ''
     }
+
+    async function sair() {
+      await _supabase.auth.signOut()
+      window.location.href = 'index.html'
+    }
+
+    init()
   </script>
 </body>
 </html>
