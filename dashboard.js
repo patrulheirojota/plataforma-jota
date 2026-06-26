@@ -19,7 +19,6 @@ async function init() {
   if (!aluno) { alert('Aluno não encontrado. Contate o mentor.'); return }
   document.getElementById('nome-aluno').textContent = aluno.nome
 
-  // Busca concursos do aluno
   const { data: vinculos } = await _supabase
     .from('aluno_concursos')
     .select('concurso_id, concursos(nome)')
@@ -31,13 +30,11 @@ async function init() {
   }
 
   if (vinculos.length === 1) {
-    // Só um concurso — entra direto
     _concursoId = vinculos[0].concurso_id
     calcularStreak()
     verificarAvisosNovos()
     carregarHoje()
   } else {
-    // Múltiplos concursos — mostra seletor
     mostrarSeletorConcurso(vinculos)
   }
 }
@@ -50,8 +47,7 @@ function mostrarSeletorConcurso(vinculos) {
       <button onclick="selecionarConcurso('${v.concurso_id}')"
         style="display:block;width:100%;text-align:left;padding:14px;margin-bottom:8px;background:#1a2f45;border:1px solid #2a4a6a;border-radius:8px;color:#fff;font-size:15px;cursor:pointer">
         🏆 ${v.concursos?.nome}
-      </button>`).join('')}
-  `
+      </button>`).join('')}`
 }
 
 async function selecionarConcurso(concurso_id) {
@@ -67,10 +63,9 @@ function mostrarAbaAluno(id) {
   document.querySelectorAll('.aba-btn').forEach(el => el.classList.remove('ativa'))
   document.getElementById(id).style.display = 'block'
   event.target.classList.add('ativa')
-
   if (id === 'aba-semana') carregarSemana()
   if (id === 'aba-historico') carregarHistorico()
- if (id === 'aba-grafico') carregarGrafico()
+  if (id === 'aba-grafico') carregarGrafico()
   if (id === 'aba-avisos') carregarAvisosAluno()
 }
 
@@ -80,14 +75,15 @@ async function carregarHoje() {
   const diaAtual = diasSemana[hoje.getDay()]
   const dataHoje = hoje.toISOString().split('T')[0]
 
-  // Busca plano individual do aluno
+  // Busca plano individual do aluno para hoje (filtra por concurso)
   const { data: plano } = await _supabase
     .from('plano_aluno')
     .select('*')
     .eq('aluno_id', _alunoId)
+    .eq('concurso_id', _concursoId)
     .eq('dia_semana', diaAtual)
 
-  // Busca revisões do dia
+  // Busca revisoes do dia
   const { data: revisoesDia } = await _supabase
     .from('revisoes_programadas')
     .select('*')
@@ -104,6 +100,7 @@ async function carregarHoje() {
 
   if (!temPlano && !temRevisoes) {
     divCron.innerHTML = '<p style="color:#aaa">Hoje é dia de descanso! Aproveite para revisar ou descansar. 🔋</p>'
+    cardRegistro.style.display = 'none'
     return
   }
 
@@ -119,7 +116,6 @@ async function carregarHoje() {
   divCron.innerHTML = ''
   divForm.innerHTML = ''
 
-  // Revisões do dia (aparecem primeiro, com destaque)
   if (temRevisoes) {
     divCron.innerHTML += `<p style="color:#C9A83C;font-weight:bold;font-size:13px;margin-bottom:8px">🔔 Revisões programadas para hoje</p>`
     revisoesDia.forEach(r => {
@@ -133,7 +129,6 @@ async function carregarHoje() {
     })
   }
 
-  // Plano do dia
   if (temPlano) {
     if (temRevisoes) divCron.innerHTML += `<p style="color:#aaa;font-size:13px;margin:12px 0 8px">📚 Estudos do dia</p>`
     plano.forEach(item => {
@@ -166,18 +161,48 @@ async function concluirRevisao(id) {
   await _supabase.from('revisoes_programadas').update({ concluida: true }).eq('id', id)
   carregarHoje()
 }
+
+async function salvarRegistro() {
+  const hoje = new Date().toISOString().split('T')[0]
+  if (!_cronogramaHoje || _cronogramaHoje.length === 0) {
+    alert('Nenhum item de cronograma para registrar.')
+    return
+  }
+  const registros = _cronogramaHoje.map(item => {
+    const feitas = parseInt(document.getElementById(`feitas-${item.id}`)?.value) || 0
+    const certas = parseInt(document.getElementById(`certas-${item.id}`)?.value) || 0
+    return {
+      aluno_id: _alunoId,
+      data: hoje,
+      disciplina: item.disciplina,
+      cumpriu: document.getElementById(`cumpriu-${item.id}`)?.checked || false,
+      questoes_feitas: feitas,
+      questoes_certas: certas,
+      questoes_erradas: Math.max(0, feitas - certas)
+    }
+  })
+  const { error } = await _supabase
+    .from('registros_diarios')
+    .upsert(registros, { onConflict: 'aluno_id,data,disciplina' })
+  if (error) { alert('Erro ao salvar: ' + error.message); return }
+  document.getElementById('msg-salvo').style.display = 'block'
+  setTimeout(() => document.getElementById('msg-salvo').style.display = 'none', 3000)
+  carregarHoje()
+}
+
 // -------- ABA SEMANA --------
 async function carregarSemana() {
   const { data: itens } = await _supabase
-    .from('cronograma')
+    .from('plano_aluno')
     .select('*')
+    .eq('aluno_id', _alunoId)
     .eq('concurso_id', _concursoId)
 
   const div = document.getElementById('cronograma-semana')
   div.innerHTML = ''
 
   if (!itens || itens.length === 0) {
-    div.innerHTML = '<p style="color:#aaa">Nenhum cronograma cadastrado ainda.</p>'
+    div.innerHTML = '<p style="color:#aaa">Nenhum cronograma cadastrado ainda. Contate o mentor.</p>'
     return
   }
 
@@ -186,12 +211,18 @@ async function carregarSemana() {
   diasOrdem.forEach(dia => {
     const itensDia = itens.filter(i => i.dia_semana === dia)
     if (itensDia.length === 0) return
-
     const isHoje = dia === hoje
+    const totalMin = itensDia.reduce((s, i) => s + i.tempo_minutos, 0)
+    const horas = Math.floor(totalMin / 60)
+    const min = totalMin % 60
+
     div.innerHTML += `
       <div style="margin-bottom:16px">
-        <div style="color:${isHoje ? '#C9A83C' : '#aaa'};font-weight:bold;margin-bottom:8px;font-size:15px">
-          ${nomeDias[dia]} ${isHoje ? '← hoje' : ''}
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <span style="color:${isHoje ? '#C9A83C' : '#aaa'};font-weight:bold;font-size:15px">
+            ${nomeDias[dia]} ${isHoje ? '← hoje' : ''}
+          </span>
+          <span style="color:#aaa;font-size:12px">${horas > 0 ? horas+'h ' : ''}${min > 0 ? min+'min' : ''} total</span>
         </div>
         ${itensDia.map(i => `
           <div class="disciplina-card" style="${isHoje ? 'border-left:3px solid #C9A83C' : ''}">
@@ -203,7 +234,7 @@ async function carregarSemana() {
   })
 }
 
-// -------- ABA HISTÓRICO --------
+// -------- ABA HISTORICO --------
 async function carregarHistorico() {
   const quatorze = new Date()
   quatorze.setDate(quatorze.getDate() - 14)
@@ -224,7 +255,6 @@ async function carregarHistorico() {
     return
   }
 
-  // Agrupa por data
   const porData = {}
   registros.forEach(r => {
     if (!porData[r.data]) porData[r.data] = []
@@ -237,7 +267,7 @@ async function carregarHistorico() {
     const totalC = itens.reduce((s, r) => s + (r.questoes_certas || 0), 0)
     const cumpridos = itens.filter(r => r.cumpriu).length
     const pct = totalQ > 0 ? Math.round((totalC / totalQ) * 100) : 0
-    const dataFormatada = new Date(data + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' })
+    const dataFormatada = new Date(data + 'T12:00:00').toLocaleDateString('pt-BR', { weekday:'long', day:'2-digit', month:'2-digit' })
 
     div.innerHTML += `
       <div style="background:#0d1b2a;border-radius:10px;padding:14px;margin-bottom:12px">
@@ -258,7 +288,7 @@ async function carregarHistorico() {
   })
 }
 
-// -------- ABA GRÁFICO --------
+// -------- ABA GRAFICO --------
 async function carregarGrafico() {
   const { data: registros } = await _supabase
     .from('registros_diarios')
@@ -274,7 +304,6 @@ async function carregarGrafico() {
     return
   }
 
-  // Agrupa por disciplina
   const porDisc = {}
   registros.forEach(r => {
     if (!porDisc[r.disciplina]) porDisc[r.disciplina] = { feitas: 0, certas: 0 }
@@ -287,10 +316,7 @@ async function carregarGrafico() {
     const { feitas, certas } = porDisc[d]
     return feitas > 0 ? Math.round((certas / feitas) * 100) : 0
   })
-
-  const cores = percentuais.map(p =>
-    p >= 70 ? '#81c784' : p >= 50 ? '#ffb74d' : '#e57373'
-  )
+  const cores = percentuais.map(p => p >= 70 ? '#81c784' : p >= 50 ? '#ffb74d' : '#e57373')
 
   if (_graficoCriado) _graficoCriado.destroy()
 
@@ -321,37 +347,29 @@ async function carregarGrafico() {
           ticks: { color: '#aaa', callback: v => v + '%' },
           grid: { color: '#1a2f45' }
         },
-        x: {
-          ticks: { color: '#aaa' },
-          grid: { display: false }
-        }
+        x: { ticks: { color: '#aaa' }, grid: { display: false } }
       }
     }
   })
 }
+
 // -------- AVISOS --------
 async function verificarAvisosNovos() {
   const { data: avisos } = await _supabase
-    .from('avisos')
-    .select('id')
-    .eq('concurso_id', _concursoId)
-
+    .from('avisos').select('id').eq('concurso_id', _concursoId)
   if (avisos && avisos.length > 0) {
     const badge = document.getElementById('badge-avisos')
-    badge.style.display = 'inline'
-    badge.textContent = avisos.length
+    if (badge) { badge.style.display = 'inline'; badge.textContent = avisos.length }
   }
 }
 
 async function carregarAvisosAluno() {
   const { data: avisos } = await _supabase
-    .from('avisos')
-    .select('*')
-    .eq('concurso_id', _concursoId)
+    .from('avisos').select('*').eq('concurso_id', _concursoId)
     .order('criado_em', { ascending: false })
 
-  // Some o badge quando o aluno clica em avisos
-  document.getElementById('badge-avisos').style.display = 'none'
+  const badge = document.getElementById('badge-avisos')
+  if (badge) badge.style.display = 'none'
 
   const div = document.getElementById('lista-avisos-aluno')
   div.innerHTML = ''
@@ -384,41 +402,28 @@ async function calcularStreak() {
     .order('data', { ascending: false })
 
   if (!registros || registros.length === 0) {
-    document.getElementById('streak-display').textContent = 'Comece a registrar seus estudos! 🚀'
+    const el = document.getElementById('streak-display')
+    if (el) el.textContent = 'Comece a registrar seus estudos! 🚀'
     return
   }
 
-  // Datas únicas cumpridas
   const datas = [...new Set(registros.map(r => r.data))].sort((a, b) => b.localeCompare(a))
-
   let streak = 0
-  let dataRef = new Date()
-  dataRef.setHours(0, 0, 0, 0)
+  let dataRef = new Date(); dataRef.setHours(0,0,0,0)
 
   for (const data of datas) {
     const d = new Date(data + 'T12:00:00')
     const diff = Math.round((dataRef - d) / (1000 * 60 * 60 * 24))
-
-    if (diff <= 1) {
-      streak++
-      dataRef = d
-    } else {
-      break
-    }
+    if (diff <= 1) { streak++; dataRef = d } else break
   }
 
-  const div = document.getElementById('streak-display')
-  if (streak === 0) {
-    div.textContent = 'Nenhum dia seguido ainda. Bora começar! 💪'
-  } else if (streak === 1) {
-    div.textContent = '🔥 1 dia seguido — continue amanhã!'
-  } else if (streak < 7) {
-    div.textContent = `🔥 ${streak} dias seguidos — ótimo ritmo!`
-  } else if (streak < 14) {
-    div.textContent = `🔥🔥 ${streak} dias seguidos — disciplina de policial!`
-  } else {
-    div.textContent = `🔥🔥🔥 ${streak} dias seguidos — ELITE!`
-  }
+  const el = document.getElementById('streak-display')
+  if (!el) return
+  if (streak === 0) el.textContent = 'Nenhum dia seguido ainda. Bora começar! 💪'
+  else if (streak === 1) el.textContent = '🔥 1 dia seguido — continue amanhã!'
+  else if (streak < 7) el.textContent = `🔥 ${streak} dias seguidos — ótimo ritmo!`
+  else if (streak < 14) el.textContent = `🔥🔥 ${streak} dias seguidos — disciplina de policial!`
+  else el.textContent = `🔥🔥🔥 ${streak} dias seguidos — ELITE!`
 }
 
 // -------- PDF --------
@@ -427,36 +432,23 @@ async function exportarPDF() {
   const doc = new jsPDF()
 
   const { data: aluno } = await _supabase
-    .from('alunos')
-    .select('nome, concursos(nome)')
-    .eq('id', _alunoId)
-    .single()
+    .from('alunos').select('nome, concursos(nome)').eq('id', _alunoId).single()
 
   const { data: registros } = await _supabase
-    .from('registros_diarios')
-    .select('*')
-    .eq('aluno_id', _alunoId)
-    .order('data', { ascending: false })
+    .from('registros_diarios').select('*').eq('aluno_id', _alunoId).order('data', { ascending: false })
 
-  // Cabeçalho
   doc.setFillColor(26, 58, 92)
   doc.rect(0, 0, 210, 35, 'F')
   doc.setTextColor(201, 168, 60)
-  doc.setFontSize(18)
-  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(18); doc.setFont('helvetica', 'bold')
   doc.text('Patrulheiros de Elite', 14, 15)
-  doc.setFontSize(11)
-  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(11); doc.setFont('helvetica', 'normal')
   doc.setTextColor(255, 255, 255)
-  doc.text(`Relatório de Desempenho — ${aluno.nome}`, 14, 25)
+  doc.text(`Relatorio de Desempenho - ${aluno.nome}`, 14, 25)
   doc.text(`Concurso: ${aluno.concursos?.nome || ''}`, 14, 32)
-
-  // Data de geração
-  doc.setTextColor(100, 100, 100)
-  doc.setFontSize(9)
+  doc.setTextColor(100, 100, 100); doc.setFontSize(9)
   doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, 14, 44)
 
-  // Resumo geral
   const totalQ = registros.reduce((s, r) => s + (r.questoes_feitas || 0), 0)
   const totalC = registros.reduce((s, r) => s + (r.questoes_certas || 0), 0)
   const diasCumpridos = registros.filter(r => r.cumpriu).length
@@ -464,16 +456,12 @@ async function exportarPDF() {
 
   doc.setFillColor(240, 240, 240)
   doc.rect(14, 50, 182, 28, 'F')
-  doc.setTextColor(26, 58, 92)
-  doc.setFontSize(11)
-  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(26, 58, 92); doc.setFontSize(11); doc.setFont('helvetica', 'bold')
   doc.text('Resumo Geral', 18, 60)
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(10)
-  doc.text(`Total de questões: ${totalQ}   |   Acertos: ${totalC}   |   Aproveitamento: ${pctGeral}%`, 18, 70)
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(10)
+  doc.text(`Total de questoes: ${totalQ}   |   Acertos: ${totalC}   |   Aproveitamento: ${pctGeral}%`, 18, 70)
   doc.text(`Dias com registro: ${registros.length}   |   Dias cumpridos: ${diasCumpridos}`, 18, 76)
 
-  // Por disciplina
   const porDisc = {}
   registros.forEach(r => {
     if (!porDisc[r.disciplina]) porDisc[r.disciplina] = { feitas: 0, certas: 0 }
@@ -481,31 +469,26 @@ async function exportarPDF() {
     porDisc[r.disciplina].certas += r.questoes_certas || 0
   })
 
-  doc.setTextColor(26, 58, 92)
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(11)
+  doc.setTextColor(26, 58, 92); doc.setFont('helvetica', 'bold'); doc.setFontSize(11)
   doc.text('Desempenho por Disciplina', 14, 92)
 
   let y = 100
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(10)
-
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(10)
   Object.entries(porDisc).forEach(([disc, dados]) => {
     const pct = dados.feitas > 0 ? Math.round((dados.certas / dados.feitas) * 100) : 0
     const cor = pct >= 70 ? [129, 199, 132] : pct >= 50 ? [255, 183, 77] : [229, 115, 115]
-
     doc.setFillColor(...cor)
     doc.rect(14, y - 4, 4, 8, 'F')
     doc.setTextColor(50, 50, 50)
     doc.text(`${disc}`, 22, y + 1)
-    doc.text(`${dados.feitas} questões  |  ${dados.certas} certas  |  ${pct}% acerto`, 120, y + 1)
+    doc.text(`${dados.feitas} questoes  |  ${dados.certas} certas  |  ${pct}% acerto`, 120, y + 1)
     y += 12
-
     if (y > 270) { doc.addPage(); y = 20 }
   })
 
   doc.save(`relatorio-${aluno.nome.replace(/ /g, '-')}.pdf`)
 }
+
 // -------- SAIR --------
 async function sair() {
   await _supabase.auth.signOut()
