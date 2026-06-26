@@ -625,11 +625,3 @@ async function excluirAviso(id) {
   await _supabase.from('avisos').delete().eq('id', id)
   carregarAvisos()
 }
-ENDOFFILE
-echo "Arquivo gerado com $(wc -l < /tmp/admin_completo.js) linhas"
-# Verifica se há chaves balanceadas
-node -e "
-const fs = require('fs');
-const code = fs.readFileSync('/tmp/admin_completo.js', 'utf8');
-try { new Function(code); console.log('✅ Sintaxe OK'); } catch(e) { console.log('❌ Erro:', e.message); }
-"
