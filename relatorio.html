@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Relatorio de Progresso — Patrulheiros de Elite</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .preview-box {
+      background: #fff;
+      color: #1a2f45;
+      border-radius: 12px;
+      padding: 32px;
+      margin-top: 20px;
+      font-family: Arial, sans-serif;
+    }
+    .preview-header {
+      background: linear-gradient(135deg, #1a3a5c, #0d1b2a);
+      color: white;
+      padding: 24px;
+      border-radius: 8px;
+      margin-bottom: 24px;
+    }
+    .preview-titulo { color: #C9A83C; font-size: 22px; font-weight: bold; }
+    .preview-subtitulo { color: #aaa; font-size: 13px; margin-top: 4px; }
+    .preview-stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 20px; }
+    .preview-stat { background: #f5f7fa; border-radius: 8px; padding: 12px; text-align: center; border-left: 3px solid #C9A83C; }
+    .preview-stat-val { font-size: 22px; font-weight: bold; color: #1a3a5c; }
+    .preview-stat-label { font-size: 11px; color: #666; margin-top: 2px; }
+    .preview-secao { margin-bottom: 20px; }
+    .preview-secao h3 { color: #1a3a5c; font-size: 14px; border-bottom: 2px solid #C9A83C; padding-bottom: 6px; margin-bottom: 12px; }
+    .preview-disc-row { display: flex; gap: 10px; align-items: center; padding: 6px 0; border-bottom: 1px solid #eee; font-size: 13px; }
+    .preview-barra { height: 8px; border-radius: 4px; flex: 1; background: #eee; overflow: hidden; }
+    .preview-barra-fill { height: 100%; border-radius: 4px; }
+    .preview-obs { background: #f0f4f8; border-left: 4px solid #C9A83C; padding: 14px; border-radius: 0 8px 8px 0; font-size: 13px; line-height: 1.6; white-space: pre-wrap; }
+    .preview-rodape { text-align: center; color: #aaa; font-size: 11px; margin-top: 20px; padding-top: 12px; border-top: 1px solid #eee; }
+    .streak-semana { display: flex; gap: 4px; }
+    .streak-dia { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; }
+    @media (max-width: 600px) {
+      .preview-stats { grid-template-columns: repeat(2,1fr); }
+      .preview-box { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div>
+      <h2>Relatorio de Progresso</h2>
+      <div style="color:#aaa;font-size:13px">Gere e envie para o aluno via WhatsApp</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button onclick="window.location.href='overview.html'" style="width:auto;padding:8px 14px;background:#1a2f45;color:#aaa;border:1px solid #2a4a6a">Visao Geral</button>
+      <button onclick="window.location.href='admin.html'" style="width:auto;padding:8px 14px">Painel Admin</button>
+    </div>
+  </header>
+
+  <!-- Formulario de configuracao -->
+  <div class="card">
+    <h3>Configurar relatorio</h3>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div>
+        <label style="color:#aaa;font-size:12px;display:block;margin-bottom:4px">Aluno</label>
+        <select id="sel-aluno" onchange="carregarDadosAluno()">
+          <option value="">Selecione o aluno</option>
+        </select>
+      </div>
+      <div>
+        <label style="color:#aaa;font-size:12px;display:block;margin-bottom:4px">Periodo</label>
+        <select id="sel-periodo" onchange="gerarPreview()">
+          <option value="7">Ultima semana (7 dias)</option>
+          <option value="14">Ultimas 2 semanas</option>
+          <option value="30" selected>Ultimo mes (30 dias)</option>
+          <option value="60">Ultimos 2 meses</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="info-aluno" style="display:none;background:#0d1b2a;border-radius:8px;padding:12px;margin-bottom:12px">
+      <div style="display:flex;gap:16px;flex-wrap:wrap">
+        <div><span style="color:#aaa;font-size:12px">Concurso: </span><span id="info-concurso" style="font-size:13px"></span></div>
+        <div><span style="color:#aaa;font-size:12px">Email: </span><span id="info-email" style="font-size:13px;color:#aaa"></span></div>
+      </div>
+    </div>
+
+    <div>
+      <label style="color:#aaa;font-size:12px;display:block;margin-bottom:4px">Observacoes do Mentor (aparece no relatorio)</label>
+      <textarea id="obs-mentor" rows="5" placeholder="Ex: Voce evoluiu muito em Direito Penal esta semana! Mantenha o foco nas questoes de tipicidade. Para as proximas semanas, recomendo intensificar os estudos de Processo Penal..." oninput="atualizarObsPreview()"
+        style="width:100%;padding:12px;border-radius:8px;border:1px solid #2a4a6a;background:#0d1b2a;color:#fff;font-size:14px;resize:vertical;line-height:1.5"></textarea>
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
+      <button onclick="gerarPreview()" style="flex:1;background:#1a3a5c;color:#C9A83C;border:1px solid #C9A83C">Gerar Preview</button>
+      <button onclick="baixarPDF()" id="btn-pdf" style="flex:1;display:none">Baixar PDF</button>
+    </div>
+    <p id="msg-relatorio" style="display:none;margin-top:8px;font-size:13px"></p>
+  </div>
+
+  <!-- Preview do relatorio -->
+  <div id="preview-container" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <h3 style="color:#C9A83C;margin:0">Preview do Relatorio</h3>
+      <button onclick="baixarPDF()" style="width:auto;padding:8px 20px">Baixar PDF</button>
+    </div>
+    <div class="preview-box" id="preview-box">
+      <!-- Conteudo gerado dinamicamente -->
+    </div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script>
+let _dadosRelatorio = null
+
+async function init() {
+  const { data: { user } } = await _supabase.auth.getUser()
+  if (!user) { window.location.href = 'index.html'; return }
+  await carregarAlunos()
+}
+
+async function carregarAlunos() {
+  const { data: alunos } = await _supabase.from('alunos').select('id, nome, email, concurso_id, concursos(nome)').order('nome')
+  const sel = document.getElementById('sel-aluno')
+  alunos?.forEach(a => { sel.innerHTML += `<option value="${a.id}" data-nome="${a.nome}" data-email="${a.email}" data-concurso="${a.concursos?.nome||''}">${a.nome}</option>` })
+}
+
+async function carregarDadosAluno() {
+  const sel = document.getElementById('sel-aluno')
+  const opt = sel.options[sel.selectedIndex]
+  if (!opt.value) { document.getElementById('info-aluno').style.display='none'; return }
+  document.getElementById('info-aluno').style.display = 'block'
+  document.getElementById('info-concurso').textContent = opt.dataset.concurso || 'Nao informado'
+  document.getElementById('info-email').textContent = opt.dataset.email || ''
+  await gerarPreview()
+}
+
+async function gerarPreview() {
+  const aluno_id = document.getElementById('sel-aluno').value
+  if (!aluno_id) return
+
+  const msg = document.getElementById('msg-relatorio')
+  msg.style.display = 'block'; msg.style.color = '#aaa'; msg.textContent = 'Carregando dados...'
+
+  const periodo = parseInt(document.getElementById('sel-periodo').value)
+  const dataInicio = new Date(); dataInicio.setDate(dataInicio.getDate() - periodo)
+  const dataInicioStr = dataInicio.toISOString().split('T')[0]
+  const hoje = new Date().toISOString().split('T')[0]
+
+  const sel = document.getElementById('sel-aluno')
+  const opt = sel.options[sel.selectedIndex]
+  const nomeAluno = opt.dataset.nome || opt.text
+  const concurso = opt.dataset.concurso || ''
+
+  // Busca registros do periodo
+  const { data: registros } = await _supabase
+    .from('registros_diarios').select('*')
+    .eq('aluno_id', aluno_id).gte('data', dataInicioStr)
+    .order('data', { ascending: true })
+
+  // Busca streak
+  const { data: regCumpriu } = await _supabase
+    .from('registros_diarios').select('data')
+    .eq('aluno_id', aluno_id).eq('cumpriu', true).order('data', { ascending: false })
+  const datasSet = new Set(regCumpriu?.map(r => r.data) || [])
+  const datas = [...datasSet].sort((a,b) => b.localeCompare(a))
+  let streak = 0
+  let dataRef = new Date(); dataRef.setHours(0,0,0,0)
+  for (const d of datas) {
+    const dt = new Date(d + 'T12:00:00')
+    const diff = Math.round((dataRef - dt) / (1000*60*60*24))
+    if (diff <= 1) { streak++; dataRef = dt } else break
+  }
+
+  // Calcula metricas gerais
+  const totalQ = registros?.reduce((s,r) => s+(r.questoes_feitas||0), 0) || 0
+  const totalC = registros?.reduce((s,r) => s+(r.questoes_certas||0), 0) || 0
+  const pctAcerto = totalQ > 0 ? Math.round((totalC/totalQ)*100) : 0
+  const diasCumpriu = registros?.filter(r => r.cumpriu).length || 0
+  const totalDias = registros?.length || 0
+  const pctCumprimento = totalDias > 0 ? Math.round((diasCumpriu/totalDias)*100) : 0
+
+  // Por disciplina
+  const porDisc = {}
+  registros?.forEach(r => {
+    if (!porDisc[r.disciplina]) porDisc[r.disciplina] = { feitas:0, certas:0, dias:0 }
+    porDisc[r.disciplina].feitas += r.questoes_feitas || 0
+    porDisc[r.disciplina].certas += r.questoes_certas || 0
+    porDisc[r.disciplina].dias++
+  })
+
+  // Evolucao semanal (ultimas 4 semanas)
+  const semanas = []
+  for (let s = 3; s >= 0; s--) {
+    const inicio = new Date(); inicio.setDate(inicio.getDate() - (s+1)*7)
+    const fim = new Date(); fim.setDate(fim.getDate() - s*7)
+    const inicioStr = inicio.toISOString().split('T')[0]
+    const fimStr = fim.toISOString().split('T')[0]
+    const regSemana = registros?.filter(r => r.data >= inicioStr && r.data < fimStr) || []
+    const qSemana = regSemana.reduce((s,r) => s+(r.questoes_feitas||0), 0)
+    const cSemana = regSemana.reduce((s,r) => s+(r.questoes_certas||0), 0)
+    const cumSemana = regSemana.filter(r=>r.cumpriu).length
+    semanas.push({
+      label: 'Sem '+(4-s),
+      questoes: qSemana,
+      acerto: qSemana > 0 ? Math.round((cSemana/qSemana)*100) : 0,
+      cumprimento: regSemana.length > 0 ? Math.round((cumSemana/regSemana.length)*100) : 0
+    })
+  }
+
+  // Ultimos 7 dias para minigraph
+  const ultimos7 = []
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate()-i)
+    const key = d.toISOString().split('T')[0]
+    const regDia = registros?.filter(r => r.data === key) || []
+    ultimos7.push({ label: ['D','S','T','Q','Q','S','S'][d.getDay()], cumpriu: regDia.some(r=>r.cumpriu), isHoje: key === hoje })
+  }
+
+  const obs = document.getElementById('obs-mentor').value
+
+  _dadosRelatorio = {
+    nomeAluno, concurso, periodo, pctAcerto, pctCumprimento,
+    totalQ, totalDias, diasCumpriu, streak, porDisc, semanas, ultimos7, obs,
+    dataInicio: dataInicio.toLocaleDateString('pt-BR'), dataFim: new Date().toLocaleDateString('pt-BR')
+  }
+
+  renderizarPreview(_dadosRelatorio)
+  document.getElementById('preview-container').style.display = 'block'
+  document.getElementById('btn-pdf').style.display = 'block'
+  msg.style.display = 'none'
+}
+
+function atualizarObsPreview() {
+  if (!_dadosRelatorio) return
+  _dadosRelatorio.obs = document.getElementById('obs-mentor').value
+  const el = document.getElementById('prev-obs')
+  if (el) el.textContent = _dadosRelatorio.obs || 'Sem observacoes do mentor neste periodo.'
+}
+
+function renderizarPreview(d) {
+  const corCump = d.pctCumprimento >= 70 ? '#27ae60' : d.pctCumprimento >= 40 ? '#e67e22' : '#e74c3c'
+  const corAcerto = d.pctAcerto >= 70 ? '#27ae60' : d.pctAcerto >= 50 ? '#e67e22' : '#e74c3c'
+  const iconeStreak = d.streak >= 14 ? '🔥🔥' : d.streak >= 7 ? '🔥' : d.streak >= 3 ? '🔥' : ''
+
+  const discHTML = Object.entries(d.porDisc)
+    .sort((a,b) => b[1].feitas - a[1].feitas)
+    .map(([disc, dados]) => {
+      const pct = dados.feitas > 0 ? Math.round((dados.certas/dados.feitas)*100) : 0
+      const cor = pct >= 70 ? '#27ae60' : pct >= 50 ? '#e67e22' : '#e74c3c'
+      return `<div class="preview-disc-row">
+        <span style="flex:1;min-width:120px;font-size:12px">${disc}</span>
+        <div class="preview-barra"><div class="preview-barra-fill" style="width:${pct}%;background:${cor}"></div></div>
+        <span style="color:${cor};font-weight:bold;min-width:40px;text-align:right;font-size:12px">${pct}%</span>
+        <span style="color:#666;font-size:11px;min-width:60px;text-align:right">${dados.feitas}q feitas</span>
+      </div>`
+    }).join('')
+
+  const diasHTML = d.ultimos7.map(dia => {
+    const bg = dia.cumpriu ? '#27ae60' : dia.isHoje ? '#3498db' : '#ecf0f1'
+    const cor = dia.cumpriu || dia.isHoje ? 'white' : '#999'
+    return `<div class="streak-dia" style="background:${bg};color:${cor}">${dia.label}</div>`
+  }).join('')
+
+  const semanaHTML = d.semanas.map(s => `
+    <div style="display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid #eee;font-size:12px">
+      <span style="min-width:50px;color:#666">${s.label}</span>
+      <div style="flex:1;background:#eee;border-radius:4px;height:8px;overflow:hidden">
+        <div style="width:${s.cumprimento}%;background:${s.cumprimento>=70?'#27ae60':s.cumprimento>=40?'#e67e22':'#e74c3c'};height:100%;border-radius:4px"></div>
+      </div>
+      <span style="min-width:35px;text-align:right">${s.cumprimento}%</span>
+      <span style="color:#666;min-width:60px;text-align:right">${s.questoes}q / ${s.acerto}%</span>
+    </div>`).join('')
+
+  document.getElementById('preview-box').innerHTML = `
+    <div class="preview-header">
+      <div class="preview-titulo">Patrulheiros de Elite</div>
+      <div class="preview-subtitulo">Relatorio de Progresso Individualizado</div>
+      <div style="margin-top:12px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <div>
+          <div style="color:#C9A83C;font-size:18px;font-weight:bold">${d.nomeAluno}</div>
+          <div style="color:#aaa;font-size:12px">${d.concurso}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="color:#aaa;font-size:12px">Periodo: ${d.dataInicio} a ${d.dataFim}</div>
+          <div style="color:#aaa;font-size:12px">${d.periodo} dias analisados</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="preview-stats">
+      <div class="preview-stat">
+        <div class="preview-stat-val" style="color:${corCump}">${d.pctCumprimento}%</div>
+        <div class="preview-stat-label">Cumprimento do plano</div>
+      </div>
+      <div class="preview-stat">
+        <div class="preview-stat-val" style="color:${corAcerto}">${d.pctAcerto}%</div>
+        <div class="preview-stat-label">Taxa de acerto</div>
+      </div>
+      <div class="preview-stat">
+        <div class="preview-stat-val" style="color:#1a3a5c">${d.totalQ}</div>
+        <div class="preview-stat-label">Questoes respondidas</div>
+      </div>
+      <div class="preview-stat">
+        <div class="preview-stat-val" style="color:#C9A83C">${iconeStreak} ${d.streak}</div>
+        <div class="preview-stat-label">Dias em sequencia</div>
+      </div>
+    </div>
+
+    <div class="preview-secao">
+      <h3>Ultimos 7 dias</h3>
+      <div class="streak-semana">${diasHTML}</div>
+      <div style="font-size:11px;color:#666;margin-top:6px">
+        Verde = cumpriu o plano | Azul = hoje | Cinza = nao registrou
+      </div>
+    </div>
+
+    <div class="preview-secao">
+      <h3>Evolucao semanal</h3>
+      ${semanaHTML}
+      <div style="font-size:11px;color:#666;margin-top:6px">Cumprimento do plano % · Questoes feitas / % acerto</div>
+    </div>
+
+    ${Object.keys(d.porDisc).length > 0 ? `
+    <div class="preview-secao">
+      <h3>Desempenho por disciplina</h3>
+      ${discHTML}
+    </div>` : ''}
+
+    <div class="preview-secao">
+      <h3>Observacoes do Mentor</h3>
+      <div class="preview-obs" id="prev-obs">${d.obs || 'Sem observacoes do mentor neste periodo.'}</div>
+    </div>
+
+    <div style="background:#f0f4f8;border-radius:8px;padding:12px;margin-bottom:16px">
+      <div style="font-size:12px;color:#1a3a5c;font-weight:bold;margin-bottom:6px">Resumo do periodo</div>
+      <div style="font-size:12px;color:#444;line-height:1.6">
+        Dias com registro: <strong>${d.totalDias}</strong> &nbsp;|&nbsp;
+        Dias cumpridos: <strong>${d.diasCumpriu}</strong> &nbsp;|&nbsp;
+        Questoes feitas: <strong>${d.totalQ}</strong> &nbsp;|&nbsp;
+        Acertos: <strong>${Math.round(d.totalQ * d.pctAcerto / 100)}</strong>
+      </div>
+    </div>
+
+    <div class="preview-rodape">
+      Patrulheiros de Elite — Mentoria Policial Especializada<br>
+      Mentor: Cabo Jota | @patrulheiro.jota | patrulheirojota.com.br<br>
+      Relatorio gerado em ${new Date().toLocaleDateString('pt-BR')} as ${new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}
+    </div>`
+}
+
+async function baixarPDF() {
+  if (!_dadosRelatorio) { alert('Gere o preview primeiro.'); return }
+  const d = _dadosRelatorio
+  const { jsPDF } = window.jspdf
+  const doc = new jsPDF({ format: 'a4' })
+  const W = 210, margin = 14
+  let y = 0
+
+  // CAPA
+  doc.setFillColor(26, 58, 92)
+  doc.rect(0, 0, W, 48, 'F')
+  doc.setFillColor(201, 168, 60)
+  doc.rect(0, 48, W, 3, 'F')
+
+  doc.setTextColor(201, 168, 60)
+  doc.setFontSize(20); doc.setFont('helvetica', 'bold')
+  doc.text('Patrulheiros de Elite', margin, 18)
+  doc.setFontSize(11); doc.setFont('helvetica', 'normal')
+  doc.setTextColor(180, 180, 180)
+  doc.text('Relatorio de Progresso Individualizado', margin, 27)
+  doc.setTextColor(255, 255, 255)
+  doc.setFontSize(15); doc.setFont('helvetica', 'bold')
+  doc.text(d.nomeAluno, margin, 39)
+  doc.setFontSize(10); doc.setFont('helvetica', 'normal')
+  doc.setTextColor(180, 180, 180)
+  doc.text(d.concurso + '  |  Periodo: ' + d.dataInicio + ' a ' + d.dataFim, margin, 46)
+  y = 60
+
+  // METRICAS
+  const corCump = d.pctCumprimento >= 70 ? [39,174,96] : d.pctCumprimento >= 40 ? [230,126,34] : [231,76,60]
+  const corAcerto = d.pctAcerto >= 70 ? [39,174,96] : d.pctAcerto >= 50 ? [230,126,34] : [231,76,60]
+  const estatCards = [
+    { label: 'Cumprimento', val: d.pctCumprimento + '%', cor: corCump },
+    { label: 'Taxa de Acerto', val: d.pctAcerto + '%', cor: corAcerto },
+    { label: 'Questoes Feitas', val: String(d.totalQ), cor: [26,58,92] },
+    { label: 'Sequencia Atual', val: d.streak + ' dias', cor: [201,168,60] },
+  ]
+  const cw = (W - margin*2 - 9) / 4
+  estatCards.forEach((e, i) => {
+    const x = margin + i * (cw + 3)
+    doc.setFillColor(245, 247, 250)
+    doc.roundedRect(x, y, cw, 22, 2, 2, 'F')
+    doc.setFillColor(...e.cor)
+    doc.rect(x, y, 3, 22, 'F')
+    doc.setTextColor(...e.cor)
+    doc.setFontSize(16); doc.setFont('helvetica', 'bold')
+    doc.text(e.val, x + cw/2, y + 11, { align: 'center' })
+    doc.setTextColor(100, 100, 100)
+    doc.setFontSize(8); doc.setFont('helvetica', 'normal')
+    doc.text(e.label, x + cw/2, y + 18, { align: 'center' })
+  })
+  y += 30
+
+  // ULTIMOS 7 DIAS
+  doc.setTextColor(26, 58, 92); doc.setFontSize(11); doc.setFont('helvetica', 'bold')
+  doc.text('Ultimos 7 dias', margin, y)
+  doc.setFillColor(201, 168, 60); doc.rect(margin, y + 1, 40, 1, 'F')
+  y += 8
+  const dw = 20
+  d.ultimos7.forEach((dia, i) => {
+    const x = margin + i * (dw + 2)
+    const [r, g, b] = dia.cumpriu ? [39,174,96] : dia.isHoje ? [52,152,219] : [220,220,220]
+    doc.setFillColor(r, g, b)
+    doc.roundedRect(x, y, dw, 16, 3, 3, 'F')
+    doc.setTextColor(dia.cumpriu || dia.isHoje ? 255 : 150, dia.cumpriu || dia.isHoje ? 255 : 150, dia.cumpriu || dia.isHoje ? 255 : 150)
+    doc.setFontSize(9); doc.setFont('helvetica', 'bold')
+    doc.text(dia.label, x + dw/2, y + 9, { align: 'center' })
+  })
+  y += 22
+
+  // EVOLUCAO SEMANAL
+  doc.setTextColor(26, 58, 92); doc.setFontSize(11); doc.setFont('helvetica', 'bold')
+  doc.text('Evolucao Semanal', margin, y)
+  doc.setFillColor(201, 168, 60); doc.rect(margin, y + 1, 50, 1, 'F')
+  y += 8
+  d.semanas.forEach(s => {
+    doc.setFillColor(245, 247, 250); doc.rect(margin, y, W - margin*2, 10, 'F')
+    doc.setTextColor(80, 80, 80); doc.setFontSize(9); doc.setFont('helvetica', 'normal')
+    doc.text(s.label, margin + 2, y + 7)
+    const barW = 80
+    doc.setFillColor(220, 220, 220); doc.roundedRect(margin + 20, y + 3, barW, 5, 2, 2, 'F')
+    const [r,g,b] = s.cumprimento>=70?[39,174,96]:s.cumprimento>=40?[230,126,34]:[231,76,60]
+    doc.setFillColor(r,g,b); doc.roundedRect(margin + 20, y + 3, barW * s.cumprimento/100, 5, 2, 2, 'F')
+    doc.setTextColor(80,80,80)
+    doc.text(s.cumprimento + '%', margin + 22 + barW, y + 7)
+    doc.text(s.questoes + ' questoes  |  ' + s.acerto + '% acerto', margin + 140, y + 7)
+    y += 12
+  })
+  y += 4
+
+  // DISCIPLINAS
+  if (Object.keys(d.porDisc).length > 0) {
+    if (y > 220) { doc.addPage(); y = 20 }
+    doc.setTextColor(26, 58, 92); doc.setFontSize(11); doc.setFont('helvetica', 'bold')
+    doc.text('Desempenho por Disciplina', margin, y)
+    doc.setFillColor(201, 168, 60); doc.rect(margin, y + 1, 70, 1, 'F')
+    y += 8
+    Object.entries(d.porDisc).sort((a,b) => b[1].feitas - a[1].feitas).forEach(([disc, dados]) => {
+      if (y > 260) { doc.addPage(); y = 20 }
+      const pct = dados.feitas > 0 ? Math.round((dados.certas/dados.feitas)*100) : 0
+      const [r,g,b] = pct>=70?[39,174,96]:pct>=50?[230,126,34]:[231,76,60]
+      doc.setFillColor(248, 248, 248); doc.rect(margin, y, W - margin*2, 9, 'F')
+      doc.setTextColor(50,50,50); doc.setFontSize(9); doc.setFont('helvetica', 'normal')
+      doc.text(disc.substring(0, 28), margin + 2, y + 6)
+      const barW = 55
+      doc.setFillColor(220,220,220); doc.roundedRect(margin + 90, y + 2, barW, 5, 2, 2, 'F')
+      doc.setFillColor(r,g,b); doc.roundedRect(margin + 90, y + 2, barW * pct/100, 5, 2, 2, 'F')
+      doc.setTextColor(r,g,b); doc.setFont('helvetica','bold')
+      doc.text(pct + '%', margin + 148, y + 6)
+      doc.setTextColor(120,120,120); doc.setFont('helvetica','normal')
+      doc.text(dados.feitas + 'q feitas', margin + 158, y + 6)
+      y += 11
+    })
+    y += 4
+  }
+
+  // OBSERVACOES
+  if (y > 220) { doc.addPage(); y = 20 }
+  doc.setTextColor(26, 58, 92); doc.setFontSize(11); doc.setFont('helvetica', 'bold')
+  doc.text('Observacoes do Mentor', margin, y)
+  doc.setFillColor(201, 168, 60); doc.rect(margin, y + 1, 62, 1, 'F')
+  y += 8
+  doc.setFillColor(240, 244, 248)
+  doc.setFillColor(201, 168, 60); doc.rect(margin, y, 3, 40, 'F')
+  doc.setFillColor(240, 244, 248); doc.rect(margin + 3, y, W - margin*2 - 3, 40, 'F')
+  doc.setTextColor(50, 50, 50); doc.setFontSize(10); doc.setFont('helvetica', 'normal')
+  const obsTexto = d.obs || 'Sem observacoes do mentor neste periodo.'
+  const linhas = doc.splitTextToSize(obsTexto, W - margin*2 - 10)
+  doc.text(linhas, margin + 7, y + 8)
+  y += 48
+
+  // RODAPE
+  if (y > 260) { doc.addPage(); y = 260 }
+  doc.setFillColor(26, 58, 92); doc.rect(0, 282, W, 15, 'F')
+  doc.setTextColor(180, 180, 180); doc.setFontSize(8); doc.setFont('helvetica', 'normal')
+  doc.text('Patrulheiros de Elite  |  Cabo Jota  |  @patrulheiro.jota  |  patrulheirojota.com.br', W/2, 291, { align: 'center' })
+  doc.setTextColor(150, 150, 150)
+  doc.text('Gerado em ' + new Date().toLocaleDateString('pt-BR') + ' as ' + new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}), W/2, 296, { align: 'center' })
+
+  const nomeSafe = d.nomeAluno.replace(/[^a-zA-Z0-9]/g, '-')
+  doc.save('relatorio-' + nomeSafe + '-' + new Date().toISOString().split('T')[0] + '.pdf')
+}
+
+init()
+</script>
+</body>
+</html>
