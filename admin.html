@@ -9,225 +9,293 @@
 </head>
 <body>
 
-  <div class="login-box" id="tela-login">
-    <h1>Area Admin</h1>
-    <p>Patrulheiro Jota</p>
-    <input type="email" id="admin-email" placeholder="Seu e-mail">
-    <input type="password" id="admin-senha" placeholder="Sua senha">
-    <button onclick="loginAdmin()">Entrar</button>
-    <p id="msg-erro-admin" style="color:#e57373;display:none;margin-top:10px"></p>
+<div class="login-box" id="tela-login">
+  <h1>Area Admin</h1>
+  <p>Patrulheiro Jota</p>
+  <input type="email" id="admin-email" placeholder="Seu e-mail">
+  <input type="password" id="admin-senha" placeholder="Sua senha">
+  <button onclick="loginAdmin()">Entrar</button>
+  <p id="msg-erro-admin" style="color:#e57373;display:none;margin-top:10px"></p>
+</div>
+
+<div class="container" id="painel-admin" style="display:none">
+  <header>
+    <h2>Painel Admin</h2>
+    <button onclick="sairAdmin()" style="width:auto;padding:8px 16px">Sair</button>
+  </header>
+
+  <div class="abas">
+    <button class="aba-btn ativa" onclick="mostrarAba('aba-concursos')">Concursos</button>
+    <button class="aba-btn" onclick="mostrarAba('aba-alunos')">Alunos</button>
+    <button class="aba-btn" onclick="mostrarAba('aba-templates')">Templates</button>
+    <button class="aba-btn" onclick="mostrarAba('aba-cronograma')">Cronograma</button>
+    <button class="aba-btn" onclick="mostrarAba('aba-desempenho')">Desempenho</button>
+    <button class="aba-btn" onclick="mostrarAba('aba-avisos')">Avisos</button>
   </div>
 
-  <div class="container" id="painel-admin" style="display:none">
-    <header>
-      <h2>Painel Admin 👮</h2>
-      <button onclick="sairAdmin()">Sair</button>
-    </header>
+  <!-- ABA: CONCURSOS -->
+  <div id="aba-concursos" class="aba-conteudo">
+    <div class="card">
+      <h3>Cadastrar novo concurso</h3>
+      <input type="text" id="novo-concurso-nome" placeholder="Nome (ex: GMA Aracaju 2026)">
+      <input type="text" id="novo-concurso-banca" placeholder="Banca (ex: IDECAN)">
+      <input type="date" id="novo-concurso-data">
+      <button onclick="criarConcurso()">Cadastrar concurso</button>
+    </div>
+    <div class="card">
+      <h3>Concursos cadastrados</h3>
+      <div id="lista-concursos"></div>
+    </div>
+  </div>
 
-    <div class="abas">
-      <button class="aba-btn ativa" onclick="mostrarAba('aba-concursos')">Concursos</button>
-      <button class="aba-btn" onclick="mostrarAba('aba-alunos')">Alunos</button>
-      <button class="aba-btn" onclick="mostrarAba('aba-cronograma')">Cronograma</button>
-      <button class="aba-btn" onclick="mostrarAba('aba-desempenho')">Desempenho</button>
-      <button class="aba-btn" onclick="mostrarAba('aba-avisos')">Avisos</button>
+  <!-- ABA: ALUNOS -->
+  <div id="aba-alunos" class="aba-conteudo" style="display:none">
+    <div class="card">
+      <h3>Cadastrar novo aluno</h3>
+      <input type="text" id="novo-aluno-nome" placeholder="Nome completo">
+      <input type="email" id="novo-aluno-email" placeholder="E-mail do aluno">
+      <input type="password" id="novo-aluno-senha" placeholder="Senha provisoria (min. 6 caracteres)">
+      <select id="novo-aluno-concurso"></select>
+      <button onclick="criarAluno()">Cadastrar aluno</button>
+      <p id="msg-aluno" style="margin-top:10px"></p>
     </div>
 
-    <!-- ABA: CONCURSOS -->
-    <div id="aba-concursos" class="aba-conteudo">
-      <div class="card">
-        <h3>Cadastrar novo concurso</h3>
-        <input type="text" id="novo-concurso-nome" placeholder="Nome do concurso (ex: GMA Aracaju 2026)">
-        <input type="text" id="novo-concurso-banca" placeholder="Banca (ex: IDECAN)">
-        <input type="date" id="novo-concurso-data">
-        <button onclick="criarConcurso()">Cadastrar concurso</button>
-      </div>
-      <div class="card">
-        <h3>Concursos cadastrados</h3>
-        <div id="lista-concursos"></div>
-      </div>
+    <div class="card">
+      <h3>Alunos cadastrados</h3>
+      <div id="lista-alunos"></div>
     </div>
 
-    <!-- ABA: ALUNOS -->
-    <div id="aba-alunos" class="aba-conteudo" style="display:none">
-      <div class="card">
-        <h3>Cadastrar novo aluno</h3>
-        <input type="text" id="novo-aluno-nome" placeholder="Nome completo do aluno">
-        <input type="email" id="novo-aluno-email" placeholder="E-mail do aluno">
-        <input type="password" id="novo-aluno-senha" placeholder="Senha provisória (min. 6 caracteres)">
-        <select id="novo-aluno-concurso"></select>
-        <button onclick="criarAluno()">Cadastrar aluno</button>
-        <p id="msg-aluno" style="margin-top:10px"></p>
+    <div class="card" id="card-editar-aluno" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h3 id="titulo-editar-aluno">Editar aluno</h3>
+        <button onclick="fecharEditarAluno()" style="width:auto;padding:6px 14px;background:#1a2f45;color:#aaa;border:1px solid #2a4a6a">Fechar</button>
       </div>
-      <div class="card">
-        <h3>Alunos cadastrados</h3>
-        <div id="lista-alunos"></div>
-      </div>
-
-      <div class="card" id="card-concursos-aluno" style="display:none">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-          <h3 id="titulo-concursos-aluno">Concursos do aluno</h3>
-          <button onclick="fecharConcursosAluno()" style="width:auto;padding:6px 14px;background:#1a2f45;color:#aaa;border:1px solid #2a4a6a">Fechar</button>
-        </div>
-        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
-          <select id="select-add-concurso" style="flex:1"></select>
-          <button onclick="adicionarConcursoAluno()" style="width:auto;padding:10px 16px">+ Adicionar</button>
-        </div>
-        <div id="lista-concursos-aluno"></div>
-      </div>
-
-      <div class="card" id="card-editar-aluno" style="display:none">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-          <h3 id="titulo-editar-aluno">Editar aluno</h3>
-          <button onclick="fecharEditarAluno()" style="width:auto;padding:6px 14px;background:#1a2f45;color:#aaa;border:1px solid #2a4a6a">Fechar</button>
-        </div>
-        <input type="hidden" id="editar-aluno-id">
-        <input type="text" id="editar-aluno-nome" placeholder="Nome completo">
-        <input type="email" id="editar-aluno-email" placeholder="E-mail">
-        <select id="editar-aluno-concurso"></select>
-        <button onclick="salvarEdicaoAluno()" style="margin-top:8px">Salvar alteracoes</button>
-        <p id="msg-editar-aluno" style="margin-top:8px"></p>
-      </div>
+      <input type="hidden" id="editar-aluno-id">
+      <input type="text" id="editar-aluno-nome" placeholder="Nome completo">
+      <input type="email" id="editar-aluno-email" placeholder="E-mail">
+      <select id="editar-aluno-concurso"></select>
+      <button onclick="salvarEdicaoAluno()">Salvar alteracoes</button>
+      <p id="msg-editar-aluno" style="margin-top:8px"></p>
     </div>
 
-    <!-- ABA: CRONOGRAMA -->
-    <div id="aba-cronograma" class="aba-conteudo" style="display:none">
+    <div class="card" id="card-concursos-aluno" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h3 id="titulo-concursos-aluno">Concursos do aluno</h3>
+        <button onclick="fecharConcursosAluno()" style="width:auto;padding:6px 14px;background:#1a2f45;color:#aaa;border:1px solid #2a4a6a">Fechar</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+        <select id="select-add-concurso" style="flex:1"></select>
+        <button onclick="adicionarConcursoAluno()" style="width:auto;padding:10px 16px">+ Adicionar</button>
+      </div>
+      <div id="lista-concursos-aluno"></div>
+    </div>
 
-      <!-- Visualizar por concurso -->
-      <div class="card">
-        <h3>Visualizar cronograma por concurso</h3>
-        <select id="filtro-cron-concurso" onchange="visualizarCronogramaConcurso()">
-          <option value="">Selecione o concurso</option>
+    <div class="card" id="card-aplicar-template" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h3 id="titulo-aplicar-template">Aplicar template</h3>
+        <button onclick="document.getElementById('card-aplicar-template').style.display='none'" style="width:auto;padding:6px 14px;background:#1a2f45;color:#aaa;border:1px solid #2a4a6a">Fechar</button>
+      </div>
+      <select id="aplicar-template-concurso" onchange="carregarTemplatesParaAplicar()"></select>
+      <select id="aplicar-template-select" style="margin-top:8px">
+        <option value="">Selecione o template</option>
+      </select>
+      <button onclick="preVisualizarTemplate()" style="margin-top:8px;background:#1a3a5c;color:#C9A83C;border:1px solid #C9A83C">Visualizar e ajustar carga horaria</button>
+      <div id="preview-template" style="margin-top:12px"></div>
+      <button id="btn-confirmar-aplicar" onclick="confirmarAplicarTemplate()" style="display:none;margin-top:12px;background:#1a3a1a;color:#81c784;border:1px solid #81c784">Confirmar e aplicar template</button>
+    </div>
+  </div>
+
+  <!-- ABA: TEMPLATES -->
+  <div id="aba-templates" class="aba-conteudo" style="display:none">
+
+    <div class="card">
+      <h3>Criar novo template</h3>
+      <select id="template-concurso"></select>
+      <input type="text" id="template-nome" placeholder="Nome do template (ex: PMBA Basico 60min/dia)">
+      <input type="text" id="template-descricao" placeholder="Descricao (opcional)">
+      <button onclick="criarTemplate()">Criar template</button>
+    </div>
+
+    <div class="card">
+      <h3>Templates existentes</h3>
+      <select id="filtro-template-concurso" onchange="carregarTemplates()">
+        <option value="">Selecione o concurso</option>
+      </select>
+      <div id="lista-templates" style="margin-top:12px"></div>
+    </div>
+
+    <div class="card" id="card-itens-template" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h3 id="titulo-itens-template">Itens do template</h3>
+        <button onclick="document.getElementById('card-itens-template').style.display='none'" style="width:auto;padding:6px 14px;background:#1a2f45;color:#aaa;border:1px solid #2a4a6a">Fechar</button>
+      </div>
+      <div id="lista-itens-template" style="margin-bottom:16px"></div>
+      <div style="background:#0d1b2a;border-radius:8px;padding:14px">
+        <p style="color:#C9A83C;font-size:13px;font-weight:bold;margin-bottom:10px">Adicionar disciplina ao template</p>
+        <input type="text" id="item-disciplina" placeholder="Disciplina (ex: Direito Penal Militar)">
+        <select id="item-dia">
+          <option value="segunda">Segunda-feira</option>
+          <option value="terca">Terca-feira</option>
+          <option value="quarta">Quarta-feira</option>
+          <option value="quinta">Quinta-feira</option>
+          <option value="sexta">Sexta-feira</option>
+          <option value="sabado">Sabado</option>
+          <option value="domingo">Domingo</option>
         </select>
-        <div id="viz-cronograma-concurso" style="margin-top:12px"></div>
+        <div style="display:flex;gap:8px">
+          <input type="number" id="item-tempo" placeholder="Tempo padrao (min)" min="15" step="15">
+          <input type="number" id="item-questoes" placeholder="Meta de questoes" value="30" min="0">
+        </div>
+        <button onclick="adicionarItemTemplate()" style="margin-top:8px">+ Adicionar disciplina</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Aplicar template em massa</h3>
+      <p style="color:#aaa;font-size:13px;margin-bottom:12px">Selecione um concurso, escolha o template e marque os alunos que vao receber.</p>
+      <button onclick="document.getElementById('card-massa').style.display='block';document.getElementById('card-massa').scrollIntoView({behavior:'smooth'})"
+        style="background:#1a3a1a;color:#81c784;border:1px solid #81c784">Abrir aplicacao em massa</button>
+    </div>
+
+    <div class="card" id="card-massa" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h3>Aplicar em massa</h3>
+        <button onclick="document.getElementById('card-massa').style.display='none'" style="width:auto;padding:6px 14px;background:#1a2f45;color:#aaa;border:1px solid #2a4a6a">Fechar</button>
+      </div>
+      <select id="massa-concurso-select" onchange="carregarAlunosParaMassa()"></select>
+      <select id="massa-template-select" style="margin-top:8px"><option value="">Selecione o template</option></select>
+      <div id="lista-massa-alunos" style="margin-top:12px"></div>
+      <button onclick="aplicarTemplateEmMassa()" style="margin-top:12px;background:#1a3a1a;color:#81c784;border:1px solid #81c784">Aplicar template aos selecionados</button>
+    </div>
+  </div>
+
+  <!-- ABA: CRONOGRAMA -->
+  <div id="aba-cronograma" class="aba-conteudo" style="display:none">
+    <div class="card">
+      <h3>Visualizar cronograma por concurso</h3>
+      <select id="filtro-cron-concurso" onchange="visualizarCronogramaConcurso()"></select>
+      <div id="viz-cronograma-concurso" style="margin-top:12px"></div>
+    </div>
+
+    <div class="card">
+      <h3>Editar plano individual do aluno</h3>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <div style="flex:1;min-width:160px">
+          <label style="color:#aaa;font-size:12px;display:block;margin-bottom:4px">Aluno</label>
+          <select id="cron-aluno" onchange="carregarConcursosParaCronograma()"></select>
+        </div>
+        <div style="flex:1;min-width:160px">
+          <label style="color:#aaa;font-size:12px;display:block;margin-bottom:4px">Concurso</label>
+          <select id="cron-concurso-filtro" onchange="carregarPlanoAluno()"><option value="">Selecione</option></select>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <div style="flex:1;min-width:160px">
+          <label style="color:#aaa;font-size:12px;display:block;margin-bottom:4px">Copiar plano de</label>
+          <select id="cron-aluno-origem"></select>
+        </div>
+        <button onclick="copiarPlano()" style="width:auto;padding:10px 16px;align-self:flex-end">Copiar plano</button>
       </div>
 
-      <!-- Editar plano por aluno -->
-      <div class="card">
-        <h3>Editar plano individual do aluno</h3>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
-          <div style="flex:1;min-width:180px">
-            <label style="color:#aaa;font-size:12px;display:block;margin-bottom:4px">Aluno</label>
-            <select id="cron-aluno" onchange="carregarConcursosParaCronograma()"></select>
+      <div id="form-plano" style="display:none;margin-top:16px">
+        <div style="background:#0d1b2a;border-radius:8px;padding:14px">
+          <p style="color:#C9A83C;font-weight:bold;margin-bottom:10px">Adicionar disciplina manualmente</p>
+          <input type="text" id="cron-disciplina" placeholder="Disciplina">
+          <select id="cron-dia">
+            <option value="segunda">Segunda-feira</option>
+            <option value="terca">Terca-feira</option>
+            <option value="quarta">Quarta-feira</option>
+            <option value="quinta">Quinta-feira</option>
+            <option value="sexta">Sexta-feira</option>
+            <option value="sabado">Sabado</option>
+            <option value="domingo">Domingo</option>
+          </select>
+          <div style="display:flex;gap:8px">
+            <input type="number" id="cron-tempo" placeholder="Tempo (min)" min="15" step="15">
+            <input type="number" id="cron-questoes" placeholder="Meta questoes" value="30">
           </div>
-          <div style="flex:1;min-width:180px">
-            <label style="color:#aaa;font-size:12px;display:block;margin-bottom:4px">Concurso</label>
-            <select id="cron-concurso-filtro" onchange="carregarPlanoAluno()">
-              <option value="">Selecione o concurso</option>
-            </select>
-          </div>
-        </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-          <div style="flex:1;min-width:180px">
-            <label style="color:#aaa;font-size:12px;display:block;margin-bottom:4px">Copiar plano de outro aluno</label>
-            <select id="cron-aluno-origem"></select>
-          </div>
-          <button onclick="copiarPlano()" style="width:auto;padding:10px 16px;align-self:flex-end">Copiar plano</button>
-        </div>
-
-        <div id="form-plano" style="display:none;margin-top:16px">
-          <div style="background:#0d1b2a;border-radius:8px;padding:14px;margin-bottom:12px">
-            <p style="color:#C9A83C;font-weight:bold;margin-bottom:10px">Adicionar disciplina ao plano</p>
-            <input type="text" id="cron-disciplina" placeholder="Disciplina (ex: Direito Penal)">
-            <select id="cron-dia">
-              <option value="segunda">Segunda-feira</option>
-              <option value="terca">Terca-feira</option>
-              <option value="quarta">Quarta-feira</option>
-              <option value="quinta">Quinta-feira</option>
-              <option value="sexta">Sexta-feira</option>
-              <option value="sabado">Sabado</option>
-              <option value="domingo">Domingo</option>
-            </select>
-            <div style="display:flex;gap:8px">
-              <input type="number" id="cron-tempo" placeholder="Tempo (minutos)" min="15" step="15">
-              <input type="number" id="cron-questoes" placeholder="Meta de questoes" min="0" value="30">
-            </div>
-            <div style="background:#1a2f45;border-radius:8px;padding:12px;margin-top:12px">
-              <p style="color:#aaa;font-size:13px;margin-bottom:8px">Revisao espacada automatica</p>
-              <label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:14px">
-                <input type="checkbox" id="usar-revisao" checked>
-                Ativar revisao espacada para esta disciplina
-              </label>
-              <div id="config-revisao" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-                <div>
-                  <label style="color:#aaa;font-size:12px">Exercicios apos</label>
-                  <div style="display:flex;align-items:center;gap:4px">
-                    <input type="number" id="dias-exercicios" value="5" min="1" max="30" style="width:70px">
-                    <span style="color:#aaa;font-size:13px">dias</span>
-                  </div>
+          <div style="background:#1a2f45;border-radius:8px;padding:12px;margin-top:12px">
+            <label style="display:flex;align-items:center;gap:8px;font-size:14px">
+              <input type="checkbox" id="usar-revisao" checked>
+              Ativar revisao espacada
+            </label>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+              <div><label style="color:#aaa;font-size:12px">Exercicios apos</label>
+                <div style="display:flex;align-items:center;gap:4px">
+                  <input type="number" id="dias-exercicios" value="5" min="1" max="30" style="width:70px">
+                  <span style="color:#aaa;font-size:13px">dias</span>
                 </div>
-                <div>
-                  <label style="color:#aaa;font-size:12px">Revisao apos</label>
-                  <div style="display:flex;align-items:center;gap:4px">
-                    <input type="number" id="dias-revisao" value="12" min="1" max="60" style="width:70px">
-                    <span style="color:#aaa;font-size:13px">dias</span>
-                  </div>
+              </div>
+              <div><label style="color:#aaa;font-size:12px">Revisao apos</label>
+                <div style="display:flex;align-items:center;gap:4px">
+                  <input type="number" id="dias-revisao" value="12" min="1" max="60" style="width:70px">
+                  <span style="color:#aaa;font-size:13px">dias</span>
                 </div>
               </div>
             </div>
-            <button onclick="adicionarAoPlano()" style="margin-top:12px">Adicionar ao plano</button>
           </div>
+          <button onclick="adicionarAoPlano()" style="margin-top:12px">Adicionar ao plano</button>
         </div>
-      </div>
-
-      <div class="card" id="card-plano-atual" style="display:none">
-        <h3>Plano atual do aluno</h3>
-        <div id="lista-plano-aluno"></div>
-      </div>
-
-      <div class="card" id="card-revisoes" style="display:none">
-        <h3>Revisoes programadas</h3>
-        <div id="lista-revisoes-admin"></div>
-      </div>
-
-    </div>
-
-    <!-- ABA: DESEMPENHO -->
-    <div id="aba-desempenho" class="aba-conteudo" style="display:none">
-      <div class="card">
-        <h3>Alertas de inatividade</h3>
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
-          <span style="color:#aaa;font-size:14px">Alunos sem registro ha mais de</span>
-          <input type="number" id="dias-inatividade" value="3" min="1" max="30"
-            style="width:60px;padding:6px;border-radius:6px;border:1px solid #2a4a6a;background:#0d1b2a;color:#fff">
-          <span style="color:#aaa;font-size:14px">dias</span>
-          <button onclick="verificarInatividade()" style="width:auto;padding:8px 16px">Verificar</button>
-        </div>
-        <div id="lista-inatividade"></div>
-      </div>
-      <div class="card">
-        <h3>Desempenho — ultimos 7 dias</h3>
-        <select id="filtro-desempenho-concurso" onchange="carregarDesempenho()"></select>
-        <div id="lista-desempenho"></div>
-      </div>
-      <div class="card" id="card-relatorio-individual" style="display:none">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-          <h3 id="titulo-relatorio-individual">Historico do aluno</h3>
-          <button onclick="fecharRelatorioIndividual()" style="width:auto;padding:6px 14px;background:#1a2f45;color:#aaa;border:1px solid #2a4a6a">Fechar</button>
-        </div>
-        <div id="conteudo-relatorio-individual"></div>
       </div>
     </div>
 
-    <!-- ABA: AVISOS -->
-    <div id="aba-avisos" class="aba-conteudo" style="display:none">
-      <div class="card">
-        <h3>Novo aviso para os alunos</h3>
-        <select id="aviso-concurso"></select>
-        <input type="text" id="aviso-titulo" placeholder="Titulo do aviso">
-        <textarea id="aviso-mensagem" placeholder="Mensagem completa..." rows="4"
-          style="width:100%;padding:12px;margin:8px 0;border-radius:8px;border:1px solid #2a4a6a;background:#0d1b2a;color:#fff;font-size:15px;resize:vertical"></textarea>
-        <button onclick="criarAviso()">Publicar aviso</button>
-      </div>
-      <div class="card">
-        <h3>Avisos publicados</h3>
-        <select id="filtro-avisos-concurso" onchange="carregarAvisos()"></select>
-        <div id="lista-avisos"></div>
-      </div>
+    <div class="card" id="card-plano-atual" style="display:none">
+      <h3>Plano atual do aluno</h3>
+      <div id="lista-plano-aluno"></div>
     </div>
 
+    <div class="card" id="card-revisoes" style="display:none">
+      <h3>Revisoes programadas</h3>
+      <div id="lista-revisoes-admin"></div>
+    </div>
   </div>
 
-  <script src="config.js"></script>
-  <script src="admin.js"></script>
+  <!-- ABA: DESEMPENHO -->
+  <div id="aba-desempenho" class="aba-conteudo" style="display:none">
+    <div class="card">
+      <h3>Alertas de inatividade</h3>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+        <span style="color:#aaa;font-size:14px">Alunos sem registro ha mais de</span>
+        <input type="number" id="dias-inatividade" value="3" min="1" max="30" style="width:60px;padding:6px;border-radius:6px;border:1px solid #2a4a6a;background:#0d1b2a;color:#fff">
+        <span style="color:#aaa;font-size:14px">dias</span>
+        <button onclick="verificarInatividade()" style="width:auto;padding:8px 16px">Verificar</button>
+      </div>
+      <div id="lista-inatividade"></div>
+    </div>
+    <div class="card">
+      <h3>Desempenho — ultimos 7 dias</h3>
+      <select id="filtro-desempenho-concurso" onchange="carregarDesempenho()"></select>
+      <div id="lista-desempenho"></div>
+    </div>
+    <div class="card" id="card-relatorio-individual" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h3 id="titulo-relatorio-individual">Historico do aluno</h3>
+        <button onclick="fecharRelatorioIndividual()" style="width:auto;padding:6px 14px;background:#1a2f45;color:#aaa;border:1px solid #2a4a6a">Fechar</button>
+      </div>
+      <div id="conteudo-relatorio-individual"></div>
+    </div>
+  </div>
+
+  <!-- ABA: AVISOS -->
+  <div id="aba-avisos" class="aba-conteudo" style="display:none">
+    <div class="card">
+      <h3>Novo aviso para os alunos</h3>
+      <select id="aviso-concurso"></select>
+      <input type="text" id="aviso-titulo" placeholder="Titulo do aviso">
+      <textarea id="aviso-mensagem" placeholder="Mensagem completa..." rows="4"
+        style="width:100%;padding:12px;margin:8px 0;border-radius:8px;border:1px solid #2a4a6a;background:#0d1b2a;color:#fff;font-size:15px;resize:vertical"></textarea>
+      <button onclick="criarAviso()">Publicar aviso</button>
+    </div>
+    <div class="card">
+      <h3>Avisos publicados</h3>
+      <select id="filtro-avisos-concurso" onchange="carregarAvisos()"></select>
+      <div id="lista-avisos"></div>
+    </div>
+  </div>
+
+</div>
+
+<script src="config.js"></script>
+<script src="admin.js"></script>
 </body>
 </html>
