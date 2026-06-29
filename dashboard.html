@@ -9,189 +9,143 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <link rel="stylesheet" href="style.css">
   <style>
-    .streak-card {
-      background: linear-gradient(135deg, #1a3a5c, #0d1b2a);
-      border-radius: 16px;
-      padding: 24px 20px;
-      margin-bottom: 16px;
-      border: 1px solid #2a4a6a;
-    }
-    .streak-numero {
-      font-size: 52px;
-      font-weight: bold;
-      color: #C9A83C;
-      line-height: 1;
-    }
-    .streak-dias-row {
-      display: flex;
-      justify-content: space-between;
-      gap: 6px;
-      margin: 16px 0;
-    }
-    .streak-dia {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 6px;
-    }
-    .streak-circulo {
-      width: 38px;
-      height: 38px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 15px;
-      font-weight: bold;
-      transition: all 0.3s;
-    }
-    .streak-circulo.cumpriu {
-      background: #C9A83C22;
-      border: 2px solid #C9A83C;
-      color: #C9A83C;
-    }
-    .streak-circulo.hoje {
-      background: #1a3a5c;
-      border: 2px solid #4a8ab5;
-      color: #4a8ab5;
-      box-shadow: 0 0 12px #4a8ab533;
-    }
-    .streak-circulo.futuro {
-      background: transparent;
-      border: 2px solid #2a4a6a;
-      color: #2a4a6a;
-    }
-    .streak-circulo.perdeu {
-      background: #1a1a1a;
-      border: 2px solid #333;
-      color: #555;
-    }
-    .streak-label {
-      font-size: 11px;
-      color: #aaa;
-    }
-    .streak-label.hoje { color: #fff; font-weight: bold; }
-    .streak-stats {
-      background: #0d1b2a;
-      border-radius: 10px;
-      padding: 12px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-top: 4px;
-    }
-    .streak-stat { text-align: center; }
-    .streak-stat-num { font-size: 20px; font-weight: bold; }
-    .streak-stat-label { color: #aaa; font-size: 11px; margin-top: 2px; }
-    .streak-divider { width: 1px; height: 30px; background: #1a2f45; }
-    .nivel-badge {
-      display: inline-block;
-      padding: 3px 10px;
-      border-radius: 20px;
-      font-size: 12px;
-      font-weight: bold;
-      margin-top: 6px;
+    .streak-card { background:linear-gradient(135deg,#1a3a5c,#0d1b2a);border-radius:16px;padding:24px 20px;margin-bottom:16px;border:1px solid #2a4a6a; }
+    .streak-numero { font-size:52px;font-weight:bold;color:#C9A83C;line-height:1; }
+    .streak-dias-row { display:flex;justify-content:space-between;gap:6px;margin:16px 0; }
+    .streak-dia { flex:1;display:flex;flex-direction:column;align-items:center;gap:6px; }
+    .streak-circulo { width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:bold;transition:all 0.3s; }
+    .streak-circulo.cumpriu { background:#C9A83C22;border:2px solid #C9A83C;color:#C9A83C; }
+    .streak-circulo.hoje { background:#1a3a5c;border:2px solid #4a8ab5;color:#4a8ab5;box-shadow:0 0 12px #4a8ab533; }
+    .streak-circulo.futuro { background:transparent;border:2px solid #2a4a6a;color:#2a4a6a; }
+    .streak-circulo.perdeu { background:#1a1a1a;border:2px solid #333;color:#555; }
+    .streak-label { font-size:11px;color:#aaa; }
+    .streak-label.hoje { color:#fff;font-weight:bold; }
+    .streak-stats { background:#0d1b2a;border-radius:10px;padding:12px;display:flex;justify-content:space-between;align-items:center;margin-top:4px; }
+    .streak-stat { text-align:center; }
+    .streak-stat-num { font-size:20px;font-weight:bold; }
+    .streak-stat-label { color:#aaa;font-size:11px;margin-top:2px; }
+    .streak-divider { width:1px;height:30px;background:#1a2f45; }
+    .nivel-badge { display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:bold;margin-top:6px; }
+    .banner-inatividade { display:none;background:#1a2030;border:1px solid #ffb74d;border-radius:10px;padding:14px;margin-bottom:16px; }
+    .msg-salvo-box { display:none;background:#1a3a1a;border:1px solid #81c784;border-radius:8px;padding:12px;margin-top:8px;color:#81c784;font-size:14px;text-align:center; }
+    @media (max-width:600px) {
+      .streak-circulo { width:32px;height:32px;font-size:13px; }
+      .streak-numero { font-size:42px; }
+      .streak-stat-num { font-size:17px; }
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <header>
-      <div>
-        <h2>Ola, <span id="nome-aluno"></span> 👮</h2>
-        <div id="streak-mini" style="color:#C9A83C;font-size:13px;margin-top:2px"></div>
-      </div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <button onclick="window.location.href='perfil.html'" style="width:auto;padding:8px 14px;background:#1a2f45;color:#aaa;border:1px solid #2a4a6a">Perfil</button>
-        <button onclick="sair()" style="width:auto;padding:8px 14px">Sair</button>
-      </div>
-    </header>
-
-    <div class="abas">
-      <button class="aba-btn ativa" onclick="mostrarAbaAluno('aba-hoje')">Hoje</button>
-      <button class="aba-btn" onclick="mostrarAbaAluno('aba-semana')">Semana</button>
-      <button class="aba-btn" onclick="mostrarAbaAluno('aba-sequencia')">Sequencia 🔥</button>
-      <button class="aba-btn" onclick="mostrarAbaAluno('aba-historico')">Historico</button>
-      <button class="aba-btn" onclick="mostrarAbaAluno('aba-grafico')">Desempenho</button>
-      <button class="aba-btn" onclick="mostrarAbaAluno('aba-meuplano')">Meu Plano</button>
-      <button class="aba-btn" onclick="mostrarAbaAluno('aba-avisos')" id="btn-aba-avisos">
-        Avisos <span id="badge-avisos" style="display:none;background:#e57373;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px"></span>
-      </button>
+<div class="container">
+  <header>
+    <div>
+      <h2>Ola, <span id="nome-aluno"></span> 👮</h2>
+      <div id="streak-mini" style="color:#C9A83C;font-size:13px;margin-top:2px"></div>
     </div>
-
-    <!-- ABA: HOJE -->
-    <div id="aba-hoje" class="aba-conteudo">
-      <div class="card">
-        <h3>Cronograma de Hoje</h3>
-        <div id="cronograma-hoje"></div>
-      </div>
-      <div class="card" id="card-registro" style="display:none">
-        <h3>Registrar meu estudo de hoje</h3>
-        <div id="form-registro"></div>
-        <button onclick="salvarRegistro()" style="margin-top:12px">Salvar desempenho</button>
-        <p id="msg-salvo" style="color:#81c784;display:none;margin-top:8px">Salvo com sucesso!</p>
-      </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button onclick="window.location.href='perfil.html'" style="width:auto;padding:8px 14px;background:#1a2f45;color:#aaa;border:1px solid #2a4a6a">Perfil</button>
+      <button onclick="sair()" style="width:auto;padding:8px 14px">Sair</button>
     </div>
+  </header>
 
-    <!-- ABA: SEMANA -->
-    <div id="aba-semana" class="aba-conteudo" style="display:none">
-      <div class="card">
-        <h3>Cronograma da Semana</h3>
-        <div id="cronograma-semana"></div>
-      </div>
-    </div>
+  <!-- Banner de inatividade -->
+  <div class="banner-inatividade" id="banner-inatividade"></div>
 
-    <!-- ABA: SEQUENCIA (STREAK) -->
-    <div id="aba-sequencia" class="aba-conteudo" style="display:none">
-      <div id="streak-card-container"></div>
-    </div>
-
-    <!-- ABA: HISTORICO -->
-    <div id="aba-historico" class="aba-conteudo" style="display:none">
-      <div class="card">
-        <h3>Meus ultimos 14 dias</h3>
-        <div id="lista-historico"></div>
-      </div>
-    </div>
-
-    <!-- ABA: GRAFICO -->
-    <div id="aba-grafico" class="aba-conteudo" style="display:none">
-      <div class="card">
-        <h3>Meu desempenho por disciplina</h3>
-        <p style="color:#aaa;font-size:13px;margin-bottom:16px">Baseado em todos os registros</p>
-        <canvas id="grafico-disciplinas" height="300"></canvas>
-        <div id="sem-dados-grafico" style="display:none;color:#aaa;text-align:center;padding:20px">
-          Nenhum registro encontrado ainda.
-        </div>
-        <button onclick="exportarPDF()" style="margin-top:16px;background:#1a3a5c;color:#C9A83C;border:1px solid #C9A83C">
-          Exportar relatorio PDF
-        </button>
-      </div>
-    </div>
-
-    <!-- ABA: MEU PLANO -->
-    <div id="aba-meuplano" class="aba-conteudo" style="display:none">
-      <div class="card">
-        <h3>Meu plano de estudos</h3>
-        <p style="color:#aaa;font-size:13px;margin-bottom:16px">Ajuste o tempo de cada disciplina conforme sua rotina. O mentor sera notificado das suas alteracoes.</p>
-        <div id="meu-plano-container"></div>
-        <button onclick="salvarMeuPlano()" id="btn-salvar-plano" style="display:none;margin-top:12px;background:#1a3a5c;color:#C9A83C;border:1px solid #C9A83C">Salvar ajustes de carga horaria</button>
-        <p id="msg-meu-plano" style="display:none;margin-top:8px"></p>
-      </div>
-    </div>
-
-    <!-- ABA: AVISOS -->
-    <div id="aba-avisos" class="aba-conteudo" style="display:none">
-      <div class="card">
-        <h3>Avisos do Mentor</h3>
-        <div id="lista-avisos-aluno"></div>
-      </div>
-    </div>
-
+  <div class="abas">
+    <button class="aba-btn ativa" onclick="mostrarAbaAluno('aba-hoje')">Hoje</button>
+    <button class="aba-btn" onclick="mostrarAbaAluno('aba-semana')">Semana</button>
+    <button class="aba-btn" onclick="mostrarAbaAluno('aba-sequencia')">Sequencia 🔥</button>
+    <button class="aba-btn" onclick="mostrarAbaAluno('aba-historico')">Historico</button>
+    <button class="aba-btn" onclick="mostrarAbaAluno('aba-grafico')">Desempenho</button>
+    <button class="aba-btn" onclick="mostrarAbaAluno('aba-meuplano')">Meu Plano</button>
+    <button class="aba-btn" onclick="mostrarAbaAluno('aba-avisos')" id="btn-aba-avisos">
+      Avisos <span id="badge-avisos" style="display:none;background:#e57373;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px"></span>
+    </button>
   </div>
 
-  <script src="config.js"></script>
-  <script src="dashboard.js"></script>
+  <!-- ABA: HOJE -->
+  <div id="aba-hoje" class="aba-conteudo">
+
+    <!-- Streak + resumo rapido no topo -->
+    <div style="background:linear-gradient(135deg,#1a3a5c22,#0d1b2a);border:1px solid #2a4a6a;border-radius:12px;padding:14px;margin-bottom:16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+      <div style="text-align:center;min-width:70px">
+        <div id="streak-hoje" style="display:flex;align-items:center;gap:6px;justify-content:center">
+          <span style="font-size:22px">💤</span>
+          <span style="color:#C9A83C;font-size:20px;font-weight:bold">0</span>
+          <span style="color:#aaa;font-size:12px">dias</span>
+        </div>
+        <div style="color:#aaa;font-size:11px;margin-top:2px">sequencia</div>
+      </div>
+      <div style="width:1px;height:40px;background:#2a4a6a;flex-shrink:0"></div>
+      <div id="resumo-hoje-rapido" style="flex:1;min-width:200px"></div>
+    </div>
+
+    <div class="card">
+      <h3>Cronograma de Hoje</h3>
+      <div id="cronograma-hoje"></div>
+    </div>
+
+    <div class="card" id="card-registro" style="display:none">
+      <h3>Registrar meu estudo de hoje</h3>
+      <div id="form-registro"></div>
+      <button onclick="salvarRegistro()" style="margin-top:12px">Salvar desempenho</button>
+      <div class="msg-salvo-box" id="msg-salvo"></div>
+    </div>
+  </div>
+
+  <!-- ABA: SEMANA -->
+  <div id="aba-semana" class="aba-conteudo" style="display:none">
+    <div class="card">
+      <h3>Cronograma da Semana</h3>
+      <div id="cronograma-semana"></div>
+    </div>
+  </div>
+
+  <!-- ABA: SEQUENCIA -->
+  <div id="aba-sequencia" class="aba-conteudo" style="display:none">
+    <div id="streak-card-container"></div>
+  </div>
+
+  <!-- ABA: HISTORICO -->
+  <div id="aba-historico" class="aba-conteudo" style="display:none">
+    <div class="card">
+      <h3>Meus ultimos 14 dias</h3>
+      <div id="lista-historico"></div>
+    </div>
+  </div>
+
+  <!-- ABA: GRAFICO -->
+  <div id="aba-grafico" class="aba-conteudo" style="display:none">
+    <div class="card">
+      <h3>Meu desempenho por disciplina</h3>
+      <p style="color:#aaa;font-size:13px;margin-bottom:16px">Baseado em todos os registros</p>
+      <canvas id="grafico-disciplinas" height="300"></canvas>
+      <div id="sem-dados-grafico" style="display:none;color:#aaa;text-align:center;padding:20px">Nenhum registro encontrado ainda.</div>
+      <button onclick="exportarPDF()" style="margin-top:16px;background:#1a3a5c;color:#C9A83C;border:1px solid #C9A83C">Exportar relatorio PDF</button>
+    </div>
+  </div>
+
+  <!-- ABA: MEU PLANO -->
+  <div id="aba-meuplano" class="aba-conteudo" style="display:none">
+    <div class="card">
+      <h3>Meu plano de estudos</h3>
+      <p style="color:#aaa;font-size:13px;margin-bottom:16px">Ajuste o tempo de cada disciplina conforme sua rotina. Seu mentor sera notificado das alteracoes.</p>
+      <div id="meu-plano-container"></div>
+      <button onclick="salvarMeuPlano()" id="btn-salvar-plano" style="display:none;margin-top:12px;background:#1a3a5c;color:#C9A83C;border:1px solid #C9A83C">Salvar ajustes</button>
+      <p id="msg-meu-plano" style="display:none;margin-top:8px"></p>
+    </div>
+  </div>
+
+  <!-- ABA: AVISOS -->
+  <div id="aba-avisos" class="aba-conteudo" style="display:none">
+    <div class="card">
+      <h3>Avisos do Mentor</h3>
+      <div id="lista-avisos-aluno"></div>
+    </div>
+  </div>
+
+</div>
+<script src="config.js"></script>
+<script src="dashboard.js"></script>
 </body>
 </html>
