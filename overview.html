@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Visao Geral — Patrulheiros de Elite</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .overview-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 14px;
+      margin-top: 16px;
+    }
+    .aluno-card {
+      background: #1a2f45;
+      border-radius: 12px;
+      padding: 16px;
+      border-left: 4px solid #2a4a6a;
+      transition: border-color 0.2s;
+      cursor: pointer;
+    }
+    .aluno-card:hover { border-color: #C9A83C; }
+    .aluno-card.verde { border-color: #81c784; }
+    .aluno-card.amarelo { border-color: #ffb74d; }
+    .aluno-card.vermelho { border-color: #e57373; }
+    .aluno-card.sem-dados { border-color: #2a4a6a; opacity: 0.7; }
+    .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+    .card-nome { font-size: 15px; font-weight: bold; flex: 1; }
+    .card-concurso { font-size: 11px; color: #aaa; margin-top: 2px; }
+    .card-streak { font-size: 22px; font-weight: bold; color: #C9A83C; }
+    .card-streak-label { font-size: 10px; color: #aaa; text-align: center; }
+    .card-stats { display: flex; gap: 8px; margin-top: 10px; }
+    .card-stat { flex: 1; background: #0d1b2a; border-radius: 8px; padding: 8px; text-align: center; }
+    .card-stat-val { font-size: 16px; font-weight: bold; }
+    .card-stat-label { font-size: 10px; color: #aaa; margin-top: 2px; }
+    .card-ultima { font-size: 11px; color: #aaa; margin-top: 10px; padding-top: 8px; border-top: 1px solid #2a4a6a; }
+    .card-dias-row { display: flex; gap: 3px; margin-top: 8px; }
+    .card-dia { width: 14px; height: 14px; border-radius: 3px; }
+    .filtros { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+    .filtro-btn { width: auto; padding: 7px 14px; font-size: 13px; background: #1a2f45; color: #aaa; border: 1px solid #2a4a6a; border-radius: 8px; font-weight: normal; }
+    .filtro-btn.ativo { background: #C9A83C; color: #0d1b2a; border-color: #C9A83C; }
+    .resumo-topo { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 20px; }
+    .resumo-card { background: #1a2f45; border-radius: 10px; padding: 14px; text-align: center; }
+    .resumo-val { font-size: 26px; font-weight: bold; }
+    .resumo-label { font-size: 12px; color: #aaa; margin-top: 4px; }
+    .loading { text-align: center; padding: 40px; color: #aaa; }
+    .barra-progresso { height: 4px; border-radius: 2px; background: #0d1b2a; margin-top: 8px; overflow: hidden; }
+    .barra-fill { height: 100%; border-radius: 2px; transition: width 0.5s; }
+    @media (max-width: 600px) {
+      .overview-grid { grid-template-columns: 1fr; }
+      .resumo-topo { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div>
+      <h2>Visao Geral dos Alunos</h2>
+      <div style="color:#aaa;font-size:13px;margin-top:2px" id="ultima-atualizacao"></div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button onclick="recarregar()" style="width:auto;padding:8px 14px;background:#1a2f45;color:#C9A83C;border:1px solid #C9A83C">Atualizar</button>
+      <button onclick="window.location.href='admin.html'" style="width:auto;padding:8px 14px">Painel Admin</button>
+    </div>
+  </header>
+
+  <!-- Resumo no topo -->
+  <div class="resumo-topo" id="resumo-topo">
+    <div class="resumo-card"><div class="resumo-val" id="r-total" style="color:#C9A83C">--</div><div class="resumo-label">Total de alunos</div></div>
+    <div class="resumo-card"><div class="resumo-val" id="r-ativos" style="color:#81c784">--</div><div class="resumo-label">Ativos hoje</div></div>
+    <div class="resumo-card"><div class="resumo-val" id="r-streak" style="color:#C9A83C">--</div><div class="resumo-label">Maior streak</div></div>
+    <div class="resumo-card"><div class="resumo-val" id="r-inativo" style="color:#e57373">--</div><div class="resumo-label">Inativos +3 dias</div></div>
+    <div class="resumo-card"><div class="resumo-val" id="r-questoes" style="color:#4a8ab5">--</div><div class="resumo-label">Questoes hoje</div></div>
+  </div>
+
+  <!-- Filtros e busca -->
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:center">
+    <input type="text" id="busca-overview" placeholder="Buscar aluno..." oninput="filtrarCards()" style="flex:1;min-width:180px;margin:0">
+    <select id="filtro-concurso-overview" onchange="filtrarCards()" style="margin:0;flex:1;min-width:160px">
+      <option value="">Todos os concursos</option>
+    </select>
+  </div>
+  <div class="filtros">
+    <button class="filtro-btn ativo" onclick="setFiltro('todos', this)">Todos</button>
+    <button class="filtro-btn" onclick="setFiltro('verde', this)" style="color:#81c784;border-color:#81c784">Em dia</button>
+    <button class="filtro-btn" onclick="setFiltro('amarelo', this)" style="color:#ffb74d;border-color:#ffb74d">Atencao</button>
+    <button class="filtro-btn" onclick="setFiltro('vermelho', this)" style="color:#e57373;border-color:#e57373">Critico</button>
+    <button class="filtro-btn" onclick="setFiltro('sem-dados', this)">Sem registro</button>
+    <button class="filtro-btn" onclick="ordenarPor('streak')" id="ord-streak">Streak</button>
+    <button class="filtro-btn" onclick="ordenarPor('cumprimento')" id="ord-cump">Cumprimento</button>
+    <button class="filtro-btn" onclick="ordenarPor('nome')" id="ord-nome">Nome A-Z</button>
+  </div>
+
+  <div class="loading" id="loading">Carregando dados dos alunos...</div>
+  <div class="overview-grid" id="overview-grid" style="display:none"></div>
+</div>
+
+<script src="config.js"></script>
+<script>
+let _todosCards = []
+let _filtroAtual = 'todos'
+let _ordemAtual = 'cumprimento'
+
+async function init() {
+  const { data: { user } } = await _supabase.auth.getUser()
+  if (!user) { window.location.href = 'index.html'; return }
+  await carregarDados()
+}
+
+async function recarregar() {
+  document.getElementById('loading').style.display = 'block'
+  document.getElementById('overview-grid').style.display = 'none'
+  await carregarDados()
+}
+
+async function carregarDados() {
+  const hoje = new Date().toISOString().split('T')[0]
+  const seteDias = new Date(); seteDias.setDate(seteDias.getDate() - 7)
+  const dataLimite7 = seteDias.toISOString().split('T')[0]
+  const trezeDias = new Date(); trezeDias.setDate(trezeDias.getDate() - 13)
+  const dataLimite14 = trezeDias.toISOString().split('T')[0]
+  const tresDias = new Date(); tresDias.setDate(tresDias.getDate() - 3)
+  const dataLimite3 = tresDias.toISOString().split('T')[0]
+
+  // Busca todos os alunos
+  const { data: alunos } = await _supabase
+    .from('alunos').select('id, nome, email, concurso_id, concursos(nome)').order('nome')
+
+  if (!alunos || alunos.length === 0) {
+    document.getElementById('loading').textContent = 'Nenhum aluno cadastrado.'
+    return
+  }
+
+  // Preenche filtro de concurso
+  const concursos = {}
+  alunos.forEach(a => { if (a.concursos) concursos[a.concurso_id] = a.concursos.nome })
+  const sel = document.getElementById('filtro-concurso-overview')
+  sel.innerHTML = '<option value="">Todos os concursos</option>'
+  Object.entries(concursos).forEach(([id, nome]) => { sel.innerHTML += `<option value="${id}">${nome}</option>` })
+
+  const cards = []
+  let totalQuestoesHoje = 0
+  let maiorStreak = 0
+  let ativosHoje = 0
+  let inativosPlus3 = 0
+
+  for (const aluno of alunos) {
+    // Registros dos ultimos 14 dias
+    const { data: registros } = await _supabase
+      .from('registros_diarios').select('data, cumpriu, questoes_feitas, questoes_certas')
+      .eq('aluno_id', aluno.id).gte('data', dataLimite14).order('data', { ascending: false })
+
+    // Registros de hoje
+    const regHoje = registros?.filter(r => r.data === hoje) || []
+    const questoesHoje = regHoje.reduce((s, r) => s + (r.questoes_feitas || 0), 0)
+    totalQuestoesHoje += questoesHoje
+    if (regHoje.length > 0) ativosHoje++
+
+    // Ultima atividade
+    const { data: ultimoReg } = await _supabase
+      .from('registros_diarios').select('data')
+      .eq('aluno_id', aluno.id).order('data', { ascending: false }).limit(1)
+    const ultimaData = ultimoReg?.[0]?.data
+    const diasSemReg = ultimaData
+      ? Math.floor((new Date() - new Date(ultimaData + 'T12:00:00')) / (1000 * 60 * 60 * 24))
+      : null
+    if (!ultimaData || diasSemReg > 3) inativosPlus3++
+
+    // Streak
+    const { data: regCumpriu } = await _supabase
+      .from('registros_diarios').select('data')
+      .eq('aluno_id', aluno.id).eq('cumpriu', true).order('data', { ascending: false })
+    const datasSet = new Set(regCumpriu?.map(r => r.data) || [])
+    const datas = [...datasSet].sort((a, b) => b.localeCompare(a))
+    let streak = 0
+    let dataRef = new Date(); dataRef.setHours(0, 0, 0, 0)
+    for (const data of datas) {
+      const d = new Date(data + 'T12:00:00')
+      const diff = Math.round((dataRef - d) / (1000 * 60 * 60 * 24))
+      if (diff <= 1) { streak++; dataRef = d } else break
+    }
+    if (streak > maiorStreak) maiorStreak = streak
+
+    // % cumprimento semana
+    const reg7 = registros?.filter(r => r.data >= dataLimite7) || []
+    const diasCumpridos = reg7.filter(r => r.cumpriu).length
+    const pctCumprimento = reg7.length > 0 ? Math.round((diasCumpridos / reg7.length) * 100) : null
+
+    // % acerto semana
+    const totalQ = reg7.reduce((s, r) => s + (r.questoes_feitas || 0), 0)
+    const totalC = reg7.reduce((s, r) => s + (r.questoes_certas || 0), 0)
+    const pctAcerto = totalQ > 0 ? Math.round((totalC / totalQ) * 100) : null
+
+    // Cor do card
+    let cor = 'sem-dados'
+    if (pctCumprimento !== null) {
+      if (pctCumprimento >= 70) cor = 'verde'
+      else if (pctCumprimento >= 40) cor = 'amarelo'
+      else cor = 'vermelho'
+    }
+
+    // Ultimos 7 dias (para miniatura)
+    const ultimos7 = []
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(); d.setDate(d.getDate() - i)
+      const key = d.toISOString().split('T')[0]
+      const regDia = registros?.filter(r => r.data === key) || []
+      const cumpriu = regDia.some(r => r.cumpriu)
+      const temReg = regDia.length > 0
+      ultimos7.push({ key, cumpriu, temReg, isHoje: key === hoje })
+    }
+
+    cards.push({
+      id: aluno.id, nome: aluno.nome, email: aluno.email,
+      concurso_id: aluno.concurso_id, concurso: aluno.concursos?.nome || '',
+      streak, pctCumprimento, pctAcerto, totalQ, cor,
+      ultimaData, diasSemReg, ultimos7, questoesHoje
+    })
+  }
+
+  _todosCards = cards
+
+  // Resumo topo
+  document.getElementById('r-total').textContent = alunos.length
+  document.getElementById('r-ativos').textContent = ativosHoje
+  document.getElementById('r-streak').textContent = maiorStreak + ' dias'
+  document.getElementById('r-inativo').textContent = inativosPlus3
+  document.getElementById('r-questoes').textContent = totalQuestoesHoje
+  document.getElementById('ultima-atualizacao').textContent =
+    'Atualizado em ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+
+  document.getElementById('loading').style.display = 'none'
+  document.getElementById('overview-grid').style.display = 'grid'
+
+  filtrarCards()
+}
+
+function filtrarCards() {
+  const busca = document.getElementById('busca-overview').value.toLowerCase()
+  const concurso = document.getElementById('filtro-concurso-overview').value
+
+  let cards = _todosCards.filter(c => {
+    const matchBusca = c.nome.toLowerCase().includes(busca) || c.email.toLowerCase().includes(busca)
+    const matchConcurso = !concurso || c.concurso_id === concurso
+    const matchFiltro = _filtroAtual === 'todos' || c.cor === _filtroAtual
+    return matchBusca && matchConcurso && matchFiltro
+  })
+
+  // Ordena
+  if (_ordemAtual === 'streak') cards.sort((a, b) => b.streak - a.streak)
+  else if (_ordemAtual === 'cumprimento') cards.sort((a, b) => (b.pctCumprimento || -1) - (a.pctCumprimento || -1))
+  else cards.sort((a, b) => a.nome.localeCompare(b.nome))
+
+  renderizarCards(cards)
+}
+
+function setFiltro(filtro, btn) {
+  _filtroAtual = filtro
+  document.querySelectorAll('.filtro-btn').forEach(b => b.classList.remove('ativo'))
+  btn.classList.add('ativo')
+  filtrarCards()
+}
+
+function ordenarPor(ordem) {
+  _ordemAtual = ordem
+  filtrarCards()
+}
+
+function renderizarCards(cards) {
+  const grid = document.getElementById('overview-grid')
+  grid.innerHTML = ''
+
+  if (cards.length === 0) {
+    grid.innerHTML = '<p style="color:#aaa;grid-column:1/-1;text-align:center;padding:20px">Nenhum aluno encontrado.</p>'
+    return
+  }
+
+  cards.forEach(c => {
+    const corStreak = c.streak >= 14 ? '#C9A83C' : c.streak >= 7 ? '#4a8ab5' : c.streak >= 3 ? '#81c784' : '#aaa'
+    const iconeStreak = c.streak >= 14 ? '🔥🔥' : c.streak >= 7 ? '🔥' : c.streak >= 3 ? '🔥' : ''
+
+    const ultimaStr = c.ultimaData
+      ? (c.diasSemReg === 0 ? 'Hoje' : c.diasSemReg === 1 ? 'Ontem' : 'Ha ' + c.diasSemReg + ' dias')
+      : 'Nunca registrou'
+    const corUltima = !c.ultimaData ? '#e57373' : c.diasSemReg > 7 ? '#e57373' : c.diasSemReg > 3 ? '#ffb74d' : '#81c784'
+
+    const miniDias = c.ultimos7.map(d => {
+      const bg = d.cumpriu ? '#C9A83C' : d.isHoje ? '#1a3a5c' : d.temReg ? '#2a4a6a' : '#1a1a2a'
+      const border = d.isHoje ? '1px solid #4a8ab5' : 'none'
+      return `<div class="card-dia" style="background:${bg};border:${border}" title="${d.key}"></div>`
+    }).join('')
+
+    grid.innerHTML += `
+      <div class="aluno-card ${c.cor}" onclick="irParaAluno('${c.id}','${c.nome}')">
+        <div class="card-header">
+          <div style="flex:1">
+            <div class="card-nome">${c.nome}</div>
+            <div class="card-concurso">${c.concurso || 'Sem concurso'}</div>
+          </div>
+          <div style="text-align:center;min-width:50px">
+            <div class="card-streak" style="color:${corStreak}">${iconeStreak} ${c.streak}</div>
+            <div class="card-streak-label">dias seguidos</div>
+          </div>
+        </div>
+
+        <div class="card-stats">
+          <div class="card-stat">
+            <div class="card-stat-val" style="color:${c.pctCumprimento === null ? '#aaa' : c.pctCumprimento >= 70 ? '#81c784' : c.pctCumprimento >= 40 ? '#ffb74d' : '#e57373'}">
+              ${c.pctCumprimento !== null ? c.pctCumprimento + '%' : '--'}
+            </div>
+            <div class="card-stat-label">cumprimento</div>
+            ${c.pctCumprimento !== null ? `
+            <div class="barra-progresso">
+              <div class="barra-fill" style="width:${c.pctCumprimento}%;background:${c.pctCumprimento >= 70 ? '#81c784' : c.pctCumprimento >= 40 ? '#ffb74d' : '#e57373'}"></div>
+            </div>` : ''}
+          </div>
+          <div class="card-stat">
+            <div class="card-stat-val" style="color:${c.pctAcerto === null ? '#aaa' : '#4a8ab5'}">
+              ${c.pctAcerto !== null ? c.pctAcerto + '%' : '--'}
+            </div>
+            <div class="card-stat-label">acerto</div>
+          </div>
+          <div class="card-stat">
+            <div class="card-stat-val" style="color:#aaa">${c.totalQ || 0}</div>
+            <div class="card-stat-label">questoes/sem</div>
+          </div>
+        </div>
+
+        <div class="card-dias-row">${miniDias}</div>
+        <p style="color:#aaa;font-size:10px;margin-top:4px">ultimos 7 dias</p>
+
+        <div class="card-ultima">
+          Ultima atividade: <span style="color:${corUltima}">${ultimaStr}</span>
+        </div>
+      </div>`
+  })
+
+  grid.innerHTML += `<p style="color:#aaa;font-size:12px;grid-column:1/-1;text-align:right">${cards.length} aluno(s)</p>`
+}
+
+function irParaAluno(id, nome) {
+  // Salva o aluno selecionado e vai para o admin na aba cronograma
+  sessionStorage.setItem('alunoSelecionado', id)
+  sessionStorage.setItem('alunoNome', nome)
+  window.location.href = 'admin.html#cronograma'
+}
+
+init()
+</script>
+</body>
+</html>
