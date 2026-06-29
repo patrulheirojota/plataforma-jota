@@ -1,83 +1,62 @@
 const diasOrdem = { segunda:1, terca:2, quarta:3, quinta:4, sexta:5, sabado:6, domingo:7 }
 const nomeDias = { segunda:'Segunda', terca:'Terca', quarta:'Quarta', quinta:'Quinta', sexta:'Sexta', sabado:'Sabado', domingo:'Domingo' }
 
-// ========== LOGIN ==========
 async function loginAdmin() {
   const email = document.getElementById('admin-email').value
   const senha = document.getElementById('admin-senha').value
-  if (!email || !senha) {
-    document.getElementById('msg-erro-admin').style.display = 'block'
-    document.getElementById('msg-erro-admin').textContent = 'Preencha e-mail e senha.'
-    return
-  }
-  const { data, error } = await _supabase.auth.signInWithPassword({ email, password: senha })
-  if (error) {
-    document.getElementById('msg-erro-admin').style.display = 'block'
-    document.getElementById('msg-erro-admin').textContent = 'E-mail ou senha incorretos.'
-    return
-  }
-  document.getElementById('tela-login').style.display = 'none'
-  document.getElementById('painel-admin').style.display = 'block'
-  try { await carregarConcursos() } catch(e) { console.error('Erro concursos:', e) }
-  try { await carregarAlunosParaCronograma() } catch(e) { console.error('Erro alunos:', e) }
+  if (!email || !senha) { mostrarErroLogin('Preencha e-mail e senha.'); return }
+  const { error } = await _supabase.auth.signInWithPassword({ email, password: senha })
+  if (error) { mostrarErroLogin('E-mail ou senha incorretos.'); return }
+  entrarNoPainel()
 }
 
-async function sairAdmin() {
-  await _supabase.auth.signOut()
-  location.reload()
+function mostrarErroLogin(msg) {
+  const el = document.getElementById('msg-erro-admin')
+  el.style.display = 'block'; el.textContent = msg
 }
+
+async function entrarNoPainel() {
+  document.getElementById('tela-login').style.display = 'none'
+  document.getElementById('painel-admin').style.display = 'block'
+  try { await carregarConcursos() } catch(e) { console.error(e) }
+  try { await carregarAlunosParaCronograma() } catch(e) { console.error(e) }
+}
+
+async function sairAdmin() { await _supabase.auth.signOut(); location.reload() }
 
 async function verificarSessao() {
   const { data: { user } } = await _supabase.auth.getUser()
-  if (user) {
-    document.getElementById('tela-login').style.display = 'none'
-    document.getElementById('painel-admin').style.display = 'block'
-    try { await carregarConcursos() } catch(e) { console.error(e) }
-    try { await carregarAlunosParaCronograma() } catch(e) { console.error(e) }
-  }
+  if (user) entrarNoPainel()
 }
 verificarSessao()
 
-// ========== ABAS ==========
 function mostrarAba(id) {
   document.querySelectorAll('.aba-conteudo').forEach(el => el.style.display = 'none')
   document.querySelectorAll('.aba-btn').forEach(el => el.classList.remove('ativa'))
   document.getElementById(id).style.display = 'block'
   event.target.classList.add('ativa')
   if (id === 'aba-alunos') carregarAlunos()
+  if (id === 'aba-templates') carregarTemplates()
   if (id === 'aba-cronograma') carregarSelectsCronograma()
   if (id === 'aba-desempenho') carregarSelectDesempenho()
   if (id === 'aba-avisos') carregarSelectsAvisos()
 }
 
-// ========== CONCURSOS ==========
-async function criarConcurso() {
-  const nome = document.getElementById('novo-concurso-nome').value
-  const banca = document.getElementById('novo-concurso-banca').value
-  const data_prova = document.getElementById('novo-concurso-data').value
-  if (!nome) { alert('Digite o nome do concurso'); return }
-  const { error } = await _supabase.from('concursos').insert({ nome, banca, data_prova: data_prova || null })
-  if (error) { alert('Erro ao cadastrar: ' + error.message); return }
-  document.getElementById('novo-concurso-nome').value = ''
-  document.getElementById('novo-concurso-banca').value = ''
-  document.getElementById('novo-concurso-data').value = ''
-  carregarConcursos()
-}
-
 async function carregarConcursos() {
   const { data: concursos } = await _supabase.from('concursos').select('*').order('criado_em', { ascending: false })
   const div = document.getElementById('lista-concursos')
-  div.innerHTML = ''
-  concursos.forEach(c => {
-    div.innerHTML += `
-      <div class="item-lista">
-        <strong>${c.nome}</strong>
-        <span>${c.banca || ''}</span>
+  if (div) {
+    div.innerHTML = ''
+    concursos.forEach(c => {
+      div.innerHTML += `<div class="item-lista">
+        <strong>${c.nome}</strong><span>${c.banca||''}</span>
         <span>${c.data_prova ? new Date(c.data_prova).toLocaleDateString('pt-BR') : 'Sem data'}</span>
       </div>`
-  })
-  const selects = ['novo-aluno-concurso','editar-aluno-concurso','filtro-cron-concurso']
-  selects.forEach(sid => {
+    })
+  }
+  const ids = ['novo-aluno-concurso','editar-aluno-concurso','filtro-cron-concurso',
+                'template-concurso','filtro-template-concurso','aplicar-template-concurso']
+  ids.forEach(sid => {
     const s = document.getElementById(sid)
     if (!s) return
     s.innerHTML = '<option value="">Selecione o concurso</option>'
@@ -86,22 +65,33 @@ async function carregarConcursos() {
   window._concursos = concursos
 }
 
-// ========== ALUNOS ==========
+async function criarConcurso() {
+  const nome = document.getElementById('novo-concurso-nome').value
+  const banca = document.getElementById('novo-concurso-banca').value
+  const data_prova = document.getElementById('novo-concurso-data').value
+  if (!nome) { alert('Digite o nome do concurso'); return }
+  const { error } = await _supabase.from('concursos').insert({ nome, banca, data_prova: data_prova||null })
+  if (error) { alert('Erro: '+error.message); return }
+  document.getElementById('novo-concurso-nome').value = ''
+  document.getElementById('novo-concurso-banca').value = ''
+  document.getElementById('novo-concurso-data').value = ''
+  carregarConcursos()
+}
+
 async function criarAluno() {
   const nome = document.getElementById('novo-aluno-nome').value
   const email = document.getElementById('novo-aluno-email').value
   const senha = document.getElementById('novo-aluno-senha').value
   const concurso_id = document.getElementById('novo-aluno-concurso').value
   const msg = document.getElementById('msg-aluno')
-  if (!nome || !email || !senha || !concurso_id) { alert('Preencha todos os campos.'); return }
-  if (senha.length < 6) { alert('Senha precisa ter pelo menos 6 caracteres.'); return }
+  if (!nome||!email||!senha||!concurso_id) { alert('Preencha todos os campos.'); return }
+  if (senha.length < 6) { alert('Senha minimo 6 caracteres.'); return }
   const { data, error } = await _supabase.auth.signUp({ email, password: senha })
   if (error) { msg.style.color='#e57373'; msg.textContent='Erro: '+error.message; return }
-  const { error: erroAluno } = await _supabase.from('alunos').insert({ id: data.user.id, nome, email, concurso_id })
-  if (erroAluno) { msg.style.color='#e57373'; msg.textContent='Login criado, erro ao salvar: '+erroAluno.message; return }
-  await _supabase.from('aluno_concursos').insert({ aluno_id: data.user.id, concurso_id }).catch(() => {})
+  await _supabase.from('alunos').insert({ id: data.user.id, nome, email, concurso_id })
+  await _supabase.from('aluno_concursos').insert({ aluno_id: data.user.id, concurso_id }).catch(()=>{})
   msg.style.color='#81c784'
-  msg.textContent='Aluno ' + nome + ' cadastrado! Login: ' + email + ' / Senha: ' + senha
+  msg.textContent='Aluno '+nome+' cadastrado! Login: '+email+' / Senha: '+senha
   document.getElementById('novo-aluno-nome').value = ''
   document.getElementById('novo-aluno-email').value = ''
   document.getElementById('novo-aluno-senha').value = ''
@@ -112,35 +102,33 @@ async function carregarAlunos() {
   const { data: alunos } = await _supabase.from('alunos').select('*, concursos(nome)').order('criado_em', { ascending: false })
   const div = document.getElementById('lista-alunos')
   div.innerHTML = ''
-  if (!alunos || alunos.length === 0) {
-    div.innerHTML = '<p style="color:#aaa">Nenhum aluno cadastrado ainda.</p>'
-    return
-  }
+  if (!alunos||alunos.length===0) { div.innerHTML='<p style="color:#aaa">Nenhum aluno cadastrado.</p>'; return }
   alunos.forEach(a => {
-    div.innerHTML += `
-      <div class="item-lista" style="flex-wrap:wrap;gap:8px">
-        <div style="flex:1;min-width:150px">
-          <strong>${a.nome}</strong>
-          <div style="color:#aaa;font-size:12px">${a.email}</div>
-          <div style="color:#aaa;font-size:12px">${a.concursos?.nome || 'Sem concurso'}</div>
-        </div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap">
-          <button class="btn-acao btn-editar" onclick="abrirEditarAluno('${a.id}','${a.nome}','${a.email}','${a.concurso_id || ''}')">Editar</button>
-          <button class="btn-acao btn-editar" onclick="gerenciarConcursosAluno('${a.id}','${a.nome}')">Concursos</button>
-        </div>
-      </div>`
+    div.innerHTML += `<div class="item-lista" style="flex-wrap:wrap;gap:8px">
+      <div style="flex:1;min-width:140px">
+        <strong>${a.nome}</strong>
+        <div style="color:#aaa;font-size:12px">${a.email}</div>
+        <div style="color:#aaa;font-size:12px">${a.concursos?.nome||'Sem concurso'}</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn-acao btn-editar" onclick="abrirEditarAluno('${a.id}','${a.nome}','${a.email}','${a.concurso_id||''}')">Editar</button>
+        <button class="btn-acao btn-editar" onclick="gerenciarConcursosAluno('${a.id}','${a.nome}')">Concursos</button>
+        <button class="btn-acao" onclick="abrirAplicarTemplate('${a.id}','${a.nome}')" style="background:#1a3a1a;color:#81c784;border:1px solid #81c784">Aplicar template</button>
+      </div>
+    </div>`
   })
+  window._alunos = alunos
 }
 
 function abrirEditarAluno(id, nome, email, concurso_id) {
   document.getElementById('card-editar-aluno').style.display = 'block'
-  document.getElementById('titulo-editar-aluno').textContent = 'Editar — ' + nome
+  document.getElementById('titulo-editar-aluno').textContent = 'Editar — '+nome
   document.getElementById('editar-aluno-id').value = id
   document.getElementById('editar-aluno-nome').value = nome
   document.getElementById('editar-aluno-email').value = email
   const sel = document.getElementById('editar-aluno-concurso')
   if (sel && concurso_id) sel.value = concurso_id
-  document.getElementById('card-editar-aluno').scrollIntoView({ behavior: 'smooth' })
+  document.getElementById('card-editar-aluno').scrollIntoView({ behavior:'smooth' })
   document.getElementById('msg-editar-aluno').textContent = ''
 }
 
@@ -150,22 +138,20 @@ async function salvarEdicaoAluno() {
   const email = document.getElementById('editar-aluno-email').value
   const concurso_id = document.getElementById('editar-aluno-concurso').value
   const msg = document.getElementById('msg-editar-aluno')
-  if (!nome || !email) { msg.style.color='#e57373'; msg.textContent='Preencha nome e e-mail.'; return }
-  const { error } = await _supabase.from('alunos').update({ nome, email, concurso_id: concurso_id || null }).eq('id', id)
+  if (!nome||!email) { msg.style.color='#e57373'; msg.textContent='Preencha nome e e-mail.'; return }
+  const { error } = await _supabase.from('alunos').update({ nome, email, concurso_id: concurso_id||null }).eq('id', id)
   if (error) { msg.style.color='#e57373'; msg.textContent='Erro: '+error.message; return }
   msg.style.color='#81c784'; msg.textContent='Salvo com sucesso!'
   carregarAlunos()
 }
 
-function fecharEditarAluno() {
-  document.getElementById('card-editar-aluno').style.display = 'none'
-}
+function fecharEditarAluno() { document.getElementById('card-editar-aluno').style.display='none' }
 
 async function gerenciarConcursosAluno(aluno_id, nome) {
   window._alunoGerenciando = aluno_id
   document.getElementById('card-concursos-aluno').style.display = 'block'
-  document.getElementById('titulo-concursos-aluno').textContent = 'Concursos — ' + nome
-  document.getElementById('card-concursos-aluno').scrollIntoView({ behavior: 'smooth' })
+  document.getElementById('titulo-concursos-aluno').textContent = 'Concursos — '+nome
+  document.getElementById('card-concursos-aluno').scrollIntoView({ behavior:'smooth' })
   const select = document.getElementById('select-add-concurso')
   select.innerHTML = '<option value="">Selecione o concurso</option>'
   window._concursos.forEach(c => { select.innerHTML += `<option value="${c.id}">${c.nome}</option>` })
@@ -173,23 +159,15 @@ async function gerenciarConcursosAluno(aluno_id, nome) {
 }
 
 async function carregarConcursosDoAluno(aluno_id) {
-  const { data: vinculos } = await _supabase
-    .from('aluno_concursos').select('*, concursos(nome, banca)').eq('aluno_id', aluno_id)
+  const { data: vinculos } = await _supabase.from('aluno_concursos').select('*, concursos(nome,banca)').eq('aluno_id', aluno_id)
   const div = document.getElementById('lista-concursos-aluno')
   div.innerHTML = ''
-  if (!vinculos || vinculos.length === 0) {
-    div.innerHTML = '<p style="color:#aaa">Nenhum concurso vinculado ainda.</p>'
-    return
-  }
+  if (!vinculos||vinculos.length===0) { div.innerHTML='<p style="color:#aaa">Nenhum concurso vinculado.</p>'; return }
   vinculos.forEach(v => {
-    div.innerHTML += `
-      <div class="item-lista">
-        <div>
-          <strong>${v.concursos?.nome}</strong>
-          <div style="color:#aaa;font-size:12px">${v.concursos?.banca || ''}</div>
-        </div>
-        <button class="btn-acao btn-excluir" onclick="removerConcursoAluno('${v.id}')">Remover</button>
-      </div>`
+    div.innerHTML += `<div class="item-lista">
+      <div><strong>${v.concursos?.nome}</strong><div style="color:#aaa;font-size:12px">${v.concursos?.banca||''}</div></div>
+      <button class="btn-acao btn-excluir" onclick="removerConcursoAluno('${v.id}')">Remover</button>
+    </div>`
   })
 }
 
@@ -198,10 +176,7 @@ async function adicionarConcursoAluno() {
   const concurso_id = document.getElementById('select-add-concurso').value
   if (!concurso_id) { alert('Selecione um concurso.'); return }
   const { error } = await _supabase.from('aluno_concursos').insert({ aluno_id, concurso_id })
-  if (error) {
-    if (error.code === '23505') { alert('Esse concurso ja esta vinculado a este aluno.'); return }
-    alert('Erro: ' + error.message); return
-  }
+  if (error) { if (error.code==='23505') { alert('Concurso ja vinculado.'); return }; alert('Erro: '+error.message); return }
   alert('Concurso adicionado!')
   carregarConcursosDoAluno(aluno_id)
 }
@@ -212,11 +187,250 @@ async function removerConcursoAluno(vinculo_id) {
   carregarConcursosDoAluno(window._alunoGerenciando)
 }
 
-function fecharConcursosAluno() {
-  document.getElementById('card-concursos-aluno').style.display = 'none'
+function fecharConcursosAluno() { document.getElementById('card-concursos-aluno').style.display='none' }
+
+// ========== TEMPLATES ==========
+async function carregarTemplates() {
+  const concurso_id = document.getElementById('filtro-template-concurso').value
+  if (concurso_id) await carregarListaTemplates(concurso_id)
 }
 
-// ========== CRONOGRAMA ==========
+async function carregarListaTemplates(concurso_id) {
+  const { data: templates } = await _supabase.from('templates_cronograma')
+    .select('*').eq('concurso_id', concurso_id).order('criado_em', { ascending: false })
+  const div = document.getElementById('lista-templates')
+  div.innerHTML = ''
+  if (!templates||templates.length===0) { div.innerHTML='<p style="color:#aaa">Nenhum template cadastrado para este concurso.</p>'; return }
+  templates.forEach(t => {
+    div.innerHTML += `<div class="item-lista" style="flex-wrap:wrap;gap:8px">
+      <div style="flex:1">
+        <strong>${t.nome}</strong>
+        <div style="color:#aaa;font-size:12px">${t.descricao||''}</div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="btn-acao btn-editar" onclick="verItensTemplate('${t.id}','${t.nome}')">Ver itens</button>
+        <button class="btn-acao btn-excluir" onclick="excluirTemplate('${t.id}')">Excluir</button>
+      </div>
+    </div>`
+  })
+  window._templates = templates
+  const sel = document.getElementById('aplicar-template-select')
+  if (sel) {
+    sel.innerHTML = '<option value="">Selecione o template</option>'
+    templates.forEach(t => { sel.innerHTML += `<option value="${t.id}">${t.nome}</option>` })
+  }
+}
+
+async function criarTemplate() {
+  const concurso_id = document.getElementById('template-concurso').value
+  const nome = document.getElementById('template-nome').value
+  const descricao = document.getElementById('template-descricao').value
+  if (!concurso_id||!nome) { alert('Selecione o concurso e digite o nome.'); return }
+  const { data, error } = await _supabase.from('templates_cronograma').insert({ concurso_id, nome, descricao }).select().single()
+  if (error) { alert('Erro: '+error.message); return }
+  document.getElementById('template-nome').value = ''
+  document.getElementById('template-descricao').value = ''
+  window._templateAtivo = data.id
+  window._templateAtivoNome = nome
+  document.getElementById('card-itens-template').style.display = 'block'
+  document.getElementById('titulo-itens-template').textContent = 'Itens do template: '+nome
+  document.getElementById('lista-itens-template').innerHTML = '<p style="color:#aaa">Nenhum item ainda. Adicione abaixo.</p>'
+  document.getElementById('card-itens-template').scrollIntoView({ behavior:'smooth' })
+  await carregarListaTemplates(concurso_id)
+  alert('Template "'+nome+'" criado! Agora adicione as disciplinas abaixo.')
+}
+
+async function adicionarItemTemplate() {
+  const template_id = window._templateAtivo
+  if (!template_id) { alert('Selecione ou crie um template primeiro.'); return }
+  const disciplina = document.getElementById('item-disciplina').value
+  const dia_semana = document.getElementById('item-dia').value
+  const tempo_minutos = parseInt(document.getElementById('item-tempo').value)
+  const meta_questoes = parseInt(document.getElementById('item-questoes').value)||30
+  if (!disciplina||!tempo_minutos) { alert('Preencha disciplina e tempo.'); return }
+  const { error } = await _supabase.from('template_itens').insert({ template_id, disciplina, dia_semana, tempo_minutos, meta_questoes })
+  if (error) { alert('Erro: '+error.message); return }
+  document.getElementById('item-disciplina').value = ''
+  document.getElementById('item-tempo').value = ''
+  document.getElementById('item-questoes').value = '30'
+  await verItensTemplate(template_id, window._templateAtivoNome)
+}
+
+async function verItensTemplate(template_id, nome) {
+  window._templateAtivo = template_id
+  window._templateAtivoNome = nome
+  document.getElementById('card-itens-template').style.display = 'block'
+  document.getElementById('titulo-itens-template').textContent = 'Itens do template: '+nome
+  document.getElementById('card-itens-template').scrollIntoView({ behavior:'smooth' })
+  const { data: itens } = await _supabase.from('template_itens').select('*').eq('template_id', template_id)
+  const div = document.getElementById('lista-itens-template')
+  div.innerHTML = ''
+  if (!itens||itens.length===0) { div.innerHTML='<p style="color:#aaa">Nenhum item. Adicione abaixo.</p>'; return }
+  itens.sort((a,b) => diasOrdem[a.dia_semana]-diasOrdem[b.dia_semana])
+  const porDia = {}
+  itens.forEach(i => { if (!porDia[i.dia_semana]) porDia[i.dia_semana]=[]; porDia[i.dia_semana].push(i) })
+  Object.keys(porDia).sort((a,b)=>diasOrdem[a]-diasOrdem[b]).forEach(dia => {
+    const itensDia = porDia[dia]
+    const totalMin = itensDia.reduce((s,i)=>s+i.tempo_minutos,0)
+    div.innerHTML += `<div style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+        <strong style="color:#C9A83C">${nomeDias[dia]}</strong>
+        <span style="color:#aaa;font-size:12px">${Math.floor(totalMin/60)>0?Math.floor(totalMin/60)+'h ':''}${totalMin%60>0?totalMin%60+'min':''}</span>
+      </div>
+      ${itensDia.map(i=>`<div class="item-lista" style="margin-bottom:4px">
+        <strong style="min-width:140px">${i.disciplina}</strong>
+        <span style="color:#aaa;font-size:13px">${i.tempo_minutos}min padrao</span>
+        <span style="color:#aaa;font-size:13px">${i.meta_questoes} questoes</span>
+        <button class="btn-acao btn-excluir" onclick="excluirItemTemplate('${i.id}','${template_id}','${nome}')">X</button>
+      </div>`).join('')}
+    </div>`
+  })
+}
+
+async function excluirItemTemplate(id, template_id, nome) {
+  if (!confirm('Remover este item do template?')) return
+  await _supabase.from('template_itens').delete().eq('id', id)
+  verItensTemplate(template_id, nome)
+}
+
+async function excluirTemplate(id) {
+  if (!confirm('Excluir este template e todos os seus itens?')) return
+  await _supabase.from('template_itens').delete().eq('template_id', id)
+  await _supabase.from('templates_cronograma').delete().eq('id', id)
+  const concurso_id = document.getElementById('filtro-template-concurso').value
+  carregarListaTemplates(concurso_id)
+  document.getElementById('card-itens-template').style.display = 'none'
+}
+
+// ========== APLICAR TEMPLATE ==========
+function abrirAplicarTemplate(aluno_id, nome) {
+  window._alunoAplicarTemplate = aluno_id
+  document.getElementById('card-aplicar-template').style.display = 'block'
+  document.getElementById('titulo-aplicar-template').textContent = 'Aplicar template — '+nome
+  document.getElementById('card-aplicar-template').scrollIntoView({ behavior:'smooth' })
+  carregarTemplatesParaAplicar()
+}
+
+async function carregarTemplatesParaAplicar() {
+  const concurso_id = document.getElementById('aplicar-template-concurso').value
+  const sel = document.getElementById('aplicar-template-select')
+  sel.innerHTML = '<option value="">Selecione o template</option>'
+  if (!concurso_id) return
+  const { data: templates } = await _supabase.from('templates_cronograma')
+    .select('*').eq('concurso_id', concurso_id)
+  if (templates) templates.forEach(t => { sel.innerHTML += `<option value="${t.id}">${t.nome}</option>` })
+}
+
+async function preVisualizarTemplate() {
+  const template_id = document.getElementById('aplicar-template-select').value
+  if (!template_id) { alert('Selecione um template.'); return }
+  const { data: itens } = await _supabase.from('template_itens').select('*').eq('template_id', template_id)
+  const div = document.getElementById('preview-template')
+  div.innerHTML = ''
+  if (!itens||itens.length===0) { div.innerHTML='<p style="color:#aaa">Template sem itens.</p>'; return }
+  itens.sort((a,b)=>diasOrdem[a.dia_semana]-diasOrdem[b.dia_semana])
+  const porDia = {}
+  itens.forEach(i=>{ if (!porDia[i.dia_semana]) porDia[i.dia_semana]=[]; porDia[i.dia_semana].push(i) })
+  div.innerHTML = '<p style="color:#C9A83C;font-size:13px;margin-bottom:10px">Ajuste a carga horaria antes de aplicar (opcional):</p>'
+  Object.keys(porDia).sort((a,b)=>diasOrdem[a]-diasOrdem[b]).forEach(dia => {
+    div.innerHTML += `<div style="margin-bottom:12px">
+      <strong style="color:#aaa;font-size:13px">${nomeDias[dia]}</strong>
+      ${porDia[dia].map(i=>`<div style="display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap">
+        <span style="flex:1;font-size:13px">${i.disciplina}</span>
+        <input type="number" id="adj-${i.id}" value="${i.tempo_minutos}" min="15" step="15"
+          style="width:80px;padding:6px;border-radius:6px;border:1px solid #2a4a6a;background:#0d1b2a;color:#fff;font-size:13px">
+        <span style="color:#aaa;font-size:12px">min</span>
+        <input type="number" id="adjq-${i.id}" value="${i.meta_questoes}" min="0"
+          style="width:70px;padding:6px;border-radius:6px;border:1px solid #2a4a6a;background:#0d1b2a;color:#fff;font-size:13px">
+        <span style="color:#aaa;font-size:12px">questoes</span>
+      </div>`).join('')}
+    </div>`
+  })
+  window._templateItensPreview = itens
+  document.getElementById('btn-confirmar-aplicar').style.display = 'block'
+}
+
+async function confirmarAplicarTemplate() {
+  const aluno_id = window._alunoAplicarTemplate
+  const template_id = document.getElementById('aplicar-template-select').value
+  const concurso_id = document.getElementById('aplicar-template-concurso').value
+  const itens = window._templateItensPreview
+  if (!aluno_id||!template_id||!itens) { alert('Selecione template e aluno.'); return }
+  const novosItens = itens.map(i => ({
+    aluno_id,
+    concurso_id,
+    template_id,
+    disciplina: i.disciplina,
+    dia_semana: i.dia_semana,
+    tempo_minutos: parseInt(document.getElementById('adj-'+i.id)?.value)||i.tempo_minutos,
+    meta_questoes: parseInt(document.getElementById('adjq-'+i.id)?.value)||i.meta_questoes,
+    ordem: i.ordem||1,
+    tempo_personalizado: false
+  }))
+  const { error } = await _supabase.from('plano_aluno').insert(novosItens)
+  if (error) { alert('Erro: '+error.message); return }
+  alert('Template aplicado! '+novosItens.length+' itens adicionados ao plano do aluno.')
+  document.getElementById('card-aplicar-template').style.display = 'none'
+  document.getElementById('preview-template').innerHTML = ''
+  document.getElementById('btn-confirmar-aplicar').style.display = 'none'
+}
+
+async function aplicarTemplateEmMassa() {
+  const template_id = document.getElementById('massa-template-select').value
+  const concurso_id = document.getElementById('massa-concurso-select').value
+  if (!template_id||!concurso_id) { alert('Selecione o concurso e o template.'); return }
+  const checkboxes = document.querySelectorAll('.massa-aluno-check:checked')
+  if (checkboxes.length===0) { alert('Selecione pelo menos um aluno.'); return }
+  if (!confirm('Aplicar template a '+checkboxes.length+' aluno(s)? Os planos existentes nao serao removidos.')) return
+  const { data: itens } = await _supabase.from('template_itens').select('*').eq('template_id', template_id)
+  if (!itens||itens.length===0) { alert('Template sem itens.'); return }
+  let erros = 0
+  for (const cb of checkboxes) {
+    const aluno_id = cb.value
+    const novosItens = itens.map(i => ({
+      aluno_id, concurso_id, template_id,
+      disciplina: i.disciplina, dia_semana: i.dia_semana,
+      tempo_minutos: i.tempo_minutos, meta_questoes: i.meta_questoes,
+      ordem: i.ordem||1, tempo_personalizado: false
+    }))
+    const { error } = await _supabase.from('plano_aluno').insert(novosItens)
+    if (error) erros++
+  }
+  alert('Concluido! Template aplicado a '+(checkboxes.length-erros)+' aluno(s).'+( erros>0?' '+erros+' erro(s).':'' ))
+  document.getElementById('card-massa').style.display = 'none'
+}
+
+async function carregarAlunosParaMassa() {
+  const concurso_id = document.getElementById('massa-concurso-select').value
+  const divAlunos = document.getElementById('lista-massa-alunos')
+  const selTemplate = document.getElementById('massa-template-select')
+  divAlunos.innerHTML = ''
+  selTemplate.innerHTML = '<option value="">Selecione o template</option>'
+  if (!concurso_id) return
+  const { data: vinculos } = await _supabase.from('aluno_concursos')
+    .select('aluno_id, alunos(id,nome)').eq('concurso_id', concurso_id)
+  const { data: templates } = await _supabase.from('templates_cronograma')
+    .select('*').eq('concurso_id', concurso_id)
+  if (templates) templates.forEach(t => { selTemplate.innerHTML += `<option value="${t.id}">${t.nome}</option>` })
+  if (!vinculos||vinculos.length===0) { divAlunos.innerHTML='<p style="color:#aaa">Nenhum aluno neste concurso.</p>'; return }
+  divAlunos.innerHTML = `<div style="display:flex;gap:8px;margin-bottom:10px">
+    <button class="btn-acao btn-editar" onclick="selecionarTodosAlunos(true)">Selecionar todos</button>
+    <button class="btn-acao" onclick="selecionarTodosAlunos(false)" style="background:#1a2f45;color:#aaa;border:1px solid #2a4a6a">Desmarcar todos</button>
+  </div>`
+  vinculos.forEach(v => {
+    if (!v.alunos) return
+    divAlunos.innerHTML += `<label style="display:flex;align-items:center;gap:10px;padding:8px;background:#0d1b2a;border-radius:6px;margin-bottom:4px;cursor:pointer">
+      <input type="checkbox" class="massa-aluno-check" value="${v.alunos.id}">
+      <span>${v.alunos.nome}</span>
+    </label>`
+  })
+}
+
+function selecionarTodosAlunos(valor) {
+  document.querySelectorAll('.massa-aluno-check').forEach(cb => { cb.checked = valor })
+}
+
+// ========== CRONOGRAMA INDIVIDUAL ==========
 function carregarSelectsCronograma() {
   carregarAlunosParaCronograma()
   const s = document.getElementById('filtro-cron-concurso')
@@ -227,7 +441,7 @@ function carregarSelectsCronograma() {
 }
 
 async function carregarAlunosParaCronograma() {
-  const { data: alunos } = await _supabase.from('alunos').select('id, nome').order('nome')
+  const { data: alunos } = await _supabase.from('alunos').select('id,nome').order('nome')
   const selects = ['cron-aluno','cron-aluno-origem']
   selects.forEach(sid => {
     const s = document.getElementById(sid)
@@ -242,50 +456,34 @@ async function visualizarCronogramaConcurso() {
   const div = document.getElementById('viz-cronograma-concurso')
   div.innerHTML = ''
   if (!concurso_id) return
-
-  const { data: vinculos } = await _supabase
-    .from('aluno_concursos').select('aluno_id, alunos(nome)').eq('concurso_id', concurso_id)
-
-  if (!vinculos || vinculos.length === 0) {
-    div.innerHTML = '<p style="color:#aaa">Nenhum aluno vinculado a este concurso.</p>'
-    return
-  }
-
-  div.innerHTML = '<p style="color:#aaa;font-size:13px;margin-bottom:12px">' + vinculos.length + ' aluno(s) neste concurso</p>'
-
+  const { data: vinculos } = await _supabase.from('aluno_concursos').select('aluno_id, alunos(nome)').eq('concurso_id', concurso_id)
+  if (!vinculos||vinculos.length===0) { div.innerHTML='<p style="color:#aaa">Nenhum aluno vinculado.</p>'; return }
+  div.innerHTML = '<p style="color:#aaa;font-size:13px;margin-bottom:12px">'+vinculos.length+' aluno(s)</p>'
   for (const v of vinculos) {
-    const { data: itens } = await _supabase
-      .from('plano_aluno').select('*')
+    const { data: itens } = await _supabase.from('plano_aluno').select('*')
       .eq('aluno_id', v.aluno_id).eq('concurso_id', concurso_id)
-
-    if (!itens || itens.length === 0) {
-      div.innerHTML += `
-        <div style="background:#0d1b2a;border-radius:8px;padding:12px;margin-bottom:8px">
-          <strong style="color:#C9A83C">${v.alunos?.nome}</strong>
-          <span style="color:#aaa;font-size:13px;margin-left:10px">Sem plano cadastrado</span>
-        </div>`
+    if (!itens||itens.length===0) {
+      div.innerHTML += `<div style="background:#0d1b2a;border-radius:8px;padding:12px;margin-bottom:8px">
+        <strong style="color:#C9A83C">${v.alunos?.nome}</strong>
+        <span style="color:#aaa;font-size:13px;margin-left:10px">Sem plano</span>
+      </div>`
       continue
     }
-
-    itens.sort((a, b) => diasOrdem[a.dia_semana] - diasOrdem[b.dia_semana])
-    const totalMin = itens.reduce((s, i) => s + i.tempo_minutos, 0)
-    const horas = Math.floor(totalMin / 60)
-    const min = totalMin % 60
-
-    div.innerHTML += `
-      <div style="background:#0d1b2a;border-radius:8px;padding:12px;margin-bottom:8px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <strong style="color:#C9A83C">${v.alunos?.nome}</strong>
-          <span style="color:#aaa;font-size:12px">${itens.length} disciplinas · ${horas > 0 ? horas+'h ' : ''}${min > 0 ? min+'min' : ''}/semana</span>
-        </div>
-        ${itens.map(i => `
-          <div style="display:flex;gap:10px;padding:4px 0;border-bottom:1px solid #1a2f45;flex-wrap:wrap;font-size:13px">
-            <span style="color:#aaa;min-width:70px">${nomeDias[i.dia_semana]}</span>
-            <span style="flex:1">${i.disciplina}</span>
-            <span style="color:#aaa">${i.tempo_minutos}min</span>
-            <span style="color:#aaa">${i.meta_questoes}q</span>
-          </div>`).join('')}
-      </div>`
+    itens.sort((a,b)=>diasOrdem[a.dia_semana]-diasOrdem[b.dia_semana])
+    const totalMin = itens.reduce((s,i)=>s+i.tempo_minutos,0)
+    div.innerHTML += `<div style="background:#0d1b2a;border-radius:8px;padding:12px;margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <strong style="color:#C9A83C">${v.alunos?.nome}</strong>
+        <span style="color:#aaa;font-size:12px">${itens.length} disciplinas · ${Math.floor(totalMin/60)>0?Math.floor(totalMin/60)+'h ':''}${totalMin%60>0?totalMin%60+'min':''}/sem</span>
+      </div>
+      ${itens.map(i=>`<div style="display:flex;gap:10px;padding:4px 0;border-bottom:1px solid #1a2f45;font-size:13px;flex-wrap:wrap">
+        <span style="color:#aaa;min-width:70px">${nomeDias[i.dia_semana]}</span>
+        <span style="flex:1">${i.disciplina}</span>
+        <span style="color:${i.tempo_personalizado?'#C9A83C':'#aaa'}">${i.tempo_minutos}min${i.tempo_personalizado?' *':''}</span>
+        <span style="color:#aaa">${i.meta_questoes}q</span>
+      </div>`).join('')}
+      <p style="color:#aaa;font-size:11px;margin-top:6px">* carga personalizada pelo aluno</p>
+    </div>`
   }
 }
 
@@ -297,137 +495,106 @@ async function carregarConcursosParaCronograma() {
   document.getElementById('card-plano-atual').style.display = 'none'
   document.getElementById('card-revisoes').style.display = 'none'
   if (!aluno_id) return
-  const { data: vinculos } = await _supabase
-    .from('aluno_concursos').select('concurso_id, concursos(nome)').eq('aluno_id', aluno_id)
-  if (!vinculos || vinculos.length === 0) {
-    selectConcurso.innerHTML = '<option value="">Aluno sem concurso vinculado</option>'
-    return
-  }
+  const { data: vinculos } = await _supabase.from('aluno_concursos').select('concurso_id, concursos(nome)').eq('aluno_id', aluno_id)
+  if (!vinculos||vinculos.length===0) { selectConcurso.innerHTML='<option value="">Sem concurso vinculado</option>'; return }
   vinculos.forEach(v => { selectConcurso.innerHTML += `<option value="${v.concurso_id}">${v.concursos?.nome}</option>` })
 }
 
 async function carregarPlanoAluno() {
   const aluno_id = document.getElementById('cron-aluno').value
   const concurso_id = document.getElementById('cron-concurso-filtro').value
-  if (!aluno_id || !concurso_id) {
-    document.getElementById('form-plano').style.display = 'none'
-    document.getElementById('card-plano-atual').style.display = 'none'
-    document.getElementById('card-revisoes').style.display = 'none'
+  if (!aluno_id||!concurso_id) {
+    document.getElementById('form-plano').style.display='none'
+    document.getElementById('card-plano-atual').style.display='none'
+    document.getElementById('card-revisoes').style.display='none'
     return
   }
   window._concursoAtivoCronograma = concurso_id
-  document.getElementById('form-plano').style.display = 'block'
-  document.getElementById('card-plano-atual').style.display = 'block'
-  document.getElementById('card-revisoes').style.display = 'block'
+  document.getElementById('form-plano').style.display='block'
+  document.getElementById('card-plano-atual').style.display='block'
+  document.getElementById('card-revisoes').style.display='block'
   await renderizarPlano(aluno_id, concurso_id)
   await renderizarRevisoes(aluno_id)
 }
 
 async function renderizarPlano(aluno_id, concurso_id) {
-  const { data: itens } = await _supabase
-    .from('plano_aluno').select('*')
+  const { data: itens } = await _supabase.from('plano_aluno').select('*')
     .eq('aluno_id', aluno_id).eq('concurso_id', concurso_id)
   const div = document.getElementById('lista-plano-aluno')
   div.innerHTML = ''
-  if (!itens || itens.length === 0) {
-    div.innerHTML = '<p style="color:#aaa">Nenhuma disciplina no plano ainda. Adicione acima.</p>'
-    return
-  }
-  itens.sort((a, b) => diasOrdem[a.dia_semana] - diasOrdem[b.dia_semana])
+  if (!itens||itens.length===0) { div.innerHTML='<p style="color:#aaa">Nenhuma disciplina no plano. Adicione acima ou aplique um template.</p>'; return }
+  itens.sort((a,b)=>diasOrdem[a.dia_semana]-diasOrdem[b.dia_semana])
   const porDia = {}
-  itens.forEach(i => {
-    if (!porDia[i.dia_semana]) porDia[i.dia_semana] = []
-    porDia[i.dia_semana].push(i)
-  })
-  Object.keys(porDia).sort((a, b) => diasOrdem[a] - diasOrdem[b]).forEach(dia => {
+  itens.forEach(i=>{ if (!porDia[i.dia_semana]) porDia[i.dia_semana]=[]; porDia[i.dia_semana].push(i) })
+  Object.keys(porDia).sort((a,b)=>diasOrdem[a]-diasOrdem[b]).forEach(dia => {
     const itensDia = porDia[dia]
-    const totalMin = itensDia.reduce((s, i) => s + i.tempo_minutos, 0)
-    const horas = Math.floor(totalMin / 60)
-    const min = totalMin % 60
-    div.innerHTML += `
-      <div style="margin-bottom:20px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <strong style="color:#C9A83C">${nomeDias[dia]}</strong>
-          <span style="color:#aaa;font-size:12px">Total: ${horas > 0 ? horas+'h ' : ''}${min > 0 ? min+'min' : ''} · ${itensDia.length} disciplina${itensDia.length > 1 ? 's' : ''}</span>
+    const totalMin = itensDia.reduce((s,i)=>s+i.tempo_minutos,0)
+    div.innerHTML += `<div style="margin-bottom:20px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+        <strong style="color:#C9A83C">${nomeDias[dia]}</strong>
+        <span style="color:#aaa;font-size:12px">${Math.floor(totalMin/60)>0?Math.floor(totalMin/60)+'h ':''}${totalMin%60>0?totalMin%60+'min':''} · ${itensDia.length} disc.</span>
+      </div>
+      ${itensDia.map(i=>`<div class="item-lista" id="item-${i.id}" style="flex-wrap:wrap;gap:8px">
+        <div id="view-${i.id}" style="display:flex;gap:10px;align-items:center;flex:1;flex-wrap:wrap">
+          <strong style="min-width:130px">${i.disciplina}</strong>
+          <span style="color:${i.tempo_personalizado?'#C9A83C':'#aaa'};font-size:13px">${i.tempo_minutos}min${i.tempo_personalizado?' (personalizado)':''}</span>
+          <span style="color:#aaa;font-size:13px">${i.meta_questoes}q</span>
+          <div style="display:flex;gap:6px;margin-left:auto">
+            <button class="btn-acao btn-editar" onclick="editarItemPlano('${i.id}')">Editar</button>
+            <button class="btn-acao btn-excluir" onclick="excluirItemPlano('${i.id}','${aluno_id}','${concurso_id}')">Excluir</button>
+          </div>
         </div>
-        ${itensDia.map(i => `
-          <div class="item-lista" id="item-${i.id}" style="flex-wrap:wrap;gap:8px">
-            <div id="view-${i.id}" style="display:flex;gap:10px;align-items:center;flex:1;flex-wrap:wrap">
-              <strong style="min-width:140px">${i.disciplina}</strong>
-              <span style="color:#aaa;font-size:13px">${i.tempo_minutos} min</span>
-              <span style="color:#aaa;font-size:13px">${i.meta_questoes} questoes</span>
-              <div style="display:flex;gap:6px;margin-left:auto">
-                <button class="btn-acao btn-editar" onclick="editarItemPlano('${i.id}')">Editar</button>
-                <button class="btn-acao btn-excluir" onclick="excluirItemPlano('${i.id}','${aluno_id}','${concurso_id}')">Excluir</button>
-              </div>
-            </div>
-            <div id="edit-${i.id}" style="display:none;width:100%;background:#0d1b2a;border-radius:8px;padding:10px;margin-top:4px">
-              <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-                <input type="text" id="edit-disc-${i.id}" value="${i.disciplina}" style="flex:2;min-width:120px">
-                <input type="number" id="edit-tempo-${i.id}" value="${i.tempo_minutos}" style="width:80px">
-                <input type="number" id="edit-quest-${i.id}" value="${i.meta_questoes}" style="width:80px">
-                <select id="edit-dia-${i.id}" style="flex:1;min-width:110px">
-                  ${['segunda','terca','quarta','quinta','sexta','sabado','domingo'].map(d =>
-                    `<option value="${d}" ${d === i.dia_semana ? 'selected' : ''}>${nomeDias[d]}</option>`
-                  ).join('')}
-                </select>
-                <button class="btn-acao btn-editar" onclick="salvarEdicaoItemPlano('${i.id}','${aluno_id}','${concurso_id}')">Salvar</button>
-                <button class="btn-acao" onclick="cancelarEdicaoItem('${i.id}')" style="background:#1a2f45;color:#aaa;border:1px solid #2a4a6a">X</button>
-              </div>
-            </div>
-          </div>`).join('')}
-      </div>`
+        <div id="edit-${i.id}" style="display:none;width:100%;background:#0d1b2a;border-radius:8px;padding:10px;margin-top:4px">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <input type="text" id="edit-disc-${i.id}" value="${i.disciplina}" style="flex:2;min-width:120px">
+            <input type="number" id="edit-tempo-${i.id}" value="${i.tempo_minutos}" style="width:80px">
+            <input type="number" id="edit-quest-${i.id}" value="${i.meta_questoes}" style="width:80px">
+            <select id="edit-dia-${i.id}" style="flex:1;min-width:110px">
+              ${['segunda','terca','quarta','quinta','sexta','sabado','domingo'].map(d=>`<option value="${d}" ${d===i.dia_semana?'selected':''}>${nomeDias[d]}</option>`).join('')}
+            </select>
+            <button class="btn-acao btn-editar" onclick="salvarEdicaoItemPlano('${i.id}','${aluno_id}','${concurso_id}')">Salvar</button>
+            <button class="btn-acao" onclick="cancelarEdicaoItem('${i.id}')" style="background:#1a2f45;color:#aaa;border:1px solid #2a4a6a">X</button>
+          </div>
+        </div>
+      </div>`).join('')}
+    </div>`
   })
 }
 
-function editarItemPlano(id) {
-  document.getElementById('view-'+id).style.display = 'none'
-  document.getElementById('edit-'+id).style.display = 'block'
-}
-
-function cancelarEdicaoItem(id) {
-  document.getElementById('view-'+id).style.display = 'flex'
-  document.getElementById('edit-'+id).style.display = 'none'
-}
+function editarItemPlano(id) { document.getElementById('view-'+id).style.display='none'; document.getElementById('edit-'+id).style.display='block' }
+function cancelarEdicaoItem(id) { document.getElementById('view-'+id).style.display='flex'; document.getElementById('edit-'+id).style.display='none' }
 
 async function salvarEdicaoItemPlano(id, aluno_id, concurso_id) {
   const disciplina = document.getElementById('edit-disc-'+id).value
   const tempo_minutos = parseInt(document.getElementById('edit-tempo-'+id).value)
   const meta_questoes = parseInt(document.getElementById('edit-quest-'+id).value)
   const dia_semana = document.getElementById('edit-dia-'+id).value
-  if (!disciplina || !tempo_minutos) { alert('Preencha disciplina e tempo.'); return }
-  const { error } = await _supabase.from('plano_aluno')
-    .update({ disciplina, tempo_minutos, meta_questoes, dia_semana }).eq('id', id)
-  if (error) { alert('Erro: ' + error.message); return }
+  if (!disciplina||!tempo_minutos) { alert('Preencha disciplina e tempo.'); return }
+  const { error } = await _supabase.from('plano_aluno').update({ disciplina, tempo_minutos, meta_questoes, dia_semana, tempo_personalizado: false }).eq('id', id)
+  if (error) { alert('Erro: '+error.message); return }
   renderizarPlano(aluno_id, concurso_id)
 }
 
 async function excluirItemPlano(id, aluno_id, concurso_id) {
-  if (!confirm('Remover esta disciplina do plano?')) return
+  if (!confirm('Remover esta disciplina?')) return
   await _supabase.from('plano_aluno').delete().eq('id', id)
   renderizarPlano(aluno_id, concurso_id)
 }
 
 async function renderizarRevisoes(aluno_id) {
-  const { data: revisoes } = await _supabase
-    .from('revisoes_programadas').select('*')
+  const { data: revisoes } = await _supabase.from('revisoes_programadas').select('*')
     .eq('aluno_id', aluno_id).eq('concluida', false).order('data_revisao')
   const div = document.getElementById('lista-revisoes-admin')
   div.innerHTML = ''
-  if (!revisoes || revisoes.length === 0) {
-    div.innerHTML = '<p style="color:#aaa">Nenhuma revisao programada.</p>'
-    return
-  }
+  if (!revisoes||revisoes.length===0) { div.innerHTML='<p style="color:#aaa">Nenhuma revisao programada.</p>'; return }
   revisoes.forEach(r => {
-    const data = new Date(r.data_revisao + 'T12:00:00').toLocaleDateString('pt-BR', { weekday:'short', day:'2-digit', month:'2-digit' })
-    const label = r.tipo === 'exercicios' ? 'Exercicios' : 'Revisao'
-    div.innerHTML += `
-      <div class="item-lista">
-        <span>${label}</span>
-        <strong>${r.disciplina}</strong>
-        <span style="color:#C9A83C">${data}</span>
-        <button class="btn-acao btn-excluir" onclick="excluirRevisao('${r.id}','${aluno_id}')">Excluir</button>
-      </div>`
+    const data = new Date(r.data_revisao+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit'})
+    div.innerHTML += `<div class="item-lista">
+      <span>${r.tipo==='exercicios'?'Exercicios':'Revisao'}</span>
+      <strong>${r.disciplina}</strong>
+      <span style="color:#C9A83C">${data}</span>
+      <button class="btn-acao btn-excluir" onclick="excluirRevisao('${r.id}','${aluno_id}')">X</button>
+    </div>`
   })
 }
 
@@ -437,28 +604,26 @@ async function adicionarAoPlano() {
   const disciplina = document.getElementById('cron-disciplina').value
   const dia_semana = document.getElementById('cron-dia').value
   const tempo_minutos = parseInt(document.getElementById('cron-tempo').value)
-  const meta_questoes = parseInt(document.getElementById('cron-questoes').value) || 30
+  const meta_questoes = parseInt(document.getElementById('cron-questoes').value)||30
   const usarRevisao = document.getElementById('usar-revisao').checked
-  const diasExercicios = parseInt(document.getElementById('dias-exercicios').value) || 5
-  const diasRevisaoVal = parseInt(document.getElementById('dias-revisao').value) || 12
-  if (!disciplina || !tempo_minutos) { alert('Preencha a disciplina e o tempo de estudo.'); return }
-  const { error } = await _supabase.from('plano_aluno').insert({
-    aluno_id, concurso_id, disciplina, dia_semana, tempo_minutos, meta_questoes
-  })
-  if (error) { alert('Erro: ' + error.message); return }
+  const diasEx = parseInt(document.getElementById('dias-exercicios').value)||5
+  const diasRev = parseInt(document.getElementById('dias-revisao').value)||12
+  if (!disciplina||!tempo_minutos) { alert('Preencha disciplina e tempo.'); return }
+  const { error } = await _supabase.from('plano_aluno').insert({ aluno_id, concurso_id, disciplina, dia_semana, tempo_minutos, meta_questoes })
+  if (error) { alert('Erro: '+error.message); return }
   if (usarRevisao) {
     const hoje = new Date()
-    const dataEx = new Date(hoje); dataEx.setDate(hoje.getDate() + diasExercicios)
-    const dataRev = new Date(hoje); dataRev.setDate(hoje.getDate() + diasRevisaoVal)
+    const dataEx = new Date(hoje); dataEx.setDate(hoje.getDate()+diasEx)
+    const dataRv = new Date(hoje); dataRv.setDate(hoje.getDate()+diasRev)
     await _supabase.from('revisoes_programadas').insert([
-      { aluno_id, disciplina, data_revisao: dataEx.toISOString().split('T')[0], tipo: 'exercicios' },
-      { aluno_id, disciplina, data_revisao: dataRev.toISOString().split('T')[0], tipo: 'revisao' }
+      { aluno_id, disciplina, data_revisao: dataEx.toISOString().split('T')[0], tipo:'exercicios' },
+      { aluno_id, disciplina, data_revisao: dataRv.toISOString().split('T')[0], tipo:'revisao' }
     ])
   }
-  document.getElementById('cron-disciplina').value = ''
-  document.getElementById('cron-tempo').value = ''
-  document.getElementById('cron-questoes').value = '30'
-  alert(disciplina + ' adicionada!')
+  document.getElementById('cron-disciplina').value=''
+  document.getElementById('cron-tempo').value=''
+  document.getElementById('cron-questoes').value='30'
+  alert(disciplina+' adicionada!')
   renderizarPlano(aluno_id, concurso_id)
   renderizarRevisoes(aluno_id)
 }
@@ -472,16 +637,14 @@ async function excluirRevisao(id, aluno_id) {
 async function copiarPlano() {
   const aluno_destino = document.getElementById('cron-aluno').value
   const aluno_origem = document.getElementById('cron-aluno-origem').value
-  if (!aluno_destino || !aluno_origem) { alert('Selecione os dois alunos.'); return }
-  if (aluno_destino === aluno_origem) { alert('Selecione alunos diferentes.'); return }
-  if (!confirm('Isso vai ADICIONAR o plano do aluno de origem ao aluno selecionado. Confirmar?')) return
-  const { data: itens } = await _supabase.from('plano_aluno')
-    .select('disciplina, dia_semana, tempo_minutos, meta_questoes, ordem, concurso_id')
-    .eq('aluno_id', aluno_origem)
-  if (!itens || itens.length === 0) { alert('O aluno de origem nao tem plano cadastrado.'); return }
-  const { error } = await _supabase.from('plano_aluno').insert(itens.map(i => ({ ...i, aluno_id: aluno_destino })))
-  if (error) { alert('Erro ao copiar: ' + error.message); return }
-  alert('Plano copiado! ' + itens.length + ' itens adicionados.')
+  if (!aluno_destino||!aluno_origem) { alert('Selecione os dois alunos.'); return }
+  if (aluno_destino===aluno_origem) { alert('Selecione alunos diferentes.'); return }
+  if (!confirm('Adicionar o plano do aluno de origem ao aluno selecionado?')) return
+  const { data: itens } = await _supabase.from('plano_aluno').select('disciplina,dia_semana,tempo_minutos,meta_questoes,ordem,concurso_id').eq('aluno_id', aluno_origem)
+  if (!itens||itens.length===0) { alert('Aluno de origem sem plano.'); return }
+  const { error } = await _supabase.from('plano_aluno').insert(itens.map(i=>({...i,aluno_id:aluno_destino})))
+  if (error) { alert('Erro: '+error.message); return }
+  alert('Plano copiado! '+itens.length+' itens adicionados.')
   renderizarPlano(aluno_destino, window._concursoAtivoCronograma)
 }
 
@@ -489,213 +652,157 @@ async function copiarPlano() {
 function carregarSelectDesempenho() {
   const select = document.getElementById('filtro-desempenho-concurso')
   select.innerHTML = '<option value="">Selecione o concurso</option>'
-  window._concursos.forEach(c => { select.innerHTML += `<option value="${c.id}">${c.nome}</option>` })
+  window._concursos.forEach(c=>{ select.innerHTML+=`<option value="${c.id}">${c.nome}</option>` })
   verificarInatividade()
 }
 
 async function verificarInatividade() {
-  const dias = parseInt(document.getElementById('dias-inatividade').value) || 3
-  const limite = new Date()
-  limite.setDate(limite.getDate() - dias)
+  const dias = parseInt(document.getElementById('dias-inatividade').value)||3
+  const limite = new Date(); limite.setDate(limite.getDate()-dias)
   const dataLimite = limite.toISOString().split('T')[0]
-  const { data: alunos } = await _supabase.from('alunos').select('id, nome, email, concursos(nome)')
+  const { data: alunos } = await _supabase.from('alunos').select('id,nome,email,concursos(nome)')
   const div = document.getElementById('lista-inatividade')
-  div.innerHTML = '<p style="color:#aaa;font-size:13px">Verificando...</p>'
-  const inativos = []
+  div.innerHTML='<p style="color:#aaa;font-size:13px">Verificando...</p>'
+  const inativos=[]
   for (const aluno of alunos) {
-    const { data: registros } = await _supabase.from('registros_diarios')
-      .select('data').eq('aluno_id', aluno.id).gte('data', dataLimite).limit(1)
-    if (!registros || registros.length === 0) {
-      const { data: ultimo } = await _supabase.from('registros_diarios')
-        .select('data').eq('aluno_id', aluno.id).order('data', { ascending: false }).limit(1)
-      const ultimaData = ultimo?.[0]?.data
-      const diasSemRegistro = ultimaData
-        ? Math.floor((new Date() - new Date(ultimaData + 'T12:00:00')) / (1000 * 60 * 60 * 24))
-        : null
-      inativos.push({ aluno, ultimaData, diasSemRegistro })
+    const { data: reg } = await _supabase.from('registros_diarios').select('data').eq('aluno_id',aluno.id).gte('data',dataLimite).limit(1)
+    if (!reg||reg.length===0) {
+      const { data: ult } = await _supabase.from('registros_diarios').select('data').eq('aluno_id',aluno.id).order('data',{ascending:false}).limit(1)
+      const ultimaData = ult?.[0]?.data
+      const diasSem = ultimaData ? Math.floor((new Date()-new Date(ultimaData+'T12:00:00'))/(1000*60*60*24)) : null
+      inativos.push({aluno,ultimaData,diasSem})
     }
   }
-  div.innerHTML = ''
-  if (inativos.length === 0) {
-    div.innerHTML = '<p style="color:#81c784">Nenhum aluno inativo nos ultimos ' + dias + ' dias!</p>'
-    return
-  }
-  inativos.sort((a, b) => (b.diasSemRegistro || 999) - (a.diasSemRegistro || 999))
-  inativos.forEach(({ aluno, ultimaData, diasSemRegistro }) => {
-    const cor = diasSemRegistro > 7 ? '#e57373' : '#ffb74d'
-    const msg = ultimaData
-      ? 'Ultimo registro ha ' + diasSemRegistro + ' dias (' + new Date(ultimaData + 'T12:00:00').toLocaleDateString('pt-BR') + ')'
-      : 'Nunca registrou'
-    div.innerHTML += `
-      <div class="item-lista" style="border-left:4px solid ${cor}">
-        <div>
-          <strong>${aluno.nome}</strong>
-          <div style="color:#aaa;font-size:12px">${aluno.email}</div>
-        </div>
-        <span style="color:${cor};font-size:13px">${msg}</span>
-        <button class="btn-acao btn-editar" onclick="verRelatorioIndividual('${aluno.id}','${aluno.nome}')">Ver historico</button>
-      </div>`
+  div.innerHTML=''
+  if (inativos.length===0) { div.innerHTML='<p style="color:#81c784">Nenhum aluno inativo nos ultimos '+dias+' dias!</p>'; return }
+  inativos.sort((a,b)=>(b.diasSem||999)-(a.diasSem||999))
+  inativos.forEach(({aluno,ultimaData,diasSem})=>{
+    const cor = diasSem>7?'#e57373':'#ffb74d'
+    const msg = ultimaData?'Ultimo registro ha '+diasSem+' dias ('+new Date(ultimaData+'T12:00:00').toLocaleDateString('pt-BR')+')':'Nunca registrou'
+    div.innerHTML+=`<div class="item-lista" style="border-left:4px solid ${cor}">
+      <div><strong>${aluno.nome}</strong><div style="color:#aaa;font-size:12px">${aluno.email}</div></div>
+      <span style="color:${cor};font-size:13px">${msg}</span>
+      <button class="btn-acao btn-editar" onclick="verRelatorioIndividual('${aluno.id}','${aluno.nome}')">Ver historico</button>
+    </div>`
   })
 }
 
 async function carregarDesempenho() {
   const concurso_id = document.getElementById('filtro-desempenho-concurso').value
   if (!concurso_id) return
-  const { data: vinculos } = await _supabase
-    .from('aluno_concursos').select('aluno_id, alunos(id, nome)').eq('concurso_id', concurso_id)
-  if (!vinculos || vinculos.length === 0) {
-    document.getElementById('lista-desempenho').innerHTML = '<p>Nenhum aluno nesse concurso.</p>'
-    return
-  }
-  const seteDiasAtras = new Date()
-  seteDiasAtras.setDate(seteDiasAtras.getDate() - 7)
-  const dataLimite = seteDiasAtras.toISOString().split('T')[0]
+  const { data: vinculos } = await _supabase.from('aluno_concursos').select('aluno_id,alunos(id,nome)').eq('concurso_id',concurso_id)
+  if (!vinculos||vinculos.length===0) { document.getElementById('lista-desempenho').innerHTML='<p>Nenhum aluno nesse concurso.</p>'; return }
+  const sete = new Date(); sete.setDate(sete.getDate()-7)
+  const dataLimite = sete.toISOString().split('T')[0]
   const div = document.getElementById('lista-desempenho')
-  div.innerHTML = '<p style="color:#aaa">Carregando...</p>'
-  const linhas = []
+  div.innerHTML='<p style="color:#aaa">Carregando...</p>'
+  const linhas=[]
   for (const v of vinculos) {
-    const aluno = v.alunos
-    if (!aluno) continue
-    const { data: registros } = await _supabase.from('registros_diarios')
-      .select('*').eq('aluno_id', aluno.id).gte('data', dataLimite)
-    const totalDias = registros.length
-    const diasCumpridos = registros.filter(r => r.cumpriu).length
-    const totalQuestoes = registros.reduce((s, r) => s + (r.questoes_feitas || 0), 0)
-    const totalCertas = registros.reduce((s, r) => s + (r.questoes_certas || 0), 0)
-    const percentualAcerto = totalQuestoes > 0 ? Math.round((totalCertas / totalQuestoes) * 100) : 0
-    const percentualCumprimento = totalDias > 0 ? Math.round((diasCumpridos / totalDias) * 100) : 0
-    const corStatus = percentualCumprimento >= 70 ? '#81c784' : percentualCumprimento >= 40 ? '#ffb74d' : '#e57373'
-    linhas.push({ aluno, totalDias, diasCumpridos, totalQuestoes, percentualAcerto, percentualCumprimento, corStatus })
+    const aluno=v.alunos; if (!aluno) continue
+    const { data: reg } = await _supabase.from('registros_diarios').select('*').eq('aluno_id',aluno.id).gte('data',dataLimite)
+    const totalDias=reg.length, diasC=reg.filter(r=>r.cumpriu).length
+    const totalQ=reg.reduce((s,r)=>s+(r.questoes_feitas||0),0)
+    const totalC=reg.reduce((s,r)=>s+(r.questoes_certas||0),0)
+    const pctA=totalQ>0?Math.round((totalC/totalQ)*100):0
+    const pctC=totalDias>0?Math.round((diasC/totalDias)*100):0
+    const cor=pctC>=70?'#81c784':pctC>=40?'#ffb74d':'#e57373'
+    linhas.push({aluno,totalDias,diasC,totalQ,pctA,pctC,cor})
   }
-  linhas.sort((a, b) => a.percentualCumprimento - b.percentualCumprimento)
-  div.innerHTML = ''
-  linhas.forEach(l => {
-    div.innerHTML += `
-      <div class="item-lista" style="border-left:4px solid ${l.corStatus}">
-        <strong>${l.aluno.nome}</strong>
-        <span>${l.diasCumpridos}/${l.totalDias} dias (${l.percentualCumprimento}%)</span>
-        <span>${l.totalQuestoes} questoes</span>
-        <span>${l.percentualAcerto}% acerto</span>
-        <button class="btn-acao btn-editar" onclick="verRelatorioIndividual('${l.aluno.id}','${l.aluno.nome}')">Detalhar</button>
-      </div>`
+  linhas.sort((a,b)=>a.pctC-b.pctC)
+  div.innerHTML=''
+  linhas.forEach(l=>{
+    div.innerHTML+=`<div class="item-lista" style="border-left:4px solid ${l.cor}">
+      <strong>${l.aluno.nome}</strong>
+      <span>${l.diasC}/${l.totalDias} dias (${l.pctC}%)</span>
+      <span>${l.totalQ} questoes</span>
+      <span>${l.pctA}% acerto</span>
+      <button class="btn-acao btn-editar" onclick="verRelatorioIndividual('${l.aluno.id}','${l.aluno.nome}')">Detalhar</button>
+    </div>`
   })
 }
 
 async function verRelatorioIndividual(aluno_id, nome) {
-  document.getElementById('card-relatorio-individual').style.display = 'block'
-  document.getElementById('titulo-relatorio-individual').textContent = 'Historico — ' + nome
-  document.getElementById('card-relatorio-individual').scrollIntoView({ behavior: 'smooth' })
-  const { data: registros } = await _supabase.from('registros_diarios')
-    .select('*').eq('aluno_id', aluno_id).order('data', { ascending: false }).limit(30)
+  document.getElementById('card-relatorio-individual').style.display='block'
+  document.getElementById('titulo-relatorio-individual').textContent='Historico — '+nome
+  document.getElementById('card-relatorio-individual').scrollIntoView({behavior:'smooth'})
+  const { data: reg } = await _supabase.from('registros_diarios').select('*').eq('aluno_id',aluno_id).order('data',{ascending:false}).limit(30)
   const div = document.getElementById('conteudo-relatorio-individual')
-  div.innerHTML = ''
-  if (!registros || registros.length === 0) {
-    div.innerHTML = '<p style="color:#aaa">Nenhum registro encontrado.</p>'
-    return
-  }
-  const totalQ = registros.reduce((s, r) => s + (r.questoes_feitas || 0), 0)
-  const totalC = registros.reduce((s, r) => s + (r.questoes_certas || 0), 0)
-  const pctGeral = totalQ > 0 ? Math.round((totalC / totalQ) * 100) : 0
-  const diasCumpridos = registros.filter(r => r.cumpriu).length
-  div.innerHTML = `
-    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px">
-      <div style="background:#0d1b2a;border-radius:8px;padding:12px;flex:1;min-width:80px;text-align:center">
-        <div style="color:#C9A83C;font-size:22px;font-weight:bold">${registros.length}</div>
-        <div style="color:#aaa;font-size:12px">registros</div>
+  div.innerHTML=''
+  if (!reg||reg.length===0) { div.innerHTML='<p style="color:#aaa">Nenhum registro.</p>'; return }
+  const totalQ=reg.reduce((s,r)=>s+(r.questoes_feitas||0),0)
+  const totalC=reg.reduce((s,r)=>s+(r.questoes_certas||0),0)
+  const pct=totalQ>0?Math.round((totalC/totalQ)*100):0
+  const diasC=reg.filter(r=>r.cumpriu).length
+  div.innerHTML=`<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px">
+    ${[['#C9A83C',reg.length,'registros'],['#81c784',diasC,'cumpridos'],['#C9A83C',totalQ,'questoes'],['#81c784',pct+'%','acerto']].map(([c,v,l])=>`
+    <div style="background:#0d1b2a;border-radius:8px;padding:12px;flex:1;min-width:80px;text-align:center">
+      <div style="color:${c};font-size:22px;font-weight:bold">${v}</div>
+      <div style="color:#aaa;font-size:12px">${l}</div>
+    </div>`).join('')}
+  </div>`
+  const porData={}
+  reg.forEach(r=>{ if (!porData[r.data]) porData[r.data]=[]; porData[r.data].push(r) })
+  Object.keys(porData).sort((a,b)=>b.localeCompare(a)).forEach(data=>{
+    const itens=porData[data]
+    const tD=itens.reduce((s,r)=>s+(r.questoes_feitas||0),0)
+    const cD=itens.reduce((s,r)=>s+(r.questoes_certas||0),0)
+    const pD=tD>0?Math.round((cD/tD)*100):0
+    const fmt=new Date(data+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit'})
+    div.innerHTML+=`<div style="background:#0d1b2a;border-radius:8px;padding:12px;margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+        <strong style="color:#C9A83C">${fmt}</strong>
+        <span style="color:#aaa;font-size:12px">${tD} questoes · ${pD}% acerto</span>
       </div>
-      <div style="background:#0d1b2a;border-radius:8px;padding:12px;flex:1;min-width:80px;text-align:center">
-        <div style="color:#81c784;font-size:22px;font-weight:bold">${diasCumpridos}</div>
-        <div style="color:#aaa;font-size:12px">dias cumpridos</div>
-      </div>
-      <div style="background:#0d1b2a;border-radius:8px;padding:12px;flex:1;min-width:80px;text-align:center">
-        <div style="color:#C9A83C;font-size:22px;font-weight:bold">${totalQ}</div>
-        <div style="color:#aaa;font-size:12px">questoes</div>
-      </div>
-      <div style="background:#0d1b2a;border-radius:8px;padding:12px;flex:1;min-width:80px;text-align:center">
-        <div style="color:#81c784;font-size:22px;font-weight:bold">${pctGeral}%</div>
-        <div style="color:#aaa;font-size:12px">acerto</div>
-      </div>
+      ${itens.map(r=>`<div style="display:flex;gap:10px;padding:4px 0;border-bottom:1px solid #1a2f45;flex-wrap:wrap">
+        <span>${r.cumpriu?'OK':'X'}</span><span style="flex:1">${r.disciplina}</span>
+        <span style="color:#aaa;font-size:12px">${r.questoes_feitas||0} feitas · ${r.questoes_certas||0} certas</span>
+      </div>`).join('')}
     </div>`
-  const porData = {}
-  registros.forEach(r => {
-    if (!porData[r.data]) porData[r.data] = []
-    porData[r.data].push(r)
-  })
-  Object.keys(porData).sort((a, b) => b.localeCompare(a)).forEach(data => {
-    const itens = porData[data]
-    const totalDia = itens.reduce((s, r) => s + (r.questoes_feitas || 0), 0)
-    const certasDia = itens.reduce((s, r) => s + (r.questoes_certas || 0), 0)
-    const pctDia = totalDia > 0 ? Math.round((certasDia / totalDia) * 100) : 0
-    const dataFmt = new Date(data + 'T12:00:00').toLocaleDateString('pt-BR', { weekday:'short', day:'2-digit', month:'2-digit' })
-    div.innerHTML += `
-      <div style="background:#0d1b2a;border-radius:8px;padding:12px;margin-bottom:8px">
-        <div style="display:flex;justify-content:space-between;margin-bottom:8px">
-          <strong style="color:#C9A83C">${dataFmt}</strong>
-          <span style="color:#aaa;font-size:12px">${totalDia} questoes · ${pctDia}% acerto</span>
-        </div>
-        ${itens.map(r => `
-          <div style="display:flex;gap:10px;padding:4px 0;border-bottom:1px solid #1a2f45;flex-wrap:wrap">
-            <span>${r.cumpriu ? 'OK' : 'X'}</span>
-            <span style="flex:1">${r.disciplina}</span>
-            <span style="color:#aaa;font-size:12px">${r.questoes_feitas || 0} feitas · ${r.questoes_certas || 0} certas</span>
-          </div>`).join('')}
-      </div>`
   })
 }
 
-function fecharRelatorioIndividual() {
-  document.getElementById('card-relatorio-individual').style.display = 'none'
-}
+function fecharRelatorioIndividual() { document.getElementById('card-relatorio-individual').style.display='none' }
 
 // ========== AVISOS ==========
 function carregarSelectsAvisos() {
-  const selects = ['aviso-concurso','filtro-avisos-concurso']
-  selects.forEach(sid => {
-    const s = document.getElementById(sid)
-    if (!s) return
-    s.innerHTML = '<option value="">Selecione o concurso</option>'
-    window._concursos.forEach(c => { s.innerHTML += `<option value="${c.id}">${c.nome}</option>` })
+  ['aviso-concurso','filtro-avisos-concurso'].forEach(sid=>{
+    const s=document.getElementById(sid); if (!s) return
+    s.innerHTML='<option value="">Selecione o concurso</option>'
+    window._concursos.forEach(c=>{ s.innerHTML+=`<option value="${c.id}">${c.nome}</option>` })
   })
 }
 
 async function criarAviso() {
-  const concurso_id = document.getElementById('aviso-concurso').value
-  const titulo = document.getElementById('aviso-titulo').value
-  const mensagem = document.getElementById('aviso-mensagem').value
-  if (!concurso_id || !titulo || !mensagem) { alert('Preencha todos os campos.'); return }
+  const concurso_id=document.getElementById('aviso-concurso').value
+  const titulo=document.getElementById('aviso-titulo').value
+  const mensagem=document.getElementById('aviso-mensagem').value
+  if (!concurso_id||!titulo||!mensagem) { alert('Preencha todos os campos.'); return }
   const { error } = await _supabase.from('avisos').insert({ concurso_id, titulo, mensagem })
-  if (error) { alert('Erro: ' + error.message); return }
-  document.getElementById('aviso-titulo').value = ''
-  document.getElementById('aviso-mensagem').value = ''
+  if (error) { alert('Erro: '+error.message); return }
+  document.getElementById('aviso-titulo').value=''
+  document.getElementById('aviso-mensagem').value=''
   alert('Aviso publicado!')
-  document.getElementById('filtro-avisos-concurso').value = concurso_id
+  document.getElementById('filtro-avisos-concurso').value=concurso_id
   carregarAvisos()
 }
 
 async function carregarAvisos() {
-  const concurso_id = document.getElementById('filtro-avisos-concurso').value
+  const concurso_id=document.getElementById('filtro-avisos-concurso').value
   if (!concurso_id) return
-  const { data: avisos } = await _supabase.from('avisos').select('*')
-    .eq('concurso_id', concurso_id).order('criado_em', { ascending: false })
-  const div = document.getElementById('lista-avisos')
-  div.innerHTML = ''
-  if (!avisos || avisos.length === 0) {
-    div.innerHTML = '<p style="color:#aaa">Nenhum aviso publicado ainda.</p>'
-    return
-  }
-  avisos.forEach(a => {
-    const data = new Date(a.criado_em).toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })
-    div.innerHTML += `
-      <div class="item-lista" style="flex-direction:column;align-items:flex-start;gap:6px">
-        <div style="display:flex;justify-content:space-between;width:100%;align-items:center">
-          <strong>${a.titulo}</strong>
-          <div style="display:flex;gap:6px">
-            <span style="color:#aaa;font-size:12px">${data}</span>
-            <button class="btn-acao btn-excluir" onclick="excluirAviso('${a.id}')">Excluir</button>
-          </div>
-        </div>
-        <p style="color:#ccc;font-size:14px;margin:0">${a.mensagem}</p>
-      </div>`
+  const { data: avisos } = await _supabase.from('avisos').select('*').eq('concurso_id',concurso_id).order('criado_em',{ascending:false})
+  const div=document.getElementById('lista-avisos')
+  div.innerHTML=''
+  if (!avisos||avisos.length===0) { div.innerHTML='<p style="color:#aaa">Nenhum aviso.</p>'; return }
+  avisos.forEach(a=>{
+    const data=new Date(a.criado_em).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})
+    div.innerHTML+=`<div class="item-lista" style="flex-direction:column;align-items:flex-start;gap:6px">
+      <div style="display:flex;justify-content:space-between;width:100%;align-items:center">
+        <strong>${a.titulo}</strong>
+        <div style="display:flex;gap:6px"><span style="color:#aaa;font-size:12px">${data}</span>
+        <button class="btn-acao btn-excluir" onclick="excluirAviso('${a.id}')">X</button></div>
+      </div>
+      <p style="color:#ccc;font-size:14px;margin:0">${a.mensagem}</p>
+    </div>`
   })
 }
 
