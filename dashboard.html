@@ -114,6 +114,7 @@
       <button class="aba-btn" onclick="mostrarAbaAluno('aba-sequencia')">Sequencia 🔥</button>
       <button class="aba-btn" onclick="mostrarAbaAluno('aba-historico')">Historico</button>
       <button class="aba-btn" onclick="mostrarAbaAluno('aba-grafico')">Desempenho</button>
+      <button class="aba-btn" onclick="mostrarAbaAluno('aba-meuplano')">Meu Plano</button>
       <button class="aba-btn" onclick="mostrarAbaAluno('aba-avisos')" id="btn-aba-avisos">
         Avisos <span id="badge-avisos" style="display:none;background:#e57373;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px"></span>
       </button>
@@ -166,6 +167,17 @@
         <button onclick="exportarPDF()" style="margin-top:16px;background:#1a3a5c;color:#C9A83C;border:1px solid #C9A83C">
           Exportar relatorio PDF
         </button>
+      </div>
+    </div>
+
+    <!-- ABA: MEU PLANO -->
+    <div id="aba-meuplano" class="aba-conteudo" style="display:none">
+      <div class="card">
+        <h3>Meu plano de estudos</h3>
+        <p style="color:#aaa;font-size:13px;margin-bottom:16px">Ajuste o tempo de cada disciplina conforme sua rotina. O mentor sera notificado das suas alteracoes.</p>
+        <div id="meu-plano-container"></div>
+        <button onclick="salvarMeuPlano()" id="btn-salvar-plano" style="display:none;margin-top:12px;background:#1a3a5c;color:#C9A83C;border:1px solid #C9A83C">Salvar ajustes de carga horaria</button>
+        <p id="msg-meu-plano" style="display:none;margin-top:8px"></p>
       </div>
     </div>
 
