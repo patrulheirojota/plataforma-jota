@@ -68,6 +68,7 @@ function mostrarAbaAluno(id) {
   if (id === 'aba-sequencia') carregarSequencia()
   if (id === 'aba-historico') carregarHistorico()
   if (id === 'aba-grafico') carregarGrafico()
+  if (id === 'aba-meuplano') carregarMeuPlano()
   if (id === 'aba-avisos') carregarAvisosAluno()
 }
 
@@ -521,6 +522,86 @@ async function carregarGrafico() {
       }
     }
   })
+}
+
+// -------- ABA MEU PLANO --------
+async function carregarMeuPlano() {
+  const { data: itens } = await _supabase
+    .from('plano_aluno').select('*')
+    .eq('aluno_id', _alunoId).eq('concurso_id', _concursoId)
+
+  const div = document.getElementById('meu-plano-container')
+  const btnSalvar = document.getElementById('btn-salvar-plano')
+  div.innerHTML = ''
+
+  if (!itens || itens.length === 0) {
+    div.innerHTML = '<p style="color:#aaa">Nenhum plano cadastrado ainda. Aguarde seu mentor configurar seu cronograma.</p>'
+    return
+  }
+
+  btnSalvar.style.display = 'block'
+  itens.sort((a,b) => diasOrdem.indexOf(a.dia_semana) - diasOrdem.indexOf(b.dia_semana))
+
+  const porDia = {}
+  itens.forEach(i => { if (!porDia[i.dia_semana]) porDia[i.dia_semana]=[]; porDia[i.dia_semana].push(i) })
+
+  Object.keys(porDia).sort((a,b) => diasOrdem.indexOf(a) - diasOrdem.indexOf(b)).forEach(dia => {
+    const itensDia = porDia[dia]
+    div.innerHTML += `<div style="margin-bottom:18px">
+      <strong style="color:#C9A83C;font-size:14px">${nomeDias[dia]}</strong>
+      ${itensDia.map(i => `
+        <div style="background:#0d1b2a;border-radius:8px;padding:12px;margin-top:8px">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+            <span style="font-size:14px;font-weight:bold;flex:1">${i.disciplina}</span>
+            ${i.tempo_personalizado ? '<span style="color:#C9A83C;font-size:11px;padding:2px 8px;border:1px solid #C9A83C;border-radius:10px">Personalizado</span>' : ''}
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap">
+            <label style="color:#aaa;font-size:13px;min-width:100px">Tempo de estudo:</label>
+            <input type="range" id="range-${i.id}" min="15" max="240" step="15" value="${i.tempo_minutos}"
+              oninput="document.getElementById('val-${i.id}').textContent=this.value+' min'"
+              style="flex:1;min-width:120px">
+            <span id="val-${i.id}" style="color:#C9A83C;font-weight:bold;min-width:60px">${i.tempo_minutos} min</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap">
+            <label style="color:#aaa;font-size:13px;min-width:100px">Meta de questoes:</label>
+            <input type="number" id="quest-${i.id}" value="${i.meta_questoes}" min="0" max="200"
+              style="width:90px;padding:6px;border-radius:6px;border:1px solid #2a4a6a;background:#1a2f45;color:#fff">
+          </div>
+        </div>`).join('')}
+    </div>`
+  })
+
+  window._meuPlanoItens = itens
+}
+
+async function salvarMeuPlano() {
+  const itens = window._meuPlanoItens
+  if (!itens) return
+  const msg = document.getElementById('msg-meu-plano')
+  msg.style.display = 'block'
+  msg.style.color = '#aaa'
+  msg.textContent = 'Salvando...'
+
+  let erros = 0
+  for (const item of itens) {
+    const novoTempo = parseInt(document.getElementById('range-'+item.id)?.value) || item.tempo_minutos
+    const novasMeta = parseInt(document.getElementById('quest-'+item.id)?.value) || item.meta_questoes
+    const personalizado = novoTempo !== item.tempo_minutos || novasMeta !== item.meta_questoes
+    const { error } = await _supabase.from('plano_aluno')
+      .update({ tempo_minutos: novoTempo, meta_questoes: novasMeta, tempo_personalizado: personalizado })
+      .eq('id', item.id)
+    if (error) erros++
+  }
+
+  if (erros > 0) {
+    msg.style.color = '#e57373'
+    msg.textContent = 'Erro ao salvar alguns itens. Tente novamente.'
+  } else {
+    msg.style.color = '#81c784'
+    msg.textContent = 'Plano atualizado com sucesso! Seu mentor pode visualizar suas alteracoes.'
+    await carregarMeuPlano()
+    await carregarHoje()
+  }
 }
 
 // -------- AVISOS --------
