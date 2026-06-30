@@ -194,45 +194,94 @@ function extrairEdital(texto) {
   let discAtual = null
   let ordemTopico = 1
 
-  const ehDisciplina = (linha) => {
-    const semNum = linha.replace(/^\d+[\.)]\ */,'').replace(/^[a-z][\.)]\ */i,'')
-    const maiusculo = semNum === semNum.toUpperCase() && semNum.length >= 4 && /[A-Z]/.test(semNum)
-    const comSufixo = /^[A-Z][A-Za-z\s]{3,}:/.test(semNum)
-    const naoETopico = !/^\d+\./.test(linha)
-    return (maiusculo || comSufixo) && naoETopico && semNum.split(' ').length <= 8
-  }
+  // Detecta formato: tem pipes | ALTA / | MEDIA / | BAIXA
+  const formatoComPrioridade = linhas.some(l => /\|\s*(ALTA|MEDIA|BAIXA)/i.test(l))
 
-  const ehTopico = (linha) => {
-    return linha.length >= 5 && (
-      /^\d+[\.)]\ /.test(linha) ||
-      /^[a-z][\.)]\ /i.test(linha) ||
-      /^[-\u2013\u2022]\ /.test(linha) ||
-      (discAtual && !ehDisciplina(linha))
-    )
-  }
+  if (formatoComPrioridade) {
+    // FORMATO 1: gerado pelo prompt do ChatGPT/Claude
+    // DISCIPLINA EM MAIUSCULO
+    // 1. Topico | ALTA
+    for (const linha of linhas) {
+      if (!linha || linha.length < 3) continue
 
-  const limparTexto = (t) => t.replace(/^\d+[\.)]\ */,'').replace(/^[a-z][\.)]\ */i,'').replace(/^[-\u2013\u2022]\ */,'').trim()
+      const temPipe = /\|\s*(ALTA|MEDIA|BAIXA)/i.test(linha)
 
-  for (const linha of linhas) {
-    if (linha.length < 3) continue
-    if (/^(pagina|pg\.|p\.|conteudo programatico|programa de|anexo|obs:|observ)/i.test(linha)) continue
-    if (ehDisciplina(linha)) {
-      const nomeDisciplina = linha.replace(/^\d+[\.)]\ */,'').replace(/:$/,'').trim()
-      if (nomeDisciplina.length >= 4) {
-        discAtual = { nome: nomeDisciplina, topicos: [] }
-        disciplinas.push(discAtual)
-        ordemTopico = 1
+      if (!temPipe) {
+        // Pode ser cabecalho de disciplina
+        const semNum = linha.replace(/^\d+[\.)\s]+/, '').trim()
+        if (semNum.length >= 3) {
+          discAtual = { nome: semNum.replace(/:$/, '').trim(), topicos: [] }
+          disciplinas.push(discAtual)
+          ordemTopico = 1
+        }
+      } else if (discAtual) {
+        // Linha de topico com prioridade
+        const partes = linha.split('|')
+        const textoTopico = partes[0]
+          .replace(/^\d+[\.)\s]+/, '')
+          .replace(/^[a-z][\.)\s]+/i, '')
+          .trim()
+        const prioRaw = (partes[1] || '').trim().toUpperCase()
+        const prioridade = prioRaw === 'ALTA' ? 'alta' : prioRaw === 'BAIXA' ? 'baixa' : 'media'
+        if (textoTopico.length >= 3) {
+          discAtual.topicos.push({ texto: textoTopico, prioridade, ordem: ordemTopico++ })
+        }
       }
-    } else if (discAtual && ehTopico(linha)) {
-      const textoTopico = limparTexto(linha)
-      if (textoTopico.length >= 5) {
-        discAtual.topicos.push({ texto: textoTopico, prioridade: definirPrioridade(textoTopico), ordem: ordemTopico++ })
+    }
+  } else {
+    // FORMATO 2: texto bruto do edital
+    // Tenta identificar disciplinas por MAIUSCULO e topicos por numeracao
+    const ehDisciplina = (linha) => {
+      const semNum = linha.replace(/^\d+[\.)\s]+/, '').replace(/^[a-z][\.)\s]+/i, '')
+      const maiusculo = semNum === semNum.toUpperCase() && semNum.length >= 4 && /[A-Z]{3}/.test(semNum)
+      const comSufixo = /^[A-Z][A-Za-z\s]{3,}:/.test(semNum)
+      const poucasPalavras = semNum.split(' ').length <= 8
+      const naoTemPonto = !/^\d+\./.test(linha)
+      return (maiusculo || comSufixo) && poucasPalavras && naoTemPonto
+    }
+
+    const ehTopico = (linha) => {
+      return linha.length >= 5 && (
+        /^\d+[\.)\s]/.test(linha) ||
+        /^[a-z][\.)\s]/i.test(linha) ||
+        /^[-\u2013\u2022]\s/.test(linha) ||
+        (discAtual && !ehDisciplina(linha) && linha.length > 8)
+      )
+    }
+
+    const limparTexto = (t) => t
+      .replace(/^\d+[\.)\s]+/, '')
+      .replace(/^[a-z][\.)\s]+/i, '')
+      .replace(/^[-\u2013\u2022]\s*/, '')
+      .trim()
+
+    for (const linha of linhas) {
+      if (linha.length < 3) continue
+      if (/^(pagina|pg\.|p\.|conteudo programatico|programa de|anexo|obs:|observ)/i.test(linha)) continue
+
+      if (ehDisciplina(linha)) {
+        const nomeDisciplina = linha.replace(/^\d+[\.)\s]+/, '').replace(/:$/, '').trim()
+        if (nomeDisciplina.length >= 4) {
+          discAtual = { nome: nomeDisciplina, topicos: [] }
+          disciplinas.push(discAtual)
+          ordemTopico = 1
+        }
+      } else if (discAtual && ehTopico(linha)) {
+        const textoTopico = limparTexto(linha)
+        if (textoTopico.length >= 5) {
+          discAtual.topicos.push({ texto: textoTopico, prioridade: definirPrioridade(textoTopico), ordem: ordemTopico++ })
+        }
       }
     }
   }
 
+  // Remove disciplinas sem topicos
   const validas = disciplinas.filter(d => d.topicos.length > 0)
-  if (validas.length === 0) throw new Error('Nao foi possivel identificar disciplinas e topicos. Verifique se o texto esta no formato correto (DISCIPLINA em maiusculo seguida de topicos numerados).')
+
+  if (validas.length === 0) {
+    throw new Error('Nao foi possivel identificar disciplinas e topicos. Use o prompt fornecido para formatar o edital primeiro, ou verifique se o texto esta no formato correto.')
+  }
+
   return { disciplinas: validas }
 }
 
