@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meu Edital — Patrulheiros de Elite</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .edital-disc {
+      background: #1a2f45; border-radius: 12px;
+      margin-bottom: 12px; overflow: hidden;
+    }
+    .edital-disc-header {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 16px; cursor: pointer;
+      transition: background 0.2s;
+    }
+    .edital-disc-header:hover { background: #1e3550; }
+    .edital-disc-nome { flex: 1; font-size: 15px; font-weight: bold; }
+    .edital-disc-stats { font-size: 12px; color: #aaa; }
+    .edital-disc-body { display: none; padding: 0 16px 14px; }
+    .edital-disc-body.aberto { display: block; }
+    .barra-disc { height: 6px; border-radius: 3px; background: #0d1b2a; margin: 8px 0; overflow: hidden; }
+    .barra-disc-fill { height: 100%; border-radius: 3px; transition: width 0.5s; }
+    .topico-item {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 8px 0; border-bottom: 1px solid #2a4a6a;
+    }
+    .topico-item:last-child { border-bottom: none; }
+    .topico-check { width: 20px; height: 20px; accent-color: #C9A83C; flex-shrink: 0; margin-top: 2px; cursor: pointer; }
+    .topico-texto { flex: 1; font-size: 13px; line-height: 1.4; }
+    .topico-texto.concluido { text-decoration: line-through; color: #aaa; }
+    .prioridade-badge { font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: bold; flex-shrink: 0; }
+    .prioridade-alta { background: #e5737322; color: #e57373; border: 1px solid #e57373; }
+    .prioridade-media { background: #ffb74d22; color: #ffb74d; border: 1px solid #ffb74d; }
+    .prioridade-baixa { background: #4a8ab522; color: #4a8ab5; border: 1px solid #4a8ab5; }
+    .topico-nota { font-size: 11px; color: #aaa; margin-top: 3px; cursor: pointer; }
+    .resumo-geral {
+      background: linear-gradient(135deg, #1a3a5c, #0d1b2a);
+      border-radius: 12px; padding: 20px; margin-bottom: 20px;
+      border: 1px solid #2a4a6a;
+    }
+    .filtros-edital { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+    .filtro-e { width: auto; padding: 6px 12px; font-size: 12px; background: #1a2f45; color: #aaa; border: 1px solid #2a4a6a; border-radius: 8px; font-weight: normal; }
+    .filtro-e.ativo { background: #C9A83C; color: #0d1b2a; border-color: #C9A83C; }
+    .nota-input { width: 100%; padding: 6px; border-radius: 6px; border: 1px solid #2a4a6a; background: #0d1b2a; color: #fff; font-size: 12px; margin-top: 4px; resize: none; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div>
+      <h2>Meu Edital 📋</h2>
+      <div id="edital-concurso-nome" style="color:#aaa;font-size:13px;margin-top:2px"></div>
+    </div>
+    <button onclick="window.location.href='dashboard.html'" style="width:auto;padding:8px 16px">Voltar</button>
+  </header>
+
+  <div id="loading-edital" style="text-align:center;padding:40px;color:#aaa">Carregando edital...</div>
+
+  <div id="conteudo-edital" style="display:none">
+
+    <!-- Resumo geral -->
+    <div class="resumo-geral">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <div>
+          <div style="color:#C9A83C;font-size:16px;font-weight:bold">Progresso Geral</div>
+          <div id="resumo-texto" style="color:#aaa;font-size:13px;margin-top:2px"></div>
+        </div>
+        <div id="resumo-pct" style="color:#C9A83C;font-size:36px;font-weight:bold"></div>
+      </div>
+      <div style="background:#0d1b2a;border-radius:20px;height:10px;overflow:hidden">
+        <div id="barra-geral" style="height:100%;border-radius:20px;background:#C9A83C;transition:width 1s;width:0%"></div>
+      </div>
+      <div style="display:flex;gap:16px;margin-top:14px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px">
+          <div style="width:10px;height:10px;border-radius:2px;background:#e57373"></div>
+          <span style="color:#aaa">Alta prioridade</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px">
+          <div style="width:10px;height:10px;border-radius:2px;background:#ffb74d"></div>
+          <span style="color:#aaa">Media prioridade</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px">
+          <div style="width:10px;height:10px;border-radius:2px;background:#4a8ab5"></div>
+          <span style="color:#aaa">Baixa prioridade</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="filtros-edital">
+      <button class="filtro-e ativo" onclick="setFiltroEdital('todos',this)">Todos</button>
+      <button class="filtro-e" onclick="setFiltroEdital('pendentes',this)">Pendentes</button>
+      <button class="filtro-e" onclick="setFiltroEdital('concluidos',this)">Concluidos</button>
+      <button class="filtro-e" onclick="setFiltroEdital('alta',this)" style="color:#e57373;border-color:#e57373">Alta prioridade</button>
+      <input type="text" id="busca-edital" placeholder="Buscar topico..." oninput="filtrarTopicos()" style="flex:1;min-width:150px;margin:0;padding:6px 10px;font-size:13px">
+    </div>
+
+    <!-- Lista de disciplinas -->
+    <div id="lista-disciplinas-edital"></div>
+
+  </div>
+
+  <div id="sem-edital" style="display:none;text-align:center;padding:40px">
+    <div style="font-size:40px;margin-bottom:12px">📋</div>
+    <p style="color:#C9A83C;font-weight:bold;font-size:16px">Edital ainda nao cadastrado</p>
+    <p style="color:#aaa;font-size:13px;margin-top:6px">Seu mentor ainda nao cadastrou o edital do seu concurso. Em breve ele estara disponivel aqui!</p>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script>
+let _alunoId = null
+let _concursoId = null
+let _topicos = []
+let _progresso = {}
+let _filtroAtual = 'todos'
+
+async function init() {
+  const { data: { user } } = await _supabase.auth.getUser()
+  if (!user) { window.location.href = 'index.html'; return }
+  _alunoId = user.id
+
+  const { data: aluno } = await _supabase
+    .from('alunos').select('concurso_id, concursos(nome)').eq('id', user.id).single()
+
+  if (!aluno) return
+
+  _concursoId = aluno.concurso_id
+  document.getElementById('edital-concurso-nome').textContent = aluno.concursos?.nome || ''
+
+  // Busca topicos do edital
+  const { data: topicos } = await _supabase
+    .from('edital_topicos').select('*')
+    .eq('concurso_id', _concursoId).order('disciplina').order('ordem')
+
+  document.getElementById('loading-edital').style.display = 'none'
+
+  if (!topicos || topicos.length === 0) {
+    document.getElementById('sem-edital').style.display = 'block'
+    return
+  }
+
+  _topicos = topicos
+  document.getElementById('conteudo-edital').style.display = 'block'
+
+  // Busca progresso do aluno
+  const { data: prog } = await _supabase
+    .from('edital_progresso').select('*').eq('aluno_id', _alunoId)
+
+  prog?.forEach(p => { _progresso[p.topico_id] = p })
+
+  renderizarEdital()
+}
+
+function renderizarEdital() {
+  const busca = document.getElementById('busca-edital').value.toLowerCase()
+
+  // Agrupa por disciplina
+  const porDisc = {}
+  _topicos.forEach(t => {
+    if (!porDisc[t.disciplina]) porDisc[t.disciplina] = []
+    porDisc[t.disciplina].push(t)
+  })
+
+  let totalTopicos = 0, totalConcluidos = 0
+
+  const div = document.getElementById('lista-disciplinas-edital')
+  div.innerHTML = ''
+
+  Object.entries(porDisc).forEach(([disc, topicos]) => {
+    let topicosFiltrados = topicos
+
+    if (_filtroAtual === 'pendentes') topicosFiltrados = topicos.filter(t => !_progresso[t.id]?.concluido)
+    else if (_filtroAtual === 'concluidos') topicosFiltrados = topicos.filter(t => _progresso[t.id]?.concluido)
+    else if (_filtroAtual === 'alta') topicosFiltrados = topicos.filter(t => t.prioridade === 'alta')
+
+    if (busca) topicosFiltrados = topicosFiltrados.filter(t => t.topico.toLowerCase().includes(busca))
+
+    const concluidos = topicos.filter(t => _progresso[t.id]?.concluido).length
+    const pct = topicos.length > 0 ? Math.round((concluidos / topicos.length) * 100) : 0
+    const corBarra = pct >= 70 ? '#81c784' : pct >= 40 ? '#ffb74d' : '#C9A83C'
+
+    totalTopicos += topicos.length
+    totalConcluidos += concluidos
+
+    const divId = 'disc-' + disc.replace(/[^a-zA-Z0-9]/g, '')
+
+    div.innerHTML += `
+      <div class="edital-disc">
+        <div class="edital-disc-header" onclick="toggleDisc('${divId}')">
+          <div style="font-size:18px">${pct === 100 ? '✅' : pct > 0 ? '📖' : '📌'}</div>
+          <div style="flex:1">
+            <div class="edital-disc-nome">${disc}</div>
+            <div class="barra-disc">
+              <div class="barra-disc-fill" style="width:${pct}%;background:${corBarra}"></div>
+            </div>
+          </div>
+          <div style="text-align:right">
+            <div style="color:${corBarra};font-size:16px;font-weight:bold">${pct}%</div>
+            <div class="edital-disc-stats">${concluidos}/${topicos.length} topicos</div>
+          </div>
+          <div style="color:#aaa;font-size:18px;margin-left:8px">›</div>
+        </div>
+        <div class="edital-disc-body" id="${divId}">
+          ${topicosFiltrados.length === 0 ? '<p style="color:#aaa;font-size:13px;padding:8px 0">Nenhum topico encontrado com este filtro.</p>' :
+            topicosFiltrados.map(t => {
+              const prog = _progresso[t.id]
+              const concluido = prog?.concluido || false
+              const anotacao = prog?.anotacao || ''
+              const prioLabel = t.prioridade === 'alta' ? 'ALTA' : t.prioridade === 'media' ? 'MEDIA' : 'BAIXA'
+              const prioClass = 'prioridade-' + t.prioridade
+              return `
+                <div class="topico-item" id="topico-${t.id}">
+                  <input type="checkbox" class="topico-check" ${concluido ? 'checked' : ''}
+                    onchange="toggleTopico('${t.id}', this.checked)">
+                  <div style="flex:1">
+                    <div class="topico-texto ${concluido ? 'concluido' : ''}" id="texto-${t.id}">${t.topico}</div>
+                    ${anotacao ? `<div class="topico-nota" onclick="toggleNota('${t.id}')" id="nota-preview-${t.id}">📝 ${anotacao}</div>` :
+                      `<div class="topico-nota" onclick="toggleNota('${t.id}')" id="nota-preview-${t.id}">+ Adicionar anotacao</div>`}
+                    <textarea id="nota-input-${t.id}" class="nota-input" style="display:none" rows="2"
+                      placeholder="Sua anotacao sobre este topico..."
+                      onblur="salvarNota('${t.id}')">${anotacao}</textarea>
+                  </div>
+                  <span class="prioridade-badge ${prioClass}">${prioLabel}</span>
+                </div>`
+            }).join('')}
+        </div>
+      </div>`
+
+    // Abre automaticamente se filtro ativo ou busca
+    if (_filtroAtual !== 'todos' || busca) {
+      setTimeout(() => {
+        const el = document.getElementById(divId)
+        if (el && topicosFiltrados.length > 0) el.classList.add('aberto')
+      }, 50)
+    }
+  })
+
+  // Atualiza resumo geral
+  const pctGeral = totalTopicos > 0 ? Math.round((totalConcluidos / totalTopicos) * 100) : 0
+  document.getElementById('resumo-pct').textContent = pctGeral + '%'
+  document.getElementById('resumo-texto').textContent = totalConcluidos + ' de ' + totalTopicos + ' topicos concluidos'
+  document.getElementById('barra-geral').style.width = pctGeral + '%'
+  const corGeral = pctGeral >= 70 ? '#81c784' : pctGeral >= 40 ? '#ffb74d' : '#C9A83C'
+  document.getElementById('barra-geral').style.background = corGeral
+  document.getElementById('resumo-pct').style.color = corGeral
+}
+
+function toggleDisc(id) {
+  document.getElementById(id).classList.toggle('aberto')
+}
+
+async function toggleTopico(topico_id, concluido) {
+  // Atualiza visual imediatamente
+  const texto = document.getElementById('texto-' + topico_id)
+  if (texto) {
+    if (concluido) texto.classList.add('concluido')
+    else texto.classList.remove('concluido')
+  }
+
+  // Salva no banco
+  const prog = _progresso[topico_id]
+  if (prog) {
+    await _supabase.from('edital_progresso')
+      .update({ concluido, atualizado_em: new Date().toISOString() }).eq('id', prog.id)
+    _progresso[topico_id] = { ..._progresso[topico_id], concluido }
+  } else {
+    const { data } = await _supabase.from('edital_progresso')
+      .insert({ aluno_id: _alunoId, topico_id, concluido }).select().single()
+    if (data) _progresso[topico_id] = data
+  }
+
+  // Atualiza barras de progresso sem re-renderizar tudo
+  atualizarBarras()
+}
+
+function atualizarBarras() {
+  const porDisc = {}
+  _topicos.forEach(t => { if (!porDisc[t.disciplina]) porDisc[t.disciplina]=[]; porDisc[t.disciplina].push(t) })
+
+  let totalTopicos = 0, totalConcluidos = 0
+
+  Object.entries(porDisc).forEach(([disc, topicos]) => {
+    const concluidos = topicos.filter(t => _progresso[t.id]?.concluido).length
+    const pct = Math.round((concluidos / topicos.length) * 100)
+    const divId = 'disc-' + disc.replace(/[^a-zA-Z0-9]/g, '')
+    const header = document.querySelector('#' + divId)?.previousElementSibling
+    if (header) {
+      const barra = header.querySelector('.barra-disc-fill')
+      const pctEl = header.querySelector('.edital-disc-stats')?.previousElementSibling
+      const icone = header.querySelector('.edital-disc-header > div:first-child')
+      const corBarra = pct >= 70 ? '#81c784' : pct >= 40 ? '#ffb74d' : '#C9A83C'
+      if (barra) barra.style.width = pct + '%'
+      if (pctEl) { pctEl.style.color = corBarra; pctEl.textContent = pct + '%' }
+      if (icone) icone.textContent = pct === 100 ? '✅' : pct > 0 ? '📖' : '📌'
+    }
+    totalTopicos += topicos.length
+    totalConcluidos += concluidos
+  })
+
+  const pctGeral = Math.round((totalConcluidos / totalTopicos) * 100)
+  document.getElementById('resumo-pct').textContent = pctGeral + '%'
+  document.getElementById('resumo-texto').textContent = totalConcluidos + ' de ' + totalTopicos + ' topicos concluidos'
+  document.getElementById('barra-geral').style.width = pctGeral + '%'
+  const corGeral = pctGeral >= 70 ? '#81c784' : pctGeral >= 40 ? '#ffb74d' : '#C9A83C'
+  document.getElementById('barra-geral').style.background = corGeral
+  document.getElementById('resumo-pct').style.color = corGeral
+}
+
+function toggleNota(topico_id) {
+  const input = document.getElementById('nota-input-' + topico_id)
+  const preview = document.getElementById('nota-preview-' + topico_id)
+  if (input.style.display === 'none') {
+    input.style.display = 'block'
+    preview.style.display = 'none'
+    input.focus()
+  } else {
+    input.style.display = 'none'
+    preview.style.display = 'block'
+  }
+}
+
+async function salvarNota(topico_id) {
+  const input = document.getElementById('nota-input-' + topico_id)
+  const anotacao = input.value.trim()
+  const preview = document.getElementById('nota-preview-' + topico_id)
+
+  preview.textContent = anotacao ? '📝 ' + anotacao : '+ Adicionar anotacao'
+  input.style.display = 'none'
+  preview.style.display = 'block'
+
+  const prog = _progresso[topico_id]
+  if (prog) {
+    await _supabase.from('edital_progresso').update({ anotacao, atualizado_em: new Date().toISOString() }).eq('id', prog.id)
+    _progresso[topico_id] = { ..._progresso[topico_id], anotacao }
+  } else {
+    const concluido = document.getElementById('nota-input-' + topico_id)
+      ?.closest('.topico-item')?.querySelector('.topico-check')?.checked || false
+    const { data } = await _supabase.from('edital_progresso')
+      .insert({ aluno_id: _alunoId, topico_id, concluido, anotacao }).select().single()
+    if (data) _progresso[topico_id] = data
+  }
+}
+
+function setFiltroEdital(filtro, btn) {
+  _filtroAtual = filtro
+  document.querySelectorAll('.filtro-e').forEach(b => b.classList.remove('ativo'))
+  btn.classList.add('ativo')
+  renderizarEdital()
+}
+
+function filtrarTopicos() { renderizarEdital() }
+
+init()
+</script>
+</body>
+</html>
