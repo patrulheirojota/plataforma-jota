@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gerenciar Editais — Patrulheiros de Elite</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .topico-admin { display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #2a4a6a;flex-wrap:wrap; }
+    .topico-admin:last-child { border-bottom:none; }
+    .prioridade-sel { padding:4px 8px;border-radius:6px;border:1px solid #2a4a6a;background:#0d1b2a;color:#fff;font-size:12px;width:auto; }
+    .disc-bloco { background:#1a2f45;border-radius:12px;padding:16px;margin-bottom:12px; }
+    .disc-titulo { color:#C9A83C;font-size:15px;font-weight:bold;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center; }
+    .loading-ia { text-align:center;padding:30px;color:#aaa; }
+    .loading-ia .spinner { width:40px;height:40px;border:3px solid #2a4a6a;border-top:3px solid #C9A83C;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 12px; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .progresso-admin-item { display:flex;gap:10px;align-items:center;padding:8px;background:#0d1b2a;border-radius:8px;margin-bottom:4px; }
+    .barra-prog { flex:1;height:8px;border-radius:4px;background:#1a2f45;overflow:hidden; }
+    .barra-prog-fill { height:100%;border-radius:4px; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div>
+      <h2>Gerenciar Editais</h2>
+      <div style="color:#aaa;font-size:13px">Importe e gerencie os editais dos concursos</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button onclick="window.location.href='admin.html'" style="width:auto;padding:8px 16px">Painel Admin</button>
+    </div>
+  </header>
+
+  <!-- Abas -->
+  <div class="abas">
+    <button class="aba-btn ativa" onclick="mostrarAba('aba-importar')">Importar Edital</button>
+    <button class="aba-btn" onclick="mostrarAba('aba-gerenciar')">Gerenciar Editais</button>
+    <button class="aba-btn" onclick="mostrarAba('aba-progresso')">Progresso dos Alunos</button>
+  </div>
+
+  <!-- ABA: IMPORTAR -->
+  <div id="aba-importar" class="aba-conteudo">
+    <div class="card">
+      <h3>Importar edital via IA</h3>
+      <p style="color:#aaa;font-size:13px;margin-bottom:16px">Cole o texto do edital abaixo. A IA vai extrair as disciplinas e topicos automaticamente, ja com indicacao de prioridade baseada em historico de provas policiais.</p>
+
+      <select id="imp-concurso" style="margin-bottom:12px">
+        <option value="">Selecione o concurso</option>
+      </select>
+
+      <label style="color:#aaa;font-size:12px;display:block;margin-bottom:6px">Texto do edital (cole aqui)</label>
+      <textarea id="texto-edital" rows="10" placeholder="Exemplo:
+CONTEUDO PROGRAMATICO
+PORTUGUES
+1. Interpretacao de texto
+2. Ortografia oficial
+3. Acentuacao grafica
+...
+MATEMATICA
+1. Operacoes basicas
+..." style="width:100%;padding:12px;border-radius:8px;border:1px solid #2a4a6a;background:#0d1b2a;color:#fff;font-size:13px;resize:vertical;line-height:1.5"></textarea>
+
+      <button onclick="processarComIA()" style="margin-top:12px" id="btn-processar">Processar com IA</button>
+      <p id="msg-importar" style="display:none;margin-top:8px;font-size:13px"></p>
+    </div>
+
+    <!-- Preview da IA -->
+    <div id="preview-ia" style="display:none">
+      <div id="loading-ia-div" class="card loading-ia" style="display:none">
+        <div class="spinner"></div>
+        <p>Analisando o edital com IA...</p>
+        <p style="font-size:12px;color:#555;margin-top:4px">Isso pode levar alguns segundos</p>
+      </div>
+
+      <div id="resultado-ia" style="display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+          <h3 style="color:#C9A83C;margin:0">Edital processado — revise antes de salvar</h3>
+          <div style="display:flex;gap:8px">
+            <button onclick="salvarEdital()" style="width:auto;padding:10px 20px;background:#1a3a1a;color:#81c784;border:1px solid #81c784">Salvar edital</button>
+            <button onclick="document.getElementById('preview-ia').style.display='none'" style="width:auto;padding:10px 16px;background:#1a2f45;color:#aaa;border:1px solid #2a4a6a">Cancelar</button>
+          </div>
+        </div>
+        <p style="color:#aaa;font-size:13px;margin-bottom:16px">Voce pode alterar as prioridades antes de salvar. Vermelho = Alta, Laranja = Media, Azul = Baixa.</p>
+        <div id="lista-preview-ia"></div>
+        <div style="margin-top:16px;display:flex;gap:8px">
+          <button onclick="salvarEdital()" style="background:#1a3a1a;color:#81c784;border:1px solid #81c784">Salvar edital completo</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ABA: GERENCIAR -->
+  <div id="aba-gerenciar" class="aba-conteudo" style="display:none">
+    <div class="card">
+      <h3>Editais cadastrados</h3>
+      <select id="ger-concurso" onchange="carregarEditalAdmin()" style="margin-bottom:12px">
+        <option value="">Selecione o concurso</option>
+      </select>
+      <div id="edital-admin-container"></div>
+    </div>
+
+    <div class="card" id="card-add-topico" style="display:none">
+      <h3>Adicionar topico manualmente</h3>
+      <input type="text" id="add-disc" placeholder="Disciplina">
+      <input type="text" id="add-topico" placeholder="Topico">
+      <select id="add-prio" style="margin:8px 0">
+        <option value="alta">Alta prioridade</option>
+        <option value="media" selected>Media prioridade</option>
+        <option value="baixa">Baixa prioridade</option>
+      </select>
+      <button onclick="adicionarTopico()">Adicionar topico</button>
+    </div>
+  </div>
+
+  <!-- ABA: PROGRESSO -->
+  <div id="aba-progresso" class="aba-conteudo" style="display:none">
+    <div class="card">
+      <h3>Progresso dos alunos no edital</h3>
+      <select id="prog-concurso" onchange="carregarProgressoAlunos()" style="margin-bottom:12px">
+        <option value="">Selecione o concurso</option>
+      </select>
+      <div id="progresso-alunos-container"></div>
+    </div>
+  </div>
+
+</div>
+
+<script src="config.js"></script>
+<script>
+let _editaisSalvos = [] // topicos gerados pela IA para salvar
+let _concursoAtual = null
+
+async function init() {
+  const { data: { user } } = await _supabase.auth.getUser()
+  if (!user) { window.location.href = 'index.html'; return }
+  await carregarConcursos()
+}
+
+function mostrarAba(id) {
+  document.querySelectorAll('.aba-conteudo').forEach(el => el.style.display = 'none')
+  document.querySelectorAll('.aba-btn').forEach(el => el.classList.remove('ativa'))
+  document.getElementById(id).style.display = 'block'
+  event.target.classList.add('ativa')
+}
+
+async function carregarConcursos() {
+  const { data: concursos } = await _supabase.from('concursos').select('*').order('nome')
+  const selects = ['imp-concurso','ger-concurso','prog-concurso']
+  selects.forEach(sid => {
+    const s = document.getElementById(sid)
+    if (!s) return
+    s.innerHTML = '<option value="">Selecione o concurso</option>'
+    concursos?.forEach(c => { s.innerHTML += `<option value="${c.id}">${c.nome}</option>` })
+  })
+  window._concursos = concursos
+}
+
+// ========== IMPORTAR COM IA ==========
+async function processarComIA() {
+  const concurso_id = document.getElementById('imp-concurso').value
+  const texto = document.getElementById('texto-edital').value.trim()
+  const msg = document.getElementById('msg-importar')
+
+  if (!concurso_id) { msg.style.display='block'; msg.style.color='#e57373'; msg.textContent='Selecione o concurso.'; return }
+  if (!texto || texto.length < 50) { msg.style.display='block'; msg.style.color='#e57373'; msg.textContent='Cole o texto do edital (minimo 50 caracteres).'; return }
+
+  msg.style.display = 'none'
+  _concursoAtual = concurso_id
+  document.getElementById('preview-ia').style.display = 'block'
+  document.getElementById('loading-ia-div').style.display = 'block'
+  document.getElementById('resultado-ia').style.display = 'none'
+  document.getElementById('btn-processar').disabled = true
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 4000,
+        system: `Voce e um especialista em concursos publicos para carreiras policiais brasileiras (PM, PC, Guarda Municipal). Analise o texto do edital fornecido e extraia as disciplinas e topicos, organizando-os em JSON. Para cada topico, defina a prioridade baseada na frequencia historica em provas policiais no Brasil: "alta" para temas recorrentes e fundamentais, "media" para temas presentes mas menos frequentes, "baixa" para temas raros ou muito especificos. Responda APENAS com JSON valido, sem texto adicional, sem markdown, sem backticks. Formato: {"disciplinas": [{"nome": "Nome da Disciplina", "topicos": [{"texto": "Topico 1", "prioridade": "alta", "ordem": 1}]}]}`,
+        messages: [{ role: 'user', content: 'Extraia as disciplinas e topicos deste edital e defina prioridades:\n\n' + texto }]
+      })
+    })
+
+    const data = await response.json()
+    const content = data.content?.[0]?.text || ''
+
+    let parsed
+    try {
+      const clean = content.replace(/```json|```/g, '').trim()
+      parsed = JSON.parse(clean)
+    } catch(e) {
+      throw new Error('A IA nao retornou um formato valido. Tente novamente.')
+    }
+
+    document.getElementById('loading-ia-div').style.display = 'none'
+    document.getElementById('resultado-ia').style.display = 'block'
+
+    renderizarPreviewIA(parsed)
+    _editaisSalvos = parsed
+
+  } catch(err) {
+    document.getElementById('loading-ia-div').style.display = 'none'
+    document.getElementById('btn-processar').disabled = false
+    msg.style.display = 'block'; msg.style.color = '#e57373'
+    msg.textContent = 'Erro: ' + err.message
+  }
+}
+
+function renderizarPreviewIA(dados) {
+  const div = document.getElementById('lista-preview-ia')
+  div.innerHTML = ''
+  let totalTopicos = 0
+
+  dados.disciplinas?.forEach((disc, di) => {
+    totalTopicos += disc.topicos?.length || 0
+    div.innerHTML += `
+      <div class="disc-bloco">
+        <div class="disc-titulo">
+          <span>${disc.nome}</span>
+          <span style="color:#aaa;font-size:12px;font-weight:normal">${disc.topicos?.length || 0} topicos</span>
+        </div>
+        ${disc.topicos?.map((t, ti) => `
+          <div class="topico-admin">
+            <span style="color:#aaa;font-size:12px;min-width:20px">${ti+1}.</span>
+            <input type="text" value="${t.texto}" id="tp-${di}-${ti}"
+              style="flex:1;padding:6px;border-radius:6px;border:1px solid #2a4a6a;background:#0d1b2a;color:#fff;font-size:13px;margin:0">
+            <select class="prioridade-sel" id="pr-${di}-${ti}"
+              style="color:${t.prioridade==='alta'?'#e57373':t.prioridade==='media'?'#ffb74d':'#4a8ab5'}">
+              <option value="alta" ${t.prioridade==='alta'?'selected':''}>Alta</option>
+              <option value="media" ${t.prioridade==='media'?'selected':''}>Media</option>
+              <option value="baixa" ${t.prioridade==='baixa'?'selected':''}>Baixa</option>
+            </select>
+            <button onclick="this.closest('.topico-admin').remove()" class="btn-acao btn-excluir" style="font-size:11px;padding:4px 8px">X</button>
+          </div>`).join('')}
+      </div>`
+  })
+
+  div.innerHTML += `<p style="color:#aaa;font-size:13px;text-align:center;margin-top:8px">${totalTopicos} topicos extraidos em ${dados.disciplinas?.length || 0} disciplinas</p>`
+}
+
+async function salvarEdital() {
+  if (!_concursoAtual || !_editaisSalvos?.disciplinas) { alert('Nenhum edital processado.'); return }
+
+  // Coleta os dados editados nos campos
+  const disciplinas = document.querySelectorAll('.disc-bloco')
+  const topicosParaSalvar = []
+  let ordem = 1
+
+  document.querySelectorAll('.disc-bloco').forEach((discEl, di) => {
+    const nomeDisc = discEl.querySelector('.disc-titulo span')?.textContent || ''
+    discEl.querySelectorAll('.topico-admin').forEach((topicoEl, ti) => {
+      const texto = document.getElementById('tp-'+di+'-'+ti)?.value || ''
+      const prioridade = document.getElementById('pr-'+di+'-'+ti)?.value || 'media'
+      if (texto.trim()) {
+        topicosParaSalvar.push({ concurso_id: _concursoAtual, disciplina: nomeDisc, topico: texto.trim(), prioridade, ordem: ordem++ })
+      }
+    })
+  })
+
+  if (topicosParaSalvar.length === 0) { alert('Nenhum topico para salvar.'); return }
+
+  // Remove edital anterior do mesmo concurso
+  const confirmar = confirm('Isso vai substituir o edital atual deste concurso por este novo. Confirmar?')
+  if (!confirmar) return
+
+  await _supabase.from('edital_topicos').delete().eq('concurso_id', _concursoAtual)
+
+  const { error } = await _supabase.from('edital_topicos').insert(topicosParaSalvar)
+
+  if (error) { alert('Erro ao salvar: ' + error.message); return }
+
+  alert('Edital salvo com sucesso! ' + topicosParaSalvar.length + ' topicos em ' + new Set(topicosParaSalvar.map(t=>t.disciplina)).size + ' disciplinas.')
+  document.getElementById('preview-ia').style.display = 'none'
+  document.getElementById('texto-edital').value = ''
+  document.getElementById('btn-processar').disabled = false
+}
+
+// ========== GERENCIAR ==========
+async function carregarEditalAdmin() {
+  const concurso_id = document.getElementById('ger-concurso').value
+  const div = document.getElementById('edital-admin-container')
+  div.innerHTML = ''
+  document.getElementById('card-add-topico').style.display = 'none'
+  if (!concurso_id) return
+
+  const { data: topicos } = await _supabase.from('edital_topicos').select('*')
+    .eq('concurso_id', concurso_id).order('disciplina').order('ordem')
+
+  if (!topicos || topicos.length === 0) {
+    div.innerHTML = '<p style="color:#aaa">Nenhum edital cadastrado para este concurso. Use a aba "Importar Edital" para adicionar.</p>'
+    document.getElementById('card-add-topico').style.display = 'block'
+    window._concursoAtual = concurso_id
+    return
+  }
+
+  document.getElementById('card-add-topico').style.display = 'block'
+  window._concursoAtual = concurso_id
+
+  const porDisc = {}
+  topicos.forEach(t => { if (!porDisc[t.disciplina]) porDisc[t.disciplina]=[]; porDisc[t.disciplina].push(t) })
+
+  const altaCount = topicos.filter(t=>t.prioridade==='alta').length
+  const mediaCount = topicos.filter(t=>t.prioridade==='media').length
+  const baixaCount = topicos.filter(t=>t.prioridade==='baixa').length
+
+  div.innerHTML = `
+    <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+      <div style="background:#e5737322;border:1px solid #e57373;border-radius:8px;padding:8px 14px;text-align:center">
+        <div style="color:#e57373;font-size:18px;font-weight:bold">${altaCount}</div>
+        <div style="color:#aaa;font-size:11px">Alta prioridade</div>
+      </div>
+      <div style="background:#ffb74d22;border:1px solid #ffb74d;border-radius:8px;padding:8px 14px;text-align:center">
+        <div style="color:#ffb74d;font-size:18px;font-weight:bold">${mediaCount}</div>
+        <div style="color:#aaa;font-size:11px">Media prioridade</div>
+      </div>
+      <div style="background:#4a8ab522;border:1px solid #4a8ab5;border-radius:8px;padding:8px 14px;text-align:center">
+        <div style="color:#4a8ab5;font-size:18px;font-weight:bold">${baixaCount}</div>
+        <div style="color:#aaa;font-size:11px">Baixa prioridade</div>
+      </div>
+      <div style="background:#1a2f45;border-radius:8px;padding:8px 14px;text-align:center">
+        <div style="color:#fff;font-size:18px;font-weight:bold">${topicos.length}</div>
+        <div style="color:#aaa;font-size:11px">Total de topicos</div>
+      </div>
+    </div>`
+
+  Object.entries(porDisc).forEach(([disc, ts]) => {
+    div.innerHTML += `
+      <div class="disc-bloco">
+        <div class="disc-titulo">
+          <span>${disc}</span>
+          <div style="display:flex;gap:6px;align-items:center">
+            <span style="color:#aaa;font-size:12px;font-weight:normal">${ts.length} topicos</span>
+            <button onclick="excluirDisciplina('${disc}','${concurso_id}')" class="btn-acao btn-excluir" style="font-size:11px;padding:3px 8px">Excluir disc.</button>
+          </div>
+        </div>
+        ${ts.map(t => `
+          <div class="topico-admin">
+            <span style="color:${t.prioridade==='alta'?'#e57373':t.prioridade==='media'?'#ffb74d':'#4a8ab5'};font-size:16px">●</span>
+            <span style="flex:1;font-size:13px">${t.topico}</span>
+            <select class="prioridade-sel" onchange="alterarPrioridade('${t.id}',this.value)"
+              style="color:${t.prioridade==='alta'?'#e57373':t.prioridade==='media'?'#ffb74d':'#4a8ab5'}">
+              <option value="alta" ${t.prioridade==='alta'?'selected':''}>Alta</option>
+              <option value="media" ${t.prioridade==='media'?'selected':''}>Media</option>
+              <option value="baixa" ${t.prioridade==='baixa'?'selected':''}>Baixa</option>
+            </select>
+            <button onclick="excluirTopico('${t.id}')" class="btn-acao btn-excluir" style="font-size:11px;padding:3px 8px">X</button>
+          </div>`).join('')}
+      </div>`
+  })
+}
+
+async function alterarPrioridade(id, prioridade) {
+  await _supabase.from('edital_topicos').update({ prioridade }).eq('id', id)
+}
+
+async function excluirTopico(id) {
+  if (!confirm('Excluir este topico?')) return
+  await _supabase.from('edital_topicos').delete().eq('id', id)
+  carregarEditalAdmin()
+}
+
+async function excluirDisciplina(disc, concurso_id) {
+  if (!confirm('Excluir todos os topicos de "'+disc+'"?')) return
+  await _supabase.from('edital_topicos').delete().eq('disciplina', disc).eq('concurso_id', concurso_id)
+  carregarEditalAdmin()
+}
+
+async function adicionarTopico() {
+  const disc = document.getElementById('add-disc').value.trim()
+  const topico = document.getElementById('add-topico').value.trim()
+  const prioridade = document.getElementById('add-prio').value
+  const concurso_id = window._concursoAtual
+  if (!disc||!topico||!concurso_id) { alert('Preencha todos os campos.'); return }
+  const { error } = await _supabase.from('edital_topicos').insert({ concurso_id, disciplina:disc, topico, prioridade })
+  if (error) { alert('Erro: '+error.message); return }
+  document.getElementById('add-topico').value = ''
+  alert('Topico adicionado!')
+  carregarEditalAdmin()
+}
+
+// ========== PROGRESSO ==========
+async function carregarProgressoAlunos() {
+  const concurso_id = document.getElementById('prog-concurso').value
+  const div = document.getElementById('progresso-alunos-container')
+  div.innerHTML = '<p style="color:#aaa">Carregando...</p>'
+  if (!concurso_id) { div.innerHTML=''; return }
+
+  const { data: topicos } = await _supabase.from('edital_topicos').select('id,disciplina').eq('concurso_id', concurso_id)
+  const { data: vinculos } = await _supabase.from('aluno_concursos').select('aluno_id, alunos(id,nome)').eq('concurso_id', concurso_id)
+
+  if (!topicos||topicos.length===0) { div.innerHTML='<p style="color:#aaa">Nenhum edital cadastrado para este concurso.</p>'; return }
+  if (!vinculos||vinculos.length===0) { div.innerHTML='<p style="color:#aaa">Nenhum aluno neste concurso.</p>'; return }
+
+  div.innerHTML = ''
+
+  // Por disciplina
+  const porDisc = {}
+  topicos.forEach(t => { if (!porDisc[t.disciplina]) porDisc[t.disciplina]=[]; porDisc[t.disciplina].push(t.id) })
+
+  for (const v of vinculos) {
+    const aluno = v.alunos; if (!aluno) continue
+    const { data: prog } = await _supabase.from('edital_progresso')
+      .select('topico_id, concluido').eq('aluno_id', aluno.id).eq('concluido', true)
+
+    const concluidos = new Set(prog?.map(p => p.topico_id) || [])
+    const pctGeral = Math.round((concluidos.size / topicos.length) * 100)
+    const corGeral = pctGeral>=70?'#81c784':pctGeral>=40?'#ffb74d':'#e57373'
+
+    div.innerHTML += `
+      <div style="background:#1a2f45;border-radius:10px;padding:14px;margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:6px">
+          <strong>${aluno.nome}</strong>
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="color:${corGeral};font-size:18px;font-weight:bold">${pctGeral}%</span>
+            <span style="color:#aaa;font-size:12px">${concluidos.size}/${topicos.length} topicos</span>
+          </div>
+        </div>
+        <div style="background:#0d1b2a;border-radius:20px;height:8px;overflow:hidden;margin-bottom:10px">
+          <div style="width:${pctGeral}%;height:100%;background:${corGeral};border-radius:20px;transition:width 0.5s"></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          ${Object.entries(porDisc).map(([disc, ids]) => {
+            const concl = ids.filter(id => concluidos.has(id)).length
+            const pct = Math.round((concl/ids.length)*100)
+            const cor = pct>=70?'#81c784':pct>=40?'#ffb74d':'#e57373'
+            return `<div class="progresso-admin-item">
+              <span style="flex:1;font-size:12px">${disc}</span>
+              <div class="barra-prog"><div class="barra-prog-fill" style="width:${pct}%;background:${cor}"></div></div>
+              <span style="color:${cor};font-size:12px;min-width:35px;text-align:right">${pct}%</span>
+              <span style="color:#aaa;font-size:11px;min-width:50px;text-align:right">${concl}/${ids.length}</span>
+            </div>`
+          }).join('')}
+        </div>
+      </div>`
+  }
+}
+
+init()
+</script>
+</body>
+</html>
