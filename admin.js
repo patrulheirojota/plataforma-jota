@@ -161,7 +161,7 @@ function renderizarListaAlunos(alunos) {
   if (alunos.length === 0) { div.innerHTML='<p style="color:#aaa">Nenhum aluno encontrado.</p>'; return }
 
   alunos.forEach(a => {
-    div.innerHTML += `<div class="item-lista" style="flex-wrap:wrap;gap:8px">
+    div.innerHTML += `<div class="item-lista" style="flex-wrap:wrap;gap:8px" id="card-aluno-${a.id}">
       <div style="flex:1;min-width:140px">
         <strong>${a.nome}</strong>
         <div style="color:#aaa;font-size:12px">${a.email}</div>
@@ -172,10 +172,58 @@ function renderizarListaAlunos(alunos) {
         <button class="btn-acao btn-editar" onclick="gerenciarConcursosAluno('${a.id}','${a.nome}')">Concursos</button>
         <button class="btn-acao btn-editar" onclick="irParaCronogramaAluno('${a.id}','${a.nome}')" style="background:#1a3a5c;color:#4a8ab5;border:1px solid #4a8ab5">Cronograma</button>
         <button class="btn-acao" onclick="abrirAplicarTemplate('${a.id}','${a.nome}')" style="background:#1a3a1a;color:#81c784;border:1px solid #81c784">Template</button>
+        <button class="btn-acao btn-excluir" onclick="confirmarExcluirAluno('${a.id}','${a.nome}')">Excluir</button>
       </div>
     </div>`
   })
   div.innerHTML += `<p style="color:#aaa;font-size:12px;margin-top:8px">${alunos.length} aluno(s)</p>`
+}
+
+async function confirmarExcluirAluno(aluno_id, nome) {
+  const confirmacao = prompt(
+    'ATENCAO: Esta acao e irreversivel!\n\n' +
+    'Isso vai remover o aluno "' + nome + '" da plataforma, incluindo:\n' +
+    '- Todos os registros de estudo\n' +
+    '- Plano de estudos\n' +
+    '- Progresso no edital\n\n' +
+    'Para confirmar, digite o nome do aluno exatamente como esta:'
+  )
+  if (!confirmacao) return
+  if (confirmacao.trim() !== nome.trim()) {
+    alert('Nome incorreto. Exclusao cancelada.')
+    return
+  }
+  await excluirAluno(aluno_id, nome)
+}
+
+async function excluirAluno(aluno_id, nome) {
+  const card = document.getElementById('card-aluno-' + aluno_id)
+  if (card) { card.style.opacity = '0.4'; card.style.pointerEvents = 'none' }
+
+  try {
+    // Remove dados na ordem correta (respeita foreign keys)
+    await _supabase.from('edital_progresso').delete().eq('aluno_id', aluno_id)
+    await _supabase.from('registros_diarios').delete().eq('aluno_id', aluno_id)
+    await _supabase.from('revisoes_programadas').delete().eq('aluno_id', aluno_id)
+    await _supabase.from('plano_aluno').delete().eq('aluno_id', aluno_id)
+    await _supabase.from('aluno_concursos').delete().eq('aluno_id', aluno_id)
+    await _supabase.from('alunos').delete().eq('id', aluno_id)
+
+    // Remove o card da tela imediatamente
+    if (card) card.remove()
+
+    // Atualiza contagem
+    const inner = document.getElementById('lista-alunos-inner')
+    const total = inner ? inner.querySelectorAll('.item-lista').length : 0
+    const countEl = inner ? inner.querySelector('p:last-child') : null
+    if (countEl) countEl.textContent = total + ' aluno(s)'
+
+    alert('Aluno "' + nome + '" removido com sucesso da plataforma.\n\nLembre-se de remover tambem o login no Supabase > Authentication > Users se necessario.')
+
+  } catch(err) {
+    if (card) { card.style.opacity = '1'; card.style.pointerEvents = 'auto' }
+    alert('Erro ao excluir: ' + err.message)
+  }
 }
 
 // Atalho: vai direto para a aba de cronograma com o aluno ja selecionado
@@ -207,9 +255,12 @@ function abrirEditarAluno(id, nome, email, concurso_id) {
   document.getElementById('editar-aluno-nome').value = nome
   document.getElementById('editar-aluno-email').value = email
   const sel = document.getElementById('editar-aluno-concurso')
-  if (sel && concurso_id) sel.value = concurso_id
-  document.getElementById('card-editar-aluno').scrollIntoView({ behavior:'smooth' })
+  if (sel) sel.value = concurso_id || ''
   document.getElementById('msg-editar-aluno').textContent = ''
+  document.getElementById('card-editar-aluno').scrollIntoView({ behavior:'smooth' })
+  // Carrega senha atual como placeholder
+  const senhaInput = document.getElementById('editar-aluno-senha')
+  if (senhaInput) { senhaInput.value = ''; senhaInput.placeholder = 'Nova senha (deixe vazio para nao alterar)' }
 }
 
 async function salvarEdicaoAluno() {
@@ -217,12 +268,45 @@ async function salvarEdicaoAluno() {
   const nome = document.getElementById('editar-aluno-nome').value
   const email = document.getElementById('editar-aluno-email').value
   const concurso_id = document.getElementById('editar-aluno-concurso').value
+  const novaSenha = document.getElementById('editar-aluno-senha')?.value || ''
   const msg = document.getElementById('msg-editar-aluno')
+
   if (!nome||!email) { msg.style.color='#e57373'; msg.textContent='Preencha nome e e-mail.'; return }
-  const { error } = await _supabase.from('alunos').update({ nome, email, concurso_id: concurso_id||null }).eq('id', id)
+
+  msg.style.color='#aaa'; msg.textContent='Salvando...'
+
+  // Atualiza dados na tabela alunos
+  const { error } = await _supabase.from('alunos')
+    .update({ nome, email, concurso_id: concurso_id||null }).eq('id', id)
   if (error) { msg.style.color='#e57373'; msg.textContent='Erro: '+error.message; return }
-  msg.style.color='#81c784'; msg.textContent='Salvo com sucesso!'
-  carregarAlunos()
+
+  // Se digitou nova senha, envia link de redefinicao por email
+  if (novaSenha && novaSenha.length >= 6) {
+    msg.style.color='#aaa'; msg.textContent='Atualizando dados e redefinindo senha...'
+    // Usa updateUser via admin (funciona pois o admin esta logado)
+    // Como nao temos acesso direto ao auth.admin via anon key,
+    // enviamos email de redefinicao como alternativa segura
+    await _supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: 'https://patrulheirojota.com.br/nova-senha.html'
+    })
+    msg.style.color='#81c784'
+    msg.textContent='Dados salvos! Um link de redefinicao de senha foi enviado para ' + email
+  } else {
+    msg.style.color='#81c784'; msg.textContent='Dados salvos com sucesso!'
+  }
+
+  // Atualiza o card na lista sem recarregar tudo
+  const card = document.getElementById('card-aluno-' + id)
+  if (card) {
+    const strong = card.querySelector('strong')
+    const divs = card.querySelectorAll('div[style*="color:#aaa"]')
+    if (strong) strong.textContent = nome
+    if (divs[0]) divs[0].textContent = email
+    if (divs[1] && concurso_id) {
+      const concurso = window._concursos?.find(c => c.id === concurso_id)
+      if (concurso) divs[1].textContent = concurso.nome
+    }
+  }
 }
 
 function fecharEditarAluno() { document.getElementById('card-editar-aluno').style.display='none' }
