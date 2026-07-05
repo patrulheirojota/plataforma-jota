@@ -71,11 +71,24 @@
         <button onclick="fecharEditarAluno()" style="width:auto;padding:6px 14px;background:#1a2f45;color:#aaa;border:1px solid #2a4a6a">Fechar</button>
       </div>
       <input type="hidden" id="editar-aluno-id">
-      <input type="text" id="editar-aluno-nome" placeholder="Nome completo">
-      <input type="email" id="editar-aluno-email" placeholder="E-mail">
+
+      <label style="color:#aaa;font-size:12px;display:block;margin-bottom:4px">Nome completo</label>
+      <input type="text" id="editar-aluno-nome" placeholder="Nome completo do aluno">
+
+      <label style="color:#aaa;font-size:12px;display:block;margin-top:10px;margin-bottom:4px">E-mail</label>
+      <input type="email" id="editar-aluno-email" placeholder="E-mail do aluno">
+
+      <label style="color:#aaa;font-size:12px;display:block;margin-top:10px;margin-bottom:4px">Concurso principal</label>
       <select id="editar-aluno-concurso"></select>
-      <button onclick="salvarEdicaoAluno()">Salvar alteracoes</button>
-      <p id="msg-editar-aluno" style="margin-top:8px"></p>
+
+      <div style="background:#0d1b2a;border-radius:8px;padding:12px;margin-top:10px">
+        <label style="color:#aaa;font-size:12px;display:block;margin-bottom:4px">Redefinir senha do aluno (opcional)</label>
+        <input type="password" id="editar-aluno-senha" placeholder="Nova senha (min. 6 caracteres) — deixe vazio para nao alterar">
+        <p style="color:#555;font-size:11px;margin-top:4px">Se preencher, um link de redefinicao sera enviado ao e-mail do aluno.</p>
+      </div>
+
+      <button onclick="salvarEdicaoAluno()" style="margin-top:12px">Salvar alteracoes</button>
+      <p id="msg-editar-aluno" style="margin-top:8px;font-size:13px"></p>
     </div>
 
     <div class="card" id="card-concursos-aluno" style="display:none">
