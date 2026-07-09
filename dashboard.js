@@ -16,8 +16,18 @@ async function init() {
   _alunoId = user.id
 
   const { data: aluno } = await _supabase
-    .from('alunos').select('nome').eq('id', user.id).single()
+    .from('alunos').select('nome, data_expiracao').eq('id', user.id).single()
   if (!aluno) { alert('Aluno nao encontrado. Contate o mentor.'); return }
+
+  // Verifica se o acesso expirou
+  if (aluno.data_expiracao) {
+    const hoje = new Date(); hoje.setHours(0,0,0,0)
+    const expiracao = new Date(aluno.data_expiracao + 'T00:00:00')
+    if (hoje > expiracao) {
+      mostrarTelaAcessoExpirado(aluno.nome, aluno.data_expiracao)
+      return
+    }
+  }
 
   _nomeAluno = aluno.nome
   document.getElementById('nome-aluno').textContent = aluno.nome
@@ -37,6 +47,22 @@ async function init() {
   } else {
     mostrarSeletorConcurso(vinculos)
   }
+}
+
+function mostrarTelaAcessoExpirado(nome, dataExp) {
+  const dataFmt = new Date(dataExp + 'T00:00:00').toLocaleDateString('pt-BR')
+  document.querySelector('.container').innerHTML = `
+    <div style="max-width:480px;margin:60px auto;text-align:center;padding:20px">
+      <div style="font-size:56px;margin-bottom:16px">🔒</div>
+      <h2 style="color:#C9A83C;margin-bottom:8px">Acesso Expirado</h2>
+      <p style="color:#ccc;font-size:15px;line-height:1.6;margin-bottom:6px">
+        Ola, <strong>${nome.split(' ')[0]}</strong>! Seu acesso a plataforma expirou em <strong>${dataFmt}</strong>.
+      </p>
+      <p style="color:#aaa;font-size:14px;line-height:1.6;margin-bottom:24px">
+        Para continuar estudando e manter sua sequencia, entre em contato com seu mentor para renovar seu acesso.
+      </p>
+      <button onclick="sair()" style="width:auto;padding:12px 24px">Sair</button>
+    </div>`
 }
 
 function mostrarSeletorConcurso(vinculos) {
