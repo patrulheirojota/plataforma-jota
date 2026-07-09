@@ -220,30 +220,52 @@ async function excluirAluno(aluno_id, nome) {
   const card = document.getElementById('card-aluno-' + aluno_id)
   if (card) { card.style.opacity = '0.4'; card.style.pointerEvents = 'none' }
 
-  try {
-    // Remove dados na ordem correta (respeita foreign keys)
-    await _supabase.from('edital_progresso').delete().eq('aluno_id', aluno_id)
-    await _supabase.from('registros_diarios').delete().eq('aluno_id', aluno_id)
-    await _supabase.from('revisoes_programadas').delete().eq('aluno_id', aluno_id)
-    await _supabase.from('plano_aluno').delete().eq('aluno_id', aluno_id)
-    await _supabase.from('aluno_concursos').delete().eq('aluno_id', aluno_id)
-    await _supabase.from('alunos').delete().eq('id', aluno_id)
+  const erros = []
 
-    // Remove o card da tela imediatamente
-    if (card) card.remove()
+  const r1 = await _supabase.from('edital_progresso').delete().eq('aluno_id', aluno_id)
+  if (r1.error) erros.push('edital_progresso: ' + r1.error.message)
 
-    // Atualiza contagem
-    const inner = document.getElementById('lista-alunos-inner')
-    const total = inner ? inner.querySelectorAll('.item-lista').length : 0
-    const countEl = inner ? inner.querySelector('p:last-child') : null
-    if (countEl) countEl.textContent = total + ' aluno(s)'
+  const r2 = await _supabase.from('registros_diarios').delete().eq('aluno_id', aluno_id)
+  if (r2.error) erros.push('registros_diarios: ' + r2.error.message)
 
-    alert('Aluno "' + nome + '" removido com sucesso da plataforma.\n\nLembre-se de remover tambem o login no Supabase > Authentication > Users se necessario.')
+  const r3 = await _supabase.from('revisoes_programadas').delete().eq('aluno_id', aluno_id)
+  if (r3.error) erros.push('revisoes_programadas: ' + r3.error.message)
 
-  } catch(err) {
+  const r4 = await _supabase.from('plano_aluno').delete().eq('aluno_id', aluno_id)
+  if (r4.error) erros.push('plano_aluno: ' + r4.error.message)
+
+  const r5 = await _supabase.from('aluno_concursos').delete().eq('aluno_id', aluno_id)
+  if (r5.error) erros.push('aluno_concursos: ' + r5.error.message)
+
+  const r6 = await _supabase.from('alunos').delete().eq('id', aluno_id)
+  if (r6.error) erros.push('alunos: ' + r6.error.message)
+
+  if (erros.length > 0) {
     if (card) { card.style.opacity = '1'; card.style.pointerEvents = 'auto' }
-    alert('Erro ao excluir: ' + err.message)
+    alert('ATENCAO: Nem tudo foi excluido corretamente!\n\nErros encontrados:\n' + erros.join('\n') + '\n\nProvavelmente falta permissao (RLS) no Supabase. Peca ajuda para adicionar as policies de DELETE nas tabelas listadas acima.')
+    return
   }
+
+  // Confirma que o aluno realmente sumiu do banco antes de comemorar
+  const { data: verificacao } = await _supabase.from('alunos').select('id').eq('id', aluno_id)
+  if (verificacao && verificacao.length > 0) {
+    if (card) { card.style.opacity = '1'; card.style.pointerEvents = 'auto' }
+    alert('ATENCAO: O aluno ainda existe no banco de dados apos a tentativa de exclusao.\n\nIsso geralmente significa que falta uma politica de seguranca (RLS) de DELETE na tabela alunos. Peca ajuda para adicionar essa permissao no Supabase.')
+    return
+  }
+
+  // So remove da tela se realmente foi excluido do banco
+  if (card) card.remove()
+  if (window._todosAlunos) {
+    window._todosAlunos = window._todosAlunos.filter(a => a.id !== aluno_id)
+  }
+
+  const inner = document.getElementById('lista-alunos-inner')
+  const total = inner ? inner.querySelectorAll('.item-lista').length : 0
+  const countEl = inner ? inner.querySelector('p:last-child') : null
+  if (countEl) countEl.textContent = total + ' aluno(s)'
+
+  alert('Aluno "' + nome + '" removido com sucesso e confirmado no banco de dados.\n\nLembre-se de remover tambem o login no Supabase > Authentication > Users se necessario.')
 }
 
 // Atalho: vai direto para a aba de cronograma com o aluno ja selecionado
