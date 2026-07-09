@@ -56,7 +56,18 @@
       <input type="email" id="novo-aluno-email" placeholder="E-mail do aluno">
       <input type="password" id="novo-aluno-senha" placeholder="Senha provisoria (min. 6 caracteres)">
       <select id="novo-aluno-concurso"></select>
-      <button onclick="criarAluno()">Cadastrar aluno</button>
+
+      <label style="color:#aaa;font-size:12px;display:block;margin-top:10px;margin-bottom:4px">Prazo de acesso a plataforma</label>
+      <select id="novo-aluno-acesso">
+        <option value="0">Sem prazo (acesso ilimitado)</option>
+        <option value="1">1 mes</option>
+        <option value="3">3 meses</option>
+        <option value="6" selected>6 meses</option>
+        <option value="12">1 ano</option>
+        <option value="24">2 anos</option>
+      </select>
+
+      <button onclick="criarAluno()" style="margin-top:8px">Cadastrar aluno</button>
       <p id="msg-aluno" style="margin-top:10px"></p>
     </div>
 
@@ -85,6 +96,19 @@
         <label style="color:#aaa;font-size:12px;display:block;margin-bottom:4px">Redefinir senha do aluno (opcional)</label>
         <input type="password" id="editar-aluno-senha" placeholder="Nova senha (min. 6 caracteres) — deixe vazio para nao alterar">
         <p style="color:#555;font-size:11px;margin-top:4px">Se preencher, um link de redefinicao sera enviado ao e-mail do aluno.</p>
+      </div>
+
+      <div style="background:#0d1b2a;border-radius:8px;padding:12px;margin-top:10px">
+        <label style="color:#aaa;font-size:12px;display:block;margin-bottom:4px">Prazo de acesso a plataforma</label>
+        <input type="date" id="editar-aluno-data-expiracao">
+        <p style="color:#555;font-size:11px;margin:6px 0">Deixe vazio para acesso sem prazo (ilimitado)</p>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+          <button onclick="estenderAcesso(1)" class="btn-acao btn-editar" style="padding:6px 10px">+1 mes</button>
+          <button onclick="estenderAcesso(3)" class="btn-acao btn-editar" style="padding:6px 10px">+3 meses</button>
+          <button onclick="estenderAcesso(6)" class="btn-acao btn-editar" style="padding:6px 10px">+6 meses</button>
+          <button onclick="estenderAcesso(12)" class="btn-acao btn-editar" style="padding:6px 10px">+1 ano</button>
+          <button onclick="document.getElementById('editar-aluno-data-expiracao').value=''" class="btn-acao" style="padding:6px 10px;background:#1a2f45;color:#aaa;border:1px solid #2a4a6a">Remover prazo</button>
+        </div>
       </div>
 
       <button onclick="salvarEdicaoAluno()" style="margin-top:12px">Salvar alteracoes</button>
