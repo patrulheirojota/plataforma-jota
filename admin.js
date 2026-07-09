@@ -136,9 +136,10 @@ async function carregarAlunos() {
   div.innerHTML = ''
   if (!alunos||alunos.length===0) { div.innerHTML='<p style="color:#aaa">Nenhum aluno cadastrado.</p>'; return }
 
-  // Campo de busca
-  div.innerHTML = `<div style="margin-bottom:12px">
-    <input type="text" id="busca-aluno" placeholder="Buscar aluno..." oninput="filtrarAlunos()" style="margin:0">
+  // Campo de busca + botao exportar
+  div.innerHTML = `<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+    <input type="text" id="busca-aluno" placeholder="Buscar aluno..." oninput="filtrarAlunos()" style="margin:0;flex:1;min-width:160px">
+    <button onclick="exportarAlunosCSV()" class="btn-acao btn-editar" style="padding:10px 16px;white-space:nowrap">Exportar CSV</button>
   </div>
   <div id="lista-alunos-inner"></div>`
 
@@ -152,6 +153,25 @@ function filtrarAlunos() {
     a.nome.toLowerCase().includes(termo) || a.email.toLowerCase().includes(termo)
   )
   renderizarListaAlunos(filtrados)
+}
+
+function exportarAlunosCSV() {
+  const alunos = window._todosAlunos
+  if (!alunos || alunos.length === 0) { alert('Nenhum aluno para exportar.'); return }
+  const cabecalho = 'Nome;Email;Concurso;Cadastrado em'
+  const linhas = alunos.map(a => {
+    const data = a.criado_em ? new Date(a.criado_em).toLocaleDateString('pt-BR') : ''
+    const concurso = a.concursos?.nome || 'Sem concurso'
+    return [a.nome, a.email, concurso, data].map(v => '"' + String(v).replace(/"/g, '""') + '"').join(';')
+  })
+  const csv = '\uFEFF' + cabecalho + '\n' + linhas.join('\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'alunos-patrulheiros-' + new Date().toISOString().split('T')[0] + '.csv'
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
 function renderizarListaAlunos(alunos) {
@@ -714,6 +734,11 @@ async function renderizarPlano(aluno_id, concurso_id) {
   const div = document.getElementById('lista-plano-aluno')
   div.innerHTML = ''
   if (!itens||itens.length===0) { div.innerHTML='<p style="color:#aaa">Nenhuma disciplina no plano. Adicione manualmente ou aplique um template pela aba Alunos.</p>'; return }
+
+  // Botao para remover o plano inteiro
+  div.innerHTML += `<div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+    <button class="btn-acao btn-excluir" onclick="removerPlanoInteiro('${aluno_id}','${concurso_id}')" style="padding:8px 14px">Remover plano inteiro (${itens.length} itens)</button>
+  </div>`
   itens.sort((a,b)=>diasOrdem[a.dia_semana]-diasOrdem[b.dia_semana])
   const porDia = {}
   itens.forEach(i=>{ if (!porDia[i.dia_semana]) porDia[i.dia_semana]=[]; porDia[i.dia_semana].push(i) })
@@ -750,6 +775,17 @@ async function renderizarPlano(aluno_id, concurso_id) {
       </div>`).join('')}
     </div>`
   })
+}
+
+async function removerPlanoInteiro(aluno_id, concurso_id) {
+  const confirma = prompt('Isso vai remover TODAS as disciplinas do plano deste aluno neste concurso.\n\nPara confirmar, digite: REMOVER')
+  if (!confirma) return
+  if (confirma.trim().toUpperCase() !== 'REMOVER') { alert('Confirmacao incorreta. Nada foi removido.'); return }
+  const { error } = await _supabase.from('plano_aluno').delete()
+    .eq('aluno_id', aluno_id).eq('concurso_id', concurso_id)
+  if (error) { alert('Erro: ' + error.message); return }
+  alert('Plano removido com sucesso!')
+  renderizarPlano(aluno_id, concurso_id)
 }
 
 function editarItemPlano(id) { document.getElementById('view-'+id).style.display='none'; document.getElementById('edit-'+id).style.display='block' }
@@ -940,15 +976,45 @@ async function verRelatorioIndividual(aluno_id, nome) {
         <strong style="color:#C9A83C">${fmt}</strong>
         <span style="color:#aaa;font-size:12px">${tD} questoes · ${pD}%</span>
       </div>
-      ${itens.map(r=>`<div style="display:flex;gap:10px;padding:4px 0;border-bottom:1px solid #1a2f45;flex-wrap:wrap">
-        <span>${r.cumpriu?'OK':'X'}</span><span style="flex:1">${r.disciplina}</span>
+      ${itens.map(r=>`<div style="display:flex;gap:8px;padding:4px 0;border-bottom:1px solid #1a2f45;flex-wrap:wrap;align-items:center" id="reg-${r.id}">
+        <span>${r.cumpriu?'OK':'X'}</span><span style="flex:1;font-size:13px">${r.disciplina}</span>
         <span style="color:#aaa;font-size:12px">${r.questoes_feitas||0} · ${r.questoes_certas||0} certas</span>
+        <button class="btn-acao btn-editar" onclick="editarRegistro('${r.id}',${r.questoes_feitas||0},${r.questoes_certas||0},${r.cumpriu})" style="font-size:11px;padding:3px 8px">Editar</button>
+        <button class="btn-acao btn-excluir" onclick="excluirRegistro('${r.id}','${aluno_id}','${nome}')" style="font-size:11px;padding:3px 8px">X</button>
       </div>`).join('')}
     </div>`
   })
 }
 
 function fecharRelatorioIndividual() { document.getElementById('card-relatorio-individual').style.display='none' }
+
+async function editarRegistro(id, feitas, certas, cumpriu) {
+  const novasFeitas = prompt('Questoes feitas:', feitas)
+  if (novasFeitas === null) return
+  const novasCertas = prompt('Questoes certas:', certas)
+  if (novasCertas === null) return
+  const novoCumpriu = confirm('O aluno cumpriu o tempo de estudo neste dia?\n\nOK = Sim | Cancelar = Nao')
+  const f = parseInt(novasFeitas)||0
+  const c = parseInt(novasCertas)||0
+  const { error } = await _supabase.from('registros_diarios')
+    .update({ questoes_feitas: f, questoes_certas: c, questoes_erradas: Math.max(0, f-c), cumpriu: novoCumpriu })
+    .eq('id', id)
+  if (error) { alert('Erro: ' + error.message); return }
+  alert('Registro atualizado!')
+  const el = document.getElementById('reg-'+id)
+  if (el) {
+    el.querySelector('span:first-child').textContent = novoCumpriu ? 'OK' : 'X'
+    el.querySelectorAll('span')[2].textContent = f + ' · ' + c + ' certas'
+  }
+}
+
+async function excluirRegistro(id, aluno_id, nome) {
+  if (!confirm('Excluir este registro? Isso afeta o streak e as estatisticas do aluno.')) return
+  const { error } = await _supabase.from('registros_diarios').delete().eq('id', id)
+  if (error) { alert('Erro: ' + error.message); return }
+  const el = document.getElementById('reg-'+id)
+  if (el) el.remove()
+}
 
 // ========== AVISOS ==========
 function carregarSelectsAvisos() {
