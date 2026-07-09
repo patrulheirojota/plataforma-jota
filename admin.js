@@ -85,16 +85,26 @@ async function criarConcurso() {
 
 // ========== ALUNOS ==========
 // CORRECAO: usa a API admin do Supabase via REST para criar usuario sem fazer login automatico
+function calcularDataExpiracao(meses) {
+  if (!meses || meses === '0') return null
+  const data = new Date()
+  data.setMonth(data.getMonth() + parseInt(meses))
+  return data.toISOString().split('T')[0]
+}
+
 async function criarAluno() {
   const nome = document.getElementById('novo-aluno-nome').value
   const email = document.getElementById('novo-aluno-email').value
   const senha = document.getElementById('novo-aluno-senha').value
   const concurso_id = document.getElementById('novo-aluno-concurso').value
+  const duracaoAcesso = document.getElementById('novo-aluno-acesso')?.value || '0'
   const msg = document.getElementById('msg-aluno')
   if (!nome||!email||!senha||!concurso_id) { alert('Preencha todos os campos.'); return }
   if (senha.length < 6) { alert('Senha minimo 6 caracteres.'); return }
 
   msg.style.color = '#aaa'; msg.textContent = 'Cadastrando aluno...'
+
+  const data_expiracao = calcularDataExpiracao(duracaoAcesso)
 
   // Usa signUp mas imediatamente restaura a sessao do admin
   const { data: adminSession } = await _supabase.auth.getSession()
@@ -113,13 +123,14 @@ async function criarAluno() {
   }
 
   // Salva dados do aluno
-  const { error: erroAluno } = await _supabase.from('alunos').insert({ id: novoId, nome, email, concurso_id })
+  const { error: erroAluno } = await _supabase.from('alunos').insert({ id: novoId, nome, email, concurso_id, data_expiracao })
   if (erroAluno) { msg.style.color='#e57373'; msg.textContent='Login criado, erro ao salvar dados: '+erroAluno.message; return }
 
   await _supabase.from('aluno_concursos').insert({ aluno_id: novoId, concurso_id }).catch(()=>{})
 
   msg.style.color='#81c784'
-  msg.textContent='Aluno '+nome+' cadastrado! Login: '+email+' / Senha: '+senha
+  const acessoTexto = data_expiracao ? ' Acesso ate ' + new Date(data_expiracao+'T00:00:00').toLocaleDateString('pt-BR') + '.' : ' Sem prazo de expiracao definido.'
+  msg.textContent='Aluno '+nome+' cadastrado! Login: '+email+' / Senha: '+senha + acessoTexto
 
   document.getElementById('novo-aluno-nome').value = ''
   document.getElementById('novo-aluno-email').value = ''
@@ -136,9 +147,16 @@ async function carregarAlunos() {
   div.innerHTML = ''
   if (!alunos||alunos.length===0) { div.innerHTML='<p style="color:#aaa">Nenhum aluno cadastrado.</p>'; return }
 
-  // Campo de busca + botao exportar
+  // Campo de busca + ordenacao + botao exportar
   div.innerHTML = `<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
     <input type="text" id="busca-aluno" placeholder="Buscar aluno..." oninput="filtrarAlunos()" style="margin:0;flex:1;min-width:160px">
+    <select id="ordenar-alunos" onchange="filtrarAlunos()" style="margin:0;width:auto;min-width:170px">
+      <option value="nome-az">Nome A-Z</option>
+      <option value="nome-za">Nome Z-A</option>
+      <option value="recente">Mais recente primeiro</option>
+      <option value="antigo">Mais antigo primeiro</option>
+      <option value="expira-breve">Acesso expirando primeiro</option>
+    </select>
     <button onclick="exportarAlunosCSV()" class="btn-acao btn-editar" style="padding:10px 16px;white-space:nowrap">Exportar CSV</button>
   </div>
   <div id="lista-alunos-inner"></div>`
@@ -149,9 +167,25 @@ async function carregarAlunos() {
 
 function filtrarAlunos() {
   const termo = document.getElementById('busca-aluno')?.value.toLowerCase() || ''
-  const filtrados = window._todosAlunos.filter(a =>
+  const ordem = document.getElementById('ordenar-alunos')?.value || 'nome-az'
+
+  let filtrados = window._todosAlunos.filter(a =>
     a.nome.toLowerCase().includes(termo) || a.email.toLowerCase().includes(termo)
   )
+
+  filtrados = [...filtrados].sort((a, b) => {
+    if (ordem === 'nome-az') return a.nome.localeCompare(b.nome)
+    if (ordem === 'nome-za') return b.nome.localeCompare(a.nome)
+    if (ordem === 'recente') return new Date(b.criado_em || 0) - new Date(a.criado_em || 0)
+    if (ordem === 'antigo') return new Date(a.criado_em || 0) - new Date(b.criado_em || 0)
+    if (ordem === 'expira-breve') {
+      const da = a.data_expiracao ? new Date(a.data_expiracao) : new Date('2099-12-31')
+      const db = b.data_expiracao ? new Date(b.data_expiracao) : new Date('2099-12-31')
+      return da - db
+    }
+    return 0
+  })
+
   renderizarListaAlunos(filtrados)
 }
 
@@ -174,6 +208,19 @@ function exportarAlunosCSV() {
   URL.revokeObjectURL(url)
 }
 
+function statusAcesso(data_expiracao) {
+  if (!data_expiracao) return { texto: 'Sem prazo definido', cor: '#aaa' }
+  const hoje = new Date(); hoje.setHours(0,0,0,0)
+  const exp = new Date(data_expiracao + 'T00:00:00')
+  const dias = Math.round((exp - hoje) / (1000*60*60*24))
+  const dataFmt = exp.toLocaleDateString('pt-BR')
+  if (dias < 0) return { texto: 'Expirado em ' + dataFmt, cor: '#e57373' }
+  if (dias === 0) return { texto: 'Expira hoje', cor: '#e57373' }
+  if (dias <= 7) return { texto: 'Expira em ' + dias + ' dia(s) — ' + dataFmt, cor: '#e57373' }
+  if (dias <= 30) return { texto: 'Expira em ' + dias + ' dias — ' + dataFmt, cor: '#ffb74d' }
+  return { texto: 'Acesso ate ' + dataFmt, cor: '#81c784' }
+}
+
 function renderizarListaAlunos(alunos) {
   const div = document.getElementById('lista-alunos-inner')
   if (!div) return
@@ -181,11 +228,13 @@ function renderizarListaAlunos(alunos) {
   if (alunos.length === 0) { div.innerHTML='<p style="color:#aaa">Nenhum aluno encontrado.</p>'; return }
 
   alunos.forEach(a => {
+    const status = statusAcesso(a.data_expiracao)
     div.innerHTML += `<div class="item-lista" style="flex-wrap:wrap;gap:8px" id="card-aluno-${a.id}">
       <div style="flex:1;min-width:140px">
         <strong>${a.nome}</strong>
         <div style="color:#aaa;font-size:12px">${a.email}</div>
         <div style="color:#aaa;font-size:12px">${a.concursos?.nome||'Sem concurso'}</div>
+        <div style="color:${status.cor};font-size:11px;margin-top:2px;font-weight:bold">${status.texto}</div>
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         <button class="btn-acao btn-editar" onclick="abrirEditarAluno('${a.id}','${a.nome}','${a.email}','${a.concurso_id||''}')">Editar</button>
@@ -303,6 +352,19 @@ function abrirEditarAluno(id, nome, email, concurso_id) {
   // Carrega senha atual como placeholder
   const senhaInput = document.getElementById('editar-aluno-senha')
   if (senhaInput) { senhaInput.value = ''; senhaInput.placeholder = 'Nova senha (deixe vazio para nao alterar)' }
+
+  // Carrega data de expiracao atual
+  const aluno = window._todosAlunos?.find(a => a.id === id)
+  const dataInput = document.getElementById('editar-aluno-data-expiracao')
+  if (dataInput) dataInput.value = aluno?.data_expiracao || ''
+}
+
+function estenderAcesso(meses) {
+  const dataInput = document.getElementById('editar-aluno-data-expiracao')
+  if (!dataInput) return
+  const base = dataInput.value ? new Date(dataInput.value+'T00:00:00') : new Date()
+  base.setMonth(base.getMonth() + meses)
+  dataInput.value = base.toISOString().split('T')[0]
 }
 
 async function salvarEdicaoAluno() {
@@ -311,6 +373,7 @@ async function salvarEdicaoAluno() {
   const email = document.getElementById('editar-aluno-email').value
   const concurso_id = document.getElementById('editar-aluno-concurso').value
   const novaSenha = document.getElementById('editar-aluno-senha')?.value || ''
+  const data_expiracao = document.getElementById('editar-aluno-data-expiracao')?.value || null
   const msg = document.getElementById('msg-editar-aluno')
 
   if (!nome||!email) { msg.style.color='#e57373'; msg.textContent='Preencha nome e e-mail.'; return }
@@ -319,8 +382,12 @@ async function salvarEdicaoAluno() {
 
   // Atualiza dados na tabela alunos
   const { error } = await _supabase.from('alunos')
-    .update({ nome, email, concurso_id: concurso_id||null }).eq('id', id)
+    .update({ nome, email, concurso_id: concurso_id||null, data_expiracao: data_expiracao||null }).eq('id', id)
   if (error) { msg.style.color='#e57373'; msg.textContent='Erro: '+error.message; return }
+
+  // Atualiza cache local
+  const alunoCache = window._todosAlunos?.find(a => a.id === id)
+  if (alunoCache) alunoCache.data_expiracao = data_expiracao
 
   // Se digitou nova senha, envia link de redefinicao por email
   if (novaSenha && novaSenha.length >= 6) {
