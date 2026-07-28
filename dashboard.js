@@ -29,6 +29,11 @@ async function init() {
     }
   }
 
+  // Se o aluno ja tem cronograma por tema, a nova plataforma e a casa dele
+  const { data: temSessoes } = await _supabase
+    .from('sessoes_estudo').select('id').eq('aluno_id', _alunoId).limit(1)
+  if (temSessoes && temSessoes.length) { window.location.href = 'cronograma.html'; return }
+
   _nomeAluno = aluno.nome
   document.getElementById('nome-aluno').textContent = aluno.nome
 
