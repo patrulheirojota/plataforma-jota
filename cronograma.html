@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meu Cronograma — Patrulheiros de Elite</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="style.css">
+<style>
+  .topo-prova { background:linear-gradient(135deg,#1a3a5c,#0d1b2a);border:1px solid #C9A83C;border-radius:14px;padding:18px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap }
+  .contador { text-align:center;min-width:80px }
+  .contador-n { font-size:38px;font-weight:bold;color:#C9A83C;line-height:1 }
+  .contador-l { color:#aaa;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-top:2px }
+  .stats-row { display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:16px }
+  .stat-c { background:#1a2f45;border-radius:10px;padding:14px;text-align:center }
+  .stat-n { font-size:22px;font-weight:bold }
+  .stat-l { color:#aaa;font-size:11px;margin-top:2px }
+  .sessao { background:#0d1b2a;border-radius:10px;padding:12px;margin-bottom:8px;border-left:4px solid #2a4a6a }
+  .s-teoria { border-left-color:#4a8ab5 }
+  .s-questoes { border-left-color:#C9A83C }
+  .s-revisao { border-left-color:#81c784 }
+  .s-feita { opacity:.6 }
+  .s-feita .sessao-topico { text-decoration:line-through }
+  .tag { font-size:10px;padding:2px 8px;border-radius:8px;font-weight:bold;text-transform:uppercase;letter-spacing:.5px;flex-shrink:0 }
+  .t-teoria { background:#4a8ab522;color:#4a8ab5;border:1px solid #4a8ab5 }
+  .t-questoes { background:#C9A83C22;color:#C9A83C;border:1px solid #C9A83C }
+  .t-revisao { background:#81c78422;color:#81c784;border:1px solid #81c784 }
+  .sessao-topico { font-size:14px;font-weight:bold;margin-top:4px }
+  .sessao-disc { color:#aaa;font-size:12px }
+  .chk { width:22px;height:22px;accent-color:#C9A83C;cursor:pointer;flex-shrink:0 }
+  .caderno-box { background:linear-gradient(135deg,#2a1a3a,#0d1b2a);border:1px solid #b98ae0;border-radius:10px;padding:14px;margin-bottom:12px }
+  .barra { background:#0d1b2a;border-radius:20px;height:8px;overflow:hidden;margin-top:6px }
+  .barra-f { height:100%;border-radius:20px;transition:width .5s }
+  .dia-nav { display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;flex-wrap:wrap }
+  .semana-grid { display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:12px }
+  .semana-dia { background:#0d1b2a;border:1px solid #2a4a6a;border-radius:8px;padding:8px 4px;text-align:center;cursor:pointer;transition:all .2s }
+  .semana-dia:hover { border-color:#C9A83C }
+  .semana-dia.hoje { border-color:#C9A83C;background:#1a3a5c }
+  .semana-dia.sel { background:#C9A83C;border-color:#C9A83C }
+  .semana-dia.sel .sd-num, .semana-dia.sel .sd-lbl { color:#0d1b2a }
+  .sd-lbl { color:#aaa;font-size:10px }
+  .sd-num { font-size:15px;font-weight:bold;margin-top:2px }
+  .sd-dots { display:flex;gap:2px;justify-content:center;margin-top:4px;height:5px }
+  .sd-dot { width:5px;height:5px;border-radius:50% }
+  .alerta-atraso { background:#3a1a1a;border:1px solid #e57373;border-radius:10px;padding:14px;margin-bottom:14px }
+  .campo-q { display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center }
+  .campo-q input { width:80px;padding:6px;margin:0;font-size:13px }
+  @media (max-width:600px){ .contador-n{font-size:30px} .semana-grid{gap:3px} .sd-num{font-size:13px} }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div>
+      <h2>Meu Cronograma</h2>
+      <div id="sub-header" style="color:#aaa;font-size:13px;margin-top:2px"></div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button onclick="window.location.href='edital.html'" style="width:auto;padding:8px 14px;background:#1a3a1a;color:#81c784;border:1px solid #81c784">Edital</button>
+      <button onclick="window.location.href='dashboard.html'" style="width:auto;padding:8px 14px;background:#1a2f45;color:#aaa;border:1px solid #2a4a6a">Painel</button>
+      <button onclick="sair()" style="width:auto;padding:8px 14px">Sair</button>
+    </div>
+  </header>
+
+  <div id="loading" style="text-align:center;padding:40px;color:#aaa">Carregando seu cronograma...</div>
+
+  <div id="sem-plano" style="display:none;text-align:center;padding:40px">
+    <div style="font-size:44px;margin-bottom:12px">🗓️</div>
+    <p style="color:#C9A83C;font-weight:bold;font-size:16px">Cronograma ainda nao gerado</p>
+    <p style="color:#aaa;font-size:13px;margin-top:6px">Seu mentor ainda nao montou seu plano de estudos por tema. Em breve ele estara aqui!</p>
+    <button onclick="window.location.href='dashboard.html'" style="width:auto;padding:10px 20px;margin-top:16px">Ir para o painel</button>
+  </div>
+
+  <div id="conteudo" style="display:none">
+
+    <div class="topo-prova" id="topo-prova"></div>
+    <div class="stats-row" id="stats-row"></div>
+    <div id="alerta-atrasadas"></div>
+
+    <!-- NAVEGACAO -->
+    <div class="card">
+      <div class="dia-nav">
+        <button onclick="mudarSemana(-1)" style="width:auto;padding:8px 14px;background:#1a2f45;color:#C9A83C;border:1px solid #2a4a6a">‹</button>
+        <strong id="label-semana" style="color:#C9A83C;font-size:14px;text-align:center;flex:1"></strong>
+        <button onclick="mudarSemana(1)" style="width:auto;padding:8px 14px;background:#1a2f45;color:#C9A83C;border:1px solid #2a4a6a">›</button>
+        <button onclick="irHoje()" style="width:auto;padding:8px 14px">Hoje</button>
+      </div>
+      <div class="semana-grid" id="semana-grid"></div>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:#aaa;margin-bottom:4px">
+        <span style="display:flex;align-items:center;gap:5px"><span class="sd-dot" style="background:#4a8ab5"></span>Teoria</span>
+        <span style="display:flex;align-items:center;gap:5px"><span class="sd-dot" style="background:#C9A83C"></span>Questoes</span>
+        <span style="display:flex;align-items:center;gap:5px"><span class="sd-dot" style="background:#81c784"></span>Revisao</span>
+      </div>
+    </div>
+
+    <!-- DIA SELECIONADO -->
+    <div class="card">
+      <h3 id="titulo-dia">Sessoes do dia</h3>
+      <div id="caderno-container"></div>
+      <div id="sessoes-dia"></div>
+    </div>
+
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script>
+const CURTO = ['Dom','Seg','Ter','Qua','Qui','Sex','Sab']
+const LONGO = ['Domingo','Segunda-feira','Terca-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sabado']
+const COR = { teoria:'#4a8ab5', questoes:'#C9A83C', revisao:'#81c784' }
+const LABEL = { teoria:'Teoria', questoes:'Questoes', revisao:'Revisao' }
+
+let _alunoId = null, _concursoId = null, _concursoNome = '', _config = null
+let _sessoes = [], _porData = {}, _diaSel = null, _refSemana = null
+
+function ymd(d){ const x=new Date(d); return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0') }
+function parseD(s){ return new Date(s+'T12:00:00') }
+function addDays(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x }
+function hojeStr(){ return ymd(new Date()) }
+
+async function init(){
+  const { data:{ user } } = await _supabase.auth.getUser()
+  if (!user) { window.location.href='index.html'; return }
+  _alunoId = user.id
+
+  const { data: aluno } = await _supabase.from('alunos').select('nome, data_expiracao').eq('id', user.id).single()
+  if (!aluno) { alert('Aluno nao encontrado. Contate o mentor.'); return }
+
+  if (aluno.data_expiracao) {
+    const h = new Date(); h.setHours(0,0,0,0)
+    if (h > new Date(aluno.data_expiracao+'T00:00:00')) { window.location.href='dashboard.html'; return }
+  }
+
+  const { data: sess } = await _supabase.from('sessoes_estudo').select('*')
+    .eq('aluno_id', _alunoId).order('data').order('ordem')
+
+  document.getElementById('loading').style.display='none'
+
+  if (!sess || !sess.length) { document.getElementById('sem-plano').style.display='block'; return }
+
+  _sessoes = sess
+  _concursoId = sess[0].concurso_id
+
+  const { data: conc } = await _supabase.from('concursos').select('nome, data_prova').eq('id', _concursoId).single()
+  _concursoNome = conc ? conc.nome : ''
+
+  const { data: cfg } = await _supabase.from('config_cronograma').select('*')
+    .eq('aluno_id',_alunoId).eq('concurso_id',_concursoId).maybeSingle()
+  _config = cfg
+  const dataProva = (cfg && cfg.data_prova) ? cfg.data_prova : (conc ? conc.data_prova : null)
+
+  document.getElementById('sub-header').textContent = _concursoNome
+  document.getElementById('conteudo').style.display='block'
+
+  indexar()
+  renderTopo(dataProva)
+  renderStats()
+  renderAtrasadas()
+
+  const hj = hojeStr()
+  _diaSel = _porData[hj] ? hj : proximaDataComSessao(hj)
+  _refSemana = parseD(_diaSel || hj)
+  renderSemana()
+  renderDia()
+}
+
+function indexar(){
+  _porData = {}
+  _sessoes.forEach(function(s){
+    if (!_porData[s.data]) _porData[s.data] = []
+    _porData[s.data].push(s)
+  })
+}
+
+function proximaDataComSessao(apartir){
+  const datas = Object.keys(_porData).sort()
+  for (let i=0;i<datas.length;i++){ if (datas[i] >= apartir) return datas[i] }
+  return datas.length ? datas[datas.length-1] : apartir
+}
+
+function renderTopo(dataProva){
+  const box = document.getElementById('topo-prova')
+  let dias = null
+  if (dataProva) {
+    const h = new Date(); h.setHours(0,0,0,0)
+    dias = Math.ceil((parseD(dataProva) - h) / (1000*60*60*24))
+  }
+  box.innerHTML =
+    '<div style="flex:1;min-width:170px">'
+    + '<div style="color:#aaa;font-size:11px;text-transform:uppercase;letter-spacing:1px">Dia da prova</div>'
+    + '<div style="color:#fff;font-size:18px;font-weight:bold;margin-top:2px">'+(_concursoNome||'Seu concurso')+'</div>'
+    + '<div style="color:#aaa;font-size:13px;margin-top:2px">'+(dataProva ? parseD(dataProva).toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'}) : 'Data nao definida')+'</div>'
+    + '</div>'
+    + (dias !== null ? '<div class="contador"><div class="contador-n">'+(dias>0?dias:0)+'</div><div class="contador-l">dias restantes</div></div>' : '')
+}
+
+function renderStats(){
+  const total = _sessoes.length
+  const feitas = _sessoes.filter(function(s){return s.concluida}).length
+  const pct = total ? Math.round(feitas/total*100) : 0
+
+  const teoriaTotal = _sessoes.filter(function(s){return s.tipo==='teoria'}).length
+  const teoriaFeita = _sessoes.filter(function(s){return s.tipo==='teoria' && s.concluida}).length
+  const pctEdital = teoriaTotal ? Math.round(teoriaFeita/teoriaTotal*100) : 0
+
+  const q = _sessoes.reduce(function(a,s){return a+(s.questoes_feitas||0)},0)
+  const c = _sessoes.reduce(function(a,s){return a+(s.questoes_certas||0)},0)
+  const pctAcerto = q ? Math.round(c/q*100) : 0
+
+  // streak: dias consecutivos com pelo menos uma sessao concluida
+  const diasFeitos = {}
+  _sessoes.forEach(function(s){ if (s.concluida) diasFeitos[s.data]=true })
+  const datas = Object.keys(diasFeitos).sort().reverse()
+  let streak = 0
+  let ref = new Date(); ref.setHours(0,0,0,0)
+  for (let i=0;i<datas.length;i++){
+    const d = parseD(datas[i])
+    const diff = Math.round((ref - d)/(1000*60*60*24))
+    if (diff <= 1) { streak++; ref = d } else break
+  }
+
+  const cor = function(p){ return p>=70?'#81c784':p>=40?'#ffb74d':'#e57373' }
+
+  document.getElementById('stats-row').innerHTML =
+    '<div class="stat-c"><div class="stat-n" style="color:'+cor(pct)+'">'+pct+'%</div><div class="stat-l">do plano concluido</div><div class="barra"><div class="barra-f" style="width:'+pct+'%;background:'+cor(pct)+'"></div></div></div>'
+  + '<div class="stat-c"><div class="stat-n" style="color:#4a8ab5">'+pctEdital+'%</div><div class="stat-l">do edital estudado</div><div class="barra"><div class="barra-f" style="width:'+pctEdital+'%;background:#4a8ab5"></div></div></div>'
+  + '<div class="stat-c"><div class="stat-n" style="color:#C9A83C">'+(streak>=3?'🔥 ':'')+streak+'</div><div class="stat-l">dias em sequencia</div></div>'
+  + '<div class="stat-c"><div class="stat-n" style="color:'+(q?cor(pctAcerto):'#aaa')+'">'+(q?pctAcerto+'%':'--')+'</div><div class="stat-l">'+q+' questoes feitas</div></div>'
+}
+
+function renderAtrasadas(){
+  const hj = hojeStr()
+  const atras = _sessoes.filter(function(s){ return !s.concluida && s.data < hj })
+  const box = document.getElementById('alerta-atrasadas')
+  if (!atras.length) { box.innerHTML=''; return }
+  const maisAntiga = atras[0].data
+  box.innerHTML = '<div class="alerta-atraso">'
+    + '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">'
+    + '<span style="font-size:24px">⏰</span>'
+    + '<div style="flex:1;min-width:180px">'
+    + '<strong style="color:#e57373">'+atras.length+' sessoes atrasadas</strong>'
+    + '<p style="color:#ccc;font-size:13px;margin-top:3px">A mais antiga e de '+parseD(maisAntiga).toLocaleDateString('pt-BR')+'. Coloque em dia ou fale com seu mentor para replanejar.</p>'
+    + '</div>'
+    + '<button onclick="verAtrasadas()" style="width:auto;padding:8px 14px;background:#e57373;color:#fff;border:none;font-size:13px">Ver atrasadas</button>'
+    + '</div></div>'
+}
+
+function verAtrasadas(){
+  const hj = hojeStr()
+  const atras = _sessoes.filter(function(s){ return !s.concluida && s.data < hj })
+  if (!atras.length) return
+  _diaSel = atras[0].data
+  _refSemana = parseD(_diaSel)
+  renderSemana(); renderDia()
+  document.getElementById('titulo-dia').scrollIntoView({behavior:'smooth'})
+}
+
+function mudarSemana(n){ _refSemana = addDays(_refSemana, n*7); renderSemana() }
+function irHoje(){
+  const hj = hojeStr()
+  _refSemana = new Date(); _diaSel = hj
+  renderSemana(); renderDia()
+}
+
+function renderSemana(){
+  const base = new Date(_refSemana)
+  const ini = addDays(base, -((base.getDay()+6)%7))
+  const hj = hojeStr()
+  let html = ''
+  for (let i=0;i<7;i++){
+    const d = addDays(ini,i)
+    const key = ymd(d)
+    const sess = _porData[key] || []
+    const cls = (key===_diaSel?'sel ':'') + (key===hj?'hoje':'')
+    const tipos = {}
+    sess.forEach(function(s){ tipos[s.tipo]=true })
+    let dots = ''
+    ;['teoria','questoes','revisao'].forEach(function(t){
+      if (tipos[t]) dots += '<span class="sd-dot" style="background:'+COR[t]+'"></span>'
+    })
+    const todasFeitas = sess.length && sess.every(function(s){return s.concluida})
+    html += '<div class="semana-dia '+cls+'" onclick="selecionarDia(\''+key+'\')">'
+      + '<div class="sd-lbl">'+CURTO[d.getDay()]+'</div>'
+      + '<div class="sd-num">'+d.getDate()+(todasFeitas?' ✓':'')+'</div>'
+      + '<div class="sd-dots">'+dots+'</div></div>'
+  }
+  document.getElementById('semana-grid').innerHTML = html
+  const fim = addDays(ini,6)
+  document.getElementById('label-semana').textContent =
+    ini.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}) + ' — ' + fim.toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric'})
+}
+
+function selecionarDia(key){ _diaSel = key; renderSemana(); renderDia() }
+
+function renderDia(){
+  const key = _diaSel
+  const d = parseD(key)
+  const hj = hojeStr()
+  const rotulo = key===hj ? 'Hoje' : LONGO[d.getDay()]
+  document.getElementById('titulo-dia').textContent = rotulo + ' — ' + d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})
+
+  const sess = _porData[key] || []
+  const cadBox = document.getElementById('caderno-container')
+  const div = document.getElementById('sessoes-dia')
+
+  if (!sess.length){
+    cadBox.innerHTML = ''
+    div.innerHTML = '<div style="text-align:center;padding:26px 10px">'
+      + '<div style="font-size:34px;margin-bottom:8px">🔋</div>'
+      + '<p style="color:#C9A83C;font-weight:bold">Dia de descanso</p>'
+      + '<p style="color:#aaa;font-size:13px;margin-top:4px">Nenhuma sessao programada. Aproveite para recuperar as energias.</p></div>'
+    return
+  }
+
+  const cadLido = sess.some(function(s){ return s.caderno_erros_lido })
+  cadBox.innerHTML = '<div class="caderno-box">'
+    + '<label style="display:flex;align-items:center;gap:12px;cursor:pointer">'
+    + '<input type="checkbox" class="chk" '+(cadLido?'checked':'')+' onchange="marcarCaderno(\''+key+'\',this.checked)">'
+    + '<div style="flex:1"><strong style="color:#b98ae0;font-size:14px">Leitura do caderno de erros</strong>'
+    + '<div style="color:#aaa;font-size:12px;margin-top:2px">Releia os erros anteriores antes de comecar. E aqui que a aprovacao se constroi.</div></div>'
+    + '</label></div>'
+
+  let html = ''
+  sess.forEach(function(s){
+    const feita = s.concluida
+    html += '<div class="sessao s-'+s.tipo+(feita?' s-feita':'')+'" id="sess-'+s.id+'">'
+      + '<div style="display:flex;align-items:flex-start;gap:10px">'
+      + '<input type="checkbox" class="chk" '+(feita?'checked':'')+' onchange="marcarSessao(\''+s.id+'\',this.checked)">'
+      + '<div style="flex:1;min-width:0">'
+      + '<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap">'
+      + '<span class="sessao-disc">'+s.disciplina+'</span>'
+      + '<span class="tag t-'+s.tipo+'">'+LABEL[s.tipo]+'</span></div>'
+      + '<div class="sessao-topico">'+s.topico+'</div>'
+      + '<div style="color:#aaa;font-size:12px;margin-top:3px">'+s.tempo_minutos+' min'
+      + (s.meta_questoes ? ' · meta de '+s.meta_questoes+' questoes' : '')+'</div>'
+
+    if (s.tipo === 'questoes' || s.questoes_feitas) {
+      html += '<div class="campo-q">'
+        + '<input type="number" id="qf-'+s.id+'" placeholder="Feitas" min="0" value="'+(s.questoes_feitas||'')+'">'
+        + '<input type="number" id="qc-'+s.id+'" placeholder="Acertos" min="0" value="'+(s.questoes_certas||'')+'">'
+        + '<button class="btn-acao btn-editar" onclick="salvarQuestoes(\''+s.id+'\')" style="padding:6px 12px">Salvar</button>'
+        + '<span id="msgq-'+s.id+'" style="font-size:12px"></span>'
+        + '</div>'
+    }
+    html += '</div></div></div>'
+  })
+
+  const feitasDia = sess.filter(function(s){return s.concluida}).length
+  html += '<div style="text-align:center;color:#aaa;font-size:12px;margin-top:10px">'+feitasDia+' de '+sess.length+' sessoes concluidas</div>'
+  div.innerHTML = html
+}
+
+async function marcarSessao(id, val){
+  const s = _sessoes.find(function(x){return x.id===id})
+  if (!s) return
+  s.concluida = val
+  const el = document.getElementById('sess-'+id)
+  if (el) { if (val) el.classList.add('s-feita'); else el.classList.remove('s-feita') }
+
+  await _supabase.from('sessoes_estudo').update({ concluida: val }).eq('id', id)
+
+  // teoria concluida marca o topico no edital
+  if (s.tipo === 'teoria' && s.topico_id) {
+    const { data: ex } = await _supabase.from('edital_progresso').select('id')
+      .eq('aluno_id',_alunoId).eq('topico_id',s.topico_id).maybeSingle()
+    if (ex) await _supabase.from('edital_progresso').update({ concluido: val, atualizado_em:new Date().toISOString() }).eq('id', ex.id)
+    else await _supabase.from('edital_progresso').insert({ aluno_id:_alunoId, topico_id:s.topico_id, concluido: val })
+  }
+
+  renderStats(); renderSemana(); renderAtrasadas()
+  const sess = _porData[_diaSel] || []
+  const feitasDia = sess.filter(function(x){return x.concluida}).length
+  const rod = document.querySelector('#sessoes-dia > div:last-child')
+  if (rod && rod.style.textAlign === 'center') rod.textContent = feitasDia+' de '+sess.length+' sessoes concluidas'
+}
+
+async function marcarCaderno(data, val){
+  const sess = _porData[data] || []
+  sess.forEach(function(s){ s.caderno_erros_lido = val })
+  await _supabase.from('sessoes_estudo').update({ caderno_erros_lido: val })
+    .eq('aluno_id', _alunoId).eq('data', data)
+}
+
+async function salvarQuestoes(id){
+  const f = parseInt(document.getElementById('qf-'+id).value)||0
+  const c = parseInt(document.getElementById('qc-'+id).value)||0
+  const msg = document.getElementById('msgq-'+id)
+  if (c > f) { msg.style.color='#e57373'; msg.textContent='Acertos nao podem passar do total.'; return }
+  const r = await _supabase.from('sessoes_estudo').update({ questoes_feitas:f, questoes_certas:c }).eq('id', id)
+  if (r.error) { msg.style.color='#e57373'; msg.textContent='Erro ao salvar.'; return }
+  const s = _sessoes.find(function(x){return x.id===id})
+  if (s) { s.questoes_feitas=f; s.questoes_certas=c }
+  msg.style.color='#81c784'
+  msg.textContent = f>0 ? Math.round(c/f*100)+'% de acerto' : 'Salvo'
+  renderStats()
+}
+
+async function sair(){ await _supabase.auth.signOut(); window.location.href='index.html' }
+
+init()
+</script>
+</body>
+</html>
