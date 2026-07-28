@@ -54,7 +54,7 @@
       <h2>Meu Edital 📋</h2>
       <div id="edital-concurso-nome" style="color:#aaa;font-size:13px;margin-top:2px"></div>
     </div>
-    <button onclick="window.location.href='dashboard.html'" style="width:auto;padding:8px 16px">Voltar</button>
+    <button onclick="if(history.length>1){history.back()}else{window.location.href='dashboard.html'}" style="width:auto;padding:8px 16px">Voltar</button>
   </header>
 
   <div id="loading-edital" style="text-align:center;padding:40px;color:#aaa">Carregando edital...</div>
