@@ -12,6 +12,9 @@
   .dias-row { display:flex;gap:6px;flex-wrap:wrap;margin-top:4px }
   .dia-chip { padding:8px 12px;border-radius:8px;border:1px solid #2a4a6a;background:#0d1b2a;color:#aaa;font-size:13px;cursor:pointer;user-select:none }
   .dia-chip.on { background:#C9A83C;color:#0d1b2a;border-color:#C9A83C;font-weight:bold }
+  .modo-chip { display:flex;align-items:center;gap:7px;padding:9px 14px;border-radius:8px;border:1px solid #2a4a6a;background:#0d1b2a;color:#666;font-size:13px;cursor:pointer;user-select:none;opacity:.5 }
+  .modo-chip.on { opacity:1;color:#fff;border-color:#4a6a8a;background:#1a2f45 }
+  .modo-dot { width:9px;height:9px;border-radius:50%;flex-shrink:0 }
   .tema-row { display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #2a4a6a;flex-wrap:wrap }
   .tema-row:last-child { border-bottom:none }
   .badge-p { font-size:10px;padding:2px 7px;border-radius:10px;font-weight:bold;flex-shrink:0 }
@@ -92,7 +95,22 @@
     </div>
 
     <div style="background:#0d1b2a;border-radius:8px;padding:12px;margin-top:14px">
-      <p style="color:#C9A83C;font-size:13px;font-weight:bold;margin-bottom:10px">Ciclo teoria › questoes › revisao</p>
+      <p style="color:#C9A83C;font-size:13px;font-weight:bold;margin-bottom:8px">Modos de sessao ativos</p>
+      <p style="color:#555;font-size:11px;margin-bottom:10px">Desmarque o que nao entra no plano. Ex: aluno que ja fechou a teoria do edital fica so com questoes e revisao.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <label class="modo-chip on" data-m="teoria" onclick="alternarModo(this)"><span class="modo-dot" style="background:#4a8ab5"></span>Teoria</label>
+        <label class="modo-chip on" data-m="questoes" onclick="alternarModo(this)"><span class="modo-dot" style="background:#C9A83C"></span>Questoes</label>
+        <label class="modo-chip on" data-m="revisao" onclick="alternarModo(this)"><span class="modo-dot" style="background:#81c784"></span>Revisao</label>
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:13px;cursor:pointer">
+        <input type="checkbox" id="g-pular" style="width:18px;height:18px;accent-color:#C9A83C">
+        Pular temas cuja teoria o aluno ja concluiu
+      </label>
+      <p style="color:#555;font-size:11px;margin-top:4px">Use junto com "Teoria" desmarcada para replanejar so o que falta.</p>
+    </div>
+
+    <div style="background:#0d1b2a;border-radius:8px;padding:12px;margin-top:14px">
+      <p style="color:#C9A83C;font-size:13px;font-weight:bold;margin-bottom:10px">Intervalos do ciclo</p>
       <div class="cfg-grid">
         <div class="cfg-item">
           <label>Questoes apos (dias)</label>
@@ -145,7 +163,10 @@
       </div>
     </div>
 
-    <button onclick="gerarPreview()" style="margin-top:14px">Gerar cronograma</button>
+    <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+      <button onclick="gerarPreview()" style="flex:1;min-width:180px">Gerar cronograma</button>
+      <button onclick="modoReplanejar()" style="width:auto;padding:14px 18px;background:#2a1a3a;color:#b98ae0;border:1px solid #b98ae0">Replanejar de hoje</button>
+    </div>
     <p id="msg-gerar" style="display:none;margin-top:8px;font-size:13px"></p>
   </div>
 
@@ -172,6 +193,8 @@ const PESO = { alta:0, media:1, baixa:2 }
 
 let _temas = []
 let _plano = null
+let _teoriaFeita = {}
+let _pulados = 0
 
 function ymd(d){ const x=new Date(d); return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0') }
 function parseD(s){ return new Date(s+'T12:00:00') }
@@ -203,6 +226,34 @@ function diasSelecionados(){
   return Array.from(document.querySelectorAll('.dia-chip.on')).map(el => parseInt(el.dataset.d))
 }
 
+function modosAtivos(){
+  return Array.from(document.querySelectorAll('.modo-chip.on')).map(function(el){ return el.dataset.m })
+}
+
+function alternarModo(el){
+  el.classList.toggle('on')
+  if (!modosAtivos().length) { el.classList.add('on'); alert('Pelo menos um modo precisa ficar ativo.'); return }
+  atualizarCapacidade()
+}
+
+function montarEtapas(){
+  const ativos = modosAtivos()
+  const dq = parseInt(document.getElementById('g-dq').value)||5
+  const dr = parseInt(document.getElementById('g-dr').value)||15
+  const todas = [ {tipo:'teoria',off:0}, {tipo:'questoes',off:dq}, {tipo:'revisao',off:dr} ]
+  const etapas = todas.filter(function(e){ return ativos.indexOf(e.tipo) >= 0 })
+  if (!etapas.length) return [{tipo:'teoria',off:0}]
+  const base = etapas[0].off
+  return etapas.map(function(e){ return { tipo:e.tipo, off:e.off-base } })
+}
+
+function modoReplanejar(){
+  document.getElementById('g-inicio').value = ymd(new Date())
+  document.getElementById('g-manter').checked = true
+  atualizarCapacidade()
+  gerarPreview()
+}
+
 function contarDatas(inicio, prova, dias){
   if (!inicio || !prova || !dias.length) return 0
   let n = 0
@@ -224,10 +275,11 @@ function atualizarCapacidade(){
 
   if (!inicio || !prova || !dias.length) { box.innerHTML = ''; return }
 
+  const nEtapas = montarEtapas().length
   const nDatas = contarDatas(inicio, prova, dias)
   const slots = nDatas * porDia
-  const necessarios = nTemas * 3
-  const cabe = Math.floor(slots / 3)
+  const necessarios = nTemas * nEtapas
+  const cabe = Math.floor(slots / nEtapas)
   const sobra = nTemas - cabe
 
   let cor, texto
@@ -245,7 +297,7 @@ function atualizarCapacidade(){
     +   '<div style="text-align:center"><div style="color:'+cor+';font-size:18px;font-weight:bold">'+cabe+'</div><div style="color:#aaa;font-size:11px">temas cabem</div></div>'
     + '</div>'
     + '<p style="color:'+cor+';font-size:12px">'+texto+'</p>'
-    + '<p style="color:#555;font-size:11px;margin-top:6px">Cada tema ocupa 3 vagas: teoria + questoes + revisao.</p>'
+    + '<p style="color:#555;font-size:11px;margin-top:6px">Cada tema ocupa '+nEtapas+' vaga(s): '+modosAtivos().join(' + ')+'.</p>'
     + '</div>'
 }
 
@@ -293,6 +345,11 @@ async function carregarTemas(){
     document.getElementById('g-dq').value = cfg.dias_questoes
     document.getElementById('g-dr').value = cfg.dias_revisao
     document.getElementById('g-mq').value = cfg.meta_questoes_sessao
+    document.querySelectorAll('.modo-chip').forEach(function(el){
+      const m = el.dataset.m
+      const ativo = (m==='teoria') ? (cfg.modo_teoria !== false) : (m==='questoes') ? (cfg.modo_questoes !== false) : (cfg.modo_revisao !== false)
+      if (ativo) el.classList.add('on'); else el.classList.remove('on')
+    })
     const dias = String(cfg.dias_semana||'').split(',').map(n=>parseInt(n))
     document.querySelectorAll('.dia-chip').forEach(el => {
       if (dias.indexOf(parseInt(el.dataset.d)) >= 0) el.classList.add('on'); else el.classList.remove('on')
@@ -307,6 +364,12 @@ async function carregarTemas(){
     msgEx.style.display='block'
     msgEx.textContent = 'Este aluno ja tem '+existentes.length+' sessoes neste concurso ('+feitas+' concluidas). Gerar novamente vai substituir o plano.'
   } else { msgEx.style.display='none' }
+
+  // temas cuja teoria ja foi concluida
+  _teoriaFeita = {}
+  const { data: feitas } = await _supabase.from('sessoes_estudo').select('topico')
+    .eq('aluno_id',aluno_id).eq('concurso_id',concurso_id).eq('tipo','teoria').eq('concluida',true)
+  if (feitas) feitas.forEach(function(s){ _teoriaFeita[s.topico] = true })
 
   // temas do edital
   const { data: tops } = await _supabase.from('edital_topicos').select('*').eq('concurso_id',concurso_id).order('disciplina').order('ordem')
@@ -434,9 +497,11 @@ function montarPlano(temas, cfg){
     while (sessoes.length < cfg.porDia && idx < fila.length){
       const tema = fila[idx++]
       const key = 's'+(seq++)
-      sessoes.push({ tipo:'teoria', key:key, origem:null, disciplina:tema.disciplina, topico:tema.topico, topico_id:tema.topico_id })
-      pendentes.push({ tipo:'questoes', due:addDays(dia,cfg.dq), tema:tema, origem:key })
-      pendentes.push({ tipo:'revisao', due:addDays(dia,cfg.dr), tema:tema, origem:key })
+      const et = cfg.etapas
+      sessoes.push({ tipo:et[0].tipo, key:key, origem:null, disciplina:tema.disciplina, topico:tema.topico, topico_id:tema.topico_id })
+      for (let k=1;k<et.length;k++){
+        pendentes.push({ tipo:et[k].tipo, due:addDays(dia,et[k].off), tema:tema, origem:key })
+      }
     }
 
     if (sessoes.length) calendario.push({ data:ymd(dia), sessoes:sessoes })
@@ -458,13 +523,19 @@ function gerarPreview(){
   if (!inicio || !prova) { msg.textContent='Defina a data de inicio e a data da prova.'; return }
   if (parseD(prova) <= parseD(inicio)) { msg.textContent='A data da prova precisa ser depois da data de inicio.'; return }
   if (!dias.length) { msg.textContent='Selecione pelo menos um dia da semana.'; return }
-  if (dr <= dq) { msg.textContent='A revisao precisa vir depois das questoes (dias de revisao maior que dias de questoes).'; return }
+  const modos = modosAtivos()
+  if (modos.indexOf('questoes')>=0 && modos.indexOf('revisao')>=0 && dr <= dq) { msg.textContent='A revisao precisa vir depois das questoes (dias de revisao maior que dias de questoes).'; return }
 
-  const selecionados = _temas.filter(function(t){ return t.incluir && String(t.topico).trim() })
-  if (!selecionados.length) { msg.textContent='Selecione pelo menos um tema.'; return }
+  let selecionados = _temas.filter(function(t){ return t.incluir && String(t.topico).trim() })
+  if (document.getElementById('g-pular').checked) {
+    const antes = selecionados.length
+    selecionados = selecionados.filter(function(t){ return !_teoriaFeita[t.topico] })
+    _pulados = antes - selecionados.length
+  } else { _pulados = 0 }
+  if (!selecionados.length) { msg.textContent='Nenhum tema restante apos os filtros. Desmarque "pular temas concluidos" ou selecione outros temas.'; return }
 
   msg.style.display='none'
-  _plano = montarPlano(selecionados, { inicio:inicio, prova:prova, dias:dias, porDia:porDia, dq:dq, dr:dr })
+  _plano = montarPlano(selecionados, { inicio:inicio, prova:prova, dias:dias, porDia:porDia, dq:dq, dr:dr, etapas:montarEtapas() })
   renderPreview(_plano)
   document.getElementById('card-preview').style.display='block'
   document.getElementById('card-preview').scrollIntoView({behavior:'smooth'})
@@ -485,6 +556,10 @@ function renderPreview(plano){
 
   const al = document.getElementById('alerta-preview')
   al.innerHTML = ''
+  if (_pulados > 0) {
+    al.innerHTML += '<div style="background:#1a3a1a;border:1px solid #81c784;border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px;color:#81c784">'
+      + _pulados+' tema(s) foram pulados porque o aluno ja concluiu a teoria deles.</div>'
+  }
   if (plano.naoAlocados > 0) {
     al.innerHTML += '<div style="background:#3a1a1a;border:1px solid #e57373;border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px;color:#e57373">'
       + '<strong>'+plano.naoAlocados+' temas ficaram de fora.</strong> Lembre que cada tema ocupa 3 vagas (teoria + questoes + revisao). Aumente as sessoes por dia, adicione dias da semana, antecipe a data de inicio ou desmarque os temas de baixa prioridade.</div>'
@@ -580,6 +655,9 @@ async function salvarCronograma(){
     dias_questoes: parseInt(document.getElementById('g-dq').value)||5,
     dias_revisao: parseInt(document.getElementById('g-dr').value)||15,
     meta_questoes_sessao: metaQ,
+    modo_teoria: modosAtivos().indexOf('teoria')>=0,
+    modo_questoes: modosAtivos().indexOf('questoes')>=0,
+    modo_revisao: modosAtivos().indexOf('revisao')>=0,
     atualizado_em: new Date().toISOString()
   }, { onConflict: 'aluno_id,concurso_id' })
 
