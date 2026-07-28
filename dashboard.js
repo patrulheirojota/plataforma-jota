@@ -43,6 +43,7 @@ async function init() {
   if (vinculos.length === 1) {
     _concursoId = vinculos[0].concurso_id
     await Promise.all([calcularStreak(), verificarAvisosNovos(), verificarInatividade()])
+    await verificarCronogramaNovo()
     carregarHoje()
   } else {
     mostrarSeletorConcurso(vinculos)
@@ -79,7 +80,24 @@ function mostrarSeletorConcurso(vinculos) {
 async function selecionarConcurso(concurso_id) {
   _concursoId = concurso_id
   await Promise.all([calcularStreak(), verificarAvisosNovos(), verificarInatividade()])
+    await verificarCronogramaNovo()
   carregarHoje()
+}
+
+// -------- AVISO DE CRONOGRAMA NOVO --------
+async function verificarCronogramaNovo(){
+  const { data: sess } = await _supabase.from('sessoes_estudo').select('id').eq('aluno_id', _alunoId).limit(1)
+  if (!sess || !sess.length) return
+  const banner = document.getElementById('banner-inatividade')
+  if (!banner || banner.style.display === 'block') return
+  banner.style.display = 'block'
+  banner.style.borderColor = '#C9A83C'
+  banner.innerHTML = '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">'
+    + '<span style="font-size:24px">🗓️</span>'
+    + '<div style="flex:1;min-width:180px"><strong style="color:#C9A83C">Seu cronograma por tema esta pronto!</strong>'
+    + '<p style="color:#ccc;font-size:13px;margin-top:4px">Seu mentor montou um plano com os temas do edital, sessoes de questoes e revisao.</p></div>'
+    + '<button onclick="window.location.href=\'cronograma.html\'" style="width:auto;padding:8px 16px;background:#C9A83C;color:#0d1b2a;border:none;font-size:13px;border-radius:8px">Abrir cronograma</button>'
+    + '</div>'
 }
 
 // -------- VERIFICAR INATIVIDADE --------
