@@ -146,6 +146,16 @@
   .modal.on{display:flex}
   .modal-c{background:#101d2c;border:1px solid #24384f;border-radius:16px;padding:22px;max-width:430px;width:100%;max-height:90vh;overflow-y:auto}
   .estado{text-align:center;padding:60px 20px}
+  .col-h{position:relative}
+  .col-cfg{position:absolute;top:5px;right:5px;width:19px;height:19px;border-radius:5px;background:rgba(255,255,255,.07);color:#8fa5bd;font-size:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;line-height:1}
+  .col-cfg:hover{background:var(--ouro);color:#0a1420}
+  .col-h.hoje .col-cfg{background:rgba(0,0,0,.18);color:#0a1420}
+  .bloco{background:#0a1420;border:1px solid #24384f;border-radius:11px;padding:14px;margin-top:12px}
+  .bloco-t{font-size:12px;font-weight:700;color:var(--ouro);margin-bottom:4px}
+  .bloco-d{color:#63809e;font-size:11.5px;line-height:1.5;margin-bottom:10px}
+  .lin{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .num{width:76px;padding:9px;border-radius:8px;border:1px solid #24384f;background:#101d2c;color:#e8edf4;font-size:14px;text-align:center}
+  .rng{flex:1;min-width:110px;accent-color:var(--ouro)}
 
   /* CADERNO LATERAL */
   .cd-fab{position:fixed;right:20px;bottom:20px;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#b98ae0,#7d5fa8);border:none;color:#fff;font-size:24px;cursor:pointer;box-shadow:0 6px 22px rgba(125,95,168,.45);z-index:40;display:flex;align-items:center;justify-content:center}
@@ -497,7 +507,9 @@ function renderAtraso(){
   box.innerHTML='<div class="aviso"><span style="font-size:22px">⏰</span>'
    +'<div style="flex:1;min-width:180px"><div style="color:#f07171;font-weight:700;font-size:14px">'+at.length+' sessoes atrasadas</div>'
    +'<div style="color:#a8b8c8;font-size:12px;margin-top:2px">A mais antiga e de '+parseD(at[0].data).toLocaleDateString('pt-BR')+'. Coloque em dia ou peca replanejamento ao mentor.</div></div>'
-   +'<button class="btn" style="border-color:#d9566a;color:#f07171" onclick="irData(\''+at[0].data+'\')">Ver</button></div>'
+   +'<div style="display:flex;gap:7px;flex-wrap:wrap">'
+   +'<button class="btn" style="border-color:#d9566a;color:#f07171" onclick="irData(\''+at[0].data+'\')">Ver</button>'
+   +'<button class="btn btn-ouro" onclick="replanejarAtrasadas()">Replanejar</button></div></div>'
 }
 
 function renderBoard(){
@@ -505,7 +517,8 @@ function renderBoard(){
   let html=''
   for(let i=0;i<7;i++){
     const d=addDays(ini,i), key=ymd(d), sess=_porData[key]||[]
-    html+='<div class="col"><div class="col-h'+(key===hj?' hoje':'')+'">'+CURTO[d.getDay()]+'<span class="dn">'+d.getDate()+'</span></div>'
+    html+='<div class="col"><div class="col-h'+(key===hj?' hoje':'')+'">'+CURTO[d.getDay()]+'<span class="dn">'+d.getDate()+'</span>'
+      +'<span class="col-cfg" title="Ajustes do dia" onclick="event.stopPropagation();ajustesDoDia(\''+key+'\')">⋯</span></div>'
     if(!sess.length){html+='<div class="vazio">—</div></div>';continue}
     const co=sess.some(function(s){return s.caderno_erros_lido})
     html+='<div class="cad'+(co?' ok':'')+'" onclick="marcarCaderno(\''+key+'\','+(!co)+')"><div class="cad-c'+(co?' on':'')+'">'+(co?'✓':'')+'</div><div class="cad-t">Caderno de erros</div></div>'
@@ -832,6 +845,14 @@ function abrirSessao(id){
    +(s.meta_questoes?'<span class="pill">meta '+s.meta_questoes+'q</span>':'')+'</div>'
    +'<button class="btn '+(s.concluida?'':'btn-ouro')+'" style="width:100%;padding:12px" onclick="toggleSessao(\''+id+'\');fecharModal()">'
    +(s.concluida?'Desmarcar conclusao':'Marcar como concluida')+'</button>'
+   +'<div class="bloco">'
+   +'<div class="bloco-t">Tempo desta sessao</div>'
+   +'<div class="bloco-d">Ajuste conforme o tempo que voce tem hoje.</div>'
+   +'<div class="lin"><input type="range" class="rng" id="ms-rng" min="15" max="240" step="15" value="'+(s.tempo_minutos||60)+'" oninput="document.getElementById(\'ms-num\').value=this.value">'
+   +'<input type="number" class="num" id="ms-num" min="5" max="480" step="5" value="'+(s.tempo_minutos||60)+'" oninput="document.getElementById(\'ms-rng\').value=this.value">'
+   +'<span style="color:#63809e;font-size:12px">min</span></div>'
+   +'<button class="btn" style="width:100%;margin-top:10px;padding:10px" onclick="salvarTempoSessao(\''+id+'\')">Salvar tempo</button>'
+   +'<div id="ms-msg" style="font-size:12px;margin-top:8px;text-align:center"></div></div>'
    +((s.tipo==='questoes'||s.questoes_feitas)?
       '<div style="margin-top:16px;padding-top:16px;border-top:1px solid #24384f">'
      +'<div style="color:#63809e;font-size:11px;letter-spacing:1px;text-transform:uppercase;font-weight:600;margin-bottom:8px">Registro de questoes</div>'
@@ -842,6 +863,19 @@ function abrirSessao(id){
   document.getElementById('modal').classList.add('on')
 }
 function fecharModal(){document.getElementById('modal').classList.remove('on')}
+
+async function salvarTempoSessao(id){
+  const v=parseInt(document.getElementById('ms-num').value)||60
+  const m=document.getElementById('ms-msg')
+  if(v<5){m.style.color='#f07171';m.textContent='Tempo minimo de 5 minutos.';return}
+  m.style.color='#63809e';m.textContent='Salvando...'
+  const r=await _supabase.from('sessoes_estudo').update({tempo_minutos:v}).eq('id',id)
+  if(r.error){m.style.color='#f07171';m.textContent='Erro ao salvar.';return}
+  const s=_sessoes.find(function(x){return x.id===id})
+  if(s)s.tempo_minutos=v
+  m.style.color='#6ddba0';m.textContent='Tempo atualizado para '+dur(v)+'.'
+  desenhar()
+}
 
 async function salvarQ(id){
   const f=parseInt(document.getElementById('mqf').value)||0
@@ -854,6 +888,160 @@ async function salvarQ(id){
   if(s){s.questoes_feitas=f;s.questoes_certas=c}
   m.style.color='#6ddba0';m.textContent=f>0?Math.round(c/f*100)+'% de acerto':'Salvo'
   renderBoard()
+}
+
+/* ---------- AJUSTES DE CARGA E REPLANEJAMENTO ---------- */
+function diasEstudo(){
+  if(_cfg&&_cfg.dias_semana){
+    const d=String(_cfg.dias_semana).split(',').map(function(n){return parseInt(n)}).filter(function(n){return !isNaN(n)})
+    if(d.length)return d
+  }
+  const s={}
+  Object.keys(_porData).forEach(function(k){s[parseD(k).getDay()]=true})
+  const r=Object.keys(s).map(function(n){return parseInt(n)})
+  return r.length?r:[1,2,3,4,5,6]
+}
+function capacidadeDia(){
+  if(_cfg&&_cfg.sessoes_por_dia)return _cfg.sessoes_por_dia
+  let m=0
+  Object.keys(_porData).forEach(function(k){m=Math.max(m,_porData[k].length)})
+  return m||3
+}
+function ocupacao(k){ return (_porData[k]||[]).length }
+function vagasFuturas(apartir,quantas){
+  const dias=diasEstudo(), cap=capacidadeDia(), out=[]
+  let d=parseD(apartir), guarda=0
+  while(out.length<quantas&&guarda<800){
+    const k=ymd(d)
+    if(dias.indexOf(d.getDay())>=0){
+      const livres=Math.max(0,cap-ocupacao(k))
+      for(let i=0;i<livres&&out.length<quantas;i++)out.push(k)
+    }
+    d=addDays(d,1);guarda++
+  }
+  return out
+}
+async function recarregar(){
+  const { data }=await _supabase.from('sessoes_estudo').select('*')
+    .eq('aluno_id',_alunoId).order('data').order('ordem')
+  _sessoes=data||[]
+  indexar();desenhar()
+}
+function proximaOrdem(k){
+  const s=_porData[k]||[]
+  let m=0
+  s.forEach(function(x){m=Math.max(m,x.ordem||0)})
+  return m+1
+}
+
+function ajustesDoDia(k){
+  const sess=(_porData[k]||[]).slice()
+  const d=parseD(k), hj=hojeStr()
+  const pend=sess.filter(function(s){return !s.concluida})
+  const min=sess.reduce(function(a,s){return a+(s.tempo_minutos||0)},0)
+  const minPend=pend.reduce(function(a,s){return a+(s.tempo_minutos||0)},0)
+  const futuras=_sessoes.filter(function(s){return !s.concluida&&s.data>k}).length
+
+  document.getElementById('modal-c').innerHTML=
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:6px">'
+   +'<div><div style="color:var(--ouro);font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase">Ajustes do dia</div>'
+   +'<div style="font-size:18px;font-weight:800;margin-top:2px">'+d.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'})+'</div></div>'
+   +'<button class="btn" onclick="fecharModal()" style="padding:5px 11px">✕</button></div>'
+   +'<div style="color:#63809e;font-size:12.5px;margin-bottom:4px">'+sess.length+' sessoes · '+dur(min)+' no total'
+   +(pend.length?' · '+pend.length+' pendente(s) ('+dur(minPend)+')':' · tudo concluido')+'</div>'
+
+   +(sess.length?'<div class="bloco">'
+     +'<div class="bloco-t">Tempo de cada sessao</div>'
+     +'<div class="bloco-d">Vale para todas as sessoes deste dia. Use quando tiver mais ou menos tempo que o previsto.</div>'
+     +'<div class="lin"><input type="range" class="rng" id="aj-rng" min="15" max="240" step="15" value="'+(sess[0].tempo_minutos||60)+'" oninput="document.getElementById(\'aj-num\').value=this.value">'
+     +'<input type="number" class="num" id="aj-num" min="15" max="480" step="5" value="'+(sess[0].tempo_minutos||60)+'" oninput="document.getElementById(\'aj-rng\').value=this.value">'
+     +'<span style="color:#63809e;font-size:12px">min</span></div>'
+     +'<button class="btn" style="width:100%;margin-top:10px;padding:10px" onclick="aplicarTempoDia(\''+k+'\')">Aplicar a este dia</button></div>':'')
+
+   +(futuras>0?'<div class="bloco">'
+     +'<div class="bloco-t">Adiantar conteudo</div>'
+     +'<div class="bloco-d">Sobrou tempo hoje? Traga as proximas sessoes dos dias seguintes para ca.</div>'
+     +'<div class="lin"><input type="number" class="num" id="aj-qtd" min="1" max="'+Math.min(futuras,10)+'" value="1">'
+     +'<span style="color:#63809e;font-size:12px;flex:1">sessao(oes) dos proximos dias</span></div>'
+     +'<button class="btn btn-ouro" style="width:100%;margin-top:10px;padding:10px" onclick="adiantar(\''+k+'\')">Trazer para este dia</button></div>':'')
+
+   +(pend.length?'<div class="bloco">'
+     +'<div class="bloco-t">Adiar o que nao deu tempo</div>'
+     +'<div class="bloco-d">Empurra as '+pend.length+' sessoes pendentes para os proximos dias, respeitando o limite de '+capacidadeDia()+' por dia. Nada vira atraso.</div>'
+     +'<button class="btn" style="width:100%;padding:10px;border-color:#7d5fa8;color:#c9a9e8" onclick="adiarDia(\''+k+'\')">Empurrar pendentes para frente</button></div>':'')
+
+   +'<div id="aj-msg" style="font-size:12px;margin-top:12px;text-align:center"></div>'
+  document.getElementById('modal').classList.add('on')
+}
+
+function ajMsg(t,cor){
+  const m=document.getElementById('aj-msg')
+  if(m){m.style.color=cor;m.textContent=t}
+}
+
+async function aplicarTempoDia(k){
+  const v=parseInt(document.getElementById('aj-num').value)||60
+  if(v<5){ajMsg('Tempo minimo de 5 minutos.','#f07171');return}
+  ajMsg('Salvando...','#63809e')
+  const r=await _supabase.from('sessoes_estudo').update({tempo_minutos:v}).eq('aluno_id',_alunoId).eq('data',k)
+  if(r.error){ajMsg('Erro: '+r.error.message,'#f07171');return}
+  ;(_porData[k]||[]).forEach(function(s){s.tempo_minutos=v})
+  desenhar()
+  ajMsg('Todas as sessoes do dia agora tem '+dur(v)+'.','#6ddba0')
+}
+
+async function adiantar(k){
+  const qtd=parseInt(document.getElementById('aj-qtd').value)||1
+  const cand=_sessoes.filter(function(s){return !s.concluida&&s.data>k})
+    .sort(function(a,b){return a.data.localeCompare(b.data)||(a.ordem||0)-(b.ordem||0)}).slice(0,qtd)
+  if(!cand.length){ajMsg('Nao ha sessoes futuras para adiantar.','#e8b04b');return}
+  ajMsg('Movendo '+cand.length+' sessao(oes)...','#63809e')
+  let ord=proximaOrdem(k)
+  for(let i=0;i<cand.length;i++){
+    const r=await _supabase.from('sessoes_estudo').update({data:k,ordem:ord++}).eq('id',cand[i].id)
+    if(r.error){ajMsg('Erro: '+r.error.message,'#f07171');return}
+  }
+  await recarregar()
+  ajustesDoDia(k)
+  ajMsg(cand.length+' sessao(oes) trazida(s) para este dia.','#6ddba0')
+}
+
+async function adiarDia(k){
+  const pend=(_porData[k]||[]).filter(function(s){return !s.concluida})
+  if(!pend.length)return
+  const vagas=vagasFuturas(ymd(addDays(parseD(k),1)),pend.length)
+  if(vagas.length<pend.length){
+    if(!confirm('Nao ha vagas suficientes ate o fim do plano. As sessoes que sobrarem vao para os ultimos dias disponiveis. Continuar?'))return
+  }
+  ajMsg('Reorganizando...','#63809e')
+  const conta={}
+  for(let i=0;i<pend.length;i++){
+    const alvo=vagas[i]||vagas[vagas.length-1]||ymd(addDays(parseD(k),1))
+    conta[alvo]=(conta[alvo]||proximaOrdem(alvo))
+    const r=await _supabase.from('sessoes_estudo').update({data:alvo,ordem:conta[alvo]++}).eq('id',pend[i].id)
+    if(r.error){ajMsg('Erro: '+r.error.message,'#f07171');return}
+  }
+  await recarregar()
+  fecharModal()
+}
+
+async function replanejarAtrasadas(){
+  const hj=hojeStr()
+  const at=_sessoes.filter(function(s){return !s.concluida&&s.data<hj})
+    .sort(function(a,b){return a.data.localeCompare(b.data)||(a.ordem||0)-(b.ordem||0)})
+  if(!at.length)return
+  if(!confirm('Redistribuir as '+at.length+' sessoes atrasadas a partir de hoje, respeitando o limite de '+capacidadeDia()+' sessoes por dia?\n\nSeu historico de sessoes concluidas nao muda.'))return
+  const vagas=vagasFuturas(hj,at.length)
+  const conta={}
+  for(let i=0;i<at.length;i++){
+    const alvo=vagas[i]||vagas[vagas.length-1]||hj
+    conta[alvo]=(conta[alvo]||proximaOrdem(alvo))
+    const r=await _supabase.from('sessoes_estudo').update({data:alvo,ordem:conta[alvo]++}).eq('id',at[i].id)
+    if(r.error){alert('Erro ao replanejar: '+r.error.message);return}
+  }
+  await recarregar()
+  irData(hj)
+  alert(at.length+' sessoes redistribuidas. Bora colocar em dia!')
 }
 
 /* ---------- CADERNO DE ERROS ---------- */
