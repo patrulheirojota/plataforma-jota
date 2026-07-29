@@ -46,6 +46,23 @@
       <h3>Concursos cadastrados</h3>
       <div id="lista-concursos"></div>
     </div>
+
+    <div class="card" id="card-editar-concurso" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h3 id="titulo-editar-concurso">Editar concurso</h3>
+        <button onclick="fecharEditarConcurso()" style="width:auto;padding:6px 14px;background:#1a2f45;color:#aaa;border:1px solid #2a4a6a">Fechar</button>
+      </div>
+      <input type="hidden" id="edc-id">
+      <label style="color:#aaa;font-size:12px;display:block;margin-bottom:4px">Nome do concurso</label>
+      <input type="text" id="edc-nome" placeholder="Ex: GCM Aracaju 2026">
+      <label style="color:#aaa;font-size:12px;display:block;margin-top:10px;margin-bottom:4px">Banca</label>
+      <input type="text" id="edc-banca" placeholder="Ex: IDECAN">
+      <label style="color:#aaa;font-size:12px;display:block;margin-top:10px;margin-bottom:4px">Data da prova</label>
+      <input type="date" id="edc-data">
+      <p style="color:#555;font-size:11px;margin-top:4px">Ao alterar a data, o contador regressivo dos alunos e os cronogramas ja gerados sao atualizados junto.</p>
+      <button onclick="salvarEdicaoConcurso()" style="margin-top:12px">Salvar alteracoes</button>
+      <p id="msg-editar-concurso" style="margin-top:8px;font-size:13px"></p>
+    </div>
   </div>
 
   <!-- ABA: ALUNOS -->
