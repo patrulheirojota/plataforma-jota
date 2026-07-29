@@ -528,6 +528,8 @@ function renderBoard(){
         +'<div class="sc-top"><div class="circ'+(s.concluida?' on':'')+'" onclick="event.stopPropagation();toggleSessao(\''+s.id+'\')">'+(s.concluida?'✓':'')+'</div>'
         +'<div class="sc-d">'+esc(s.disciplina)+'</div></div><div class="sc-t">'+esc(s.topico)+'</div>'
         +'<div class="sc-f"><span class="pill pill-t">'+LABEL[s.tipo]+'</span><span class="pill">'+dur(s.tempo_minutos)+'</span>'
+        +(s.continuacao_de?'<span class="pill" style="background:#2a2410;color:#e8b04b">continuacao</span>':'')
+        +(s.parcial?'<span class="pill" style="background:#2a2410;color:#e8b04b">parcial</span>':'')
         +(s.questoes_feitas?'<span class="pill">'+s.questoes_feitas+'q</span>':'')+'</div></div>'
     })
     html+='</div>'
@@ -815,11 +817,7 @@ async function toggleSessao(id){
   const s=_sessoes.find(function(x){return x.id===id}); if(!s)return
   s.concluida=!s.concluida
   await _supabase.from('sessoes_estudo').update({concluida:s.concluida}).eq('id',id)
-  if(s.tipo==='teoria'&&s.topico_id){
-    const { data:ex }=await _supabase.from('edital_progresso').select('id').eq('aluno_id',_alunoId).eq('topico_id',s.topico_id).maybeSingle()
-    if(ex)await _supabase.from('edital_progresso').update({concluido:s.concluida,atualizado_em:new Date().toISOString()}).eq('id',ex.id)
-    else await _supabase.from('edital_progresso').insert({aluno_id:_alunoId,topico_id:s.topico_id,concluido:s.concluida})
-  }
+  if(s.tipo==='teoria'&&s.topico_id&&!s.parcial)await marcarEdital(s.topico_id,s.concluida)
   desenhar()
 }
 
@@ -845,6 +843,10 @@ function abrirSessao(id){
    +(s.meta_questoes?'<span class="pill">meta '+s.meta_questoes+'q</span>':'')+'</div>'
    +'<button class="btn '+(s.concluida?'':'btn-ouro')+'" style="width:100%;padding:12px" onclick="toggleSessao(\''+id+'\');fecharModal()">'
    +(s.concluida?'Desmarcar conclusao':'Marcar como concluida')+'</button>'
+   +((!s.concluida&&s.tipo==='teoria')?
+      '<button class="btn" style="width:100%;padding:12px;margin-top:8px;border-color:#7d5fa8;color:#c9a9e8" onclick="naoFinalizei(\''+id+'\')">'
+     +'Estudei, mas nao finalizei o assunto</button>'
+     +'<div style="color:#4d6684;font-size:11px;margin-top:6px;text-align:center;line-height:1.5">O dia conta como estudado e o tema volta na proxima vaga desta disciplina.</div>':'')
    +'<div class="bloco">'
    +'<div class="bloco-t">Tempo desta sessao</div>'
    +'<div class="bloco-d">Ajuste conforme o tempo que voce tem hoje.</div>'
@@ -888,6 +890,83 @@ async function salvarQ(id){
   if(s){s.questoes_feitas=f;s.questoes_certas=c}
   m.style.color='#6ddba0';m.textContent=f>0?Math.round(c/f*100)+'% de acerto':'Salvo'
   renderBoard()
+}
+
+/* ---------- CONTINUACAO DE TEMA ---------- */
+async function marcarEdital(topico_id,valor){
+  const { data:ex }=await _supabase.from('edital_progresso').select('id')
+    .eq('aluno_id',_alunoId).eq('topico_id',topico_id).maybeSingle()
+  if(ex)await _supabase.from('edital_progresso').update({concluido:valor,atualizado_em:new Date().toISOString()}).eq('id',ex.id)
+  else await _supabase.from('edital_progresso').insert({aluno_id:_alunoId,topico_id:topico_id,concluido:valor})
+}
+
+function tituloContinuacao(t){
+  const m=String(t).match(/^(.*?)\s*\(continuacao(?:\s+(\d+))?\)\s*$/i)
+  if(!m)return t+' (continuacao)'
+  const n=m[2]?parseInt(m[2])+1:2
+  return m[1]+' (continuacao '+n+')'
+}
+
+async function naoFinalizei(id){
+  const s=_sessoes.find(function(x){return x.id===id}); if(!s)return
+
+  // proxima vaga da mesma disciplina
+  const mesma=_sessoes.filter(function(x){
+    return !x.concluida && x.id!==id && x.disciplina===s.disciplina && x.data>s.data
+  }).sort(function(a,b){return a.data.localeCompare(b.data)||(a.ordem||0)-(b.ordem||0)})
+
+  let alvo,ordemAlvo,ondeTxt
+  if(mesma.length){
+    alvo=mesma[0].data; ordemAlvo=mesma[0].ordem||1
+    ondeTxt='na proxima vaga de '+s.disciplina+' ('+parseD(alvo).toLocaleDateString('pt-BR')+')'
+  }else{
+    const v=vagasFuturas(ymd(addDays(parseD(s.data),1)),1)
+    alvo=v[0]||ymd(addDays(parseD(s.data),1)); ordemAlvo=proximaOrdem(alvo)
+    ondeTxt='no proximo dia de estudo ('+parseD(alvo).toLocaleDateString('pt-BR')+')'
+  }
+
+  if(!confirm('O dia de hoje conta como estudado, mas o tema continua em aberto.\n\n"'+s.topico+'" volta '+ondeTxt+'.\n\nConfirmar?'))return
+
+  // abre espaco no dia de destino
+  const noDia=(_porData[alvo]||[]).filter(function(x){return (x.ordem||0)>=ordemAlvo})
+  for(let i=0;i<noDia.length;i++){
+    await _supabase.from('sessoes_estudo').update({ordem:(noDia[i].ordem||0)+1}).eq('id',noDia[i].id)
+  }
+
+  const nova={
+    aluno_id:_alunoId, concurso_id:s.concurso_id, data:alvo, tipo:s.tipo,
+    disciplina:s.disciplina, topico:tituloContinuacao(s.topico), topico_id:s.topico_id||null,
+    tempo_minutos:s.tempo_minutos, meta_questoes:s.meta_questoes||0,
+    ordem:ordemAlvo, continuacao_de:id
+  }
+  const r1=await _supabase.from('sessoes_estudo').insert(nova)
+  if(r1.error){alert('Erro ao criar a continuacao: '+r1.error.message);return}
+
+  const r2=await _supabase.from('sessoes_estudo').update({concluida:true,parcial:true}).eq('id',id)
+  if(r2.error){alert('Erro ao marcar a sessao: '+r2.error.message);return}
+
+  // tema segue em aberto no edital ate a continuacao ser concluida
+  if(s.topico_id)await marcarEdital(s.topico_id,false)
+
+  fecharModal()
+  await recarregar()
+
+  // se o dia de destino estourou a capacidade, empurra o excedente
+  const cap=capacidadeDia()
+  if((_porData[alvo]||[]).length>cap){
+    const sobra=(_porData[alvo]||[]).filter(function(x){return !x.concluida})
+      .sort(function(a,b){return (b.ordem||0)-(a.ordem||0)})
+      .slice(0,(_porData[alvo]||[]).length-cap)
+    const vagas=vagasFuturas(ymd(addDays(parseD(alvo),1)),sobra.length)
+    const conta={}
+    for(let i=0;i<sobra.length;i++){
+      const dest=vagas[i]||ymd(addDays(parseD(alvo),1))
+      conta[dest]=(conta[dest]||proximaOrdem(dest))
+      await _supabase.from('sessoes_estudo').update({data:dest,ordem:conta[dest]++}).eq('id',sobra[i].id)
+    }
+    await recarregar()
+  }
+  irData(alvo)
 }
 
 /* ---------- AJUSTES DE CARGA E REPLANEJAMENTO ---------- */
