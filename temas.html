@@ -1,44 +1,265 @@
--- Controle de temas por aluno
-create table if not exists tema_aluno_status (
-  id uuid primary key default gen_random_uuid(),
-  aluno_id uuid references alunos(id) on delete cascade,
-  concurso_id uuid references concursos(id) on delete cascade,
-  topico_id uuid references edital_topicos(id) on delete cascade,
-  status text not null default 'ativo',
-  atualizado_em timestamp default now(),
-  unique(aluno_id, topico_id)
-);
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Controle de Temas — Patrulheiros de Elite</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="style.css">
+<style>
+  .st-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:16px}
+  .st-c{background:#0d1b2a;border-radius:10px;padding:14px;text-align:center;border-top:3px solid #2a4a6a}
+  .st-n{font-size:22px;font-weight:bold}
+  .st-l{color:#aaa;font-size:11px;margin-top:2px}
+  .disc-h{color:#C9A83C;font-size:14px;font-weight:bold;margin:16px 0 8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+  .t-row{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;background:#0d1b2a;margin-bottom:5px;flex-wrap:wrap}
+  .t-row.removido{opacity:.45}
+  .t-txt{flex:1;min-width:150px;font-size:13px}
+  .t-row.removido .t-txt{text-decoration:line-through}
+  .seg{display:flex;gap:0;border-radius:8px;overflow:hidden;border:1px solid #2a4a6a;flex-shrink:0}
+  .seg button{width:auto;margin:0;padding:6px 11px;font-size:11px;font-weight:600;background:#0d1b2a;color:#7f96ae;border:none;border-radius:0;cursor:pointer;white-space:nowrap}
+  .seg button:hover{background:#1a2f45;color:#fff}
+  .seg button.on{background:#1a3a5c;color:#fff}
+  .seg button.on.ativo{background:#4a8ab5;color:#0d1b2a}
+  .seg button.on.so_revisao{background:#81c784;color:#0d1b2a}
+  .seg button.on.removido{background:#e57373;color:#fff}
+  .badge-p{font-size:9px;padding:2px 6px;border-radius:9px;font-weight:bold;flex-shrink:0}
+  .p-alta{background:#e5737322;color:#e57373;border:1px solid #e57373}
+  .p-media{background:#ffb74d22;color:#ffb74d;border:1px solid #ffb74d}
+  .p-baixa{background:#4a8ab522;color:#4a8ab5;border:1px solid #4a8ab5}
+  .chip-feito{font-size:9px;padding:2px 7px;border-radius:9px;background:#81c78422;color:#81c784;border:1px solid #81c784;font-weight:bold;flex-shrink:0}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div>
+      <h2>Controle de Temas</h2>
+      <div style="color:#aaa;font-size:13px">Defina o que entra, o que fica so na revisao e o que sai do cronograma</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button onclick="location.href='gerador.html'" style="width:auto;padding:8px 14px;background:#2a1a3a;color:#b98ae0;border:1px solid #b98ae0">Gerador</button>
+      <button onclick="location.href='admin.html'" style="width:auto;padding:8px 14px">Painel Admin</button>
+    </div>
+  </header>
 
--- Caderno de erros do aluno
-create table if not exists caderno_erros (
-  id uuid primary key default gen_random_uuid(),
-  aluno_id uuid references alunos(id) on delete cascade,
-  disciplina text,
-  titulo text not null,
-  conteudo text,
-  criado_em timestamp default now(),
-  atualizado_em timestamp default now()
-);
-create index if not exists idx_caderno_aluno on caderno_erros(aluno_id, atualizado_em desc);
+  <div class="card">
+    <h3>Selecionar aluno</h3>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">
+      <div>
+        <label style="color:#aaa;font-size:12px;display:block;margin-bottom:4px">Aluno</label>
+        <select id="t-aluno" onchange="aoTrocarAluno()"><option value="">Selecione o aluno</option></select>
+      </div>
+      <div>
+        <label style="color:#aaa;font-size:12px;display:block;margin-bottom:4px">Concurso</label>
+        <select id="t-concurso" onchange="carregar()"><option value="">Selecione o concurso</option></select>
+      </div>
+    </div>
+  </div>
 
--- Personalizacao da marca
-create table if not exists config_marca (
-  id int primary key default 1,
-  nome_marca text default 'Patrulheiros de Elite',
-  slogan text default 'Mentoria Policial',
-  logo_url text,
-  cor_primaria text default '#C9A83C',
-  atualizado_em timestamp default now()
-);
-insert into config_marca (id) values (1) on conflict (id) do nothing;
+  <div id="painel" style="display:none">
+    <div class="card">
+      <h3>Resumo</h3>
+      <div class="st-grid" id="resumo"></div>
+      <div style="background:#0d1b2a;border-radius:8px;padding:12px">
+        <p style="color:#C9A83C;font-size:13px;font-weight:bold;margin-bottom:8px">O que cada status faz no proximo cronograma gerado</p>
+        <div style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:#aaa">
+          <div><span style="color:#4a8ab5;font-weight:bold">Ativo</span> — ciclo completo conforme os modos ligados no gerador.</div>
+          <div><span style="color:#81c784;font-weight:bold">So revisao</span> — o aluno ja estudou. Entra apenas com sessao de revisao, sem teoria.</div>
+          <div><span style="color:#e57373;font-weight:bold">Removido</span> — fica fora do cronograma por completo.</div>
+        </div>
+      </div>
+    </div>
 
-alter table tema_aluno_status enable row level security;
-alter table caderno_erros enable row level security;
-alter table config_marca enable row level security;
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+        <h3 style="margin:0">Temas do edital</h3>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn-acao btn-editar" onclick="aplicarTodos('ativo')">Todos ativos</button>
+          <button class="btn-acao" onclick="marcarFeitosComoRevisao()" style="background:#1a3a1a;color:#81c784;border:1px solid #81c784">Concluidos &#8594; so revisao</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+        <input type="text" id="busca" placeholder="Buscar tema..." oninput="render()" style="flex:1;min-width:160px;margin:0">
+        <select id="filtro" onchange="render()" style="width:auto;margin:0">
+          <option value="">Todos os status</option>
+          <option value="ativo">Ativos</option>
+          <option value="so_revisao">So revisao</option>
+          <option value="removido">Removidos</option>
+          <option value="feito">Teoria ja concluida</option>
+        </select>
+      </div>
+      <div id="lista"></div>
+      <p id="msg" style="display:none;margin-top:10px;font-size:13px;text-align:center"></p>
+    </div>
+  </div>
+</div>
 
-create policy "aluno ve seu status de temas" on tema_aluno_status for select using (auth.uid() = aluno_id);
-create policy "admin gerencia status de temas" on tema_aluno_status for all using (true);
-create policy "aluno gerencia seu caderno" on caderno_erros for all using (auth.uid() = aluno_id);
-create policy "admin ve cadernos" on caderno_erros for select using (true);
-create policy "todos leem a marca" on config_marca for select using (true);
-create policy "admin edita a marca" on config_marca for all using (true);
+<script src="config.js"></script>
+<script>
+let _alunoId=null,_concursoId=null,_topicos=[],_status={},_feitos={}
+
+async function init(){
+  const { data:{user} }=await _supabase.auth.getUser()
+  if(!user){location.href='index.html';return}
+  const { data:alunos }=await _supabase.from('alunos').select('id,nome').order('nome')
+  const s=document.getElementById('t-aluno')
+  if(alunos)alunos.forEach(function(a){s.innerHTML+='<option value="'+a.id+'">'+a.nome+'</option>'})
+}
+
+async function aoTrocarAluno(){
+  _alunoId=document.getElementById('t-aluno').value
+  const sc=document.getElementById('t-concurso')
+  sc.innerHTML='<option value="">Selecione o concurso</option>'
+  document.getElementById('painel').style.display='none'
+  if(!_alunoId)return
+  const { data:v }=await _supabase.from('aluno_concursos').select('concurso_id, concursos(nome)').eq('aluno_id',_alunoId)
+  if(!v||!v.length){sc.innerHTML='<option value="">Aluno sem concurso vinculado</option>';return}
+  v.forEach(function(x){sc.innerHTML+='<option value="'+x.concurso_id+'">'+(x.concursos?x.concursos.nome:'')+'</option>'})
+  if(v.length===1){sc.value=v[0].concurso_id;carregar()}
+}
+
+async function carregar(){
+  _concursoId=document.getElementById('t-concurso').value
+  if(!_alunoId||!_concursoId){document.getElementById('painel').style.display='none';return}
+
+  const { data:tops }=await _supabase.from('edital_topicos').select('*')
+    .eq('concurso_id',_concursoId).order('disciplina').order('ordem')
+  if(!tops||!tops.length){
+    document.getElementById('painel').style.display='block'
+    document.getElementById('lista').innerHTML='<p style="color:#e57373;font-size:13px">Nenhum edital cadastrado para este concurso.</p>'
+    document.getElementById('resumo').innerHTML=''
+    return
+  }
+  _topicos=tops
+
+  const { data:st }=await _supabase.from('tema_aluno_status').select('topico_id,status')
+    .eq('aluno_id',_alunoId).eq('concurso_id',_concursoId)
+  _status={}
+  if(st)st.forEach(function(x){_status[x.topico_id]=x.status})
+
+  const { data:sess }=await _supabase.from('sessoes_estudo').select('topico_id,topico,tipo,concluida')
+    .eq('aluno_id',_alunoId).eq('concurso_id',_concursoId).eq('tipo','teoria').eq('concluida',true)
+  _feitos={}
+  if(sess)sess.forEach(function(s){ if(s.topico_id)_feitos[s.topico_id]=true })
+
+  document.getElementById('painel').style.display='block'
+  render()
+}
+
+function statusDe(id){ return _status[id]||'ativo' }
+
+function render(){
+  const busca=(document.getElementById('busca').value||'').toLowerCase()
+  const filtro=document.getElementById('filtro').value
+
+  let a=0,r=0,x=0,f=0
+  _topicos.forEach(function(t){
+    const s=statusDe(t.id)
+    if(s==='ativo')a++; else if(s==='so_revisao')r++; else x++
+    if(_feitos[t.id])f++
+  })
+  document.getElementById('resumo').innerHTML=
+    '<div class="st-c" style="border-top-color:#4a8ab5"><div class="st-n" style="color:#4a8ab5">'+a+'</div><div class="st-l">Ativos</div></div>'
+   +'<div class="st-c" style="border-top-color:#81c784"><div class="st-n" style="color:#81c784">'+r+'</div><div class="st-l">So revisao</div></div>'
+   +'<div class="st-c" style="border-top-color:#e57373"><div class="st-n" style="color:#e57373">'+x+'</div><div class="st-l">Removidos</div></div>'
+   +'<div class="st-c" style="border-top-color:#C9A83C"><div class="st-n" style="color:#C9A83C">'+f+'</div><div class="st-l">Teoria concluida</div></div>'
+   +'<div class="st-c"><div class="st-n">'+_topicos.length+'</div><div class="st-l">Total no edital</div></div>'
+
+  const porDisc={}
+  _topicos.forEach(function(t){ if(!porDisc[t.disciplina])porDisc[t.disciplina]=[]; porDisc[t.disciplina].push(t) })
+
+  let html='',mostrados=0
+  Object.keys(porDisc).forEach(function(disc){
+    const itens=porDisc[disc].filter(function(t){
+      if(busca && String(t.topico).toLowerCase().indexOf(busca)<0) return false
+      if(filtro==='feito') return !!_feitos[t.id]
+      if(filtro && statusDe(t.id)!==filtro) return false
+      return true
+    })
+    if(!itens.length)return
+    mostrados+=itens.length
+    const nAtivos=porDisc[disc].filter(function(t){return statusDe(t.id)==='ativo'}).length
+    html+='<div class="disc-h"><span>'+disc+'</span>'
+      +'<span style="display:flex;gap:6px;align-items:center">'
+      +'<span style="color:#aaa;font-size:12px;font-weight:normal">'+nAtivos+'/'+porDisc[disc].length+' ativos</span>'
+      +'<button class="btn-acao btn-editar" style="font-size:10px;padding:3px 8px" onclick="aplicarDisc(\''+disc.replace(/'/g,"\\'")+'\',\'ativo\')">ativar</button>'
+      +'<button class="btn-acao" style="font-size:10px;padding:3px 8px;background:#1a3a1a;color:#81c784;border:1px solid #81c784" onclick="aplicarDisc(\''+disc.replace(/'/g,"\\'")+'\',\'so_revisao\')">revisao</button>'
+      +'<button class="btn-acao btn-excluir" style="font-size:10px;padding:3px 8px" onclick="aplicarDisc(\''+disc.replace(/'/g,"\\'")+'\',\'removido\')">remover</button>'
+      +'</span></div>'
+    itens.forEach(function(t){
+      const s=statusDe(t.id)
+      html+='<div class="t-row '+s+'" id="row-'+t.id+'">'
+        +'<span class="t-txt">'+t.topico+'</span>'
+        +(_feitos[t.id]?'<span class="chip-feito">TEORIA OK</span>':'')
+        +'<span class="badge-p p-'+(t.prioridade||'media')+'">'+String(t.prioridade||'media').toUpperCase()+'</span>'
+        +'<span class="seg">'
+        +'<button class="'+(s==='ativo'?'on ativo':'')+'" onclick="setStatus(\''+t.id+'\',\'ativo\')">Ativo</button>'
+        +'<button class="'+(s==='so_revisao'?'on so_revisao':'')+'" onclick="setStatus(\''+t.id+'\',\'so_revisao\')">So revisao</button>'
+        +'<button class="'+(s==='removido'?'on removido':'')+'" onclick="setStatus(\''+t.id+'\',\'removido\')">Remover</button>'
+        +'</span></div>'
+    })
+  })
+  if(!mostrados)html='<p style="color:#aaa;font-size:13px">Nenhum tema encontrado com esses filtros.</p>'
+  document.getElementById('lista').innerHTML=html
+}
+
+async function setStatus(topico_id,status){
+  _status[topico_id]=status
+  render()
+  const r=await _supabase.from('tema_aluno_status').upsert({
+    aluno_id:_alunoId, concurso_id:_concursoId, topico_id:topico_id,
+    status:status, atualizado_em:new Date().toISOString()
+  },{onConflict:'aluno_id,topico_id'})
+  if(r.error)aviso('Erro ao salvar: '+r.error.message,'#e57373')
+}
+
+async function aplicarDisc(disc,status){
+  const alvos=_topicos.filter(function(t){return t.disciplina===disc})
+  if(!alvos.length)return
+  if(status==='removido'&&!confirm('Remover os '+alvos.length+' temas de "'+disc+'" do cronograma?'))return
+  alvos.forEach(function(t){_status[t.id]=status})
+  render()
+  await salvarLote(alvos,status)
+}
+
+async function aplicarTodos(status){
+  if(!confirm('Aplicar "'+status+'" a todos os '+_topicos.length+' temas?'))return
+  _topicos.forEach(function(t){_status[t.id]=status})
+  render()
+  await salvarLote(_topicos,status)
+}
+
+async function marcarFeitosComoRevisao(){
+  const alvos=_topicos.filter(function(t){return _feitos[t.id]})
+  if(!alvos.length){aviso('Nenhum tema com teoria concluida ainda.','#ffb74d');return}
+  if(!confirm(alvos.length+' temas ja tiveram a teoria concluida. Passar todos para "so revisao"?'))return
+  alvos.forEach(function(t){_status[t.id]='so_revisao'})
+  render()
+  await salvarLote(alvos,'so_revisao')
+}
+
+async function salvarLote(itens,status){
+  aviso('Salvando...','#aaa')
+  const linhas=itens.map(function(t){return {
+    aluno_id:_alunoId, concurso_id:_concursoId, topico_id:t.id,
+    status:status, atualizado_em:new Date().toISOString()
+  }})
+  const LOTE=300
+  for(let i=0;i<linhas.length;i+=LOTE){
+    const r=await _supabase.from('tema_aluno_status').upsert(linhas.slice(i,i+LOTE),{onConflict:'aluno_id,topico_id'})
+    if(r.error){aviso('Erro: '+r.error.message,'#e57373');return}
+  }
+  aviso(itens.length+' temas atualizados. Gere o cronograma novamente para aplicar.','#81c784')
+}
+
+function aviso(txt,cor){
+  const m=document.getElementById('msg')
+  m.style.display='block';m.style.color=cor;m.textContent=txt
+  if(cor==='#81c784')setTimeout(function(){m.style.display='none'},5000)
+}
+
+init()
+</script>
+</body>
+</html>
