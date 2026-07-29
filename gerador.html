@@ -45,6 +45,7 @@
       <div style="color:#aaa;font-size:13px">Cronograma por tema com questoes e revisao automaticas</div>
     </div>
     <div style="display:flex;gap:8px">
+      <button onclick="window.location.href='temas.html'" style="width:auto;padding:8px 14px;background:#0d2a1a;color:#81c784;border:1px solid #81c784">Controle de Temas</button>
       <button onclick="window.location.href='edital-admin.html'" style="width:auto;padding:8px 14px;background:#1a3a2a;color:#4a8ab5;border:1px solid #4a8ab5">Editais</button>
       <button onclick="window.location.href='admin.html'" style="width:auto;padding:8px 14px">Painel Admin</button>
     </div>
@@ -194,7 +195,9 @@ const PESO = { alta:0, media:1, baixa:2 }
 let _temas = []
 let _plano = null
 let _teoriaFeita = {}
+let _statusTema = {}
 let _pulados = 0
+let _soRevisao = 0
 
 function ymd(d){ const x=new Date(d); return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0') }
 function parseD(s){ return new Date(s+'T12:00:00') }
@@ -276,10 +279,13 @@ function atualizarCapacidade(){
   if (!inicio || !prova || !dias.length) { box.innerHTML = ''; return }
 
   const nEtapas = montarEtapas().length
+  const inc = _temas.filter(function(t){ return t.incluir })
+  const nRev = inc.filter(function(t){ return t.status==='so_revisao' }).length
+  const nNormais = inc.length - nRev
   const nDatas = contarDatas(inicio, prova, dias)
   const slots = nDatas * porDia
-  const necessarios = nTemas * nEtapas
-  const cabe = Math.floor(slots / nEtapas)
+  const necessarios = nNormais * nEtapas + nRev
+  const cabe = nNormais>0 ? Math.floor(Math.max(0,(slots - nRev)) / nEtapas) + nRev : Math.min(nRev, slots)
   const sobra = nTemas - cabe
 
   let cor, texto
@@ -297,7 +303,8 @@ function atualizarCapacidade(){
     +   '<div style="text-align:center"><div style="color:'+cor+';font-size:18px;font-weight:bold">'+cabe+'</div><div style="color:#aaa;font-size:11px">temas cabem</div></div>'
     + '</div>'
     + '<p style="color:'+cor+';font-size:12px">'+texto+'</p>'
-    + '<p style="color:#555;font-size:11px;margin-top:6px">Cada tema ocupa '+nEtapas+' vaga(s): '+modosAtivos().join(' + ')+'.</p>'
+    + '<p style="color:#555;font-size:11px;margin-top:6px">Tema normal ocupa '+nEtapas+' vaga(s): '+modosAtivos().join(' + ')+'.'
+    + (nRev>0 ? ' '+nRev+' tema(s) marcados como "so revisao" ocupam 1 vaga cada.' : '')+'</p>'
     + '</div>'
 }
 
@@ -365,6 +372,12 @@ async function carregarTemas(){
     msgEx.textContent = 'Este aluno ja tem '+existentes.length+' sessoes neste concurso ('+feitas+' concluidas). Gerar novamente vai substituir o plano.'
   } else { msgEx.style.display='none' }
 
+  // status individual dos temas definido em Controle de Temas
+  _statusTema = {}
+  const { data: sts } = await _supabase.from('tema_aluno_status').select('topico_id,status')
+    .eq('aluno_id',aluno_id).eq('concurso_id',concurso_id)
+  if (sts) sts.forEach(function(x){ _statusTema[x.topico_id] = x.status })
+
   // temas cuja teoria ja foi concluida
   _teoriaFeita = {}
   const { data: feitas } = await _supabase.from('sessoes_estudo').select('topico')
@@ -383,7 +396,9 @@ async function carregarTemas(){
   }
 
   _temas = tops.map(function(t,i){
-    return { key:'t'+i, disciplina:t.disciplina, topico:t.topico, topico_id:t.id, prioridade:t.prioridade||'media', incluir:true }
+    const st = _statusTema[t.id] || 'ativo'
+    return { key:'t'+i, disciplina:t.disciplina, topico:t.topico, topico_id:t.id,
+             prioridade:t.prioridade||'media', incluir: st !== 'removido', status: st }
   })
   renderTemas()
 }
@@ -497,7 +512,9 @@ function montarPlano(temas, cfg){
     while (sessoes.length < cfg.porDia && idx < fila.length){
       const tema = fila[idx++]
       const key = 's'+(seq++)
-      const et = cfg.etapas
+      const et = (tema.status==='so_revisao')
+        ? [{tipo:'revisao',off:0}]
+        : cfg.etapas
       sessoes.push({ tipo:et[0].tipo, key:key, origem:null, disciplina:tema.disciplina, topico:tema.topico, topico_id:tema.topico_id })
       for (let k=1;k<et.length;k++){
         pendentes.push({ tipo:et[k].tipo, due:addDays(dia,et[k].off), tema:tema, origem:key })
@@ -535,7 +552,9 @@ function gerarPreview(){
   if (!selecionados.length) { msg.textContent='Nenhum tema restante apos os filtros. Desmarque "pular temas concluidos" ou selecione outros temas.'; return }
 
   msg.style.display='none'
-  _plano = montarPlano(selecionados, { inicio:inicio, prova:prova, dias:dias, porDia:porDia, dq:dq, dr:dr, etapas:montarEtapas() })
+  const etapasPadrao = montarEtapas()
+  _soRevisao = selecionados.filter(function(t){ return t.status==='so_revisao' }).length
+  _plano = montarPlano(selecionados, { inicio:inicio, prova:prova, dias:dias, porDia:porDia, dq:dq, dr:dr, etapas:etapasPadrao })
   renderPreview(_plano)
   document.getElementById('card-preview').style.display='block'
   document.getElementById('card-preview').scrollIntoView({behavior:'smooth'})
@@ -556,6 +575,10 @@ function renderPreview(plano){
 
   const al = document.getElementById('alerta-preview')
   al.innerHTML = ''
+  if (_soRevisao > 0) {
+    al.innerHTML += '<div style="background:#0d2a1a;border:1px solid #81c784;border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px;color:#81c784">'
+      + _soRevisao+' tema(s) marcados como <strong>so revisao</strong> no Controle de Temas entraram apenas com a sessao de revisao.</div>'
+  }
   if (_pulados > 0) {
     al.innerHTML += '<div style="background:#1a3a1a;border:1px solid #81c784;border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px;color:#81c784">'
       + _pulados+' tema(s) foram pulados porque o aluno ja concluiu a teoria deles.</div>'
