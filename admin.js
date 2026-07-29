@@ -49,12 +49,29 @@ async function carregarConcursos() {
   const div = document.getElementById('lista-concursos')
   if (div) {
     div.innerHTML = ''
-    concursos.forEach(c => {
-      div.innerHTML += `<div class="item-lista">
-        <strong>${c.nome}</strong><span>${c.banca||''}</span>
-        <span>${c.data_prova ? new Date(c.data_prova).toLocaleDateString('pt-BR') : 'Sem data'}</span>
-      </div>`
-    })
+    if (!concursos || !concursos.length) {
+      div.innerHTML = '<p style="color:#aaa">Nenhum concurso cadastrado.</p>'
+    } else {
+      concursos.forEach(c => {
+        let restante = ''
+        if (c.data_prova) {
+          const h = new Date(); h.setHours(0,0,0,0)
+          const dias = Math.ceil((new Date(c.data_prova+'T12:00:00') - h) / 86400000)
+          restante = dias > 0 ? ' · faltam '+dias+' dias' : (dias === 0 ? ' · e hoje!' : ' · ja passou')
+        }
+        div.innerHTML += `<div class="item-lista" style="flex-wrap:wrap;gap:8px">
+          <div style="flex:1;min-width:150px">
+            <strong>${c.nome}</strong>
+            <div style="color:#aaa;font-size:12px">${c.banca||'Sem banca'}</div>
+            <div style="color:${c.data_prova?'#C9A83C':'#aaa'};font-size:12px">${c.data_prova ? new Date(c.data_prova+'T12:00:00').toLocaleDateString('pt-BR')+restante : 'Sem data de prova'}</div>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn-acao btn-editar" onclick="abrirEditarConcurso('${c.id}')">Editar</button>
+            <button class="btn-acao btn-excluir" onclick="excluirConcurso('${c.id}','${String(c.nome).replace(/'/g,"\\'")}')">Excluir</button>
+          </div>
+        </div>`
+      })
+    }
   }
   const ids = ['novo-aluno-concurso','editar-aluno-concurso','filtro-cron-concurso',
                 'template-concurso','filtro-template-concurso','aplicar-template-concurso',
@@ -68,6 +85,71 @@ async function carregarConcursos() {
     if (val) s.value = val
   })
   window._concursos = concursos
+}
+
+function abrirEditarConcurso(id) {
+  const c = (window._concursos||[]).find(function(x){ return x.id===id })
+  if (!c) return
+  document.getElementById('card-editar-concurso').style.display = 'block'
+  document.getElementById('titulo-editar-concurso').textContent = 'Editar — ' + c.nome
+  document.getElementById('edc-id').value = c.id
+  document.getElementById('edc-nome').value = c.nome || ''
+  document.getElementById('edc-banca').value = c.banca || ''
+  document.getElementById('edc-data').value = c.data_prova || ''
+  document.getElementById('msg-editar-concurso').textContent = ''
+  document.getElementById('card-editar-concurso').scrollIntoView({ behavior:'smooth' })
+}
+
+function fecharEditarConcurso() {
+  document.getElementById('card-editar-concurso').style.display = 'none'
+}
+
+async function salvarEdicaoConcurso() {
+  const id = document.getElementById('edc-id').value
+  const nome = document.getElementById('edc-nome').value.trim()
+  const banca = document.getElementById('edc-banca').value.trim()
+  const data_prova = document.getElementById('edc-data').value || null
+  const msg = document.getElementById('msg-editar-concurso')
+  if (!nome) { msg.style.color='#e57373'; msg.textContent='O nome do concurso e obrigatorio.'; return }
+  msg.style.color='#aaa'; msg.textContent='Salvando...'
+  const { error } = await _supabase.from('concursos').update({ nome, banca, data_prova }).eq('id', id)
+  if (error) { msg.style.color='#e57373'; msg.textContent='Erro: '+error.message; return }
+
+  // Mantem a data da prova em sincronia com os planos ja gerados
+  let extra = ''
+  if (data_prova) {
+    const { error: e2 } = await _supabase.from('config_cronograma').update({ data_prova }).eq('concurso_id', id)
+    if (!e2) extra = ' A data foi replicada para os cronogramas ja gerados.'
+  }
+  msg.style.color='#81c784'
+  msg.textContent='Concurso atualizado!'+extra
+  await carregarConcursos()
+}
+
+async function excluirConcurso(id, nome) {
+  const conf = prompt('ATENCAO: excluir o concurso "'+nome+'" remove tambem os editais, cronogramas, templates e avisos ligados a ele.\n\nPara confirmar, digite o nome do concurso:')
+  if (!conf) return
+  if (conf.trim() !== String(nome).trim()) { alert('Nome incorreto. Exclusao cancelada.'); return }
+  const erros = []
+  const tabelas = [
+    ['sessoes_estudo','concurso_id'], ['config_cronograma','concurso_id'],
+    ['tema_aluno_status','concurso_id'], ['edital_topicos','concurso_id'],
+    ['plano_aluno','concurso_id'], ['avisos','concurso_id'],
+    ['aluno_concursos','concurso_id']
+  ]
+  for (const t of tabelas) {
+    const r = await _supabase.from(t[0]).delete().eq(t[1], id)
+    if (r.error) erros.push(t[0]+': '+r.error.message)
+  }
+  const { data: tpl } = await _supabase.from('templates_cronograma').select('id').eq('concurso_id', id)
+  if (tpl) for (const t of tpl) { await _supabase.from('template_itens').delete().eq('template_id', t.id) }
+  await _supabase.from('templates_cronograma').delete().eq('concurso_id', id)
+  await _supabase.from('alunos').update({ concurso_id: null }).eq('concurso_id', id)
+  const r = await _supabase.from('concursos').delete().eq('id', id)
+  if (r.error) erros.push('concursos: '+r.error.message)
+  if (erros.length) { alert('Nem tudo foi removido:\n'+erros.join('\n')); return }
+  alert('Concurso "'+nome+'" removido.')
+  carregarConcursos()
 }
 
 async function criarConcurso() {
@@ -151,10 +233,10 @@ async function carregarAlunos() {
   div.innerHTML = `<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
     <input type="text" id="busca-aluno" placeholder="Buscar aluno..." oninput="filtrarAlunos()" style="margin:0;flex:1;min-width:160px">
     <select id="ordenar-alunos" onchange="filtrarAlunos()" style="margin:0;width:auto;min-width:170px">
+      <option value="recente" selected>Mais recente primeiro</option>
+      <option value="antigo">Mais antigo primeiro</option>
       <option value="nome-az">Nome A-Z</option>
       <option value="nome-za">Nome Z-A</option>
-      <option value="recente">Mais recente primeiro</option>
-      <option value="antigo">Mais antigo primeiro</option>
       <option value="expira-breve">Acesso expirando primeiro</option>
     </select>
     <button onclick="exportarAlunosCSV()" class="btn-acao btn-editar" style="padding:10px 16px;white-space:nowrap">Exportar CSV</button>
@@ -162,12 +244,12 @@ async function carregarAlunos() {
   <div id="lista-alunos-inner"></div>`
 
   window._todosAlunos = alunos
-  renderizarListaAlunos(alunos)
+  filtrarAlunos()
 }
 
 function filtrarAlunos() {
   const termo = document.getElementById('busca-aluno')?.value.toLowerCase() || ''
-  const ordem = document.getElementById('ordenar-alunos')?.value || 'nome-az'
+  const ordem = document.getElementById('ordenar-alunos')?.value || 'recente'
 
   let filtrados = window._todosAlunos.filter(a =>
     a.nome.toLowerCase().includes(termo) || a.email.toLowerCase().includes(termo)
