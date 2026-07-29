@@ -1,0 +1,44 @@
+-- Controle de temas por aluno
+create table if not exists tema_aluno_status (
+  id uuid primary key default gen_random_uuid(),
+  aluno_id uuid references alunos(id) on delete cascade,
+  concurso_id uuid references concursos(id) on delete cascade,
+  topico_id uuid references edital_topicos(id) on delete cascade,
+  status text not null default 'ativo',
+  atualizado_em timestamp default now(),
+  unique(aluno_id, topico_id)
+);
+
+-- Caderno de erros do aluno
+create table if not exists caderno_erros (
+  id uuid primary key default gen_random_uuid(),
+  aluno_id uuid references alunos(id) on delete cascade,
+  disciplina text,
+  titulo text not null,
+  conteudo text,
+  criado_em timestamp default now(),
+  atualizado_em timestamp default now()
+);
+create index if not exists idx_caderno_aluno on caderno_erros(aluno_id, atualizado_em desc);
+
+-- Personalizacao da marca
+create table if not exists config_marca (
+  id int primary key default 1,
+  nome_marca text default 'Patrulheiros de Elite',
+  slogan text default 'Mentoria Policial',
+  logo_url text,
+  cor_primaria text default '#C9A83C',
+  atualizado_em timestamp default now()
+);
+insert into config_marca (id) values (1) on conflict (id) do nothing;
+
+alter table tema_aluno_status enable row level security;
+alter table caderno_erros enable row level security;
+alter table config_marca enable row level security;
+
+create policy "aluno ve seu status de temas" on tema_aluno_status for select using (auth.uid() = aluno_id);
+create policy "admin gerencia status de temas" on tema_aluno_status for all using (true);
+create policy "aluno gerencia seu caderno" on caderno_erros for all using (auth.uid() = aluno_id);
+create policy "admin ve cadernos" on caderno_erros for select using (true);
+create policy "todos leem a marca" on config_marca for select using (true);
+create policy "admin edita a marca" on config_marca for all using (true);
