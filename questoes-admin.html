@@ -18,6 +18,11 @@
   .st-c{background:#0d1b2a;border-radius:10px;padding:13px;text-align:center}
   .st-n{font-size:21px;font-weight:bold}
   .st-l{color:#aaa;font-size:11px;margin-top:2px}
+  .drop{border:2px dashed #2a4a6a;border-radius:12px;padding:22px;text-align:center;cursor:pointer;background:#0d1b2a;transition:.2s}
+  .drop:hover,.drop.dentro{border-color:#C9A83C;background:#12233a}
+  .modo{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+  .modo button{width:auto;margin:0;padding:9px 15px;font-size:13px;background:#0d1b2a;color:#7f96ae;border:1px solid #2a4a6a;border-radius:9px;font-weight:600}
+  .modo button.on{background:#1a3a5c;color:#C9A83C;border-color:#C9A83C}
   textarea.big{width:100%;padding:12px;border-radius:8px;border:1px solid #2a4a6a;background:#0d1b2a;color:#fff;font-size:12px;font-family:ui-monospace,Menlo,monospace;min-height:230px;resize:vertical;line-height:1.5}
 </style>
 </head>
@@ -46,7 +51,31 @@
       <label style="color:#aaa;font-size:12px;display:block;margin-bottom:4px">Vincular ao concurso (opcional, mas recomendado)</label>
       <select id="imp-concurso"><option value="">Nenhum — questao geral</option></select>
 
-      <label style="color:#aaa;font-size:12px;display:block;margin-top:10px;margin-bottom:4px">JSON das questoes</label>
+      <div class="modo" style="margin-top:14px">
+        <button class="on" id="md-json" onclick="setModo('json')">Colar JSON</button>
+        <button id="md-arq" onclick="setModo('arq')">Enviar arquivo</button>
+        <button id="md-csv" onclick="setModo('csv')">Colar planilha</button>
+      </div>
+
+      <div id="box-arq" style="display:none">
+        <div class="drop" id="drop" onclick="document.getElementById('file').click()">
+          <div style="font-size:28px;margin-bottom:8px">📄</div>
+          <div style="color:#C9A83C;font-size:14px;font-weight:bold">Clique ou arraste o arquivo</div>
+          <div style="color:#555;font-size:12px;margin-top:4px">.json · .csv · .txt — ate 5 MB</div>
+        </div>
+        <input type="file" id="file" accept=".json,.csv,.txt" style="display:none" onchange="lerArquivo(this.files[0])">
+        <button onclick="baixarModeloCSV()" style="margin-top:10px;background:#1a2f45;color:#aaa;border:1px solid #2a4a6a">Baixar planilha modelo (.csv)</button>
+        <p style="color:#555;font-size:11px;margin-top:6px">Preencha a planilha no Excel, salve como CSV e envie aqui. Tambem aceita o JSON gerado no outro chat salvo como arquivo.</p>
+      </div>
+
+      <div id="box-csv" style="display:none">
+        <label style="color:#aaa;font-size:12px;display:block;margin-bottom:4px">Cole as linhas da planilha (copiadas do Excel)</label>
+        <textarea class="big" id="imp-csv" style="min-height:170px" placeholder="disciplina;assunto;tipo;enunciado;gabarito;comentario;bizu;banca;ano;origem
+Lingua Portuguesa;Crase;certo_errado;Julgue o item...;C;Explicacao...;Regra pratica...;CEBRASPE;2026;autoral"></textarea>
+        <button onclick="converterCSV()" style="margin-top:8px;background:#1a2f45;color:#C9A83C;border:1px solid #C9A83C">Converter para JSON</button>
+      </div>
+
+      <label id="lb-json" style="color:#aaa;font-size:12px;display:block;margin-top:10px;margin-bottom:4px">JSON das questoes</label>
       <textarea class="big" id="imp-json" placeholder='[
   {
     "disciplina": "Lingua Portuguesa",
@@ -74,7 +103,11 @@
       <h3>Prompt para gerar o JSON</h3>
       <p style="color:#aaa;font-size:13px;margin-bottom:10px">Copie e use em outro chat junto com suas questoes.</p>
       <textarea class="big" id="prompt-txt" readonly style="min-height:190px"></textarea>
-      <button onclick="copiarPrompt()" style="margin-top:8px">Copiar prompt</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <button onclick="copiarPrompt('q')" style="flex:1;min-width:160px">Copiar prompt (minhas questoes)</button>
+        <button onclick="copiarPrompt('p')" style="flex:1;min-width:160px;background:#1a2a3a;color:#5bb3f0;border:1px solid #5bb3f0">Copiar prompt (prova anterior)</button>
+      </div>
+      <p style="color:#555;font-size:11px;margin-top:8px">Use o segundo prompt quando for enviar o PDF de uma prova antiga. Anexe o arquivo no outro chat junto com o prompt.</p>
     </div>
   </div>
 
@@ -174,16 +207,155 @@ async function init(){
   document.getElementById('prompt-txt').value=PROMPT
   const { data:c }=await _supabase.from('concursos').select('*').order('nome')
   _concursos=c||[]
+  const d=document.getElementById('drop')
+  if(d){
+    d.addEventListener('dragover',function(e){e.preventDefault();d.classList.add('dentro')})
+    d.addEventListener('dragleave',function(){d.classList.remove('dentro')})
+    d.addEventListener('drop',function(e){e.preventDefault();d.classList.remove('dentro');if(e.dataTransfer.files[0])lerArquivo(e.dataTransfer.files[0])})
+  }
   ;['imp-concurso','g-conc','m-concurso','m-filtro'].forEach(function(id){
     const s=document.getElementById(id); if(!s)return
     _concursos.forEach(function(x){s.innerHTML+='<option value="'+x.id+'">'+x.nome+'</option>'})
   })
 }
 
-function copiarPrompt(){
+const PROMPT_PROVA=`Voce e especialista em concursos policiais. Vou anexar o arquivo de uma prova anterior (PDF, Word ou texto).
+
+Extraia TODAS as questoes e devolva um array JSON valido, sem texto antes ou depois, sem markdown, sem crases.
+
+Formato de cada questao:
+{
+  "disciplina": "Lingua Portuguesa",
+  "assunto": "Crase",
+  "tipo": "certo_errado",
+  "enunciado": "texto completo do item",
+  "texto_apoio": "texto base compartilhado, se houver (senao omita)",
+  "alternativas": ["texto da A", "texto da B", "texto da C", "texto da D", "texto da E"],
+  "gabarito": "C",
+  "comentario": "explicacao didatica de por que o gabarito e esse",
+  "bizu": "1 a 2 frases com a regra pratica, para o aluno colar no caderno de erros",
+  "banca": "CEBRASPE",
+  "ano": 2023,
+  "orgao": "PMAL",
+  "origem": "prova"
+}
+
+Regras:
+- "tipo": "certo_errado" (gabarito "C" ou "E") ou "multipla" (gabarito "A" a "E")
+- Inclua "alternativas" APENAS quando o tipo for "multipla"
+- "origem" deve ser sempre "prova"
+- Preencha "banca", "ano" e "orgao" com os dados reais da prova
+- Se o gabarito oficial estiver no arquivo, use ele. Se nao estiver, resolva a questao e avise no final quais gabaritos voce inferiu
+- "comentario" e "bizu" sao obrigatorios: escreva voce mesmo
+- Nao pule questoes nem invente questoes que nao estejam no arquivo
+- Se a prova for longa, entregue em partes de 30 questoes e pergunte se continuo
+
+Arquivo da prova em anexo.`
+
+function setModo(m){
+  ['json','arq','csv'].forEach(function(x){
+    document.getElementById('md-'+x).classList.toggle('on',x===m)
+  })
+  document.getElementById('box-arq').style.display=(m==='arq')?'block':'none'
+  document.getElementById('box-csv').style.display=(m==='csv')?'block':'none'
+  const mostraJson=(m!=='csv')
+  document.getElementById('lb-json').style.display=mostraJson?'block':'none'
+  document.getElementById('imp-json').style.display=mostraJson?'block':'none'
+}
+
+function copiarPrompt(tipo){
   const t=document.getElementById('prompt-txt')
+  const orig=t.value
+  if(tipo==='p')t.value=PROMPT_PROVA
   t.select();document.execCommand('copy')
-  alert('Prompt copiado! Cole em outro chat junto com suas questoes.')
+  t.value=orig
+  alert(tipo==='p'
+    ? 'Prompt copiado! Abra outro chat, cole o prompt e anexe o PDF da prova.'
+    : 'Prompt copiado! Cole em outro chat junto com suas questoes.')
+}
+
+function lerArquivo(file){
+  if(!file)return
+  if(file.size>5*1024*1024){msg('msg-imp','Arquivo maior que 5 MB. Divida em partes.','#e57373');return}
+  const r=new FileReader()
+  r.onload=function(e){
+    const txt=String(e.target.result||'').trim()
+    const nome=file.name.toLowerCase()
+    if(nome.endsWith('.csv')||(!txt.startsWith('[')&&!txt.startsWith('{')&&txt.indexOf(';')>=0)){
+      document.getElementById('imp-csv').value=txt
+      setModo('csv')
+      converterCSV()
+    }else{
+      setModo('json')
+      document.getElementById('imp-json').value=txt
+      validar()
+    }
+  }
+  r.readAsText(file,'UTF-8')
+}
+
+function baixarModeloCSV(){
+  const linhas=[
+    'disciplina;assunto;tipo;enunciado;texto_apoio;alternativas;gabarito;comentario;bizu;banca;ano;orgao;origem',
+    'Lingua Portuguesa;Crase;certo_errado;Julgue o item: o uso da crase esta correto na frase acima.;;;C;A crase e obrigatoria antes de palavra feminina determinada.;Crase = a + a. Antes de masculino, so se couber "a moda de".;CEBRASPE;2026;;autoral',
+    'Direito Penal;Tipicidade;multipla;Assinale a alternativa correta sobre tipicidade.;;Alternativa A|Alternativa B|Alternativa C|Alternativa D|Alternativa E;C;A tipicidade exige adequacao formal e material.;Fato atipico material = principio da insignificancia.;CEBRASPE;2023;PMAL;prova'
+  ]
+  const blob=new Blob(['\ufeff'+linhas.join('\n')],{type:'text/csv;charset=utf-8'})
+  const a=document.createElement('a')
+  a.href=URL.createObjectURL(blob)
+  a.download='modelo-questoes.csv'
+  a.click()
+}
+
+function parseLinhaCSV(linha,sep){
+  const out=[];let atual='';let aspas=false
+  for(let i=0;i<linha.length;i++){
+    const ch=linha[i]
+    if(ch==='"'){
+      if(aspas&&linha[i+1]==='"'){atual+='"';i++}
+      else aspas=!aspas
+    }else if(ch===sep&&!aspas){out.push(atual);atual=''}
+    else atual+=ch
+  }
+  out.push(atual)
+  return out.map(function(x){return x.trim()})
+}
+
+function converterCSV(){
+  const txt=document.getElementById('imp-csv').value.trim()
+  if(!txt){msg('msg-imp','Cole as linhas da planilha primeiro.','#e57373');return}
+  const linhas=txt.split(/\r?\n/).filter(function(l){return l.trim()})
+  if(linhas.length<2){msg('msg-imp','Preciso do cabecalho e pelo menos uma questao.','#e57373');return}
+
+  const sep=(linhas[0].indexOf(';')>=0)?';':((linhas[0].indexOf('\t')>=0)?'\t':',')
+  const cab=parseLinhaCSV(linhas[0],sep).map(function(x){
+    return x.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'_')
+  })
+
+  const obrig=['disciplina','enunciado','gabarito']
+  const falta=obrig.filter(function(x){return cab.indexOf(x)<0})
+  if(falta.length){msg('msg-imp','Faltam colunas no cabecalho: '+falta.join(', '),'#e57373');return}
+
+  const arr=[]
+  for(let i=1;i<linhas.length;i++){
+    const v=parseLinhaCSV(linhas[i],sep)
+    if(!v.join('').trim())continue
+    const o={}
+    cab.forEach(function(k,j){ if(v[j]!==undefined&&v[j]!=='')o[k]=v[j] })
+    if(!o.disciplina||!o.enunciado||!o.gabarito)continue
+    if(o.alternativas){
+      o.alternativas=String(o.alternativas).split('|').map(function(x){return x.trim()}).filter(Boolean)
+      o.tipo=o.tipo||'multipla'
+    }
+    o.tipo=o.tipo||'certo_errado'
+    if(o.ano)o.ano=parseInt(o.ano)
+    arr.push(o)
+  }
+  if(!arr.length){msg('msg-imp','Nenhuma linha valida encontrada na planilha.','#e57373');return}
+
+  setModo('json')
+  document.getElementById('imp-json').value=JSON.stringify(arr,null,2)
+  validar()
 }
 
 function msg(el,txt,cor){
