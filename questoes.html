@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Questoes — Patrulheiros de Elite</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{--ouro:#C9A83C;--bg:#0a1420;--bg2:#0c1826;--card:#101d2c;--card2:#0d1a28;--btn:#132030;--bd:#1b2c40;--bd2:#24384f;--tx:#e8edf4;--tx2:#8fa5bd;--tx3:#63809e;--tx4:#4d6684;--hov:#16283c}
+  [data-tema="claro"]{--bg:#eef1f6;--bg2:#fff;--card:#fff;--card2:#f7f9fc;--btn:#fff;--bd:#dde4ed;--bd2:#c6d2e0;--tx:#0f1b2a;--tx2:#4a5f78;--tx3:#66809b;--tx4:#8fa2b8;--hov:#eaf0f8}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;transition:background .2s}
+  .shell{display:flex;min-height:100vh}
+  .side{width:236px;background:var(--bg2);border-right:1px solid var(--bd);padding:20px 14px;display:flex;flex-direction:column;position:fixed;top:0;bottom:0;left:0;overflow-y:auto;z-index:30}
+  .logo{display:flex;align-items:center;gap:10px;padding:0 8px 22px}
+  .logo-i{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--ouro),#8a6f1e);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;overflow:hidden}
+  .logo-t{font-size:14px;font-weight:800;line-height:1.2}
+  .logo-t span{color:var(--ouro);display:block;font-size:11px;font-weight:600}
+  .nav-i{display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:11px;color:var(--tx2);font-size:14px;cursor:pointer;margin-bottom:3px;border:1px solid transparent;font-weight:500}
+  .nav-i:hover{background:var(--btn);color:var(--tx)}
+  .nav-i.on{background:var(--hov);color:var(--ouro);border-color:var(--bd2);font-weight:600}
+  .nav-ic{width:19px;text-align:center;font-size:15px;flex-shrink:0}
+  .nav-nv{margin-left:auto;background:#d9566a;color:#fff;border-radius:9px;padding:1px 6px;font-size:9px;font-weight:700}
+  .side-sep{height:1px;background:var(--bd);margin:10px 6px}
+  .side-b{margin-top:auto;padding-top:14px}
+  .main{flex:1;margin-left:236px;padding:22px 24px 60px;min-width:0}
+  .topbar{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:20px}
+  .h2{font-size:25px;font-weight:800;letter-spacing:-.6px}
+  .h2s{color:var(--tx3);font-size:13px;margin-top:2px}
+  .btn{padding:9px 15px;border-radius:9px;border:1px solid var(--bd2);background:var(--btn);color:var(--tx2);font-size:13px;cursor:pointer;font-weight:500;white-space:nowrap}
+  .btn:hover{border-color:var(--ouro);color:var(--tx)}
+  .btn-ouro{background:var(--ouro);border-color:var(--ouro);color:#0a1420;font-weight:700}
+  .painel{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:18px}
+  .sec{display:none}.sec.on{display:block}
+  .fl{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:12px}
+  .fl label{color:var(--tx3);font-size:11px;display:block;margin-bottom:4px;font-weight:600}
+  .inp,select.inp{width:100%;padding:10px;border-radius:9px;border:1px solid var(--bd2);background:var(--bg);color:var(--tx);font-size:13px}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+  .chip{padding:7px 13px;border-radius:20px;border:1px solid var(--bd2);background:var(--bg);color:var(--tx3);font-size:12px;cursor:pointer;font-weight:600}
+  .chip.on{background:var(--ouro);color:#0a1420;border-color:var(--ouro)}
+  .dchip{padding:6px 12px;border-radius:8px;border:1px solid var(--bd2);background:var(--bg);color:var(--tx3);font-size:12px;cursor:pointer}
+  .dchip.on{background:var(--hov);border-color:var(--ouro);color:var(--ouro);font-weight:600}
+  .q{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:18px;margin-bottom:14px}
+  .q-h{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--bd)}
+  .tag{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:700}
+  .t-aut{background:rgba(201,168,60,.15);color:var(--ouro);border:1px solid var(--ouro)}
+  .t-prova{background:rgba(91,179,240,.15);color:#5bb3f0;border:1px solid #5bb3f0}
+  .q-cod{color:var(--tx4);font-size:11px;font-family:ui-monospace,monospace}
+  .q-tx{font-size:14.5px;line-height:1.7;white-space:pre-wrap}
+  .q-ap{background:var(--card2);border-left:3px solid var(--bd2);border-radius:0 9px 9px 0;padding:12px 14px;margin-bottom:12px;font-size:13.5px;line-height:1.65;color:var(--tx2);white-space:pre-wrap}
+  .alt{display:flex;gap:11px;align-items:flex-start;padding:11px 13px;border-radius:10px;border:1px solid var(--bd);background:var(--card2);margin-top:8px;cursor:pointer}
+  .alt:hover{border-color:var(--ouro)}
+  .alt.sel{border-color:var(--ouro);background:rgba(201,168,60,.08)}
+  .alt.certa{border-color:#6ddba0;background:rgba(109,219,160,.1)}
+  .alt.errada{border-color:#f07171;background:rgba(240,113,113,.1)}
+  .alt-l{width:26px;height:26px;border-radius:50%;border:2px solid var(--bd2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0;color:var(--tx2)}
+  .alt.sel .alt-l{border-color:var(--ouro);color:var(--ouro)}
+  .alt.certa .alt-l{background:#6ddba0;border-color:#6ddba0;color:#0a1420}
+  .alt.errada .alt-l{background:#f07171;border-color:#f07171;color:#fff}
+  .alt-t{flex:1;font-size:13.5px;line-height:1.6;padding-top:3px}
+  .res{border-radius:12px;padding:14px;margin-top:14px}
+  .res.ok{background:rgba(109,219,160,.1);border:1px solid #6ddba0}
+  .res.no{background:rgba(240,113,113,.1);border:1px solid #f07171}
+  .bizu{background:linear-gradient(135deg,rgba(185,138,224,.14),rgba(125,95,168,.06));border:1px solid #7d5fa8;border-radius:11px;padding:13px;margin-top:12px}
+  .bizu-h{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+  .bizu-t{color:#b98ae0;font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase}
+  .abas-q{display:flex;gap:5px;margin-top:14px;border-top:1px solid var(--bd);padding-top:12px;flex-wrap:wrap}
+  .aba-q{padding:7px 13px;border-radius:8px;border:1px solid var(--bd2);background:var(--bg);color:var(--tx3);font-size:12px;cursor:pointer;font-weight:600}
+  .aba-q.on{background:var(--hov);border-color:var(--ouro);color:var(--ouro)}
+  .cmt{background:var(--card2);border-radius:10px;padding:12px;margin-bottom:8px;border-left:3px solid var(--bd2)}
+  .est{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:16px}
+  .est-c{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;text-align:center}
+  .est-n{font-size:22px;font-weight:800}
+  .est-l{color:var(--tx3);font-size:11px;margin-top:2px}
+  .vazio{text-align:center;padding:50px 20px;color:var(--tx3)}
+  .mat{background:var(--card);border:1px solid var(--bd);border-left:3px solid var(--ouro);border-radius:12px;padding:15px;margin-bottom:10px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  @media(max-width:860px){
+    .side{position:static;width:100%;flex-direction:row;overflow-x:auto;padding:10px;border-right:none;border-bottom:1px solid var(--bd);gap:5px;align-items:center}
+    .logo,.side-sep,.side-b{display:none}
+    .nav-i{margin-bottom:0;white-space:nowrap;padding:9px 13px;font-size:13px}
+    .shell{flex-direction:column}
+    .main{margin-left:0;padding:16px 12px 50px}
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="side">
+    <div class="logo"><div class="logo-i">🛡️</div><div class="logo-t">Patrulheiros<span>de Elite</span></div></div>
+    <div class="nav-i" onclick="location.href='cronograma.html'"><span class="nav-ic">📅</span>Meu Cronograma</div>
+    <div class="nav-i on" data-s="questoes" onclick="irSecao('questoes')"><span class="nav-ic">❓</span>Questoes</div>
+    <div class="nav-i" data-s="simulados" onclick="irSecao('simulados')"><span class="nav-ic">🎯</span>Simulados</div>
+    <div class="nav-i" data-s="materiais" onclick="irSecao('materiais')"><span class="nav-ic">📁</span>Materiais</div>
+    <div class="nav-i" onclick="location.href='edital.html'"><span class="nav-ic">📖</span>Edital</div>
+    <div class="side-sep"></div>
+    <div class="nav-i" data-s="flashcards" onclick="irSecao('flashcards')"><span class="nav-ic">🗂️</span>Flashcards<span class="nav-nv">EM BREVE</span></div>
+    <div class="nav-i" data-s="mapas" onclick="irSecao('mapas')"><span class="nav-ic">🧠</span>Mapas<span class="nav-nv">EM BREVE</span></div>
+    <div class="side-sep"></div>
+    <div class="nav-i" onclick="location.href='cronograma.html#desempenho'"><span class="nav-ic">📊</span>Desempenho</div>
+    <div class="side-b"><div class="nav-i" onclick="sair()"><span class="nav-ic">🚪</span>Sair</div></div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div><div class="h2" id="tit">Questoes</div><div class="h2s" id="sub">Banco de questoes da mentoria</div></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn" onclick="trocarTema()" id="btn-tema" title="Alternar tema">🌙</button>
+      </div>
+    </div>
+
+    <div id="loading" class="vazio">Carregando...</div>
+
+    <!-- QUESTOES -->
+    <section class="sec on" id="sec-questoes" style="display:none">
+      <div class="est" id="est"></div>
+      <div class="painel" style="margin-bottom:16px">
+        <div style="font-size:13px;font-weight:700;color:var(--ouro);margin-bottom:12px">Filtros</div>
+        <div class="chips" id="ch-status"></div>
+        <div class="fl">
+          <div><label>Concurso</label><select class="inp" id="f-conc" onchange="aoTrocarConcurso()"></select></div>
+          <div><label>Origem</label><select class="inp" id="f-orig" onchange="buscar()">
+            <option value="">Todas</option><option value="autoral">Autorais do Jota</option><option value="prova">Provas anteriores</option></select></div>
+          <div><label>Banca</label><select class="inp" id="f-banca" onchange="buscar()"><option value="">Todas</option></select></div>
+          <div><label>Ano</label><select class="inp" id="f-ano" onchange="buscar()"><option value="">Todos</option></select></div>
+        </div>
+        <label style="color:var(--tx3);font-size:11px;display:block;margin-bottom:6px;font-weight:600">Disciplinas — clique para selecionar</label>
+        <div class="chips" id="ch-disc"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+          <input class="inp" id="f-busca" placeholder="Palavra-chave no enunciado..." style="flex:1;min-width:170px" onkeydown="if(event.key==='Enter')buscar()">
+          <button class="btn btn-ouro" onclick="buscar()" style="padding:10px 22px">Filtrar</button>
+          <button class="btn" onclick="limpar()">Limpar</button>
+        </div>
+      </div>
+      <div id="qbox"></div>
+      <div id="paginacao" style="text-align:center;margin-top:16px"></div>
+    </section>
+
+    <!-- SIMULADOS -->
+    <section class="sec" id="sec-simulados">
+      <div id="lista-sim"></div>
+    </section>
+
+    <!-- MATERIAIS -->
+    <section class="sec" id="sec-materiais">
+      <div class="painel" style="margin-bottom:14px">
+        <label style="color:var(--tx3);font-size:11px;font-weight:600">Filtrar por tipo</label>
+        <div class="chips" id="ch-mat" style="margin-top:8px;margin-bottom:0"></div>
+      </div>
+      <div id="lista-mat"></div>
+    </section>
+
+    <!-- FLASHCARDS -->
+    <section class="sec" id="sec-flashcards">
+      <div class="painel vazio">
+        <div style="font-size:46px;margin-bottom:14px">🗂️</div>
+        <div style="color:var(--ouro);font-weight:700;font-size:17px">Flashcards — em breve</div>
+        <p style="color:var(--tx3);font-size:13px;margin-top:10px;max-width:440px;margin-left:auto;margin-right:auto;line-height:1.7">
+          Cards de repeticao espacada por disciplina e tema, com memoria de curto e longo prazo.
+          O que voce errar nas questoes vira card automaticamente.
+        </p>
+      </div>
+    </section>
+
+    <!-- MAPAS -->
+    <section class="sec" id="sec-mapas">
+      <div class="painel vazio">
+        <div style="font-size:46px;margin-bottom:14px">🧠</div>
+        <div style="color:var(--ouro);font-weight:700;font-size:17px">Mapas mentais — em breve</div>
+        <p style="color:var(--tx3);font-size:13px;margin-top:10px;max-width:440px;margin-left:auto;margin-right:auto;line-height:1.7">
+          Mapas por disciplina para revisao rapida na reta final, ligados aos temas do seu edital.
+        </p>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script src="config.js"></script>
+<script>
+let _alunoId=null,_concursos=[],_discSel=[],_status='todas',_pag=0,_qs=[],_resp={},_matTipo=''
+const PP=10
+
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+
+function trocarTema(){
+  const c=document.documentElement.getAttribute('data-tema')==='claro'
+  document.documentElement.setAttribute('data-tema',c?'escuro':'claro')
+  localStorage.setItem('tema',c?'escuro':'claro')
+  document.getElementById('btn-tema').textContent=c?'🌙':'☀️'
+}
+function iniciarTema(){
+  const t=localStorage.getItem('tema')||'escuro'
+  document.documentElement.setAttribute('data-tema',t)
+  const b=document.getElementById('btn-tema')
+  if(b)b.textContent=t==='claro'?'☀️':'🌙'
+}
+
+function irSecao(s){
+  document.querySelectorAll('.sec').forEach(function(e){e.classList.remove('on');e.style.display='none'})
+  const el=document.getElementById('sec-'+s)
+  if(el){el.classList.add('on');el.style.display='block'}
+  document.querySelectorAll('.nav-i').forEach(function(e){if(e.dataset.s)e.classList.toggle('on',e.dataset.s===s)})
+  const t={questoes:['Questoes','Banco de questoes da mentoria'],simulados:['Simulados','Treine no formato da prova'],
+    materiais:['Materiais','Resumos, lei seca e apoio'],flashcards:['Flashcards','Repeticao espacada'],mapas:['Mapas mentais','Revisao visual']}
+  if(t[s]){document.getElementById('tit').textContent=t[s][0];document.getElementById('sub').textContent=t[s][1]}
+  if(s==='materiais')carregarMateriais()
+  if(s==='simulados')carregarSimulados()
+  window.scrollTo({top:0,behavior:'smooth'})
+}
+
+async function init(){
+  iniciarTema()
+  const { data:{user} }=await _supabase.auth.getUser()
+  if(!user){location.href='index.html';return}
+  _alunoId=user.id
+  carregarMarca()
+
+  const { data:al }=await _supabase.from('alunos').select('nome,data_expiracao').eq('id',user.id).single()
+  if(al&&al.data_expiracao){
+    const h=new Date();h.setHours(0,0,0,0)
+    if(h>new Date(al.data_expiracao+'T00:00:00')){location.href='cronograma.html';return}
+  }
+
+  const { data:vin }=await _supabase.from('aluno_concursos').select('concurso_id, concursos(id,nome)').eq('aluno_id',_alunoId)
+  _concursos=(vin||[]).map(function(v){return v.concursos}).filter(Boolean)
+  const sc=document.getElementById('f-conc')
+  sc.innerHTML='<option value="">Todos os concursos</option>'
+  _concursos.forEach(function(c){sc.innerHTML+='<option value="'+c.id+'">'+esc(c.nome)+'</option>'})
+  if(_concursos.length===1)sc.value=_concursos[0].id
+
+  document.getElementById('ch-status').innerHTML=
+    [['todas','Todas'],['nao','Nao resolvidas'],['resolvidas','Resolvidas'],['acertei','Acertei'],['errei','Errei']]
+    .map(function(x){return '<div class="chip'+(x[0]==='todas'?' on':'')+'" data-st="'+x[0]+'" onclick="setStatus(\''+x[0]+'\')">'+x[1]+'</div>'}).join('')
+
+  const { data:rs }=await _supabase.from('questao_respostas').select('questao_id,correta').eq('aluno_id',_alunoId)
+  ;(rs||[]).forEach(function(r){_resp[r.questao_id]={correta:r.correta}})
+
+  await carregarFacetas()
+  document.getElementById('loading').style.display='none'
+  document.getElementById('sec-questoes').style.display='block'
+  renderEstat()
+  buscar()
+}
+
+async function carregarMarca(){
+  const { data:m }=await _supabase.from('config_marca').select('*').eq('id',1).maybeSingle()
+  if(!m)return
+  if(m.cor_primaria)document.documentElement.style.setProperty('--ouro',m.cor_primaria)
+  const nome=m.nome_marca||'Patrulheiros de Elite',p=nome.split(' ')
+  const lt=document.querySelector('.logo-t')
+  if(lt)lt.innerHTML=esc(p[0])+'<span>'+esc(p.length>1?p.slice(1).join(' '):(m.slogan||''))+'</span>'
+  if(m.logo_url){
+    const li=document.querySelector('.logo-i')
+    if(li){li.innerHTML='<img src="'+esc(m.logo_url)+'" style="width:100%;height:100%;object-fit:cover">';li.style.background='transparent'}
+  }
+}
+
+async function carregarFacetas(){
+  const { data:qs }=await _supabase.from('questoes').select('disciplina,banca,ano').eq('ativo',true)
+  const d={},b={},a={}
+  ;(qs||[]).forEach(function(q){
+    if(q.disciplina)d[q.disciplina]=(d[q.disciplina]||0)+1
+    if(q.banca)b[q.banca]=1
+    if(q.ano)a[q.ano]=1
+  })
+  document.getElementById('ch-disc').innerHTML=Object.keys(d).sort().map(function(x){
+    return '<div class="chip" data-d="'+esc(x)+'" onclick="toggleDisc(this)">'+esc(x)+' <span style="opacity:.6">'+d[x]+'</span></div>'
+  }).join('')||'<span style="color:var(--tx4);font-size:12px">Nenhuma questao cadastrada ainda.</span>'
+  const sb=document.getElementById('f-banca')
+  Object.keys(b).sort().forEach(function(x){sb.innerHTML+='<option value="'+esc(x)+'">'+esc(x)+'</option>'})
+  const sa=document.getElementById('f-ano')
+  Object.keys(a).sort().reverse().forEach(function(x){sa.innerHTML+='<option value="'+x+'">'+x+'</option>'})
+}
+
+function renderEstat(){
+  const ids=Object.keys(_resp)
+  const ac=ids.filter(function(i){return _resp[i].correta}).length
+  const pct=ids.length?Math.round(ac/ids.length*100):0
+  const cor=pct>=70?'#6ddba0':pct>=50?'#e8b04b':'#f07171'
+  document.getElementById('est').innerHTML=
+    '<div class="est-c"><div class="est-n" style="color:var(--ouro)">'+ids.length+'</div><div class="est-l">Resolvidas</div></div>'
+   +'<div class="est-c"><div class="est-n" style="color:#6ddba0">'+ac+'</div><div class="est-l">Acertos</div></div>'
+   +'<div class="est-c"><div class="est-n" style="color:#f07171">'+(ids.length-ac)+'</div><div class="est-l">Erros</div></div>'
+   +'<div class="est-c"><div class="est-n" style="color:'+(ids.length?cor:'var(--tx3)')+'">'+(ids.length?pct+'%':'--')+'</div><div class="est-l">Aproveitamento</div></div>'
+}
+
+function setStatus(s){
+  _status=s
+  document.querySelectorAll('#ch-status .chip').forEach(function(e){e.classList.toggle('on',e.dataset.st===s)})
+  buscar()
+}
+function toggleDisc(el){
+  el.classList.toggle('on')
+  _discSel=Array.from(document.querySelectorAll('#ch-disc .chip.on')).map(function(e){return e.dataset.d})
+  buscar()
+}
+function aoTrocarConcurso(){buscar()}
+function limpar(){
+  document.getElementById('f-conc').value=''
+  document.getElementById('f-orig').value=''
+  document.getElementById('f-banca').value=''
+  document.getElementById('f-ano').value=''
+  document.getElementById('f-busca').value=''
+  document.querySelectorAll('#ch-disc .chip').forEach(function(e){e.classList.remove('on')})
+  _discSel=[];setStatus('todas')
+}
+
+async function buscar(pag){
+  _pag=pag||0
+  const box=document.getElementById('qbox')
+  box.innerHTML='<div class="vazio">Buscando questoes...</div>'
+  document.getElementById('paginacao').innerHTML=''
+
+  const conc=document.getElementById('f-conc').value
+  let ids=null
+  if(conc){
+    const { data:v }=await _supabase.from('questao_concursos').select('questao_id').eq('concurso_id',conc)
+    ids=(v||[]).map(function(x){return x.questao_id})
+    if(!ids.length){box.innerHTML='<div class="vazio">Nenhuma questao vinculada a este concurso ainda.</div>';return}
+  }
+
+  const respIds=Object.keys(_resp)
+  if(_status!=='todas'){
+    let alvo=[]
+    if(_status==='nao'){
+      if(respIds.length){ ids = ids ? ids.filter(function(i){return respIds.indexOf(i)<0}) : null }
+    }else{
+      if(_status==='resolvidas')alvo=respIds
+      else if(_status==='acertei')alvo=respIds.filter(function(i){return _resp[i].correta})
+      else alvo=respIds.filter(function(i){return !_resp[i].correta})
+      if(!alvo.length){box.innerHTML='<div class="vazio">Nenhuma questao neste filtro ainda.</div>';return}
+      ids = ids ? ids.filter(function(i){return alvo.indexOf(i)>=0}) : alvo
+      if(!ids.length){box.innerHTML='<div class="vazio">Nenhuma questao com essa combinacao de filtros.</div>';return}
+    }
+  }
+
+  let q=_supabase.from('questoes').select('*',{count:'exact'}).eq('ativo',true)
+  if(ids)q=q.in('id',ids)
+  if(_discSel.length)q=q.in('disciplina',_discSel)
+  const o=document.getElementById('f-orig').value; if(o)q=q.eq('origem',o)
+  const b=document.getElementById('f-banca').value; if(b)q=q.eq('banca',b)
+  const a=document.getElementById('f-ano').value; if(a)q=q.eq('ano',parseInt(a))
+  const bu=document.getElementById('f-busca').value.trim(); if(bu)q=q.ilike('enunciado','%'+bu+'%')
+
+  const { data:qs,count,error }=await q.order('criado_em',{ascending:false}).range(_pag*PP,_pag*PP+PP-1)
+  if(error){box.innerHTML='<div class="vazio">Erro ao buscar: '+esc(error.message)+'</div>';return}
+
+  let lista=qs||[]
+  if(_status==='nao')lista=lista.filter(function(x){return !_resp[x.id]})
+
+  if(!lista.length){box.innerHTML='<div class="vazio"><div style="font-size:40px;margin-bottom:10px">🔍</div>Nenhuma questao encontrada com esses filtros.</div>';return}
+
+  _qs=lista
+  box.innerHTML=lista.map(renderQ).join('')
+
+  const tot=count||lista.length
+  const paginas=Math.ceil(tot/PP)
+  if(paginas>1){
+    document.getElementById('paginacao').innerHTML=
+      '<button class="btn" '+(_pag===0?'disabled style="opacity:.4"':'onclick="buscar('+(_pag-1)+')"')+'>Anterior</button>'
+     +'<span style="color:var(--tx3);font-size:13px;margin:0 14px">Pagina '+(_pag+1)+' de '+paginas+' · '+tot+' questoes</span>'
+     +'<button class="btn" '+(_pag>=paginas-1?'disabled style="opacity:.4"':'onclick="buscar('+(_pag+1)+')"')+'>Proxima</button>'
+  }
+}
+
+function renderQ(q){
+  const r=_resp[q.id]
+  const ce=q.tipo==='certo_errado'
+  const alts=ce?[['C','Certo'],['E','Errado']]:(q.alternativas||[]).map(function(t,i){return ['ABCDE'[i],t]})
+  return '<div class="q" id="q-'+q.id+'">'
+    +'<div class="q-h">'
+    +'<span class="tag '+(q.origem==='autoral'?'t-aut':'t-prova')+'">'+(q.origem==='autoral'?'AUTORAL':'PROVA')+'</span>'
+    +'<span style="color:var(--ouro);font-size:12px;font-weight:700">'+esc(q.disciplina)+'</span>'
+    +(q.assunto?'<span style="color:var(--tx3);font-size:12px">› '+esc(q.assunto)+'</span>':'')
+    +'<span style="margin-left:auto;color:var(--tx4);font-size:11px">'+esc(q.banca||'')+(q.ano?' · '+q.ano:'')+(q.orgao?' · '+esc(q.orgao):'')+'</span>'
+    +(r?'<span class="tag" style="background:'+(r.correta?'rgba(109,219,160,.15);color:#6ddba0;border:1px solid #6ddba0':'rgba(240,113,113,.15);color:#f07171;border:1px solid #f07171')+'">'+(r.correta?'ACERTOU':'ERROU')+'</span>':'')
+    +'</div>'
+    +(q.texto_apoio?'<div class="q-ap">'+esc(q.texto_apoio)+'</div>':'')
+    +'<div class="q-tx">'+esc(q.enunciado)+'</div>'
+    +'<div id="alts-'+q.id+'" style="margin-top:14px">'
+    +alts.map(function(a){
+       return '<div class="alt" data-l="'+a[0]+'" onclick="marcar(\''+q.id+'\',\''+a[0]+'\')">'
+         +'<div class="alt-l">'+a[0]+'</div><div class="alt-t">'+esc(a[1])+'</div></div>'
+     }).join('')
+    +'</div>'
+    +'<div id="acao-'+q.id+'" style="margin-top:14px">'
+    +'<button class="btn btn-ouro" onclick="responder(\''+q.id+'\')" style="padding:11px 26px">Responder</button></div>'
+    +'<div id="fb-'+q.id+'"></div>'
+    +'</div>'
+}
+
+function marcar(id,letra){
+  if(_resp[id]&&_resp[id].visto)return
+  const box=document.getElementById('alts-'+id)
+  box.querySelectorAll('.alt').forEach(function(e){e.classList.toggle('sel',e.dataset.l===letra)})
+}
+
+async function responder(id){
+  const q=_qs.find(function(x){return x.id===id}); if(!q)return
+  const sel=document.querySelector('#alts-'+id+' .alt.sel')
+  if(!sel){alert('Selecione uma alternativa antes de responder.');return}
+  const letra=sel.dataset.l
+  const certa=String(q.gabarito).toUpperCase()
+  const acertou=letra===certa
+
+  document.querySelectorAll('#alts-'+id+' .alt').forEach(function(e){
+    e.classList.remove('sel')
+    if(e.dataset.l===certa)e.classList.add('certa')
+    else if(e.dataset.l===letra)e.classList.add('errada')
+    e.onclick=null
+  })
+
+  _resp[id]={correta:acertou,visto:true}
+  renderEstat()
+
+  await _supabase.from('questao_respostas').upsert({
+    aluno_id:_alunoId,questao_id:id,resposta:letra,correta:acertou,respondido_em:new Date().toISOString()
+  },{onConflict:'aluno_id,questao_id'})
+
+  document.getElementById('acao-'+id).innerHTML=''
+  document.getElementById('fb-'+id).innerHTML=
+    '<div class="res '+(acertou?'ok':'no')+'">'
+    +'<div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap">'
+    +'<span style="font-size:19px">'+(acertou?'✅':'❌')+'</span>'
+    +'<strong style="color:'+(acertou?'#6ddba0':'#f07171')+';font-size:14px">'+(acertou?'Voce acertou!':'Voce errou')+'</strong>'
+    +'<span style="color:var(--tx3);font-size:13px">Gabarito: <strong style="color:var(--tx)">'+certa+'</strong></span></div>'
+    +(q.comentario?'<div style="margin-top:11px;padding-top:11px;border-top:1px solid var(--bd)">'
+      +'<div style="color:var(--ouro);font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;margin-bottom:6px">Comentario do Jota</div>'
+      +'<div style="font-size:13.5px;line-height:1.7;color:var(--tx2);white-space:pre-wrap">'+esc(q.comentario)+'</div></div>':'')
+    +'</div>'
+    +(q.bizu?'<div class="bizu"><div class="bizu-h"><span style="font-size:16px">📓</span>'
+      +'<span class="bizu-t">Para o caderno de erros</span></div>'
+      +'<div style="font-size:13.5px;line-height:1.65;color:var(--tx)">'+esc(q.bizu)+'</div>'
+      +(!acertou?'<button class="btn" style="margin-top:10px;border-color:#7d5fa8;color:#c9a9e8;padding:8px 14px" onclick="paraCaderno(\''+id+'\')">Salvar no meu caderno de erros</button>':'')
+      +'<div id="cad-'+id+'" style="font-size:12px;margin-top:8px"></div></div>':'')
+    +'<div class="abas-q">'
+    +'<div class="aba-q on" onclick="abaQ(\''+id+'\',\'cmt\',this)">Comentarios e bizus</div>'
+    +'</div><div id="tab-'+id+'"></div>'
+  carregarComentarios(id)
+}
+
+function abaQ(id,t,el){
+  el.parentElement.querySelectorAll('.aba-q').forEach(function(e){e.classList.remove('on')})
+  el.classList.add('on')
+  if(t==='cmt')carregarComentarios(id)
+}
+
+async function paraCaderno(id){
+  const q=_qs.find(function(x){return x.id===id}); if(!q)return
+  const el=document.getElementById('cad-'+id)
+  el.style.color='var(--tx3)';el.textContent='Salvando...'
+  const { error }=await _supabase.from('caderno_erros').insert({
+    aluno_id:_alunoId, disciplina:q.disciplina,
+    titulo:(q.assunto||q.disciplina)+' — questao errada',
+    conteudo:'QUESTAO:\n'+q.enunciado+'\n\nGABARITO: '+q.gabarito+'\n\nBIZU:\n'+(q.bizu||'')+(q.comentario?'\n\nCOMENTARIO:\n'+q.comentario:''),
+    atualizado_em:new Date().toISOString()
+  })
+  if(error){el.style.color='#f07171';el.textContent='Erro ao salvar: '+error.message;return}
+  el.style.color='#6ddba0';el.textContent='Salvo no seu caderno de erros!'
+}
+
+async function carregarComentarios(id){
+  const box=document.getElementById('tab-'+id)
+  box.innerHTML='<div style="color:var(--tx3);font-size:12px;padding:10px">Carregando...</div>'
+  const { data:cs }=await _supabase.from('questao_comentarios').select('*, alunos(nome)').eq('questao_id',id).order('criado_em',{ascending:false})
+  box.innerHTML=
+    '<div style="margin-top:10px"><textarea class="inp" id="nc-'+id+'" placeholder="Deixe seu bizu ou duvida sobre esta questao..." style="min-height:70px;resize:vertical;font-family:inherit"></textarea>'
+   +'<button class="btn" style="margin-top:8px" onclick="comentar(\''+id+'\')">Publicar comentario</button>'
+   +'<div id="mc-'+id+'" style="font-size:12px;margin-top:6px"></div></div>'
+   +'<div style="margin-top:14px">'
+   +((cs&&cs.length)?cs.map(function(c){
+      return '<div class="cmt"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:5px">'
+        +'<strong style="color:var(--ouro);font-size:12.5px">'+esc(c.alunos?c.alunos.nome:'Aluno')+'</strong>'
+        +'<span style="color:var(--tx4);font-size:11px">'+new Date(c.criado_em).toLocaleDateString('pt-BR')+'</span></div>'
+        +'<div style="font-size:13px;line-height:1.6;color:var(--tx2);white-space:pre-wrap">'+esc(c.texto)+'</div></div>'
+    }).join(''):'<div style="color:var(--tx4);font-size:12.5px;padding:8px">Nenhum comentario ainda. Seja o primeiro a deixar um bizu!</div>')
+   +'</div>'
+}
+
+async function comentar(id){
+  const t=document.getElementById('nc-'+id).value.trim()
+  const m=document.getElementById('mc-'+id)
+  if(!t){m.style.color='#f07171';m.textContent='Escreva algo antes de publicar.';return}
+  const { error }=await _supabase.from('questao_comentarios').insert({questao_id:id,aluno_id:_alunoId,texto:t})
+  if(error){m.style.color='#f07171';m.textContent='Erro: '+error.message;return}
+  carregarComentarios(id)
+}
+
+async function carregarMateriais(){
+  const box=document.getElementById('lista-mat')
+  box.innerHTML='<div class="vazio">Carregando...</div>'
+  const cids=_concursos.map(function(c){return c.id})
+  const { data:ms }=await _supabase.from('materiais').select('*').eq('ativo',true).order('ordem')
+  let lista=(ms||[]).filter(function(m){return !m.concurso_id||cids.indexOf(m.concurso_id)>=0})
+
+  const tipos={}
+  lista.forEach(function(m){tipos[m.tipo||'resumo']=1})
+  const nomes={resumo:'Resumos',lei_seca:'Lei seca',pdf:'PDFs',video:'Aulas',mapa:'Mapas'}
+  document.getElementById('ch-mat').innerHTML='<div class="chip'+(_matTipo===''?' on':'')+'" onclick="filtrarMat(\'\')">Todos</div>'
+    +Object.keys(tipos).map(function(t){return '<div class="chip'+(_matTipo===t?' on':'')+'" onclick="filtrarMat(\''+t+'\')">'+(nomes[t]||t)+'</div>'}).join('')
+
+  if(_matTipo)lista=lista.filter(function(m){return (m.tipo||'resumo')===_matTipo})
+  if(!lista.length){
+    box.innerHTML='<div class="painel vazio"><div style="font-size:42px;margin-bottom:12px">📁</div>'
+      +'<div style="color:var(--ouro);font-weight:700;font-size:16px">Nenhum material disponivel ainda</div>'
+      +'<p style="color:var(--tx3);font-size:13px;margin-top:8px">Seu mentor esta preparando resumos e lei seca para voce.</p></div>'
+    return
+  }
+  const ico={resumo:'📄',lei_seca:'⚖️',pdf:'📕',video:'▶️',mapa:'🧠'}
+  box.innerHTML=lista.map(function(m){
+    return '<div class="mat"><div style="font-size:24px">'+(ico[m.tipo]||'📄')+'</div>'
+      +'<div style="flex:1;min-width:160px"><div style="font-size:14.5px;font-weight:700">'+esc(m.titulo)+'</div>'
+      +(m.descricao?'<div style="color:var(--tx3);font-size:12.5px;margin-top:3px">'+esc(m.descricao)+'</div>':'')
+      +(m.disciplina?'<div style="color:var(--tx4);font-size:11.5px;margin-top:3px">'+esc(m.disciplina)+'</div>':'')+'</div>'
+      +'<a href="'+esc(m.url)+'" target="_blank" rel="noopener" class="btn btn-ouro" style="text-decoration:none;display:inline-block">Acessar</a></div>'
+  }).join('')
+}
+function filtrarMat(t){_matTipo=t;carregarMateriais()}
+
+async function carregarSimulados(){
+  const box=document.getElementById('lista-sim')
+  box.innerHTML='<div class="vazio">Carregando...</div>'
+  const cids=_concursos.map(function(c){return c.id})
+  const { data:ss }=await _supabase.from('simulados').select('*, concursos(nome)').eq('ativo',true).order('criado_em',{ascending:false})
+  const lista=(ss||[]).filter(function(s){return !s.concurso_id||cids.indexOf(s.concurso_id)>=0})
+  if(!lista.length){
+    box.innerHTML='<div class="painel vazio"><div style="font-size:44px;margin-bottom:12px">🎯</div>'
+      +'<div style="color:var(--ouro);font-weight:700;font-size:17px">Nenhum simulado disponivel</div>'
+      +'<p style="color:var(--tx3);font-size:13px;margin-top:10px;max-width:400px;margin-left:auto;margin-right:auto;line-height:1.7">'
+      +'Seu mentor ainda nao publicou simulados para o seu concurso. Enquanto isso, treine pelo banco de questoes.</p>'
+      +'<button class="btn btn-ouro" style="margin-top:16px" onclick="irSecao(\'questoes\')">Ir para as questoes</button></div>'
+    return
+  }
+  const { data:ts }=await _supabase.from('simulado_tentativas').select('simulado_id,acertos,total,finalizado_em').eq('aluno_id',_alunoId)
+  const feito={}
+  ;(ts||[]).forEach(function(t){if(t.finalizado_em)feito[t.simulado_id]=t})
+  box.innerHTML=lista.map(function(s){
+    const t=feito[s.id]
+    const pct=t&&t.total?Math.round(t.acertos/t.total*100):null
+    return '<div class="mat"><div style="font-size:24px">🎯</div>'
+      +'<div style="flex:1;min-width:160px"><div style="font-size:14.5px;font-weight:700">'+esc(s.nome)+'</div>'
+      +(s.descricao?'<div style="color:var(--tx3);font-size:12.5px;margin-top:3px">'+esc(s.descricao)+'</div>':'')
+      +'<div style="color:var(--tx4);font-size:11.5px;margin-top:3px">'+(s.concursos?esc(s.concursos.nome)+' · ':'')+s.tempo_minutos+' min'
+      +(t?' · <span style="color:'+(pct>=70?'#6ddba0':pct>=50?'#e8b04b':'#f07171')+'">ja feito: '+pct+'%</span>':'')+'</div></div>'
+      +'<span class="btn" style="opacity:.6">Em breve</span></div>'
+  }).join('')
+  box.innerHTML+='<p style="color:var(--tx4);font-size:12px;text-align:center;margin-top:12px">A resolucao de simulados cronometrados chega na proxima atualizacao.</p>'
+}
+
+async function sair(){await _supabase.auth.signOut();location.href='index.html'}
+init()
+</script>
+</body>
+</html>
