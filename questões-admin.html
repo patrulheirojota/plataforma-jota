@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Banco de Questoes — Admin</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="style.css">
+<style>
+  .qa{background:#0d1b2a;border-radius:10px;padding:13px;margin-bottom:9px;border-left:3px solid #2a4a6a}
+  .qa-h{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-bottom:6px}
+  .tag{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:700}
+  .t-aut{background:#C9A83C22;color:#C9A83C;border:1px solid #C9A83C}
+  .t-prova{background:#4a8ab522;color:#4a8ab5;border:1px solid #4a8ab5}
+  .t-ce{background:#81c78422;color:#81c784;border:1px solid #81c784}
+  .t-mult{background:#b98ae022;color:#b98ae0;border:1px solid #b98ae0}
+  .st{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:14px}
+  .st-c{background:#0d1b2a;border-radius:10px;padding:13px;text-align:center}
+  .st-n{font-size:21px;font-weight:bold}
+  .st-l{color:#aaa;font-size:11px;margin-top:2px}
+  textarea.big{width:100%;padding:12px;border-radius:8px;border:1px solid #2a4a6a;background:#0d1b2a;color:#fff;font-size:12px;font-family:ui-monospace,Menlo,monospace;min-height:230px;resize:vertical;line-height:1.5}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div>
+      <h2>Banco de Questoes</h2>
+      <div style="color:#aaa;font-size:13px">Importe, gerencie e vincule questoes aos concursos</div>
+    </div>
+    <button onclick="location.href='admin.html'" style="width:auto;padding:8px 14px">Painel Admin</button>
+  </header>
+
+  <div class="abas">
+    <button class="aba-btn ativa" onclick="aba('a-imp')">Importar</button>
+    <button class="aba-btn" onclick="aba('a-ger')">Gerenciar</button>
+    <button class="aba-btn" onclick="aba('a-mat')">Materiais</button>
+  </div>
+
+  <!-- IMPORTAR -->
+  <div id="a-imp" class="aba-conteudo">
+    <div class="card">
+      <h3>Importar questoes em lote</h3>
+      <p style="color:#aaa;font-size:13px;margin-bottom:12px">Cole o JSON gerado no outro chat. Use o prompt padrao para garantir o formato certo.</p>
+
+      <label style="color:#aaa;font-size:12px;display:block;margin-bottom:4px">Vincular ao concurso (opcional, mas recomendado)</label>
+      <select id="imp-concurso"><option value="">Nenhum — questao geral</option></select>
+
+      <label style="color:#aaa;font-size:12px;display:block;margin-top:10px;margin-bottom:4px">JSON das questoes</label>
+      <textarea class="big" id="imp-json" placeholder='[
+  {
+    "disciplina": "Lingua Portuguesa",
+    "assunto": "Crase",
+    "tipo": "certo_errado",
+    "enunciado": "Julgue o item a seguir...",
+    "gabarito": "C",
+    "comentario": "Explicacao completa do professor.",
+    "bizu": "Regra pratica para o caderno de erros.",
+    "banca": "CEBRASPE",
+    "ano": 2026,
+    "origem": "autoral"
+  }
+]'></textarea>
+
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+        <button onclick="validar()" style="flex:1;min-width:150px;background:#1a3a5c;color:#C9A83C;border:1px solid #C9A83C">Validar JSON</button>
+        <button onclick="importar()" id="btn-imp" style="flex:1;min-width:150px;display:none;background:#1a3a1a;color:#81c784;border:1px solid #81c784">Importar questoes</button>
+      </div>
+      <div id="msg-imp" style="display:none;margin-top:10px;font-size:13px"></div>
+      <div id="prev-imp" style="margin-top:12px"></div>
+    </div>
+
+    <div class="card">
+      <h3>Prompt para gerar o JSON</h3>
+      <p style="color:#aaa;font-size:13px;margin-bottom:10px">Copie e use em outro chat junto com suas questoes.</p>
+      <textarea class="big" id="prompt-txt" readonly style="min-height:190px"></textarea>
+      <button onclick="copiarPrompt()" style="margin-top:8px">Copiar prompt</button>
+    </div>
+  </div>
+
+  <!-- GERENCIAR -->
+  <div id="a-ger" class="aba-conteudo" style="display:none">
+    <div class="card">
+      <h3>Resumo do banco</h3>
+      <div class="st" id="stats"></div>
+    </div>
+    <div class="card">
+      <h3>Questoes cadastradas</h3>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+        <input type="text" id="g-busca" placeholder="Buscar no enunciado..." oninput="listar()" style="flex:1;min-width:150px;margin:0">
+        <select id="g-disc" onchange="listar()" style="width:auto;margin:0"><option value="">Todas as disciplinas</option></select>
+        <select id="g-conc" onchange="listar()" style="width:auto;margin:0"><option value="">Todos os concursos</option></select>
+        <select id="g-orig" onchange="listar()" style="width:auto;margin:0">
+          <option value="">Toda origem</option><option value="autoral">Autorais</option><option value="prova">De prova</option>
+        </select>
+      </div>
+      <div id="lista"></div>
+    </div>
+  </div>
+
+  <!-- MATERIAIS -->
+  <div id="a-mat" class="aba-conteudo" style="display:none">
+    <div class="card">
+      <h3>Adicionar material</h3>
+      <p style="color:#aaa;font-size:13px;margin-bottom:12px">Resumos, lei seca e PDFs. Cole o link da Kiwify, Drive ou de onde o material estiver hospedado.</p>
+      <select id="m-concurso"><option value="">Todos os concursos</option></select>
+      <input type="text" id="m-titulo" placeholder="Titulo (ex: Lei 13.869/19 — Abuso de Autoridade)">
+      <input type="text" id="m-disc" placeholder="Disciplina (opcional)">
+      <select id="m-tipo">
+        <option value="resumo">Resumo</option>
+        <option value="lei_seca">Lei seca</option>
+        <option value="pdf">PDF / apostila</option>
+        <option value="video">Video / aula</option>
+        <option value="mapa">Mapa mental</option>
+      </select>
+      <input type="text" id="m-url" placeholder="https://... (link da Kiwify, Drive, YouTube)">
+      <input type="text" id="m-desc" placeholder="Descricao curta (opcional)">
+      <button onclick="salvarMaterial()">Adicionar material</button>
+      <p id="msg-mat" style="display:none;margin-top:8px;font-size:13px"></p>
+    </div>
+    <div class="card">
+      <h3>Materiais publicados</h3>
+      <select id="m-filtro" onchange="listarMateriais()" style="margin-bottom:12px"><option value="">Todos os concursos</option></select>
+      <div id="lista-mat"></div>
+    </div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script>
+const PROMPT=`Voce e especialista em questoes para concursos policiais. Vou te enviar questoes que criei.
+
+Converta TUDO para um array JSON valido, sem texto antes ou depois, sem markdown, sem crases.
+
+Formato de cada questao:
+{
+  "disciplina": "Lingua Portuguesa",
+  "assunto": "Crase",
+  "tipo": "certo_errado",
+  "enunciado": "texto completo do item",
+  "texto_apoio": "texto base, se houver (senao omita)",
+  "gabarito": "C",
+  "comentario": "explicacao didatica completa do professor",
+  "bizu": "1 a 2 frases com a regra pratica, para o aluno colar no caderno de erros",
+  "banca": "CEBRASPE",
+  "ano": 2026,
+  "origem": "autoral"
+}
+
+Regras:
+- "tipo": use "certo_errado" (gabarito "C" ou "E") ou "multipla" (gabarito "A" a "E")
+- Se for "multipla", inclua tambem: "alternativas": ["texto da A", "texto da B", ...]
+- "origem": "autoral" para questoes que eu criei, "prova" para questoes reais de provas anteriores
+- Em "prova", preencha "orgao" (ex: "PMAL") e o "ano" real da prova
+- "bizu" e obrigatorio e deve ser curto e pratico
+- Nao invente questao: converta apenas o que eu enviar
+
+Minhas questoes:`
+
+function aba(id){
+  document.querySelectorAll('.aba-conteudo').forEach(function(e){e.style.display='none'})
+  document.querySelectorAll('.aba-btn').forEach(function(e){e.classList.remove('ativa')})
+  document.getElementById(id).style.display='block'
+  event.target.classList.add('ativa')
+  if(id==='a-ger'){stats();listar()}
+  if(id==='a-mat')listarMateriais()
+}
+
+let _concursos=[],_lote=null
+
+async function init(){
+  const { data:{user} }=await _supabase.auth.getUser()
+  if(!user){location.href='index.html';return}
+  document.getElementById('prompt-txt').value=PROMPT
+  const { data:c }=await _supabase.from('concursos').select('*').order('nome')
+  _concursos=c||[]
+  ;['imp-concurso','g-conc','m-concurso','m-filtro'].forEach(function(id){
+    const s=document.getElementById(id); if(!s)return
+    _concursos.forEach(function(x){s.innerHTML+='<option value="'+x.id+'">'+x.nome+'</option>'})
+  })
+}
+
+function copiarPrompt(){
+  const t=document.getElementById('prompt-txt')
+  t.select();document.execCommand('copy')
+  alert('Prompt copiado! Cole em outro chat junto com suas questoes.')
+}
+
+function msg(el,txt,cor){
+  const m=document.getElementById(el)
+  m.style.display='block';m.style.color=cor;m.innerHTML=txt
+}
+
+function validar(){
+  const txt=document.getElementById('imp-json').value.trim()
+  if(!txt){msg('msg-imp','Cole o JSON primeiro.','#e57373');return}
+  let arr
+  try{
+    arr=JSON.parse(txt.replace(/^```json/i,'').replace(/```$/,'').trim())
+  }catch(e){
+    msg('msg-imp','JSON invalido: '+e.message+'<br><span style="color:#aaa;font-size:12px">Verifique se copiou o array inteiro, comecando com [ e terminando com ]</span>','#e57373')
+    return
+  }
+  if(!Array.isArray(arr)){msg('msg-imp','O JSON precisa ser uma lista (array) de questoes.','#e57373');return}
+
+  const erros=[]
+  arr.forEach(function(q,i){
+    const n='Questao '+(i+1)+': '
+    if(!q.disciplina)erros.push(n+'falta "disciplina"')
+    if(!q.enunciado)erros.push(n+'falta "enunciado"')
+    if(!q.gabarito)erros.push(n+'falta "gabarito"')
+    const tp=q.tipo||'certo_errado'
+    if(tp==='certo_errado'&&['C','E'].indexOf(String(q.gabarito).toUpperCase())<0)erros.push(n+'gabarito de certo/errado deve ser C ou E')
+    if(tp==='multipla'){
+      if(!Array.isArray(q.alternativas)||q.alternativas.length<2)erros.push(n+'multipla escolha precisa de "alternativas"')
+      else if('ABCDE'.indexOf(String(q.gabarito).toUpperCase())<0)erros.push(n+'gabarito deve ser A a E')
+    }
+  })
+  if(erros.length){
+    msg('msg-imp','<strong>'+erros.length+' problema(s):</strong><br>'+erros.slice(0,12).join('<br>')+(erros.length>12?'<br>...':''),'#e57373')
+    document.getElementById('btn-imp').style.display='none'
+    return
+  }
+
+  _lote=arr
+  const discs={}
+  arr.forEach(function(q){discs[q.disciplina]=(discs[q.disciplina]||0)+1})
+  const ce=arr.filter(function(q){return (q.tipo||'certo_errado')==='certo_errado'}).length
+  const semBizu=arr.filter(function(q){return !q.bizu}).length
+
+  msg('msg-imp','<strong style="color:#81c784">'+arr.length+' questoes validas!</strong>'+(semBizu?' <span style="color:#ffb74d">('+semBizu+' sem bizu)</span>':''),'#81c784')
+  document.getElementById('prev-imp').innerHTML=
+    '<div style="background:#0d1b2a;border-radius:8px;padding:12px">'
+   +'<div style="color:#C9A83C;font-size:13px;font-weight:bold;margin-bottom:8px">'+ce+' certo/errado · '+(arr.length-ce)+' multipla escolha</div>'
+   +Object.keys(discs).sort().map(function(d){
+      return '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #1a2f45;font-size:13px"><span>'+d+'</span><span style="color:#aaa">'+discs[d]+'</span></div>'
+    }).join('')+'</div>'
+  document.getElementById('btn-imp').style.display='block'
+}
+
+async function importar(){
+  if(!_lote){alert('Valide o JSON primeiro.');return}
+  const concurso_id=document.getElementById('imp-concurso').value
+  if(!confirm('Importar '+_lote.length+' questoes'+(concurso_id?' vinculadas ao concurso selecionado':'')+'?'))return
+  msg('msg-imp','Importando...','#aaa')
+
+  const linhas=_lote.map(function(q){
+    const tp=q.tipo||'certo_errado'
+    return {
+      disciplina:String(q.disciplina).trim(),
+      assunto:q.assunto?String(q.assunto).trim():null,
+      tipo:tp,
+      enunciado:String(q.enunciado).trim(),
+      texto_apoio:q.texto_apoio||null,
+      alternativas:tp==='multipla'?q.alternativas:null,
+      gabarito:String(q.gabarito).toUpperCase().trim(),
+      comentario:q.comentario||null,
+      bizu:q.bizu||null,
+      origem:q.origem==='prova'?'prova':'autoral',
+      banca:q.banca||null,
+      ano:q.ano?parseInt(q.ano):null,
+      orgao:q.orgao||null,
+      dificuldade:q.dificuldade||'media'
+    }
+  })
+
+  const LOTE=100
+  let ids=[]
+  for(let i=0;i<linhas.length;i+=LOTE){
+    const { data,error }=await _supabase.from('questoes').insert(linhas.slice(i,i+LOTE)).select('id')
+    if(error){msg('msg-imp','Erro ao importar: '+error.message,'#e57373');return}
+    if(data)ids=ids.concat(data.map(function(x){return x.id}))
+    msg('msg-imp','Importando... '+ids.length+'/'+linhas.length,'#aaa')
+  }
+
+  if(concurso_id&&ids.length){
+    const vin=ids.map(function(id){return {questao_id:id,concurso_id:concurso_id}})
+    for(let i=0;i<vin.length;i+=LOTE){
+      await _supabase.from('questao_concursos').insert(vin.slice(i,i+LOTE))
+    }
+  }
+
+  msg('msg-imp','<strong style="color:#81c784">'+ids.length+' questoes importadas com sucesso!</strong>','#81c784')
+  document.getElementById('imp-json').value=''
+  document.getElementById('prev-imp').innerHTML=''
+  document.getElementById('btn-imp').style.display='none'
+  _lote=null
+}
+
+async function stats(){
+  const { data:qs }=await _supabase.from('questoes').select('disciplina,origem,tipo,ativo')
+  const box=document.getElementById('stats')
+  if(!qs||!qs.length){box.innerHTML='<p style="color:#aaa">Nenhuma questao cadastrada ainda.</p>';return}
+  const aut=qs.filter(function(q){return q.origem==='autoral'}).length
+  const ce=qs.filter(function(q){return q.tipo==='certo_errado'}).length
+  const discs={}
+  qs.forEach(function(q){discs[q.disciplina]=1})
+  box.innerHTML=
+    '<div class="st-c"><div class="st-n" style="color:#C9A83C">'+qs.length+'</div><div class="st-l">Total</div></div>'
+   +'<div class="st-c"><div class="st-n" style="color:#C9A83C">'+aut+'</div><div class="st-l">Autorais</div></div>'
+   +'<div class="st-c"><div class="st-n" style="color:#4a8ab5">'+(qs.length-aut)+'</div><div class="st-l">De prova</div></div>'
+   +'<div class="st-c"><div class="st-n" style="color:#81c784">'+ce+'</div><div class="st-l">Certo/Errado</div></div>'
+   +'<div class="st-c"><div class="st-n">'+Object.keys(discs).length+'</div><div class="st-l">Disciplinas</div></div>'
+  const sd=document.getElementById('g-disc')
+  sd.innerHTML='<option value="">Todas as disciplinas</option>'
+  Object.keys(discs).sort().forEach(function(d){sd.innerHTML+='<option value="'+d+'">'+d+'</option>'})
+}
+
+async function listar(){
+  const busca=document.getElementById('g-busca').value
+  const disc=document.getElementById('g-disc').value
+  const conc=document.getElementById('g-conc').value
+  const orig=document.getElementById('g-orig').value
+  const box=document.getElementById('lista')
+  box.innerHTML='<p style="color:#aaa;font-size:13px">Carregando...</p>'
+
+  let ids=null
+  if(conc){
+    const { data:v }=await _supabase.from('questao_concursos').select('questao_id').eq('concurso_id',conc)
+    ids=(v||[]).map(function(x){return x.questao_id})
+    if(!ids.length){box.innerHTML='<p style="color:#aaa">Nenhuma questao vinculada a este concurso.</p>';return}
+  }
+
+  let q=_supabase.from('questoes').select('*').order('criado_em',{ascending:false}).limit(60)
+  if(disc)q=q.eq('disciplina',disc)
+  if(orig)q=q.eq('origem',orig)
+  if(busca)q=q.ilike('enunciado','%'+busca+'%')
+  if(ids)q=q.in('id',ids)
+  const { data:qs }=await q
+
+  if(!qs||!qs.length){box.innerHTML='<p style="color:#aaa">Nenhuma questao encontrada.</p>';return}
+  box.innerHTML=qs.map(function(x){
+    return '<div class="qa"><div class="qa-h">'
+      +'<span class="tag '+(x.origem==='autoral'?'t-aut':'t-prova')+'">'+(x.origem==='autoral'?'AUTORAL':'PROVA')+'</span>'
+      +'<span class="tag '+(x.tipo==='certo_errado'?'t-ce':'t-mult')+'">'+(x.tipo==='certo_errado'?'C/E':'MULTIPLA')+'</span>'
+      +'<span style="color:#C9A83C;font-size:12px;font-weight:600">'+x.disciplina+'</span>'
+      +(x.assunto?'<span style="color:#aaa;font-size:12px">· '+x.assunto+'</span>':'')
+      +'<span style="margin-left:auto;color:#aaa;font-size:11px">'+(x.banca||'')+(x.ano?' '+x.ano:'')+'</span>'
+      +'</div>'
+      +'<div style="font-size:13px;color:#ccc;line-height:1.5">'+String(x.enunciado).substring(0,190)+(String(x.enunciado).length>190?'...':'')+'</div>'
+      +'<div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap">'
+      +'<span style="color:#81c784;font-size:12px;font-weight:700">Gabarito: '+x.gabarito+'</span>'
+      +(x.bizu?'<span style="color:#b98ae0;font-size:11px">tem bizu</span>':'<span style="color:#e57373;font-size:11px">sem bizu</span>')
+      +'<button class="btn-acao btn-excluir" style="margin-left:auto;font-size:11px;padding:3px 8px" onclick="excluirQ(\''+x.id+'\')">Excluir</button>'
+      +'</div></div>'
+  }).join('')+(qs.length>=60?'<p style="color:#aaa;font-size:12px;text-align:center;margin-top:10px">Mostrando as 60 mais recentes. Use os filtros para refinar.</p>':'')
+}
+
+async function excluirQ(id){
+  if(!confirm('Excluir esta questao? As respostas e comentarios ligados a ela tambem serao removidos.'))return
+  await _supabase.from('questoes').delete().eq('id',id)
+  listar();stats()
+}
+
+async function salvarMaterial(){
+  const titulo=document.getElementById('m-titulo').value.trim()
+  const url=document.getElementById('m-url').value.trim()
+  if(!titulo||!url){msg('msg-mat','Preencha titulo e link.','#e57373');return}
+  const { error }=await _supabase.from('materiais').insert({
+    concurso_id:document.getElementById('m-concurso').value||null,
+    titulo:titulo, url:url,
+    disciplina:document.getElementById('m-disc').value||null,
+    tipo:document.getElementById('m-tipo').value,
+    descricao:document.getElementById('m-desc').value||null
+  })
+  if(error){msg('msg-mat','Erro: '+error.message,'#e57373');return}
+  msg('msg-mat','Material adicionado!','#81c784')
+  document.getElementById('m-titulo').value=''
+  document.getElementById('m-url').value=''
+  document.getElementById('m-desc').value=''
+  listarMateriais()
+}
+
+async function listarMateriais(){
+  const f=document.getElementById('m-filtro').value
+  let q=_supabase.from('materiais').select('*, concursos(nome)').order('criado_em',{ascending:false})
+  if(f)q=q.eq('concurso_id',f)
+  const { data:ms }=await q
+  const box=document.getElementById('lista-mat')
+  if(!ms||!ms.length){box.innerHTML='<p style="color:#aaa">Nenhum material cadastrado.</p>';return}
+  box.innerHTML=ms.map(function(m){
+    return '<div class="item-lista" style="flex-wrap:wrap;gap:8px">'
+      +'<div style="flex:1;min-width:160px"><strong>'+m.titulo+'</strong>'
+      +'<div style="color:#aaa;font-size:12px">'+(m.tipo||'')+(m.disciplina?' · '+m.disciplina:'')+(m.concursos?' · '+m.concursos.nome:' · todos os concursos')+'</div></div>'
+      +'<a href="'+m.url+'" target="_blank" class="btn-acao btn-editar" style="text-decoration:none;display:inline-block">Abrir</a>'
+      +'<button class="btn-acao btn-excluir" onclick="excluirMat(\''+m.id+'\')">Excluir</button></div>'
+  }).join('')
+}
+
+async function excluirMat(id){
+  if(!confirm('Excluir este material?'))return
+  await _supabase.from('materiais').delete().eq('id',id)
+  listarMateriais()
+}
+
+init()
+</script>
+</body>
+</html>
