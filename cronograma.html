@@ -8,24 +8,25 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
-  :root{--ouro:#C9A83C}
+  :root{--ouro:#C9A83C;--bg:#0a1420;--bg2:#0c1826;--card:#101d2c;--card2:#0d1a28;--btn:#132030;--bd:#1b2c40;--bd2:#24384f;--tx:#e8edf4;--tx2:#8fa5bd;--tx3:#63809e;--tx4:#4d6684;--hov:#16283c}
+  [data-tema="claro"]{--bg:#eef1f6;--bg2:#fff;--card:#fff;--card2:#f7f9fc;--btn:#fff;--bd:#dde4ed;--bd2:#c6d2e0;--tx:#0f1b2a;--tx2:#4a5f78;--tx3:#66809b;--tx4:#8fa2b8;--hov:#eaf0f8}
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;background:#0a1420;color:#e8edf4;min-height:100vh}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;transition:background .2s}
 
   .shell{display:flex;min-height:100vh}
 
   /* SIDEBAR */
-  .side{width:236px;background:#0c1826;border-right:1px solid #1b2c40;padding:20px 14px;display:flex;flex-direction:column;position:fixed;top:0;bottom:0;left:0;overflow-y:auto;z-index:30}
+  .side{width:236px;background:var(--bg2);border-right:1px solid var(--bd);padding:20px 14px;display:flex;flex-direction:column;position:fixed;top:0;bottom:0;left:0;overflow-y:auto;z-index:30}
   .logo{display:flex;align-items:center;gap:10px;padding:0 8px 22px}
   .logo-i{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--ouro),#8a6f1e);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
   .logo-t{font-size:14px;font-weight:800;line-height:1.2}
   .logo-t span{color:var(--ouro);display:block;font-size:11px;font-weight:600}
-  .nav-i{display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:11px;color:#8fa5bd;font-size:14px;cursor:pointer;margin-bottom:3px;transition:.15s;border:1px solid transparent;font-weight:500}
-  .nav-i:hover{background:#132030;color:#e8edf4}
-  .nav-i.on{background:#16283c;color:var(--ouro);border-color:#2e4763;font-weight:600}
+  .nav-i{display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:11px;color:var(--tx2);font-size:14px;cursor:pointer;margin-bottom:3px;transition:.15s;border:1px solid transparent;font-weight:500}
+  .nav-i:hover{background:var(--btn);color:var(--tx)}
+  .nav-i.on{background:var(--hov);color:var(--ouro);border-color:#2e4763;font-weight:600}
   .nav-ic{width:19px;text-align:center;font-size:15px;flex-shrink:0}
   .nav-bd{margin-left:auto;background:#d9566a;color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700}
-  .side-sep{height:1px;background:#1b2c40;margin:10px 6px}
+  .side-sep{height:1px;background:var(--bd);margin:10px 6px}
   .side-b{margin-top:auto;padding-top:14px}
 
   /* CONTEUDO */
@@ -33,128 +34,128 @@
   .topbar{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:22px}
   .ola{font-size:27px;font-weight:800;letter-spacing:-.7px}
   .ola span{color:var(--ouro)}
-  .ola-s{color:#63809e;font-size:13px;margin-top:2px}
+  .ola-s{color:var(--tx3);font-size:13px;margin-top:2px}
 
-  .btn{padding:9px 15px;border-radius:9px;border:1px solid #24384f;background:#132030;color:#9fb2c7;font-size:13px;cursor:pointer;font-weight:500;transition:.15s;white-space:nowrap}
-  .btn:hover{border-color:#3a5675;color:#e8edf4}
-  .btn-ouro{background:var(--ouro);border-color:var(--ouro);color:#0a1420;font-weight:700}
+  .btn{padding:9px 15px;border-radius:9px;border:1px solid var(--bd2);background:var(--btn);color:#9fb2c7;font-size:13px;cursor:pointer;font-weight:500;transition:.15s;white-space:nowrap}
+  .btn:hover{border-color:#3a5675;color:var(--tx)}
+  .btn-ouro{background:var(--ouro);border-color:var(--ouro);color:var(--bg);font-weight:700}
   .btn-ouro:hover{background:#dbb949}
 
   .sec{display:none}
   .sec.on{display:block}
 
-  .strip{display:grid;grid-template-columns:2fr repeat(4,1fr);gap:1px;background:#1b2c40;border:1px solid #1b2c40;border-radius:14px;overflow:hidden;margin-bottom:16px}
-  .strip-c{background:#101d2c;padding:15px 16px}
-  .strip-l{color:#63809e;font-size:10px;letter-spacing:1.3px;text-transform:uppercase;font-weight:600}
+  .strip{display:grid;grid-template-columns:2fr repeat(4,1fr);gap:1px;background:var(--bd);border:1px solid var(--bd);border-radius:14px;overflow:hidden;margin-bottom:16px}
+  .strip-c{background:var(--card);padding:15px 16px}
+  .strip-l{color:var(--tx3);font-size:10px;letter-spacing:1.3px;text-transform:uppercase;font-weight:600}
   .strip-v{font-size:16px;font-weight:700;margin-top:5px}
   .strip-v.g{color:var(--ouro)}
 
-  .hero{background:linear-gradient(100deg,#16283c 0%,#0e1c2c 60%);border:1px solid var(--ouro);border-radius:16px;padding:22px 24px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;margin-bottom:24px;position:relative;overflow:hidden}
+  .hero{background:linear-gradient(100deg,var(--hov) 0%,#0e1c2c 60%);border:1px solid var(--ouro);border-radius:16px;padding:22px 24px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;margin-bottom:24px;position:relative;overflow:hidden}
   .hero::after{content:'';position:absolute;right:-40px;top:-40px;width:180px;height:180px;border-radius:50%;background:radial-gradient(circle,rgba(201,168,60,.14),transparent 70%)}
   .trofeu{width:60px;height:60px;border-radius:50%;background:var(--ouro);display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0}
   .hero-l{color:var(--ouro);font-size:10px;letter-spacing:1.4px;text-transform:uppercase;font-weight:700}
   .hero-t{font-size:22px;font-weight:700;margin-top:3px;letter-spacing:-.4px}
-  .hero-d{color:#8fa5bd;font-size:13px;margin-top:3px}
+  .hero-d{color:var(--tx2);font-size:13px;margin-top:3px}
   .hero-n{font-size:52px;font-weight:800;color:var(--ouro);line-height:.95;text-align:right}
-  .hero-nl{color:#8fa5bd;font-size:10px;letter-spacing:1.3px;text-transform:uppercase;text-align:right;margin-top:4px}
+  .hero-nl{color:var(--tx2);font-size:10px;letter-spacing:1.3px;text-transform:uppercase;text-align:right;margin-top:4px}
 
   .h2{font-size:25px;font-weight:800;letter-spacing:-.6px}
-  .h2s{color:#63809e;font-size:13px;margin-top:2px}
+  .h2s{color:var(--tx3);font-size:13px;margin-top:2px}
   .sechead{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:16px}
 
-  .painel{background:#101d2c;border:1px solid #1b2c40;border-radius:16px;padding:18px}
+  .painel{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:18px}
   .layout{display:grid;grid-template-columns:1fr 268px;gap:16px;align-items:start}
 
   .nav-r{display:flex;align-items:center;gap:10px;margin-bottom:14px}
-  .nav-b{width:32px;height:32px;border-radius:8px;border:1px solid #24384f;background:#132030;color:#9fb2c7;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center}
+  .nav-b{width:32px;height:32px;border-radius:8px;border:1px solid var(--bd2);background:var(--btn);color:#9fb2c7;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center}
   .nav-b:hover{border-color:var(--ouro);color:var(--ouro)}
   .nav-t{flex:1;text-align:center;font-size:14px;font-weight:600;color:var(--ouro)}
 
   .board{display:grid;grid-template-columns:repeat(7,minmax(124px,1fr));gap:8px;overflow-x:auto;padding-bottom:6px}
   .col{min-width:124px}
-  .col-h{text-align:center;padding:9px 4px;border-radius:9px;font-size:12px;font-weight:600;color:#8fa5bd;background:#0c1826;margin-bottom:8px;border:1px solid transparent}
-  .col-h.hoje{background:var(--ouro);color:#0a1420;font-weight:700;border-color:var(--ouro)}
-  .col-h .dn{font-size:15px;font-weight:700;color:#e8edf4;display:block;margin-top:1px}
-  .col-h.hoje .dn{color:#0a1420}
+  .col-h{text-align:center;padding:9px 4px;border-radius:9px;font-size:12px;font-weight:600;color:var(--tx2);background:var(--bg2);margin-bottom:8px;border:1px solid transparent}
+  .col-h.hoje{background:var(--ouro);color:var(--bg);font-weight:700;border-color:var(--ouro)}
+  .col-h .dn{font-size:15px;font-weight:700;color:var(--tx);display:block;margin-top:1px}
+  .col-h.hoje .dn{color:var(--bg)}
 
-  .scard{background:#0d1a28;border:1px solid var(--c);border-left:3px solid var(--c);border-radius:9px;padding:9px 10px;margin-bottom:7px;cursor:pointer;transition:.15s}
-  .scard:hover{background:#122236;transform:translateY(-1px)}
+  .scard{background:var(--card2);border:1px solid var(--c);border-left:3px solid var(--c);border-radius:9px;padding:9px 10px;margin-bottom:7px;cursor:pointer;transition:.15s}
+  .scard:hover{background:var(--hov);transform:translateY(-1px)}
   .scard.ok{opacity:.42}
   .scard.ok .sc-t{text-decoration:line-through}
   .sc-top{display:flex;align-items:flex-start;gap:7px}
-  .circ{width:15px;height:15px;border-radius:50%;border:2px solid var(--c);flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;font-size:9px;color:#0a1420;font-weight:900}
+  .circ{width:15px;height:15px;border-radius:50%;border:2px solid var(--c);flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--bg);font-weight:900}
   .circ.on{background:var(--c)}
   .sc-d{color:var(--c);font-size:11px;font-weight:700;line-height:1.25}
-  .sc-t{color:#c3d2e2;font-size:11.5px;line-height:1.35;margin-top:4px;margin-left:22px}
+  .sc-t{color:var(--tx2);font-size:11.5px;line-height:1.35;margin-top:4px;margin-left:22px}
   .sc-f{display:flex;align-items:center;gap:5px;margin-top:7px;margin-left:22px;flex-wrap:wrap}
-  .pill{font-size:9px;padding:2px 7px;border-radius:20px;background:#182838;color:#8fa5bd;font-weight:600}
+  .pill{font-size:9px;padding:2px 7px;border-radius:20px;background:var(--hov);color:var(--tx2);font-weight:600}
   .pill-t{border:1px solid var(--c);color:var(--c);background:transparent;text-transform:uppercase;letter-spacing:.4px}
 
   .cad{background:linear-gradient(135deg,#241a38,#14192c);border:1px solid #7d5fa8;border-radius:9px;padding:8px 9px;margin-bottom:7px;cursor:pointer;display:flex;align-items:center;gap:7px}
   .cad.ok{opacity:.45}
-  .cad-c{width:15px;height:15px;border-radius:4px;border:2px solid #b98ae0;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px;color:#0a1420;font-weight:900}
+  .cad-c{width:15px;height:15px;border-radius:4px;border:2px solid #b98ae0;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--bg);font-weight:900}
   .cad-c.on{background:#b98ae0}
   .cad-t{color:#c9a9e8;font-size:10px;font-weight:700;line-height:1.3}
-  .vazio{text-align:center;padding:16px 4px;color:#3d5470;font-size:11px}
+  .vazio{text-align:center;padding:16px 4px;color:var(--tx4);font-size:11px}
 
   .cal-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
   .cal-m{font-size:13px;font-weight:700;color:var(--ouro);text-transform:uppercase;letter-spacing:.6px}
   .cal-g{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
-  .cal-wd{text-align:center;font-size:10px;color:#4d6684;padding:3px 0;font-weight:600}
+  .cal-wd{text-align:center;font-size:10px;color:var(--tx4);padding:3px 0;font-weight:600}
   .cal-d{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:12px;border-radius:7px;color:#7f96ae;cursor:pointer;position:relative}
-  .cal-d:hover{background:#182838}
-  .cal-d.fora{color:#2b3d52;cursor:default}
-  .cal-d.tem{color:#e8edf4;font-weight:600}
-  .cal-d.hoje{background:var(--ouro);color:#0a1420;font-weight:800}
+  .cal-d:hover{background:var(--hov)}
+  .cal-d.fora{color:var(--bd2);cursor:default}
+  .cal-d.tem{color:var(--tx);font-weight:600}
+  .cal-d.hoje{background:var(--ouro);color:var(--bg);font-weight:800}
   .cal-d.sel{border:1.5px solid var(--ouro);color:var(--ouro);font-weight:700}
   .cal-d.tudo::after{content:'';position:absolute;bottom:3px;width:4px;height:4px;border-radius:50%;background:#6ddba0}
 
-  .legenda{display:flex;gap:12px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid #1b2c40}
-  .leg{display:flex;align-items:center;gap:5px;font-size:11px;color:#63809e}
+  .legenda{display:flex;gap:12px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid var(--bd)}
+  .leg{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--tx3)}
   .leg-d{width:8px;height:8px;border-radius:2px}
 
   .aviso{background:#2a1418;border:1px solid #d9566a;border-radius:12px;padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;gap:13px;flex-wrap:wrap}
 
   .cards4{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px}
-  .kpi{background:#101d2c;border:1px solid #1b2c40;border-radius:14px;padding:18px}
-  .kpi-i{width:34px;height:34px;border-radius:9px;background:#16283c;display:flex;align-items:center;justify-content:center;font-size:16px;margin-bottom:12px}
+  .kpi{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:18px}
+  .kpi-i{width:34px;height:34px;border-radius:9px;background:var(--hov);display:flex;align-items:center;justify-content:center;font-size:16px;margin-bottom:12px}
   .kpi-n{font-size:26px;font-weight:800;letter-spacing:-.5px}
-  .kpi-l{color:#63809e;font-size:12px;margin-top:3px}
-  .barra{background:#0a1420;border-radius:20px;height:6px;overflow:hidden;margin-top:9px}
+  .kpi-l{color:var(--tx3);font-size:12px;margin-top:3px}
+  .barra{background:var(--bg);border-radius:20px;height:6px;overflow:hidden;margin-top:9px}
   .barra-f{height:100%;border-radius:20px;transition:.5s}
 
   /* STREAK */
-  .streak-h{background:linear-gradient(135deg,#16283c,#0c1826);border:1px solid #1b2c40;border-radius:16px;padding:26px;text-align:center;margin-bottom:16px}
+  .streak-h{background:linear-gradient(135deg,var(--hov),var(--bg2));border:1px solid var(--bd);border-radius:16px;padding:26px;text-align:center;margin-bottom:16px}
   .streak-n{font-size:58px;font-weight:800;color:var(--ouro);line-height:1}
   .nivel{display:inline-block;padding:4px 13px;border-radius:20px;font-size:11px;font-weight:800;letter-spacing:1px;margin-top:10px}
   .sem7{display:flex;justify-content:center;gap:9px;margin:20px 0 6px;flex-wrap:wrap}
   .s7{display:flex;flex-direction:column;align-items:center;gap:6px}
   .s7-c{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800}
   .s7-c.ok{background:rgba(201,168,60,.16);border:2px solid var(--ouro);color:var(--ouro)}
-  .s7-c.hj{background:#16283c;border:2px solid #5bb3f0;color:#5bb3f0}
-  .s7-c.fut{border:2px solid #24384f;color:#24384f}
-  .s7-c.no{background:#111a24;border:2px solid #1e2b38;color:#33475c}
-  .s7-l{font-size:11px;color:#63809e}
+  .s7-c.hj{background:var(--hov);border:2px solid #5bb3f0;color:#5bb3f0}
+  .s7-c.fut{border:2px solid var(--bd2);color:var(--bd2)}
+  .s7-c.no{background:var(--card2);border:2px solid var(--bd2);color:var(--tx4)}
+  .s7-l{font-size:11px;color:var(--tx3)}
 
   /* AVISOS */
-  .av{background:#101d2c;border:1px solid #1b2c40;border-left:3px solid var(--ouro);border-radius:12px;padding:16px;margin-bottom:11px}
+  .av{background:var(--card);border:1px solid var(--bd);border-left:3px solid var(--ouro);border-radius:12px;padding:16px;margin-bottom:11px}
 
-  .inp{width:100%;padding:11px;border-radius:9px;border:1px solid #24384f;background:#0a1420;color:#e8edf4;font-size:14px;margin-top:5px}
-  .lbl{color:#8fa5bd;font-size:12px}
+  .inp{width:100%;padding:11px;border-radius:9px;border:1px solid var(--bd2);background:var(--bg);color:var(--tx);font-size:14px;margin-top:5px}
+  .lbl{color:var(--tx2);font-size:12px}
 
   .modal{position:fixed;inset:0;background:rgba(5,10,18,.82);display:none;align-items:center;justify-content:center;padding:16px;z-index:60}
   .modal.on{display:flex}
-  .modal-c{background:#101d2c;border:1px solid #24384f;border-radius:16px;padding:22px;max-width:430px;width:100%;max-height:90vh;overflow-y:auto}
+  .modal-c{background:var(--card);border:1px solid var(--bd2);border-radius:16px;padding:22px;max-width:430px;width:100%;max-height:90vh;overflow-y:auto}
   .estado{text-align:center;padding:60px 20px}
   .col-h{position:relative}
-  .col-cfg{position:absolute;top:5px;right:5px;width:19px;height:19px;border-radius:5px;background:rgba(255,255,255,.07);color:#8fa5bd;font-size:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;line-height:1}
-  .col-cfg:hover{background:var(--ouro);color:#0a1420}
-  .col-h.hoje .col-cfg{background:rgba(0,0,0,.18);color:#0a1420}
-  .bloco{background:#0a1420;border:1px solid #24384f;border-radius:11px;padding:14px;margin-top:12px}
+  .col-cfg{position:absolute;top:5px;right:5px;width:19px;height:19px;border-radius:5px;background:rgba(255,255,255,.07);color:var(--tx2);font-size:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;line-height:1}
+  .col-cfg:hover{background:var(--ouro);color:var(--bg)}
+  .col-h.hoje .col-cfg{background:rgba(0,0,0,.18);color:var(--bg)}
+  .bloco{background:var(--bg);border:1px solid var(--bd2);border-radius:11px;padding:14px;margin-top:12px}
   .bloco-t{font-size:12px;font-weight:700;color:var(--ouro);margin-bottom:4px}
-  .bloco-d{color:#63809e;font-size:11.5px;line-height:1.5;margin-bottom:10px}
+  .bloco-d{color:var(--tx3);font-size:11.5px;line-height:1.5;margin-bottom:10px}
   .lin{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-  .num{width:76px;padding:9px;border-radius:8px;border:1px solid #24384f;background:#101d2c;color:#e8edf4;font-size:14px;text-align:center}
+  .num{width:76px;padding:9px;border-radius:8px;border:1px solid var(--bd2);background:var(--card);color:var(--tx);font-size:14px;text-align:center}
   .rng{flex:1;min-width:110px;accent-color:var(--ouro)}
 
   /* CADERNO LATERAL */
@@ -162,28 +163,28 @@
   .cd-fab:hover{transform:scale(1.06)}
   .cd-ov{position:fixed;inset:0;background:rgba(5,10,18,.6);opacity:0;pointer-events:none;transition:.2s;z-index:44}
   .cd-ov.on{opacity:1;pointer-events:auto}
-  .cd{position:fixed;top:0;right:-460px;width:440px;max-width:92vw;height:100%;background:#0c1826;border-left:1px solid #24384f;z-index:45;transition:right .25s ease;display:flex;flex-direction:column}
+  .cd{position:fixed;top:0;right:-460px;width:440px;max-width:92vw;height:100%;background:var(--bg2);border-left:1px solid var(--bd2);z-index:45;transition:right .25s ease;display:flex;flex-direction:column}
   .cd.on{right:0}
-  .cd-h{padding:16px 18px;border-bottom:1px solid #1b2c40;display:flex;align-items:center;gap:10px}
+  .cd-h{padding:16px 18px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:10px}
   .cd-t{flex:1;font-size:16px;font-weight:800}
   .cd-t span{color:#b98ae0;display:block;font-size:11px;font-weight:600;letter-spacing:.5px}
   .cd-tabs{display:flex;gap:5px;padding:12px 18px 0}
-  .cd-tab{flex:1;padding:8px;border-radius:8px;border:1px solid #24384f;background:#101d2c;color:#8fa5bd;font-size:12px;cursor:pointer;font-weight:600;text-align:center}
+  .cd-tab{flex:1;padding:8px;border-radius:8px;border:1px solid var(--bd2);background:var(--card);color:var(--tx2);font-size:12px;cursor:pointer;font-weight:600;text-align:center}
   .cd-tab.on{background:#241a38;border-color:#b98ae0;color:#c9a9e8}
   .cd-body{flex:1;overflow-y:auto;padding:14px 18px 18px}
-  .cd-item{background:#101d2c;border:1px solid #1b2c40;border-left:3px solid #b98ae0;border-radius:10px;padding:12px;margin-bottom:9px;cursor:pointer}
+  .cd-item{background:var(--card);border:1px solid var(--bd);border-left:3px solid #b98ae0;border-radius:10px;padding:12px;margin-bottom:9px;cursor:pointer}
   .cd-item:hover{background:#132234}
   .cd-it{font-size:13.5px;font-weight:700;line-height:1.3}
-  .cd-id{color:#8fa5bd;font-size:11px;margin-top:3px}
+  .cd-id{color:var(--tx2);font-size:11px;margin-top:3px}
   .cd-ic{color:#8095ab;font-size:12px;line-height:1.5;margin-top:7px;white-space:pre-wrap;max-height:70px;overflow:hidden;position:relative}
   .cd-ic.full{max-height:none}
-  .cd-inp{width:100%;padding:10px;border-radius:9px;border:1px solid #24384f;background:#0a1420;color:#e8edf4;font-size:14px;margin-bottom:9px;font-family:inherit}
+  .cd-inp{width:100%;padding:10px;border-radius:9px;border:1px solid var(--bd2);background:var(--bg);color:var(--tx);font-size:14px;margin-bottom:9px;font-family:inherit}
   textarea.cd-inp{min-height:180px;resize:vertical;line-height:1.6}
-  .cd-ro{background:#0a1420;border:1px solid #1b2c40;border-radius:10px;padding:14px;color:#c3d2e2;font-size:13.5px;line-height:1.7;white-space:pre-wrap}
+  .cd-ro{background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:14px;color:var(--tx2);font-size:13.5px;line-height:1.7;white-space:pre-wrap}
 
   @media(max-width:1080px){ .layout{grid-template-columns:1fr} }
   @media(max-width:860px){
-    .side{position:static;width:100%;flex-direction:row;overflow-x:auto;padding:10px;border-right:none;border-bottom:1px solid #1b2c40;gap:5px;align-items:center}
+    .side{position:static;width:100%;flex-direction:row;overflow-x:auto;padding:10px;border-right:none;border-bottom:1px solid var(--bd);gap:5px;align-items:center}
     .logo{display:none}
     .side-sep,.side-b{display:none}
     .nav-i{margin-bottom:0;white-space:nowrap;padding:9px 13px;font-size:13px}
@@ -205,7 +206,9 @@
       <div class="logo-t">Patrulheiros<span>de Elite</span></div>
     </div>
     <div class="nav-i on" data-s="cronograma" onclick="irSecao('cronograma')"><span class="nav-ic">📅</span>Meu Cronograma</div>
-    <div class="nav-i" data-s="questoes" onclick="irSecao('questoes')"><span class="nav-ic">❓</span>Questoes</div>
+    <div class="nav-i" onclick="location.href='questoes.html'"><span class="nav-ic">❓</span>Questoes</div>
+    <div class="nav-i" onclick="location.href='questoes.html#simulados'"><span class="nav-ic">🎯</span>Simulados</div>
+    <div class="nav-i" onclick="location.href='questoes.html#materiais'"><span class="nav-ic">📁</span>Materiais</div>
     <div class="nav-i" onclick="location.href='edital.html'"><span class="nav-ic">📖</span>Edital</div>
     <div class="side-sep"></div>
     <div class="nav-i" data-s="sequencia" onclick="irSecao('sequencia')"><span class="nav-ic">🔥</span>Sequencia</div>
@@ -225,16 +228,16 @@
         <div class="ola">Ola, <span id="nome">—</span></div>
         <div class="ola-s" id="sub"></div>
       </div>
-      <button class="btn btn-ouro" id="btn-hoje" onclick="irHoje()">Hoje</button>
+      <div style="display:flex;gap:8px"><button class="btn" onclick="trocarTema()" id="btn-tema" title="Alternar tema">🌙</button><button class="btn btn-ouro" id="btn-hoje" onclick="irHoje()">Hoje</button></div>
     </div>
 
-    <div id="loading" class="estado" style="color:#63809e">Carregando...</div>
+    <div id="loading" class="estado" style="color:var(--tx3)">Carregando...</div>
     <div id="expirado" style="display:none"></div>
 
     <div id="vazio" class="estado" style="display:none">
       <div style="font-size:46px;margin-bottom:12px">🗓️</div>
       <div style="color:var(--ouro);font-weight:700;font-size:17px">Cronograma ainda nao gerado</div>
-      <p style="color:#63809e;font-size:13px;margin-top:6px">Seu mentor ainda nao montou seu plano por tema.</p>
+      <p style="color:var(--tx3);font-size:13px;margin-top:6px">Seu mentor ainda nao montou seu plano por tema.</p>
     </div>
 
     <div id="app" style="display:none">
@@ -265,21 +268,8 @@
             </div>
             <div class="cal-g" id="cal-wd"></div>
             <div class="cal-g" id="cal-grid" style="margin-top:3px"></div>
-            <div id="cal-resumo" style="margin-top:14px;padding-top:12px;border-top:1px solid #1b2c40"></div>
+            <div id="cal-resumo" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--bd)"></div>
           </div>
-        </div>
-      </section>
-
-      <!-- QUESTOES -->
-      <section class="sec" id="sec-questoes">
-        <div class="sechead"><div><div class="h2">Questoes</div><div class="h2s">Banco de questoes da plataforma</div></div></div>
-        <div class="painel estado">
-          <div style="font-size:46px;margin-bottom:14px">❓</div>
-          <div style="color:var(--ouro);font-weight:700;font-size:17px">Em breve</div>
-          <p style="color:#63809e;font-size:13px;margin-top:8px;max-width:420px;margin-left:auto;margin-right:auto;line-height:1.6">
-            O banco de questoes esta a caminho. Voce vai poder resolver questoes por disciplina e por tema, direto aqui, com correcao na hora e alimentacao automatica do seu caderno de erros.
-          </p>
-          <p style="color:#3d5470;font-size:12px;margin-top:16px">Enquanto isso, registre suas questoes nas sessoes do cronograma.</p>
         </div>
       </section>
 
@@ -302,9 +292,9 @@
         <div class="cards4" id="kpis"></div>
         <div class="painel">
           <div style="font-size:14px;font-weight:700;color:var(--ouro);margin-bottom:6px">Acerto por disciplina</div>
-          <div style="color:#63809e;font-size:12px;margin-bottom:16px">Baseado nas questoes registradas nas sessoes</div>
+          <div style="color:var(--tx3);font-size:12px;margin-bottom:16px">Baseado nas questoes registradas nas sessoes</div>
           <canvas id="graf" height="260"></canvas>
-          <div id="sem-graf" style="display:none;text-align:center;color:#3d5470;padding:26px;font-size:13px">Nenhuma questao registrada ainda.</div>
+          <div id="sem-graf" style="display:none;text-align:center;color:var(--tx4);padding:26px;font-size:13px">Nenhuma questao registrada ainda.</div>
         </div>
         <div class="painel" style="margin-top:16px">
           <div style="font-size:14px;font-weight:700;color:var(--ouro);margin-bottom:14px">Progresso por disciplina</div>
@@ -403,7 +393,21 @@ function irSecao(s){
   window.scrollTo({top:0,behavior:'smooth'})
 }
 
+function trocarTema(){
+  const cl=document.documentElement.getAttribute('data-tema')==='claro'
+  document.documentElement.setAttribute('data-tema',cl?'escuro':'claro')
+  localStorage.setItem('tema',cl?'escuro':'claro')
+  document.getElementById('btn-tema').textContent=cl?'🌙':'☀️'
+}
+function iniciarTema(){
+  const t=localStorage.getItem('tema')||'escuro'
+  document.documentElement.setAttribute('data-tema',t)
+  const b=document.getElementById('btn-tema')
+  if(b)b.textContent=t==='claro'?'☀️':'🌙'
+}
+
 async function init(){
+  iniciarTema()
   carregarMarca()
   const { data:{user} }=await _supabase.auth.getUser()
   if(!user){location.href='index.html';return}
@@ -455,7 +459,7 @@ function mostrarExpirado(d){
   document.getElementById('expirado').innerHTML=
     '<div class="estado"><div style="font-size:52px;margin-bottom:14px">🔒</div>'
    +'<div style="color:var(--ouro);font-weight:800;font-size:20px">Acesso expirado</div>'
-   +'<p style="color:#8fa5bd;font-size:14px;margin-top:10px;line-height:1.6">Seu acesso terminou em <strong>'+parseD(d).toLocaleDateString('pt-BR')+'</strong>.<br>Fale com seu mentor para renovar e retomar seus estudos.</p>'
+   +'<p style="color:var(--tx2);font-size:14px;margin-top:10px;line-height:1.6">Seu acesso terminou em <strong>'+parseD(d).toLocaleDateString('pt-BR')+'</strong>.<br>Fale com seu mentor para renovar e retomar seus estudos.</p>'
    +'<button class="btn" style="margin-top:18px" onclick="sair()">Sair</button></div>'
 }
 
@@ -570,9 +574,9 @@ function renderCal(){
   document.getElementById('cal-grid').innerHTML=html
   const pct=tm?Math.round(fm/tm*100):0
   document.getElementById('cal-resumo').innerHTML=
-    '<div style="display:flex;justify-content:space-between;font-size:12px;color:#63809e;margin-bottom:6px"><span>'+MES[m]+'</span><span style="color:var(--ouro);font-weight:700">'+pct+'%</span></div>'
+    '<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--tx3);margin-bottom:6px"><span>'+MES[m]+'</span><span style="color:var(--ouro);font-weight:700">'+pct+'%</span></div>'
    +'<div class="barra"><div class="barra-f" style="width:'+pct+'%;background:var(--ouro)"></div></div>'
-   +'<div style="color:#4d6684;font-size:11px;margin-top:6px">'+fm+' de '+tm+' sessoes em '+dias+' dias</div>'
+   +'<div style="color:var(--tx4);font-size:11px;margin-top:6px">'+fm+' de '+tm+' sessoes em '+dias+' dias</div>'
 }
 
 function mudarSemana(n){_refSem=addDays(_refSem,n*7);_refMes=new Date(_refSem);renderBoard();renderCal()}
@@ -607,7 +611,7 @@ function renderStreak(){
   else if(s>=14){nv='ELITE';cor='var(--ouro)';meta=30}
   else if(s>=7){nv='VETERANO';cor='#5bb3f0';meta=14}
   else if(s>=3){nv='DEDICADO';cor='#6ddba0';meta=7}
-  else{nv='RECRUTA';cor='#8fa5bd';meta=3}
+  else{nv='RECRUTA';cor='var(--tx2)';meta=3}
   const pct=meta?Math.round(s/meta*100):100
   const ic=s>=30?'🔥🔥🔥':s>=14?'🔥🔥':s>=3?'🔥':'💤'
 
@@ -627,7 +631,7 @@ function renderStreak(){
    +'<div class="streak-n">'+s+'</div>'
    +'<div style="font-size:16px;font-weight:700;margin-top:4px">'+(s===1?'dia de sequencia':'dias de sequencia')+'</div>'
    +'<div><span class="nivel" style="background:'+cor+'22;color:'+cor+';border:1px solid '+cor+'">'+nv+'</span></div>'
-   +(meta?'<div style="max-width:280px;margin:14px auto 0"><div style="color:#63809e;font-size:12px;margin-bottom:6px">'+s+' de '+meta+' dias para o proximo nivel</div>'
+   +(meta?'<div style="max-width:280px;margin:14px auto 0"><div style="color:var(--tx3);font-size:12px;margin-bottom:6px">'+s+' de '+meta+' dias para o proximo nivel</div>'
         +'<div class="barra"><div class="barra-f" style="width:'+pct+'%;background:'+cor+'"></div></div></div>'
       :'<div style="color:var(--ouro);font-size:13px;margin-top:12px">Voce atingiu o nivel maximo!</div>')
    +'<div class="sem7">'+sem+'</div></div>'
@@ -645,18 +649,18 @@ function renderStreak(){
     for(let i=0;i<7;i++){
       const d=addDays(base,i), key=ymd(d)
       const ok=st.dias[key], fut=d>hj, eh=key===ymd(hj)
-      let bg='#111a24',bd='#1e2b38',cl='#33475c'
-      if(fut){bg='transparent';bd='#1b2c40';cl='#2b3d52'}
-      else if(ok){bg='var(--ouro)';bd='var(--ouro)';cl='#0a1420'}
-      else if(eh){bg='#16283c';bd='#5bb3f0';cl='#5bb3f0'}
+      let bg='var(--card2)',bd='var(--bd2)',cl='var(--tx4)'
+      if(fut){bg='transparent';bd='var(--bd)';cl='var(--bd2)'}
+      else if(ok){bg='var(--ouro)';bd='var(--ouro)';cl='var(--bg)'}
+      else if(eh){bg='var(--hov)';bd='#5bb3f0';cl='#5bb3f0'}
       heat+='<div style="aspect-ratio:1;border-radius:7px;background:'+bg+';border:1px solid '+bd+';display:flex;align-items:center;justify-content:center;font-size:11px;color:'+cl+';font-weight:'+(ok?'800':'400')+'" title="'+key+'">'+d.getDate()+'</div>'
     }
     heat+='</div>'
   }
   heat+='<div class="legenda" style="margin-top:12px">'
     +'<span class="leg"><span class="leg-d" style="background:var(--ouro)"></span>Estudou</span>'
-    +'<span class="leg"><span class="leg-d" style="background:#111a24;border:1px solid #1e2b38"></span>Nao estudou</span>'
-    +'<span class="leg"><span class="leg-d" style="background:#16283c;border:1px solid #5bb3f0"></span>Hoje</span></div>'
+    +'<span class="leg"><span class="leg-d" style="background:var(--card2);border:1px solid var(--bd2)"></span>Nao estudou</span>'
+    +'<span class="leg"><span class="leg-d" style="background:var(--hov);border:1px solid #5bb3f0"></span>Hoje</span></div>'
   document.getElementById('heat').innerHTML=heat
 }
 
@@ -688,9 +692,9 @@ function renderDesempenho(){
 
   document.getElementById('kpis').innerHTML=
     '<div class="kpi"><div class="kpi-i">📅</div><div class="kpi-n" style="color:'+corPct(pctP)+'">'+pctP+'%</div><div class="kpi-l">'+feitas+' de '+total+' sessoes</div><div class="barra"><div class="barra-f" style="width:'+pctP+'%;background:'+corPct(pctP)+'"></div></div></div>'
-   +'<div class="kpi"><div class="kpi-i">🎯</div><div class="kpi-n" style="color:'+(q?corPct(pctQ):'#63809e')+'">'+(q?pctQ+'%':'--')+'</div><div class="kpi-l">'+q+' questoes feitas</div>'+(q?'<div class="barra"><div class="barra-f" style="width:'+pctQ+'%;background:'+corPct(pctQ)+'"></div></div>':'')+'</div>'
-   +'<div class="kpi"><div class="kpi-i">⏱️</div><div class="kpi-n">'+Math.floor(min/60)+'<span style="font-size:15px;color:#63809e">h</span> '+(min%60)+'<span style="font-size:15px;color:#63809e">min</span></div><div class="kpi-l">Horas estudadas</div></div>'
-   +'<div class="kpi"><div class="kpi-i">📓</div><div class="kpi-n" style="color:'+(nEst?corPct(pctCad):'#63809e')+'">'+(nEst?pctCad+'%':'--')+'</div><div class="kpi-l">Dias com caderno de erros</div>'+(nEst?'<div class="barra"><div class="barra-f" style="width:'+pctCad+'%;background:'+corPct(pctCad)+'"></div></div>':'')+'</div>'
+   +'<div class="kpi"><div class="kpi-i">🎯</div><div class="kpi-n" style="color:'+(q?corPct(pctQ):'var(--tx3)')+'">'+(q?pctQ+'%':'--')+'</div><div class="kpi-l">'+q+' questoes feitas</div>'+(q?'<div class="barra"><div class="barra-f" style="width:'+pctQ+'%;background:'+corPct(pctQ)+'"></div></div>':'')+'</div>'
+   +'<div class="kpi"><div class="kpi-i">⏱️</div><div class="kpi-n">'+Math.floor(min/60)+'<span style="font-size:15px;color:var(--tx3)">h</span> '+(min%60)+'<span style="font-size:15px;color:var(--tx3)">min</span></div><div class="kpi-l">Horas estudadas</div></div>'
+   +'<div class="kpi"><div class="kpi-i">📓</div><div class="kpi-n" style="color:'+(nEst?corPct(pctCad):'var(--tx3)')+'">'+(nEst?pctCad+'%':'--')+'</div><div class="kpi-l">Dias com caderno de erros</div>'+(nEst?'<div class="barra"><div class="barra-f" style="width:'+pctCad+'%;background:'+corPct(pctCad)+'"></div></div>':'')+'</div>'
 
   const p=statsDisc()
   const labels=Object.keys(p).filter(function(d){return p[d].f>0})
@@ -702,14 +706,14 @@ function renderDesempenho(){
     if(_graf)_graf.destroy()
     _graf=new Chart(cv,{type:'bar',data:{labels:labels,datasets:[{data:vals,backgroundColor:labels.map(function(d){return corDe(d)}),borderRadius:8}]},
       options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(x){return x.raw+'% de acerto ('+p[labels[x.dataIndex]].f+' questoes)'}}}},
-      scales:{y:{min:0,max:100,ticks:{color:'#63809e',callback:function(v){return v+'%'}},grid:{color:'#1b2c40'}},x:{ticks:{color:'#63809e'},grid:{display:false}}}}})
+      scales:{y:{min:0,max:100,ticks:{color:'var(--tx3)',callback:function(v){return v+'%'}},grid:{color:'var(--bd)'}},x:{ticks:{color:'var(--tx3)'},grid:{display:false}}}}})
   }
 
   document.getElementById('prog-disc').innerHTML=Object.keys(p).sort().map(function(d){
     const x=p[d], pc=x.tot?Math.round(x.ok/x.tot*100):0, cor=corDe(d)
     return '<div style="margin-bottom:13px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;gap:8px;flex-wrap:wrap">'
       +'<span style="font-size:13px;color:'+cor+';font-weight:600">'+esc(d)+'</span>'
-      +'<span style="font-size:12px;color:#63809e">'+x.ok+'/'+x.tot+' sessoes'+(x.f?' · '+Math.round(x.c/x.f*100)+'% acerto':'')+'</span></div>'
+      +'<span style="font-size:12px;color:var(--tx3)">'+x.ok+'/'+x.tot+' sessoes'+(x.f?' · '+Math.round(x.c/x.f*100)+'% acerto':'')+'</span></div>'
       +'<div class="barra"><div class="barra-f" style="width:'+pc+'%;background:'+cor+'"></div></div></div>'
   }).join('')
 }
@@ -774,19 +778,19 @@ async function checarAvisos(){
 
 async function renderAvisos(){
   const box=document.getElementById('lista-avisos')
-  box.innerHTML='<div style="color:#63809e;font-size:13px">Carregando...</div>'
+  box.innerHTML='<div style="color:var(--tx3);font-size:13px">Carregando...</div>'
   const { data:av }=await _supabase.from('avisos').select('*').eq('concurso_id',_concursoId).order('criado_em',{ascending:false})
   document.getElementById('bd-av').style.display='none'
   if(av)localStorage.setItem('av_'+_alunoId,String(av.length))
   if(!av||!av.length){
-    box.innerHTML='<div class="painel estado"><div style="font-size:40px;margin-bottom:10px">🔔</div><div style="color:#63809e;font-size:14px">Nenhum aviso no momento.</div></div>'
+    box.innerHTML='<div class="painel estado"><div style="font-size:40px;margin-bottom:10px">🔔</div><div style="color:var(--tx3);font-size:14px">Nenhum aviso no momento.</div></div>'
     return
   }
   box.innerHTML=av.map(function(a){
     return '<div class="av"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:7px">'
       +'<strong style="color:var(--ouro);font-size:15px">'+esc(a.titulo)+'</strong>'
-      +'<span style="color:#4d6684;font-size:12px">'+new Date(a.criado_em).toLocaleDateString('pt-BR')+'</span></div>'
-      +'<div style="color:#c3d2e2;font-size:13.5px;line-height:1.6;white-space:pre-wrap">'+esc(a.mensagem)+'</div></div>'
+      +'<span style="color:var(--tx4);font-size:12px">'+new Date(a.criado_em).toLocaleDateString('pt-BR')+'</span></div>'
+      +'<div style="color:var(--tx2);font-size:13.5px;line-height:1.6;white-space:pre-wrap">'+esc(a.mensagem)+'</div></div>'
   }).join('')
 }
 
@@ -794,10 +798,10 @@ async function renderAvisos(){
 function renderPerfil(){
   document.getElementById('perfil-info').innerHTML=
     '<div style="display:flex;align-items:center;gap:13px;margin-bottom:6px">'
-   +'<div style="width:46px;height:46px;border-radius:50%;background:var(--ouro);color:#0a1420;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800">'+esc(_nome.substring(0,1).toUpperCase())+'</div>'
+   +'<div style="width:46px;height:46px;border-radius:50%;background:var(--ouro);color:var(--bg);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800">'+esc(_nome.substring(0,1).toUpperCase())+'</div>'
    +'<div><div style="font-size:16px;font-weight:700">'+esc(_nome)+'</div>'
-   +'<div style="color:#63809e;font-size:13px">'+esc(_email)+'</div></div></div>'
-   +(_concursoNome?'<div style="color:#63809e;font-size:13px;margin-top:8px">Concurso: <span style="color:#c3d2e2">'+esc(_concursoNome)+'</span></div>':'')
+   +'<div style="color:var(--tx3);font-size:13px">'+esc(_email)+'</div></div></div>'
+   +(_concursoNome?'<div style="color:var(--tx3);font-size:13px;margin-top:8px">Concurso: <span style="color:var(--tx2)">'+esc(_concursoNome)+'</span></div>':'')
 }
 
 async function trocarSenha(){
@@ -805,7 +809,7 @@ async function trocarSenha(){
   const m=document.getElementById('p-msg')
   if(a.length<6){m.style.color='#f07171';m.textContent='A senha precisa ter pelo menos 6 caracteres.';return}
   if(a!==b){m.style.color='#f07171';m.textContent='As senhas nao coincidem.';return}
-  m.style.color='#63809e';m.textContent='Salvando...'
+  m.style.color='var(--tx3)';m.textContent='Salvando...'
   const { error }=await _supabase.auth.updateUser({password:a})
   if(error){m.style.color='#f07171';m.textContent='Erro: '+error.message;return}
   m.style.color='#6ddba0';m.textContent='Senha alterada com sucesso!'
@@ -846,18 +850,18 @@ function abrirSessao(id){
    +((!s.concluida&&s.tipo==='teoria')?
       '<button class="btn" style="width:100%;padding:12px;margin-top:8px;border-color:#7d5fa8;color:#c9a9e8" onclick="naoFinalizei(\''+id+'\')">'
      +'Estudei, mas nao finalizei o assunto</button>'
-     +'<div style="color:#4d6684;font-size:11px;margin-top:6px;text-align:center;line-height:1.5">O dia conta como estudado e o tema volta na proxima vaga desta disciplina.</div>':'')
+     +'<div style="color:var(--tx4);font-size:11px;margin-top:6px;text-align:center;line-height:1.5">O dia conta como estudado e o tema volta na proxima vaga desta disciplina.</div>':'')
    +'<div class="bloco">'
    +'<div class="bloco-t">Tempo desta sessao</div>'
    +'<div class="bloco-d">Ajuste conforme o tempo que voce tem hoje.</div>'
    +'<div class="lin"><input type="range" class="rng" id="ms-rng" min="15" max="240" step="15" value="'+(s.tempo_minutos||60)+'" oninput="document.getElementById(\'ms-num\').value=this.value">'
    +'<input type="number" class="num" id="ms-num" min="5" max="480" step="5" value="'+(s.tempo_minutos||60)+'" oninput="document.getElementById(\'ms-rng\').value=this.value">'
-   +'<span style="color:#63809e;font-size:12px">min</span></div>'
+   +'<span style="color:var(--tx3);font-size:12px">min</span></div>'
    +'<button class="btn" style="width:100%;margin-top:10px;padding:10px" onclick="salvarTempoSessao(\''+id+'\')">Salvar tempo</button>'
    +'<div id="ms-msg" style="font-size:12px;margin-top:8px;text-align:center"></div></div>'
    +((s.tipo==='questoes'||s.questoes_feitas)?
-      '<div style="margin-top:16px;padding-top:16px;border-top:1px solid #24384f">'
-     +'<div style="color:#63809e;font-size:11px;letter-spacing:1px;text-transform:uppercase;font-weight:600;margin-bottom:8px">Registro de questoes</div>'
+      '<div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--bd2)">'
+     +'<div style="color:var(--tx3);font-size:11px;letter-spacing:1px;text-transform:uppercase;font-weight:600;margin-bottom:8px">Registro de questoes</div>'
      +'<div style="display:flex;gap:10px"><div style="flex:1"><label class="lbl">Feitas</label><input class="inp" type="number" id="mqf" min="0" value="'+(s.questoes_feitas||'')+'"></div>'
      +'<div style="flex:1"><label class="lbl">Acertos</label><input class="inp" type="number" id="mqc" min="0" value="'+(s.questoes_certas||'')+'"></div></div>'
      +'<button class="btn" style="width:100%;margin-top:10px;padding:11px" onclick="salvarQ(\''+id+'\')">Salvar questoes</button>'
@@ -870,7 +874,7 @@ async function salvarTempoSessao(id){
   const v=parseInt(document.getElementById('ms-num').value)||60
   const m=document.getElementById('ms-msg')
   if(v<5){m.style.color='#f07171';m.textContent='Tempo minimo de 5 minutos.';return}
-  m.style.color='#63809e';m.textContent='Salvando...'
+  m.style.color='var(--tx3)';m.textContent='Salvando...'
   const r=await _supabase.from('sessoes_estudo').update({tempo_minutos:v}).eq('id',id)
   if(r.error){m.style.color='#f07171';m.textContent='Erro ao salvar.';return}
   const s=_sessoes.find(function(x){return x.id===id})
@@ -1026,7 +1030,7 @@ function ajustesDoDia(k){
    +'<div><div style="color:var(--ouro);font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase">Ajustes do dia</div>'
    +'<div style="font-size:18px;font-weight:800;margin-top:2px">'+d.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'})+'</div></div>'
    +'<button class="btn" onclick="fecharModal()" style="padding:5px 11px">✕</button></div>'
-   +'<div style="color:#63809e;font-size:12.5px;margin-bottom:4px">'+sess.length+' sessoes · '+dur(min)+' no total'
+   +'<div style="color:var(--tx3);font-size:12.5px;margin-bottom:4px">'+sess.length+' sessoes · '+dur(min)+' no total'
    +(pend.length?' · '+pend.length+' pendente(s) ('+dur(minPend)+')':' · tudo concluido')+'</div>'
 
    +(sess.length?'<div class="bloco">'
@@ -1034,14 +1038,14 @@ function ajustesDoDia(k){
      +'<div class="bloco-d">Vale para todas as sessoes deste dia. Use quando tiver mais ou menos tempo que o previsto.</div>'
      +'<div class="lin"><input type="range" class="rng" id="aj-rng" min="15" max="240" step="15" value="'+(sess[0].tempo_minutos||60)+'" oninput="document.getElementById(\'aj-num\').value=this.value">'
      +'<input type="number" class="num" id="aj-num" min="15" max="480" step="5" value="'+(sess[0].tempo_minutos||60)+'" oninput="document.getElementById(\'aj-rng\').value=this.value">'
-     +'<span style="color:#63809e;font-size:12px">min</span></div>'
+     +'<span style="color:var(--tx3);font-size:12px">min</span></div>'
      +'<button class="btn" style="width:100%;margin-top:10px;padding:10px" onclick="aplicarTempoDia(\''+k+'\')">Aplicar a este dia</button></div>':'')
 
    +(futuras>0?'<div class="bloco">'
      +'<div class="bloco-t">Adiantar conteudo</div>'
      +'<div class="bloco-d">Sobrou tempo hoje? Traga as proximas sessoes dos dias seguintes para ca.</div>'
      +'<div class="lin"><input type="number" class="num" id="aj-qtd" min="1" max="'+Math.min(futuras,10)+'" value="1">'
-     +'<span style="color:#63809e;font-size:12px;flex:1">sessao(oes) dos proximos dias</span></div>'
+     +'<span style="color:var(--tx3);font-size:12px;flex:1">sessao(oes) dos proximos dias</span></div>'
      +'<button class="btn btn-ouro" style="width:100%;margin-top:10px;padding:10px" onclick="adiantar(\''+k+'\')">Trazer para este dia</button></div>':'')
 
    +(pend.length?'<div class="bloco">'
@@ -1061,7 +1065,7 @@ function ajMsg(t,cor){
 async function aplicarTempoDia(k){
   const v=parseInt(document.getElementById('aj-num').value)||60
   if(v<5){ajMsg('Tempo minimo de 5 minutos.','#f07171');return}
-  ajMsg('Salvando...','#63809e')
+  ajMsg('Salvando...','var(--tx3)')
   const r=await _supabase.from('sessoes_estudo').update({tempo_minutos:v}).eq('aluno_id',_alunoId).eq('data',k)
   if(r.error){ajMsg('Erro: '+r.error.message,'#f07171');return}
   ;(_porData[k]||[]).forEach(function(s){s.tempo_minutos=v})
@@ -1074,7 +1078,7 @@ async function adiantar(k){
   const cand=_sessoes.filter(function(s){return !s.concluida&&s.data>k})
     .sort(function(a,b){return a.data.localeCompare(b.data)||(a.ordem||0)-(b.ordem||0)}).slice(0,qtd)
   if(!cand.length){ajMsg('Nao ha sessoes futuras para adiantar.','#e8b04b');return}
-  ajMsg('Movendo '+cand.length+' sessao(oes)...','#63809e')
+  ajMsg('Movendo '+cand.length+' sessao(oes)...','var(--tx3)')
   let ord=proximaOrdem(k)
   for(let i=0;i<cand.length;i++){
     const r=await _supabase.from('sessoes_estudo').update({data:k,ordem:ord++}).eq('id',cand[i].id)
@@ -1092,7 +1096,7 @@ async function adiarDia(k){
   if(vagas.length<pend.length){
     if(!confirm('Nao ha vagas suficientes ate o fim do plano. As sessoes que sobrarem vao para os ultimos dias disponiveis. Continuar?'))return
   }
-  ajMsg('Reorganizando...','#63809e')
+  ajMsg('Reorganizando...','var(--tx3)')
   const conta={}
   for(let i=0;i<pend.length;i++){
     const alvo=vagas[i]||vagas[vagas.length-1]||ymd(addDays(parseD(k),1))
@@ -1144,7 +1148,7 @@ function modoCaderno(m){
 }
 
 async function carregarNotas(){
-  document.getElementById('cd-body').innerHTML='<div style="color:#63809e;font-size:13px;text-align:center;padding:24px">Carregando...</div>'
+  document.getElementById('cd-body').innerHTML='<div style="color:var(--tx3);font-size:13px;text-align:center;padding:24px">Carregando...</div>'
   const { data }=await _supabase.from('caderno_erros').select('*')
     .eq('aluno_id',_alunoId).order('atualizado_em',{ascending:false})
   _notas=data||[]
@@ -1165,11 +1169,11 @@ function renderCaderno(){
       box.innerHTML='<div style="text-align:center;padding:40px 10px">'
         +'<div style="font-size:40px;margin-bottom:12px">📓</div>'
         +'<div style="color:#c9a9e8;font-weight:700;font-size:15px">Seu caderno esta vazio</div>'
-        +'<p style="color:#63809e;font-size:13px;margin-top:8px;line-height:1.6">Toda vez que errar uma questao, anote aqui o que aprendeu. Reler esses erros antes de estudar e o que mais acelera a aprovacao.</p>'
+        +'<p style="color:var(--tx3);font-size:13px;margin-top:8px;line-height:1.6">Toda vez que errar uma questao, anote aqui o que aprendeu. Reler esses erros antes de estudar e o que mais acelera a aprovacao.</p>'
         +'<button class="btn btn-ouro" style="margin-top:16px" onclick="modoCaderno(\'edit\')">Criar primeira anotacao</button></div>'
       return
     }
-    box.innerHTML='<div style="color:#63809e;font-size:12px;margin-bottom:12px">'+_notas.length+' anotacao(oes) · modo leitura</div>'
+    box.innerHTML='<div style="color:var(--tx3);font-size:12px;margin-bottom:12px">'+_notas.length+' anotacao(oes) · modo leitura</div>'
       +_notas.map(function(n){
         return '<div class="cd-item" onclick="this.querySelector(\'.cd-ic\').classList.toggle(\'full\')">'
           +'<div class="cd-it">'+esc(n.titulo)+'</div>'
@@ -1200,7 +1204,7 @@ function renderCaderno(){
   }
 
   box.innerHTML='<button class="btn btn-ouro" style="width:100%;padding:12px;margin-bottom:14px" onclick="_editando=\'novo\';renderCaderno()">+ Nova anotacao</button>'
-    +(!_notas.length?'<div style="color:#63809e;font-size:13px;text-align:center;padding:20px">Nenhuma anotacao ainda.</div>'
+    +(!_notas.length?'<div style="color:var(--tx3);font-size:13px;text-align:center;padding:20px">Nenhuma anotacao ainda.</div>'
       :_notas.map(function(n){
         return '<div class="cd-item" onclick="_editando=\''+n.id+'\';renderCaderno()">'
           +'<div class="cd-it">'+esc(n.titulo)+'</div>'
@@ -1215,7 +1219,7 @@ async function salvarNota(){
   const disc=document.getElementById('n-disc').value
   const m=document.getElementById('n-msg')
   if(!tit){m.style.color='#f07171';m.textContent='Escreva um titulo para a anotacao.';return}
-  m.style.color='#63809e';m.textContent='Salvando...'
+  m.style.color='var(--tx3)';m.textContent='Salvando...'
   const agora=new Date().toISOString()
   if(_editando==='novo'){
     const { data,error }=await _supabase.from('caderno_erros')
