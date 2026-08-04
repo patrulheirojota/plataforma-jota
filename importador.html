@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Importador de Provas — Admin</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<link rel="stylesheet" href="style.css">
+<style>
+  .drop{border:2px dashed #2a4a6a;border-radius:14px;padding:36px 20px;text-align:center;cursor:pointer;background:#0d1b2a;transition:.2s}
+  .drop:hover,.drop.dentro{border-color:#C9A83C;background:#12233a}
+  .passo{display:flex;gap:10px;align-items:center;margin-bottom:14px}
+  .passo-n{width:26px;height:26px;border-radius:50%;background:#C9A83C;color:#0d1b2a;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex-shrink:0}
+  .fx{display:grid;grid-template-columns:70px 70px 1fr 34px;gap:7px;align-items:center;margin-bottom:6px}
+  .fx input,.fx select{margin:0;padding:8px;font-size:13px}
+  .st{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:9px;margin-bottom:14px}
+  .st-c{background:#0d1b2a;border-radius:10px;padding:12px;text-align:center}
+  .st-n{font-size:20px;font-weight:bold}
+  .st-l{color:#aaa;font-size:11px;margin-top:2px}
+  .qp{background:#0d1b2a;border-radius:9px;padding:11px;margin-bottom:7px;border-left:3px solid #2a4a6a;font-size:13px}
+  .qp-h{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:5px}
+  .gb{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;flex-shrink:0}
+  .gb-c{background:#81c78422;color:#81c784;border:1px solid #81c784}
+  .gb-e{background:#e5737322;color:#e57373;border:1px solid #e57373}
+  .gb-x{background:#2a2410;color:#ffb74d;border:1px solid #ffb74d}
+  .bar{height:6px;border-radius:3px;background:#0d1b2a;overflow:hidden;margin-top:8px}
+  .bar-f{height:100%;background:#C9A83C;transition:.3s}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div>
+      <h2>Importador de Provas</h2>
+      <div style="color:#aaa;font-size:13px">Envie o Word ou o PDF e a plataforma extrai as questoes</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button onclick="location.href='questoes-admin.html'" style="width:auto;padding:8px 14px;background:#1a2a3a;color:#5bb3f0;border:1px solid #5bb3f0">Banco de Questoes</button>
+      <button onclick="location.href='admin.html'" style="width:auto;padding:8px 14px">Painel Admin</button>
+    </div>
+  </header>
+
+  <!-- 1. ARQUIVO -->
+  <div class="card">
+    <div class="passo"><div class="passo-n">1</div><h3 style="margin:0">Envie o arquivo</h3></div>
+    <div class="drop" id="drop" onclick="document.getElementById('file').click()">
+      <div style="font-size:34px;margin-bottom:10px">📄</div>
+      <div style="color:#C9A83C;font-size:15px;font-weight:bold">Clique ou arraste o arquivo</div>
+      <div style="color:#555;font-size:12px;margin-top:6px">.docx (Word) · .pdf · .txt — ate 15 MB</div>
+    </div>
+    <input type="file" id="file" accept=".docx,.pdf,.txt" style="display:none" onchange="processar(this.files[0])">
+    <div id="lendo" style="display:none;margin-top:12px">
+      <div style="color:#aaa;font-size:13px" id="lendo-txt">Lendo arquivo...</div>
+      <div class="bar"><div class="bar-f" id="bar" style="width:10%"></div></div>
+    </div>
+    <p id="msg-arq" style="display:none;margin-top:10px;font-size:13px"></p>
+  </div>
+
+  <!-- 2. RESULTADO -->
+  <div class="card" id="c-res" style="display:none">
+    <div class="passo"><div class="passo-n">2</div><h3 style="margin:0">Questoes encontradas</h3></div>
+    <div class="st" id="stats"></div>
+    <div id="aviso-tipo"></div>
+  </div>
+
+  <!-- 3. GABARITO -->
+  <div class="card" id="c-gab" style="display:none">
+    <div class="passo"><div class="passo-n">3</div><h3 style="margin:0">Gabarito oficial</h3></div>
+    <p style="color:#aaa;font-size:13px;margin-bottom:10px">O PDF da prova nao traz o gabarito. Cole aqui a sequencia oficial — aceita varios formatos.</p>
+    <textarea id="gab-txt" rows="4" placeholder="Aceita qualquer um destes formatos:
+CEECEECCEE...   (sequencia direta, item 1 em diante)
+1-C 2-E 3-C ...
+1) C  2) E  3) C ..." style="width:100%;padding:12px;border-radius:8px;border:1px solid #2a4a6a;background:#0d1b2a;color:#fff;font-size:13px;font-family:ui-monospace,monospace;resize:vertical"></textarea>
+    <button onclick="aplicarGabarito()" style="margin-top:10px;background:#1a3a5c;color:#C9A83C;border:1px solid #C9A83C">Aplicar gabarito</button>
+    <p id="msg-gab" style="display:none;margin-top:8px;font-size:13px"></p>
+  </div>
+
+  <!-- 4. DISCIPLINAS -->
+  <div class="card" id="c-disc" style="display:none">
+    <div class="passo"><div class="passo-n">4</div><h3 style="margin:0">Disciplinas por faixa</h3></div>
+    <p style="color:#aaa;font-size:13px;margin-bottom:12px">A plataforma tentou identificar sozinha. Confira e ajuste as faixas — os numeros seguem a numeracao da prova.</p>
+    <div class="fx" style="color:#aaa;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">
+      <div>De</div><div>Ate</div><div>Disciplina</div><div></div>
+    </div>
+    <div id="faixas"></div>
+    <button onclick="addFaixa()" style="margin-top:8px;background:#1a2f45;color:#aaa;border:1px solid #2a4a6a">+ Adicionar faixa</button>
+    <p id="msg-fx" style="display:none;margin-top:8px;font-size:13px"></p>
+  </div>
+
+  <!-- 5. DADOS -->
+  <div class="card" id="c-meta" style="display:none">
+    <div class="passo"><div class="passo-n">5</div><h3 style="margin:0">Dados da prova</h3></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">
+      <div><label style="color:#aaa;font-size:12px">Concurso</label><select id="m-conc"><option value="">Nenhum</option></select></div>
+      <div><label style="color:#aaa;font-size:12px">Origem</label><select id="m-orig">
+        <option value="prova">Prova anterior</option><option value="autoral">Autoral</option></select></div>
+      <div><label style="color:#aaa;font-size:12px">Banca</label><input type="text" id="m-banca" value="CEBRASPE"></div>
+      <div><label style="color:#aaa;font-size:12px">Ano</label><input type="number" id="m-ano"></div>
+      <div><label style="color:#aaa;font-size:12px">Orgao</label><input type="text" id="m-orgao" placeholder="Ex: PMAL"></div>
+    </div>
+  </div>
+
+  <!-- 6. PREVIA -->
+  <div class="card" id="c-prev" style="display:none">
+    <div class="passo"><div class="passo-n">6</div><h3 style="margin:0">Previa e importacao</h3></div>
+    <div id="prev"></div>
+    <button onclick="importar()" id="btn-imp" style="margin-top:14px;background:#1a3a1a;color:#81c784;border:1px solid #81c784">Importar para a plataforma</button>
+    <p id="msg-imp" style="display:none;margin-top:10px;font-size:13px"></p>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script>
+if(window.pdfjsLib)pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
+
+const MAPA={
+ 'Lingua Portuguesa':['texto','paragrafo','vocabulo','gramatical','acentua','virgula','pronominal','oracao','tipologia','poema','sentido','substitui','verso','eu lirico','crase','concordancia','regencia','ortografia','interpretacao'],
+ 'Nocoes de Informatica':['linux','comando','arquivo','word','excel','powerpoint','tcp/ip','google','nuvem','linkedin','worm','spyware','firewall','trojan','onedrive','buscador','rede social','navegador','backup','malware'],
+ 'Matematica e Raciocinio Logico':['media aritmetica','progressao','poligono','triangulo','circunferencia','piramide','polinomio','funcao','trigonometric','complexos','plano cartesiano','heptagono','logaritm','porcentagem','proposicao','conjunto','probabilidade','equacao'],
+ 'Historia':['revolucao','escravismo','escravidao','lei aurea','vargas','estado novo','imperial','abolicao','imigracao','capitania','quilombo','emancipacao politica','clt','seculo xix','republica velha'],
+ 'Geografia':['urbano','populacao','vegetacao','sertao','litoran','ambiental','pantanal','amazonia','fecundidade','natalidade','relevo','altimetria','sustentabilidade','expectativa de vida','desmatamento','clima','bioma','mapa'],
+ 'Legislacao Estadual':['estatuto dos policiais','posto, graduacao','licenciamento','regulamento disciplinar','hierarquia e a disciplina','policial militar deve obediencia','funcoes policiais militares','transgressao disciplinar','conselho de disciplina'],
+ 'Direito Penal':['codigo penal','sentenca penal','legitima defesa','territorio nacional','aeronaves brasileiras','lei posterior que favorece','crime','pena','dolo','culpa','tipicidade','ilicitude'],
+ 'Direito Administrativo':['regime juridico administrativo','poder de policia','autotutela','desconcentra','ato administrativo','abuso de poder','administracao indireta','compensacao de culpas','licenca, a permissao','improbidade','licitacao','servidor publico'],
+ 'Direito Constitucional':['constituicao federal','brasileiros natos','competencia comum','elegibilidade','estado de sitio','cargos publicos','policias militares estaduais','direito a reuniao','garantias fundamentais','poder judiciario','remedios constitucionais'],
+ 'Direito Processual Penal':['inquerito policial','indiciado','representacao','acao penal','perempcao','querelados','processo penal','prisao em flagrante','habeas corpus'],
+ 'Direitos Humanos':['direitos humanos','hamurabi','convencao americana','comissao interamericana','declaracao universal','tratado internacional']
+}
+const DISCS=Object.keys(MAPA)
+
+let _itens=[],_tipo='',_concursos=[]
+
+function norm(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function msg(id,t,c){const m=document.getElementById(id);m.style.display='block';m.style.color=c;m.innerHTML=t}
+function bar(p,t){document.getElementById('bar').style.width=p+'%';if(t)document.getElementById('lendo-txt').textContent=t}
+
+async function init(){
+  const { data:{user} }=await _supabase.auth.getUser()
+  if(!user){location.href='index.html';return}
+  const { data:c }=await _supabase.from('concursos').select('*').order('nome')
+  _concursos=c||[]
+  const s=document.getElementById('m-conc')
+  _concursos.forEach(function(x){s.innerHTML+='<option value="'+x.id+'">'+esc(x.nome)+'</option>'})
+  document.getElementById('m-ano').value=new Date().getFullYear()
+  const d=document.getElementById('drop')
+  d.addEventListener('dragover',function(e){e.preventDefault();d.classList.add('dentro')})
+  d.addEventListener('dragleave',function(){d.classList.remove('dentro')})
+  d.addEventListener('drop',function(e){e.preventDefault();d.classList.remove('dentro');if(e.dataTransfer.files[0])processar(e.dataTransfer.files[0])})
+}
+
+async function processar(file){
+  if(!file)return
+  if(file.size>15*1024*1024){msg('msg-arq','Arquivo maior que 15 MB.','#e57373');return}
+  document.getElementById('msg-arq').style.display='none'
+  document.getElementById('lendo').style.display='block'
+  ;['c-res','c-gab','c-disc','c-meta','c-prev'].forEach(function(x){document.getElementById(x).style.display='none'})
+  bar(15,'Lendo arquivo...')
+
+  const nome=file.name.toLowerCase()
+  let linhas=[]
+  try{
+    if(nome.endsWith('.docx')){
+      bar(35,'Extraindo texto do Word...')
+      const buf=await file.arrayBuffer()
+      const r=await mammoth.extractRawText({arrayBuffer:buf})
+      linhas=r.value.split('\n').map(function(l){return l.trim()}).filter(Boolean)
+    }else if(nome.endsWith('.pdf')){
+      bar(30,'Abrindo PDF...')
+      const buf=await file.arrayBuffer()
+      const pdf=await pdfjsLib.getDocument({data:buf}).promise
+      for(let i=1;i<=pdf.numPages;i++){
+        bar(30+Math.round(i/pdf.numPages*40),'Lendo pagina '+i+' de '+pdf.numPages+'...')
+        const pg=await pdf.getPage(i)
+        const tc=await pg.getTextContent()
+        let y=null,linha=''
+        tc.items.forEach(function(it){
+          const ny=Math.round(it.transform[5])
+          if(y!==null&&Math.abs(ny-y)>3){linhas.push(linha.trim());linha=''}
+          linha+=it.str
+          y=ny
+        })
+        if(linha.trim())linhas.push(linha.trim())
+      }
+      linhas=linhas.map(function(l){return l.trim()}).filter(Boolean)
+    }else{
+      const t=await file.text()
+      linhas=t.split('\n').map(function(l){return l.trim()}).filter(Boolean)
+    }
+  }catch(e){
+    document.getElementById('lendo').style.display='none'
+    msg('msg-arq','Nao consegui ler o arquivo: '+e.message,'#e57373');return
+  }
+
+  bar(80,'Identificando questoes...')
+  const comentado=parseComentado(linhas)
+  if(comentado.length>=3){ _itens=comentado; _tipo='comentado' }
+  else{
+    const prova=parseProva(linhas)
+    if(prova.length<3){
+      document.getElementById('lendo').style.display='none'
+      msg('msg-arq','Nao encontrei questoes neste arquivo.<br><span style="color:#aaa;font-size:12px">O importador reconhece dois formatos: material comentado (com "Gabarito:" e "Comentario") e prova da CEBRASPE (itens numerados de 1 a 120).</span>','#e57373')
+      return
+    }
+    _itens=prova; _tipo='prova'
+  }
+
+  bar(100,'Pronto!')
+  setTimeout(function(){document.getElementById('lendo').style.display='none'},400)
+  mostrar()
+}
+
+// ---------- FORMATO 1: material comentado ----------
+function parseComentado(ls){
+  const RE_CAB=/^(\d{1,3})\s*[.)]\s*(.+)$/
+  const RE_GAB=/^gabarito\s*[:\-]?\s*(certo|errado|[CE])\b/i
+  const RE_COM=/^coment[aá]rios?\s*:?\s*$/i
+  const out=[];let a=null,modo=null
+  ls.forEach(function(t){
+    const m=t.match(RE_CAB)
+    if(m&&/\s[-—]\s/.test(m[2])&&m[2].length<180){
+      if(a)out.push(a)
+      const p=m[2].split(/\s+[-—]\s+/)
+      a={n:parseInt(m[1]),disciplina:p[0].trim(),assunto:p[1]?p[1].trim():null,corpo:[],gab:null,com:[]}
+      modo='corpo';return
+    }
+    if(!a)return
+    const g=t.match(RE_GAB)
+    if(g){a.gab=g[1].toUpperCase().charAt(0)==='C'?'C':'E';modo='pos';return}
+    if(RE_COM.test(t)){modo='com';return}
+    if((t==='Certo'||t==='Errado')&&modo==='corpo')return
+    if(modo==='corpo')a.corpo.push(t)
+    else if(modo==='com')a.com.push(t)
+  })
+  if(a)out.push(a)
+  return out.filter(function(q){return q.gab&&q.corpo.length})
+}
+
+// ---------- FORMATO 2: prova CEBRASPE ----------
+function parseProva(ls){
+  const RE_IT=/^(\d{1,3})\s+([A-ZÀ-Ú].{12,})$/
+  const RE_CMD=/julgue os? iten|julgue o iten|A respeito|Com rela|Acerca|Com base|No que se refere|Considerando|Em rela/i
+  const out=[];let a=null,cmd=''
+  ls.forEach(function(l){
+    if(/CEBRASPE\s*\|/i.test(l)||/^FOLHA DE RASCUNHO/i.test(l))return
+    const m=l.match(RE_IT)
+    if(m){
+      const n=parseInt(m[1])
+      if(n>=1&&n<=200&&(a===null?n<=3:n===a.n+1)){
+        if(a)out.push(a)
+        a={n:n,txt:m[2],cmd:cmd};return
+      }
+    }
+    if(RE_CMD.test(l))cmd=l
+    if(a)a.txt+=' '+l
+  })
+  if(a)out.push(a)
+  out.forEach(function(q){q.txt=q.txt.replace(/\s+/g,' ').trim()})
+  return out
+}
+
+// ---------- CLASSIFICACAO ----------
+function classificar(txt,cmd){
+  const b=norm(txt+' '+cmd),c=norm(cmd)
+  let melhor=null,score=0
+  DISCS.forEach(function(d){
+    let s=0
+    MAPA[d].forEach(function(k){ if(b.indexOf(k)>=0)s+=(c.indexOf(k)>=0?3:1) })
+    if(s>score){melhor=d;score=s}
+  })
+  return melhor
+}
+
+function suavizar(arr){
+  const o=arr.slice()
+  for(let r=0;r<2;r++){
+    let i=0
+    while(i<o.length){
+      let j=i
+      while(j+1<o.length&&o[j+1].disc===o[i].disc)j++
+      const tam=j-i+1
+      const ant=i>0?o[i-1].disc:null, dep=j+1<o.length?o[j+1].disc:null
+      if(tam<3){
+        if(ant&&dep&&ant===dep){for(let k=i;k<=j;k++)o[k].disc=ant}
+        else if(!o[i].disc){for(let k=i;k<=j;k++)o[k].disc=ant||dep}
+        else if(tam===1&&(ant||dep)){for(let k=i;k<=j;k++)o[k].disc=ant||dep}
+      }
+      i=j+1
+    }
+  }
+  return o
+}
+
+function faixasDe(arr){
+  const f=[];let ini=arr[0].n,d=arr[0].disc
+  for(let i=1;i<arr.length;i++){
+    if(arr[i].disc!==d){f.push({de:ini,ate:arr[i-1].n,disc:d});ini=arr[i].n;d=arr[i].disc}
+  }
+  f.push({de:ini,ate:arr[arr.length-1].n,disc:d})
+  return f
+}
+
+function mostrar(){
+  document.getElementById('c-res').style.display='block'
+  document.getElementById('c-meta').style.display='block'
+  const comGab=_itens.filter(function(q){return q.gab}).length
+  const comCom=_itens.filter(function(q){return q.com&&q.com.length}).length
+  document.getElementById('stats').innerHTML=
+    '<div class="st-c"><div class="st-n" style="color:#C9A83C">'+_itens.length+'</div><div class="st-l">Questoes</div></div>'
+   +'<div class="st-c"><div class="st-n" style="color:'+(comGab?'#81c784':'#ffb74d')+'">'+comGab+'</div><div class="st-l">Com gabarito</div></div>'
+   +'<div class="st-c"><div class="st-n" style="color:'+(comCom?'#81c784':'#aaa')+'">'+comCom+'</div><div class="st-l">Com comentario</div></div>'
+   +'<div class="st-c"><div class="st-n">'+_itens[0].n+'–'+_itens[_itens.length-1].n+'</div><div class="st-l">Numeracao</div></div>'
+
+  if(_tipo==='comentado'){
+    document.getElementById('aviso-tipo').innerHTML=
+      '<div style="background:#0d2a1a;border:1px solid #81c784;border-radius:9px;padding:12px;font-size:13px;color:#81c784">'
+      +'<strong>Material comentado reconhecido.</strong> Disciplina, assunto, gabarito e comentario vieram prontos do arquivo. Pode ir direto para a previa.</div>'
+    document.getElementById('c-gab').style.display='none'
+    document.getElementById('c-disc').style.display='none'
+    document.getElementById('m-orig').value='autoral'
+    montarPrevia()
+  }else{
+    document.getElementById('aviso-tipo').innerHTML=
+      '<div style="background:#2a2410;border:1px solid #ffb74d;border-radius:9px;padding:12px;font-size:13px;color:#ffb74d">'
+      +'<strong>Prova reconhecida.</strong> Faltam duas coisas: o gabarito oficial e a conferencia das disciplinas.</div>'
+    document.getElementById('c-gab').style.display='block'
+    _itens.forEach(function(q){q.disc=classificar(q.txt,q.cmd)})
+    _itens=suavizar(_itens)
+    renderFaixas(faixasDe(_itens))
+    document.getElementById('c-disc').style.display='block'
+    montarPrevia()
+  }
+  document.getElementById('c-res').scrollIntoView({behavior:'smooth'})
+}
+
+function renderFaixas(fx){
+  document.getElementById('faixas').innerHTML=fx.map(function(f,i){
+    return '<div class="fx" data-i="'+i+'">'
+      +'<input type="number" value="'+f.de+'" onchange="salvarFaixas()">'
+      +'<input type="number" value="'+f.ate+'" onchange="salvarFaixas()">'
+      +'<input type="text" list="lst-disc" value="'+esc(f.disc||'')+'" onchange="salvarFaixas()" placeholder="Disciplina">'
+      +'<button class="btn-acao btn-excluir" style="padding:6px 8px;font-size:11px" onclick="this.parentElement.remove();salvarFaixas()">X</button>'
+      +'</div>'
+  }).join('')+'<datalist id="lst-disc">'+DISCS.map(function(d){return '<option value="'+d+'">'}).join('')+'</datalist>'
+}
+
+function addFaixa(){
+  const box=document.getElementById('faixas')
+  const div=document.createElement('div')
+  div.className='fx'
+  div.innerHTML='<input type="number" value="1" onchange="salvarFaixas()"><input type="number" value="1" onchange="salvarFaixas()">'
+    +'<input type="text" list="lst-disc" placeholder="Disciplina" onchange="salvarFaixas()">'
+    +'<button class="btn-acao btn-excluir" style="padding:6px 8px;font-size:11px" onclick="this.parentElement.remove();salvarFaixas()">X</button>'
+  box.insertBefore(div,box.querySelector('datalist'))
+}
+
+function salvarFaixas(){
+  const fx=[]
+  document.querySelectorAll('#faixas .fx').forEach(function(el){
+    const i=el.querySelectorAll('input')
+    const de=parseInt(i[0].value),ate=parseInt(i[1].value),disc=i[2].value.trim()
+    if(!isNaN(de)&&!isNaN(ate)&&disc)fx.push({de:de,ate:ate,disc:disc})
+  })
+  _itens.forEach(function(q){
+    const f=fx.find(function(x){return q.n>=x.de&&q.n<=x.ate})
+    q.disc=f?f.disc:null
+  })
+  const sem=_itens.filter(function(q){return !q.disc}).length
+  if(sem)msg('msg-fx',sem+' questao(oes) ainda sem disciplina. Ajuste as faixas.','#ffb74d')
+  else msg('msg-fx','Todas as questoes tem disciplina definida.','#81c784')
+  montarPrevia()
+}
+
+function aplicarGabarito(){
+  const raw=document.getElementById('gab-txt').value.trim()
+  if(!raw){msg('msg-gab','Cole o gabarito primeiro.','#e57373');return}
+  const mapa={}
+  const pares=raw.match(/(\d{1,3})\s*[-–)ºo.:]?\s*([CEce])\b/g)
+  if(pares&&pares.length>=5){
+    pares.forEach(function(p){
+      const m=p.match(/(\d{1,3})\s*[-–)ºo.:]?\s*([CEce])/)
+      if(m)mapa[parseInt(m[1])]=m[2].toUpperCase()
+    })
+  }else{
+    const seq=raw.toUpperCase().replace(/[^CE]/g,'')
+    if(seq.length<3){msg('msg-gab','Nao consegui entender o gabarito. Use CEEC... ou 1-C 2-E ...','#e57373');return}
+    const base=_itens[0].n
+    for(let i=0;i<seq.length;i++)mapa[base+i]=seq[i]
+  }
+  let ok=0
+  _itens.forEach(function(q){ if(mapa[q.n]){q.gab=mapa[q.n];ok++} })
+  if(!ok){msg('msg-gab','Nenhum item bateu com a numeracao das questoes.','#e57373');return}
+  msg('msg-gab',ok+' de '+_itens.length+' questoes receberam gabarito.',ok===_itens.length?'#81c784':'#ffb74d')
+  mostrarStats()
+  montarPrevia()
+}
+
+function mostrarStats(){
+  const comGab=_itens.filter(function(q){return q.gab}).length
+  const el=document.querySelector('#stats .st-c:nth-child(2)')
+  if(el)el.innerHTML='<div class="st-n" style="color:'+(comGab===_itens.length?'#81c784':'#ffb74d')+'">'+comGab+'</div><div class="st-l">Com gabarito</div>'
+}
+
+function montarPrevia(){
+  document.getElementById('c-prev').style.display='block'
+  const box=document.getElementById('prev')
+  const prontas=_itens.filter(function(q){return q.gab&&(q.disc||q.disciplina)})
+  const porD={}
+  prontas.forEach(function(q){const d=q.disciplina||q.disc;porD[d]=(porD[d]||0)+1})
+  box.innerHTML=
+    '<div style="background:#0d1b2a;border-radius:9px;padding:12px;margin-bottom:12px">'
+   +'<div style="color:#C9A83C;font-size:13px;font-weight:bold;margin-bottom:8px">'+prontas.length+' de '+_itens.length+' questoes prontas para importar</div>'
+   +Object.keys(porD).sort().map(function(d){
+      return '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #1a2f45;font-size:13px"><span>'+esc(d)+'</span><span style="color:#aaa">'+porD[d]+'</span></div>'
+    }).join('')+'</div>'
+   +'<div style="color:#aaa;font-size:12px;margin-bottom:8px">Amostra das 5 primeiras:</div>'
+   +_itens.slice(0,5).map(function(q){
+      const d=q.disciplina||q.disc
+      const g=q.gab?('<div class="gb gb-'+(q.gab==='C'?'c':'e')+'">'+q.gab+'</div>'):'<div class="gb gb-x">?</div>'
+      const txt=q.txt||(q.corpo?q.corpo[q.corpo.length-1]:'')
+      return '<div class="qp"><div class="qp-h">'+g
+        +'<span style="color:#C9A83C;font-size:12px;font-weight:700">'+esc(d||'sem disciplina')+'</span>'
+        +'<span style="color:#555;font-size:11px;margin-left:auto">item '+q.n+'</span></div>'
+        +'<div style="color:#ccc;line-height:1.5">'+esc(String(txt).substring(0,170))+'...</div></div>'
+    }).join('')
+  document.getElementById('btn-imp').style.display=prontas.length?'block':'none'
+}
+
+async function importar(){
+  const prontas=_itens.filter(function(q){return q.gab&&(q.disc||q.disciplina)})
+  if(!prontas.length){msg('msg-imp','Nenhuma questao pronta.','#e57373');return}
+  const pulou=_itens.length-prontas.length
+  if(!confirm('Importar '+prontas.length+' questoes?'+(pulou?'\n\n'+pulou+' serao puladas por falta de gabarito ou disciplina.':'')))return
+
+  const conc=document.getElementById('m-conc').value
+  const orig=document.getElementById('m-orig').value
+  const banca=document.getElementById('m-banca').value.trim()||null
+  const ano=parseInt(document.getElementById('m-ano').value)||null
+  const orgao=document.getElementById('m-orgao').value.trim()||null
+
+  const linhas=prontas.map(function(q){
+    let apoio=null,enun=''
+    if(q.corpo&&q.corpo.length){
+      enun=q.corpo[q.corpo.length-1]
+      if(q.corpo.length>1)apoio=q.corpo.slice(0,-1).join('\n\n')
+    }else{
+      enun=q.txt
+      if(q.cmd&&q.cmd.length>25)apoio=q.cmd
+    }
+    return {
+      disciplina:q.disciplina||q.disc,
+      assunto:q.assunto||null,
+      tipo:'certo_errado',
+      enunciado:enun,
+      texto_apoio:apoio,
+      gabarito:q.gab,
+      comentario:(q.com&&q.com.length)?q.com.join('\n\n'):null,
+      bizu:null,
+      origem:orig, banca:banca, ano:ano, orgao:orgao, dificuldade:'media'
+    }
+  })
+
+  msg('msg-imp','Importando...','#aaa')
+  const L=100;let ids=[]
+  for(let i=0;i<linhas.length;i+=L){
+    const { data,error }=await _supabase.from('questoes').insert(linhas.slice(i,i+L)).select('id')
+    if(error){msg('msg-imp','Erro: '+error.message,'#e57373');return}
+    if(data)ids=ids.concat(data.map(function(x){return x.id}))
+    msg('msg-imp','Importando... '+ids.length+'/'+linhas.length,'#aaa')
+  }
+  if(conc&&ids.length){
+    const v=ids.map(function(id){return {questao_id:id,concurso_id:conc}})
+    for(let i=0;i<v.length;i+=L)await _supabase.from('questao_concursos').insert(v.slice(i,i+L))
+  }
+  msg('msg-imp','<strong style="color:#81c784">'+ids.length+' questoes importadas!</strong> '
+    +'<a href="questoes-admin.html" style="color:#C9A83C">Ver no banco de questoes</a>','#81c784')
+  document.getElementById('btn-imp').style.display='none'
+}
+
+init()
+</script>
+</body>
+</html>
