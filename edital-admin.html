@@ -7,25 +7,26 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="stylesheet" href="style.css">
   <style>
-    .topico-admin { display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #2a4a6a;flex-wrap:wrap; }
+    .topico-admin { display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--bd2);flex-wrap:wrap; }
     .topico-admin:last-child { border-bottom:none; }
-    .prioridade-sel { padding:4px 8px;border-radius:6px;border:1px solid #2a4a6a;background:#0d1b2a;color:#fff;font-size:12px;width:auto; }
-    .disc-bloco { background:#1a2f45;border-radius:12px;padding:16px;margin-bottom:12px; }
-    .disc-titulo { color:#C9A83C;font-size:15px;font-weight:bold;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center; }
-    .loading-ia { text-align:center;padding:30px;color:#aaa; }
-    .loading-ia .spinner { width:40px;height:40px;border:3px solid #2a4a6a;border-top:3px solid #C9A83C;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 12px; }
+    .prioridade-sel { padding:4px 8px;border-radius:6px;border:1px solid var(--bd2);background:var(--card2);color:#fff;font-size:12px;width:auto; }
+    .disc-bloco { background:var(--card);border-radius:12px;padding:16px;margin-bottom:12px; }
+    .disc-titulo { color:var(--ouro);font-size:15px;font-weight:bold;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center; }
+    .loading-ia { text-align:center;padding:30px;color:var(--tx3); }
+    .loading-ia .spinner { width:40px;height:40px;border:3px solid var(--bd2);border-top:3px solid var(--ouro);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 12px; }
     @keyframes spin { to { transform:rotate(360deg); } }
-    .progresso-admin-item { display:flex;gap:10px;align-items:center;padding:8px;background:#0d1b2a;border-radius:8px;margin-bottom:4px; }
-    .barra-prog { flex:1;height:8px;border-radius:4px;background:#1a2f45;overflow:hidden; }
+    .progresso-admin-item { display:flex;gap:10px;align-items:center;padding:8px;background:var(--card2);border-radius:8px;margin-bottom:4px; }
+    .barra-prog { flex:1;height:8px;border-radius:4px;background:var(--card);overflow:hidden; }
     .barra-prog-fill { height:100%;border-radius:4px; }
   </style>
+<script>document.documentElement.setAttribute("data-tema",localStorage.getItem("tema")||"escuro")</script>
 </head>
 <body>
 <div class="container">
   <header>
     <div>
       <h2>Gerenciar Editais</h2>
-      <div style="color:#aaa;font-size:13px">Importe e gerencie os editais dos concursos</div>
+      <div style="color:var(--tx3);font-size:13px">Importe e gerencie os editais dos concursos</div>
     </div>
     <div style="display:flex;gap:8px">
       <button onclick="window.location.href='admin.html'" style="width:auto;padding:8px 16px">Painel Admin</button>
@@ -43,13 +44,13 @@
   <div id="aba-importar" class="aba-conteudo">
     <div class="card">
       <h3>Importar edital via IA</h3>
-      <p style="color:#aaa;font-size:13px;margin-bottom:16px">Cole o texto do edital abaixo. A IA vai extrair as disciplinas e topicos automaticamente, ja com indicacao de prioridade baseada em historico de provas policiais.</p>
+      <p style="color:var(--tx3);font-size:13px;margin-bottom:16px">Cole o texto do edital abaixo. A IA vai extrair as disciplinas e topicos automaticamente, ja com indicacao de prioridade baseada em historico de provas policiais.</p>
 
       <select id="imp-concurso" style="margin-bottom:12px">
         <option value="">Selecione o concurso</option>
       </select>
 
-      <label style="color:#aaa;font-size:12px;display:block;margin-bottom:6px">Texto do edital (cole aqui)</label>
+      <label style="color:var(--tx3);font-size:12px;display:block;margin-bottom:6px">Texto do edital (cole aqui)</label>
       <textarea id="texto-edital" rows="10" placeholder="Exemplo:
 CONTEUDO PROGRAMATICO
 PORTUGUES
@@ -59,7 +60,7 @@ PORTUGUES
 ...
 MATEMATICA
 1. Operacoes basicas
-..." style="width:100%;padding:12px;border-radius:8px;border:1px solid #2a4a6a;background:#0d1b2a;color:#fff;font-size:13px;resize:vertical;line-height:1.5"></textarea>
+..." style="width:100%;padding:12px;border-radius:8px;border:1px solid var(--bd2);background:var(--card2);color:#fff;font-size:13px;resize:vertical;line-height:1.5"></textarea>
 
       <button onclick="processarComIA()" style="margin-top:12px" id="btn-processar">Processar com IA</button>
       <p id="msg-importar" style="display:none;margin-top:8px;font-size:13px"></p>
@@ -70,21 +71,21 @@ MATEMATICA
       <div id="loading-ia-div" class="card loading-ia" style="display:none">
         <div class="spinner"></div>
         <p>Analisando o edital com IA...</p>
-        <p style="font-size:12px;color:#555;margin-top:4px">Isso pode levar alguns segundos</p>
+        <p style="font-size:12px;color:var(--tx4);margin-top:4px">Isso pode levar alguns segundos</p>
       </div>
 
       <div id="resultado-ia" style="display:none">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-          <h3 style="color:#C9A83C;margin:0">Edital processado — revise antes de salvar</h3>
+          <h3 style="color:var(--ouro);margin:0">Edital processado — revise antes de salvar</h3>
           <div style="display:flex;gap:8px">
-            <button onclick="salvarEdital()" style="width:auto;padding:10px 20px;background:#1a3a1a;color:#81c784;border:1px solid #81c784">Salvar edital</button>
-            <button onclick="document.getElementById('preview-ia').style.display='none'" style="width:auto;padding:10px 16px;background:#1a2f45;color:#aaa;border:1px solid #2a4a6a">Cancelar</button>
+            <button onclick="salvarEdital()" style="width:auto;padding:10px 20px;background:var(--card2);color:var(--ok);border:1px solid var(--ok)">Salvar edital</button>
+            <button onclick="document.getElementById('preview-ia').style.display='none'" style="width:auto;padding:10px 16px;background:var(--card);color:var(--tx3);border:1px solid var(--bd2)">Cancelar</button>
           </div>
         </div>
-        <p style="color:#aaa;font-size:13px;margin-bottom:16px">Voce pode alterar as prioridades antes de salvar. Vermelho = Alta, Laranja = Media, Azul = Baixa.</p>
+        <p style="color:var(--tx3);font-size:13px;margin-bottom:16px">Voce pode alterar as prioridades antes de salvar. Vermelho = Alta, Laranja = Media, Azul = Baixa.</p>
         <div id="lista-preview-ia"></div>
         <div style="margin-top:16px;display:flex;gap:8px">
-          <button onclick="salvarEdital()" style="background:#1a3a1a;color:#81c784;border:1px solid #81c784">Salvar edital completo</button>
+          <button onclick="salvarEdital()" style="background:var(--card2);color:var(--ok);border:1px solid var(--ok)">Salvar edital completo</button>
         </div>
       </div>
     </div>
@@ -289,8 +290,8 @@ async function processarComIA() {
   const concurso_id = document.getElementById('imp-concurso').value
   const texto = document.getElementById('texto-edital').value.trim()
   const msg = document.getElementById('msg-importar')
-  if (!concurso_id) { msg.style.display='block'; msg.style.color='#e57373'; msg.textContent='Selecione o concurso.'; return }
-  if (!texto || texto.length < 50) { msg.style.display='block'; msg.style.color='#e57373'; msg.textContent='Cole o texto do edital.'; return }
+  if (!concurso_id) { msg.style.display='block'; msg.style.color='var(--erro)'; msg.textContent='Selecione o concurso.'; return }
+  if (!texto || texto.length < 50) { msg.style.display='block'; msg.style.color='var(--erro)'; msg.textContent='Cole o texto do edital.'; return }
   msg.style.display = 'none'
   _concursoAtual = concurso_id
   document.getElementById('preview-ia').style.display = 'block'
@@ -307,7 +308,7 @@ async function processarComIA() {
   } catch(err) {
     document.getElementById('loading-ia-div').style.display = 'none'
     document.getElementById('btn-processar').disabled = false
-    msg.style.display='block'; msg.style.color='#e57373'
+    msg.style.display='block'; msg.style.color='var(--erro)'
     msg.textContent = 'Erro: ' + err.message
   }
 }
@@ -325,15 +326,15 @@ function renderizarPreviewIA(dados) {
       <div class="disc-bloco">
         <div class="disc-titulo">
           <span>${disc.nome}</span>
-          <span style="color:#aaa;font-size:12px;font-weight:normal">${disc.topicos?.length || 0} topicos</span>
+          <span style="color:var(--tx3);font-size:12px;font-weight:normal">${disc.topicos?.length || 0} topicos</span>
         </div>
         ${disc.topicos?.map((t, ti) => `
           <div class="topico-admin">
-            <span style="color:#aaa;font-size:12px;min-width:20px">${ti+1}.</span>
+            <span style="color:var(--tx3);font-size:12px;min-width:20px">${ti+1}.</span>
             <input type="text" value="${t.texto}" id="tp-${di}-${ti}"
-              style="flex:1;padding:6px;border-radius:6px;border:1px solid #2a4a6a;background:#0d1b2a;color:#fff;font-size:13px;margin:0">
+              style="flex:1;padding:6px;border-radius:6px;border:1px solid var(--bd2);background:var(--card2);color:#fff;font-size:13px;margin:0">
             <select class="prioridade-sel" id="pr-${di}-${ti}"
-              style="color:${t.prioridade==='alta'?'#e57373':t.prioridade==='media'?'#ffb74d':'#4a8ab5'}">
+              style="color:${t.prioridade==='alta'?'var(--erro)':t.prioridade==='media'?'var(--alerta)':'var(--info)'}">
               <option value="alta" ${t.prioridade==='alta'?'selected':''}>Alta</option>
               <option value="media" ${t.prioridade==='media'?'selected':''}>Media</option>
               <option value="baixa" ${t.prioridade==='baixa'?'selected':''}>Baixa</option>
@@ -343,7 +344,7 @@ function renderizarPreviewIA(dados) {
       </div>`
   })
 
-  div.innerHTML += `<p style="color:#aaa;font-size:13px;text-align:center;margin-top:8px">${totalTopicos} topicos extraidos em ${dados.disciplinas?.length || 0} disciplinas</p>`
+  div.innerHTML += `<p style="color:var(--tx3);font-size:13px;text-align:center;margin-top:8px">${totalTopicos} topicos extraidos em ${dados.disciplinas?.length || 0} disciplinas</p>`
 }
 
 async function salvarEdital() {
@@ -395,7 +396,7 @@ async function carregarEditalAdmin() {
     .eq('concurso_id', concurso_id).order('disciplina').order('ordem')
 
   if (!topicos || topicos.length === 0) {
-    div.innerHTML = '<p style="color:#aaa">Nenhum edital cadastrado para este concurso. Use a aba "Importar Edital" para adicionar.</p>'
+    div.innerHTML = '<p style="color:var(--tx3)">Nenhum edital cadastrado para este concurso. Use a aba "Importar Edital" para adicionar.</p>'
     document.getElementById('card-add-topico').style.display = 'block'
     window._concursoAtual = concurso_id
     return
@@ -413,21 +414,21 @@ async function carregarEditalAdmin() {
 
   div.innerHTML = `
     <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
-      <div style="background:#e5737322;border:1px solid #e57373;border-radius:8px;padding:8px 14px;text-align:center">
-        <div style="color:#e57373;font-size:18px;font-weight:bold">${altaCount}</div>
-        <div style="color:#aaa;font-size:11px">Alta prioridade</div>
+      <div style="background:var(--erro)22;border:1px solid var(--erro);border-radius:8px;padding:8px 14px;text-align:center">
+        <div style="color:var(--erro);font-size:18px;font-weight:bold">${altaCount}</div>
+        <div style="color:var(--tx3);font-size:11px">Alta prioridade</div>
       </div>
-      <div style="background:#ffb74d22;border:1px solid #ffb74d;border-radius:8px;padding:8px 14px;text-align:center">
-        <div style="color:#ffb74d;font-size:18px;font-weight:bold">${mediaCount}</div>
-        <div style="color:#aaa;font-size:11px">Media prioridade</div>
+      <div style="background:var(--alerta)22;border:1px solid var(--alerta);border-radius:8px;padding:8px 14px;text-align:center">
+        <div style="color:var(--alerta);font-size:18px;font-weight:bold">${mediaCount}</div>
+        <div style="color:var(--tx3);font-size:11px">Media prioridade</div>
       </div>
-      <div style="background:#4a8ab522;border:1px solid #4a8ab5;border-radius:8px;padding:8px 14px;text-align:center">
-        <div style="color:#4a8ab5;font-size:18px;font-weight:bold">${baixaCount}</div>
-        <div style="color:#aaa;font-size:11px">Baixa prioridade</div>
+      <div style="background:var(--info)22;border:1px solid var(--info);border-radius:8px;padding:8px 14px;text-align:center">
+        <div style="color:var(--info);font-size:18px;font-weight:bold">${baixaCount}</div>
+        <div style="color:var(--tx3);font-size:11px">Baixa prioridade</div>
       </div>
-      <div style="background:#1a2f45;border-radius:8px;padding:8px 14px;text-align:center">
+      <div style="background:var(--card);border-radius:8px;padding:8px 14px;text-align:center">
         <div style="color:#fff;font-size:18px;font-weight:bold">${topicos.length}</div>
-        <div style="color:#aaa;font-size:11px">Total de topicos</div>
+        <div style="color:var(--tx3);font-size:11px">Total de topicos</div>
       </div>
     </div>`
 
@@ -437,16 +438,16 @@ async function carregarEditalAdmin() {
         <div class="disc-titulo">
           <span>${disc}</span>
           <div style="display:flex;gap:6px;align-items:center">
-            <span style="color:#aaa;font-size:12px;font-weight:normal">${ts.length} topicos</span>
+            <span style="color:var(--tx3);font-size:12px;font-weight:normal">${ts.length} topicos</span>
             <button onclick="excluirDisciplina('${disc}','${concurso_id}')" class="btn-acao btn-excluir" style="font-size:11px;padding:3px 8px">Excluir disc.</button>
           </div>
         </div>
         ${ts.map(t => `
           <div class="topico-admin">
-            <span style="color:${t.prioridade==='alta'?'#e57373':t.prioridade==='media'?'#ffb74d':'#4a8ab5'};font-size:16px">●</span>
+            <span style="color:${t.prioridade==='alta'?'var(--erro)':t.prioridade==='media'?'var(--alerta)':'var(--info)'};font-size:16px">●</span>
             <span style="flex:1;font-size:13px">${t.topico}</span>
             <select class="prioridade-sel" onchange="alterarPrioridade('${t.id}',this.value)"
-              style="color:${t.prioridade==='alta'?'#e57373':t.prioridade==='media'?'#ffb74d':'#4a8ab5'}">
+              style="color:${t.prioridade==='alta'?'var(--erro)':t.prioridade==='media'?'var(--alerta)':'var(--info)'}">
               <option value="alta" ${t.prioridade==='alta'?'selected':''}>Alta</option>
               <option value="media" ${t.prioridade==='media'?'selected':''}>Media</option>
               <option value="baixa" ${t.prioridade==='baixa'?'selected':''}>Baixa</option>
@@ -490,14 +491,14 @@ async function adicionarTopico() {
 async function carregarProgressoAlunos() {
   const concurso_id = document.getElementById('prog-concurso').value
   const div = document.getElementById('progresso-alunos-container')
-  div.innerHTML = '<p style="color:#aaa">Carregando...</p>'
+  div.innerHTML = '<p style="color:var(--tx3)">Carregando...</p>'
   if (!concurso_id) { div.innerHTML=''; return }
 
   const { data: topicos } = await _supabase.from('edital_topicos').select('id,disciplina').eq('concurso_id', concurso_id)
   const { data: vinculos } = await _supabase.from('aluno_concursos').select('aluno_id, alunos(id,nome)').eq('concurso_id', concurso_id)
 
-  if (!topicos||topicos.length===0) { div.innerHTML='<p style="color:#aaa">Nenhum edital cadastrado para este concurso.</p>'; return }
-  if (!vinculos||vinculos.length===0) { div.innerHTML='<p style="color:#aaa">Nenhum aluno neste concurso.</p>'; return }
+  if (!topicos||topicos.length===0) { div.innerHTML='<p style="color:var(--tx3)">Nenhum edital cadastrado para este concurso.</p>'; return }
+  if (!vinculos||vinculos.length===0) { div.innerHTML='<p style="color:var(--tx3)">Nenhum aluno neste concurso.</p>'; return }
 
   div.innerHTML = ''
 
@@ -512,30 +513,30 @@ async function carregarProgressoAlunos() {
 
     const concluidos = new Set(prog?.map(p => p.topico_id) || [])
     const pctGeral = Math.round((concluidos.size / topicos.length) * 100)
-    const corGeral = pctGeral>=70?'#81c784':pctGeral>=40?'#ffb74d':'#e57373'
+    const corGeral = pctGeral>=70?'var(--ok)':pctGeral>=40?'var(--alerta)':'var(--erro)'
 
     div.innerHTML += `
-      <div style="background:#1a2f45;border-radius:10px;padding:14px;margin-bottom:10px">
+      <div style="background:var(--card);border-radius:10px;padding:14px;margin-bottom:10px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:6px">
           <strong>${aluno.nome}</strong>
           <div style="display:flex;align-items:center;gap:10px">
             <span style="color:${corGeral};font-size:18px;font-weight:bold">${pctGeral}%</span>
-            <span style="color:#aaa;font-size:12px">${concluidos.size}/${topicos.length} topicos</span>
+            <span style="color:var(--tx3);font-size:12px">${concluidos.size}/${topicos.length} topicos</span>
           </div>
         </div>
-        <div style="background:#0d1b2a;border-radius:20px;height:8px;overflow:hidden;margin-bottom:10px">
+        <div style="background:var(--card2);border-radius:20px;height:8px;overflow:hidden;margin-bottom:10px">
           <div style="width:${pctGeral}%;height:100%;background:${corGeral};border-radius:20px;transition:width 0.5s"></div>
         </div>
         <div style="display:flex;flex-direction:column;gap:4px">
           ${Object.entries(porDisc).map(([disc, ids]) => {
             const concl = ids.filter(id => concluidos.has(id)).length
             const pct = Math.round((concl/ids.length)*100)
-            const cor = pct>=70?'#81c784':pct>=40?'#ffb74d':'#e57373'
+            const cor = pct>=70?'var(--ok)':pct>=40?'var(--alerta)':'var(--erro)'
             return `<div class="progresso-admin-item">
               <span style="flex:1;font-size:12px">${disc}</span>
               <div class="barra-prog"><div class="barra-prog-fill" style="width:${pct}%;background:${cor}"></div></div>
               <span style="color:${cor};font-size:12px;min-width:35px;text-align:right">${pct}%</span>
-              <span style="color:#aaa;font-size:11px;min-width:50px;text-align:right">${concl}/${ids.length}</span>
+              <span style="color:var(--tx3);font-size:11px;min-width:50px;text-align:right">${concl}/${ids.length}</span>
             </div>`
           }).join('')}
         </div>
