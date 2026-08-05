@@ -98,6 +98,8 @@
     <div class="nav-i on" data-s="questoes" onclick="irSecao('questoes')"><span class="nav-ic">❓</span>Questoes</div>
     <div class="nav-i" data-s="simulados" onclick="irSecao('simulados')"><span class="nav-ic">🎯</span>Simulados</div>
     <div class="nav-i" data-s="materiais" onclick="irSecao('materiais')"><span class="nav-ic">📁</span>Materiais</div>
+    <div class="nav-i" onclick="location.href='tutor.html'"><span class="nav-ic">🤖</span>Tirar duvida</div>
+    <div class="nav-i" onclick="location.href='ranking.html'"><span class="nav-ic">🏆</span>Ranking</div>
     <div class="nav-i" onclick="location.href='edital.html'"><span class="nav-ic">📖</span>Edital</div>
     <div class="side-sep"></div>
     <div class="nav-i" data-s="flashcards" onclick="irSecao('flashcards')"><span class="nav-ic">🗂️</span>Flashcards<span class="nav-nv">EM BREVE</span></div>
@@ -441,6 +443,7 @@ async function responder(id){
       +'<div id="cad-'+id+'" style="font-size:12px;margin-top:8px"></div></div>':'')
     +'<div class="abas-q">'
     +'<div class="aba-q on" onclick="abaQ(\''+id+'\',\'cmt\',this)">Comentarios e bizus</div>'
+    +'<div class="aba-q" style="border-color:var(--ouro);color:var(--ouro)" onclick="tirarDuvida(\''+id+'\')">🤖 Tirar duvida com o tutor</div>'
     +'</div><div id="tab-'+id+'"></div>'
   carregarComentarios(id)
 }
@@ -551,6 +554,19 @@ async function carregarSimulados(){
       +'<span class="btn" style="opacity:.6">Em breve</span></div>'
   }).join('')
   box.innerHTML+='<p style="color:var(--tx4);font-size:12px;text-align:center;margin-top:12px">A resolucao de simulados cronometrados chega na proxima atualizacao.</p>'
+}
+
+function tirarDuvida(id){
+  const q=_qs.find(function(x){return x.id===id}); if(!q)return
+  const alts=(q.tipo==='multipla'&&q.alternativas)
+    ? '\nALTERNATIVAS:\n'+q.alternativas.map(function(t,i){return 'ABCDE'[i]+') '+t}).join('\n') : ''
+  const ctx='DISCIPLINA: '+q.disciplina+(q.assunto?' > '+q.assunto:'')
+    +(q.texto_apoio?'\n\nTEXTO DE APOIO:\n'+q.texto_apoio:'')
+    +'\n\nENUNCIADO:\n'+q.enunciado+alts
+    +'\n\nGABARITO OFICIAL: '+q.gabarito
+    +(q.comentario?'\n\nCOMENTARIO DO MENTOR:\n'+q.comentario:'')
+  sessionStorage.setItem('tutor_ctx',ctx)
+  location.href='tutor.html'
 }
 
 async function sair(){await _supabase.auth.signOut();location.href='index.html'}
