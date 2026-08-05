@@ -94,7 +94,7 @@ async function carregarConcursos() {
   }
   const ids = ['novo-aluno-concurso','editar-aluno-concurso','filtro-cron-concurso',
                 'template-concurso','filtro-template-concurso','aplicar-template-concurso',
-                'massa-concurso-select','filtro-desempenho-concurso','aviso-concurso','filtro-avisos-concurso']
+                'massa-concurso-select','filtro-desempenho-concurso','aviso-concurso','filtro-avisos']
   ids.forEach(sid => {
     const s = document.getElementById(sid)
     if (!s) return
@@ -342,6 +342,7 @@ function renderizarListaAlunos(alunos) {
         <button class="btn-acao btn-editar" onclick="gerenciarConcursosAluno('${a.id}','${a.nome}')">Concursos</button>
         <button class="btn-acao btn-editar" onclick="irParaCronogramaAluno('${a.id}','${a.nome}')" style="background:#1a3a5c;color:var(--info);border:1px solid #4a8ab5">Cronograma</button>
         <button class="btn-acao" onclick="abrirAplicarTemplate('${a.id}','${a.nome}')" style="background:#1a3a1a;color:var(--ok);border:1px solid #81c784">Template</button>
+        <button class="btn-acao btn-info" onclick="avisoParaAluno('${a.id}','${String(a.nome).replace(/'/g,"\\'")}')">Aviso</button>
         <button class="btn-acao btn-excluir" onclick="confirmarExcluirAluno('${a.id}','${a.nome}')">Excluir</button>
       </div>
     </div>`
@@ -1234,45 +1235,124 @@ async function excluirRegistro(id, aluno_id, nome) {
 
 // ========== AVISOS ==========
 function carregarSelectsAvisos() {
-  ['aviso-concurso','filtro-avisos-concurso'].forEach(sid=>{
-    const s=document.getElementById(sid); if (!s) return
-    s.innerHTML='<option value="">Selecione o concurso</option>'
-    window._concursos.forEach(c=>{ s.innerHTML+=`<option value="${c.id}">${c.nome}</option>` })
+  const sc = document.getElementById('aviso-concurso')
+  if (sc) {
+    sc.innerHTML='<option value="">Selecione o concurso</option>'
+    ;(window._concursos||[]).forEach(function(c){ sc.innerHTML+='<option value="'+c.id+'">'+c.nome+'</option>' })
+  }
+  const sf = document.getElementById('filtro-avisos')
+  if (sf) {
+    sf.innerHTML='<option value="">Todos os avisos</option>'
+      +'<option value="turma">Somente da turma</option>'
+      +'<option value="individuais">Somente individuais</option>'
+    ;(window._concursos||[]).forEach(function(c){ sf.innerHTML+='<option value="c:'+c.id+'">Turma: '+c.nome+'</option>' })
+  }
+  carregarAlunosAviso()
+  trocarDestino()
+  carregarAvisos()
+}
+
+function trocarDestino() {
+  const d = document.getElementById('aviso-destino').value
+  document.getElementById('box-turma').style.display = (d==='turma')?'block':'none'
+  document.getElementById('box-aluno').style.display = (d==='aluno')?'block':'none'
+}
+
+async function carregarAlunosAviso() {
+  const s = document.getElementById('aviso-aluno')
+  if (!s) return
+  const { data: alunos } = await _supabase.from('alunos').select('id,nome,concursos(nome)').order('nome')
+  s.innerHTML = '<option value="">Selecione o aluno</option>'
+  ;(alunos||[]).forEach(function(a){
+    s.innerHTML += '<option value="'+a.id+'">'+a.nome+(a.concursos?' — '+a.concursos.nome:'')+'</option>'
   })
 }
 
+function avisoParaAluno(aluno_id, nome) {
+  mostrarAba('aba-avisos')
+  setTimeout(function(){
+    document.getElementById('aviso-destino').value = 'aluno'
+    trocarDestino()
+    const s = document.getElementById('aviso-aluno')
+    if (s) s.value = aluno_id
+    document.getElementById('aviso-titulo').focus()
+    const m = document.getElementById('msg-aviso')
+    if (m) { m.style.display='block'; m.style.color='var(--ouro)'; m.textContent='Escrevendo aviso individual para '+nome }
+  }, 120)
+}
+
 async function criarAviso() {
-  const concurso_id=document.getElementById('aviso-concurso').value
-  const titulo=document.getElementById('aviso-titulo').value
-  const mensagem=document.getElementById('aviso-mensagem').value
-  if (!concurso_id||!titulo||!mensagem) { alert('Preencha todos os campos.'); return }
-  const { error } = await _supabase.from('avisos').insert({ concurso_id, titulo, mensagem })
-  if (error) { alert('Erro: '+error.message); return }
+  const destino = document.getElementById('aviso-destino').value
+  const titulo = document.getElementById('aviso-titulo').value.trim()
+  const mensagem = document.getElementById('aviso-mensagem').value.trim()
+  const prioridade = document.getElementById('aviso-prioridade').value
+  const msg = document.getElementById('msg-aviso')
+
+  if (!titulo || !mensagem) { msg.style.display='block'; msg.style.color='var(--erro)'; msg.textContent='Preencha titulo e mensagem.'; return }
+
+  const registro = { titulo: titulo, mensagem: mensagem, prioridade: prioridade }
+  let quem = ''
+
+  if (destino === 'turma') {
+    const cid = document.getElementById('aviso-concurso').value
+    if (!cid) { msg.style.display='block'; msg.style.color='var(--erro)'; msg.textContent='Selecione o concurso.'; return }
+    registro.concurso_id = cid
+    const cc = (window._concursos||[]).find(function(x){return x.id===cid})
+    quem = 'a turma de ' + (cc?cc.nome:'concurso')
+  } else {
+    const aid = document.getElementById('aviso-aluno').value
+    if (!aid) { msg.style.display='block'; msg.style.color='var(--erro)'; msg.textContent='Selecione o aluno.'; return }
+    registro.aluno_id = aid
+    const sel = document.getElementById('aviso-aluno')
+    quem = sel.options[sel.selectedIndex].text.split(' — ')[0]
+  }
+
+  msg.style.display='block'; msg.style.color='var(--tx3)'; msg.textContent='Publicando...'
+  const { error } = await _supabase.from('avisos').insert(registro)
+  if (error) { msg.style.color='var(--erro)'; msg.textContent='Erro: '+error.message; return }
+
+  msg.style.color='var(--ok)'
+  msg.textContent='Aviso enviado para '+quem+'!'
   document.getElementById('aviso-titulo').value=''
   document.getElementById('aviso-mensagem').value=''
-  alert('Aviso publicado!')
-  document.getElementById('filtro-avisos-concurso').value=concurso_id
   carregarAvisos()
 }
 
 async function carregarAvisos() {
-  const concurso_id=document.getElementById('filtro-avisos-concurso').value
-  if (!concurso_id) return
-  const { data: avisos } = await _supabase.from('avisos').select('*').eq('concurso_id',concurso_id).order('criado_em',{ascending:false})
-  const div=document.getElementById('lista-avisos')
-  div.innerHTML=''
-  if (!avisos||avisos.length===0) { div.innerHTML='<p style="color:var(--tx3)">Nenhum aviso.</p>'; return }
-  avisos.forEach(a=>{
-    const data=new Date(a.criado_em).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})
-    div.innerHTML+=`<div class="item-lista" style="flex-direction:column;align-items:flex-start;gap:6px">
-      <div style="display:flex;justify-content:space-between;width:100%;align-items:center">
-        <strong>${a.titulo}</strong>
-        <div style="display:flex;gap:6px"><span style="color:var(--tx3);font-size:12px">${data}</span>
-        <button class="btn-acao btn-excluir" onclick="excluirAviso('${a.id}')">X</button></div>
-      </div>
-      <p style="color:#ccc;font-size:14px;margin:0">${a.mensagem}</p>
-    </div>`
-  })
+  const filtro = document.getElementById('filtro-avisos').value
+  const div = document.getElementById('lista-avisos')
+  div.innerHTML = '<p style="color:var(--tx3);font-size:13px">Carregando...</p>'
+
+  let q = _supabase.from('avisos').select('*, concursos(nome), alunos(nome)').order('criado_em',{ascending:false}).limit(80)
+  if (filtro === 'individuais') q = q.not('aluno_id','is',null)
+  else if (filtro === 'turma') q = q.is('aluno_id',null)
+  else if (filtro && filtro.indexOf('c:')===0) q = q.eq('concurso_id', filtro.slice(2))
+
+  const { data: avisos, error } = await q
+  if (error) { div.innerHTML='<p style="color:var(--erro)">Erro: '+error.message+'</p>'; return }
+  if (!avisos || !avisos.length) { div.innerHTML='<p style="color:var(--tx3)">Nenhum aviso publicado ainda.</p>'; return }
+
+  div.innerHTML = avisos.map(function(a){
+    const data = new Date(a.criado_em).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})
+    const individual = !!a.aluno_id
+    const destino = individual
+      ? '<span class="tag tag-info">'+(a.alunos?a.alunos.nome:'aluno')+'</span>'
+      : '<span class="tag tag-ouro">'+(a.concursos?a.concursos.nome:'turma')+'</span>'
+    const prio = a.prioridade==='alta' ? '<span class="tag tag-erro">URGENTE</span>' : ''
+    const lido = individual
+      ? (a.lido_em
+          ? '<span class="tag tag-ok">lido em '+new Date(a.lido_em).toLocaleDateString('pt-BR')+'</span>'
+          : '<span class="tag tag-alerta">nao lido</span>')
+      : ''
+    return '<div class="item-lista" style="flex-direction:column;align-items:flex-start;gap:8px;border-left:3px solid '
+      +(individual?'var(--info)':'var(--ouro)')+'">'
+      +'<div style="display:flex;justify-content:space-between;width:100%;align-items:center;gap:8px;flex-wrap:wrap">'
+      +'<strong style="flex:1;min-width:130px">'+a.titulo+'</strong>'
+      +'<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">'+prio+destino+lido
+      +'<span style="color:var(--tx4);font-size:11.5px">'+data+'</span>'
+      +'<button class="btn-acao btn-excluir" onclick="excluirAviso(\''+a.id+'\')">Excluir</button></div></div>'
+      +'<p style="color:var(--tx2);font-size:13.5px;margin:0;line-height:1.6;white-space:pre-wrap">'+a.mensagem+'</p></div>'
+  }).join('')
 }
 
 async function excluirAviso(id) {
