@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ranking — Patrulheiros de Elite</title>
+<script>document.documentElement.setAttribute("data-tema",localStorage.getItem("tema")||"escuro")</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0a1420">
+<style>
+  :root{--ouro:#C9A83C;--ouro-esc:#8a6f1e;--bg:#0a1420;--bg2:#0c1826;--card:#101d2c;--card2:#0d1a28;--btn:#132030;--bd:#1b2c40;--bd2:#24384f;--hov:#16283c;--tx:#e8edf4;--tx2:#8fa5bd;--tx3:#63809e;--tx4:#4d6684;--ok:#6ddba0;--alerta:#e8b04b;--erro:#f07171;--info:#5bb3f0;--roxo:#b98ae0}
+  [data-tema="claro"]{--bg:#eef1f6;--bg2:#fff;--card:#fff;--card2:#f7f9fc;--btn:#fff;--bd:#dde4ed;--bd2:#c6d2e0;--hov:#eaf0f8;--tx:#0f1b2a;--tx2:#4a5f78;--tx3:#66809b;--tx4:#8fa2b8}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--tx);min-height:100vh}
+  .shell{display:flex;min-height:100vh}
+  .side{width:236px;background:var(--bg2);border-right:1px solid var(--bd);padding:20px 14px;display:flex;flex-direction:column;position:fixed;top:0;bottom:0;left:0;overflow-y:auto;z-index:30}
+  .logo{display:flex;align-items:center;gap:10px;padding:0 8px 22px}
+  .logo-i{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--ouro),var(--ouro-esc));display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;overflow:hidden}
+  .logo-t{font-size:14px;font-weight:800;line-height:1.2}
+  .logo-t span{color:var(--ouro);display:block;font-size:11px;font-weight:600}
+  .nav-i{display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:11px;color:var(--tx2);font-size:14px;cursor:pointer;margin-bottom:3px;border:1px solid transparent;font-weight:500}
+  .nav-i:hover{background:var(--btn);color:var(--tx)}
+  .nav-i.on{background:var(--hov);color:var(--ouro);border-color:var(--bd2);font-weight:600}
+  .nav-ic{width:19px;text-align:center;font-size:15px;flex-shrink:0}
+  .side-sep{height:1px;background:var(--bd);margin:10px 6px}
+  .side-b{margin-top:auto;padding-top:14px}
+  .main{flex:1;margin-left:236px;padding:22px 24px 60px;min-width:0}
+  .h2{font-size:25px;font-weight:800;letter-spacing:-.6px}
+  .h2s{color:var(--tx3);font-size:13px;margin-top:2px}
+  .btn{padding:9px 15px;border-radius:9px;border:1px solid var(--bd2);background:var(--btn);color:var(--tx2);font-size:13px;cursor:pointer;font-weight:500}
+  .btn:hover{border-color:var(--ouro);color:var(--tx)}
+  .painel{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:18px}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+  .chip{padding:8px 15px;border-radius:20px;border:1px solid var(--bd2);background:var(--card);color:var(--tx3);font-size:13px;cursor:pointer;font-weight:600}
+  .chip.on{background:var(--ouro);color:#0a1420;border-color:var(--ouro)}
+  .podio{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;align-items:end;margin-bottom:18px}
+  .pod{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:16px 10px;text-align:center;position:relative}
+  .pod.p1{border-color:var(--ouro);background:linear-gradient(180deg,rgba(201,168,60,.12),var(--card))}
+  .pod.p2{border-color:#a8b8c8}
+  .pod.p3{border-color:#c98a4b}
+  .pod-m{font-size:26px;margin-bottom:6px}
+  .pod-av{width:44px;height:44px;border-radius:50%;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:800;color:#0a1420}
+  .pod-n{font-size:13px;font-weight:700;line-height:1.3;margin-bottom:4px}
+  .pod-v{font-size:19px;font-weight:800;color:var(--ouro)}
+  .pod-l{font-size:10px;color:var(--tx3);margin-top:2px}
+  .lin{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:11px;background:var(--card2);border:1px solid var(--bd);margin-bottom:7px}
+  .lin.eu{border-color:var(--ouro);background:rgba(201,168,60,.07)}
+  .pos{width:30px;text-align:center;font-size:15px;font-weight:800;color:var(--tx3);flex-shrink:0}
+  .av{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#0a1420;flex-shrink:0}
+  .nm{flex:1;min-width:0}
+  .nm-t{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .nm-s{color:var(--tx4);font-size:11.5px;margin-top:1px}
+  .vl{text-align:right;flex-shrink:0}
+  .vl-n{font-size:16px;font-weight:800;color:var(--ouro)}
+  .vl-l{font-size:10.5px;color:var(--tx3)}
+  .meu{background:linear-gradient(135deg,rgba(201,168,60,.14),var(--card));border:1px solid var(--ouro);border-radius:14px;padding:16px;margin-bottom:16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+  .vazio{text-align:center;padding:50px 20px;color:var(--tx3)}
+  @media(max-width:860px){
+    .side{position:static;width:100%;flex-direction:row;overflow-x:auto;padding:10px;border-right:none;border-bottom:1px solid var(--bd);gap:5px;align-items:center}
+    .logo,.side-sep,.side-b{display:none}
+    .nav-i{margin-bottom:0;white-space:nowrap;padding:9px 13px;font-size:13px}
+    .shell{flex-direction:column}
+    .main{margin-left:0;padding:16px 12px 50px}
+    .h2{font-size:21px}
+    .pod-av{width:36px;height:36px;font-size:14px}
+    .pod-v{font-size:16px}
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="side">
+    <div class="logo"><div class="logo-i">🛡️</div><div class="logo-t">Patrulheiros<span>de Elite</span></div></div>
+    <div class="nav-i" onclick="location.href='cronograma.html'"><span class="nav-ic">📅</span>Meu Cronograma</div>
+    <div class="nav-i" onclick="location.href='questoes.html'"><span class="nav-ic">❓</span>Questoes</div>
+    <div class="nav-i" onclick="location.href='tutor.html'"><span class="nav-ic">🤖</span>Tirar duvida</div>
+    <div class="nav-i" onclick="location.href='edital.html'"><span class="nav-ic">📖</span>Edital</div>
+    <div class="side-sep"></div>
+    <div class="nav-i on"><span class="nav-ic">🏆</span>Ranking</div>
+    <div class="side-b"><div class="nav-i" onclick="sair()"><span class="nav-ic">🚪</span>Sair</div></div>
+  </aside>
+
+  <main class="main">
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:20px">
+      <div><div class="h2">Ranking</div><div class="h2s" id="sub">Quem esta puxando o pelotao</div></div>
+      <button class="btn" onclick="carregar()">Atualizar</button>
+    </div>
+
+    <div class="chips" id="ch-tipo">
+      <div class="chip on" data-t="horas" onclick="setTipo('horas')">⏱️ Horas estudadas</div>
+      <div class="chip" data-t="questoes" onclick="setTipo('questoes')">🎯 Questoes respondidas</div>
+    </div>
+    <div class="chips" id="ch-per">
+      <div class="chip" data-p="dia" onclick="setPer('dia')">Hoje</div>
+      <div class="chip on" data-p="semana" onclick="setPer('semana')">Esta semana</div>
+      <div class="chip" data-p="mes" onclick="setPer('mes')">Este mes</div>
+      <div class="chip" data-p="geral" onclick="setPer('geral')">Geral</div>
+    </div>
+
+    <div id="loading" class="vazio">Carregando ranking...</div>
+    <div id="conteudo" style="display:none">
+      <div id="meu"></div>
+      <div id="podio"></div>
+      <div id="lista"></div>
+      <p style="color:var(--tx4);font-size:11.5px;text-align:center;margin-top:16px" id="rodape"></p>
+    </div>
+  </main>
+</div>
+
+<script src="config.js"></script>
+<script>
+const CORES=['#C9A83C','#5bb3f0','#6ddba0','#f07171','#b98ae0','#e8b04b','#4ecdc4','#f0955b','#8ab4f0','#d4e05b']
+let _alunoId=null,_tipo='horas',_per='semana',_dados=[],_admin=false
+
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function ymd(d){const x=new Date(d);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')}
+function addDays(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x}
+function iniciais(n){const p=String(n||'').trim().split(/\s+/);return ((p[0]||'?')[0]+(p.length>1?p[p.length-1][0]:'')).toUpperCase()}
+function nomeCurto(n){const p=String(n||'').trim().split(/\s+/);return p.length>1?p[0]+' '+p[p.length-1][0]+'.':p[0]}
+function cor(id){let h=0;for(let i=0;i<String(id).length;i++)h=(h*31+String(id).charCodeAt(i))>>>0;return CORES[h%CORES.length]}
+function dur(m){const h=Math.floor(m/60);return h>0?(h+'h'+(m%60?' '+(m%60)+'min':'')):(m+'min')}
+
+function inicioPeriodo(){
+  const h=new Date();h.setHours(0,0,0,0)
+  if(_per==='dia')return ymd(h)
+  if(_per==='semana')return ymd(addDays(h,-((h.getDay()+6)%7)))
+  if(_per==='mes')return ymd(new Date(h.getFullYear(),h.getMonth(),1))
+  return '2000-01-01'
+}
+
+async function init(){
+  const { data:{user} }=await _supabase.auth.getUser()
+  if(!user){location.href='index.html';return}
+  _alunoId=user.id
+  carregarMarca()
+  carregar()
+}
+
+async function carregarMarca(){
+  const { data:m }=await _supabase.from('config_marca').select('*').eq('id',1).maybeSingle()
+  if(!m)return
+  if(m.cor_primaria)document.documentElement.style.setProperty('--ouro',m.cor_primaria)
+  const nome=m.nome_marca||'Patrulheiros de Elite',p=nome.split(' ')
+  const lt=document.querySelector('.logo-t')
+  if(lt)lt.innerHTML=esc(p[0])+'<span>'+esc(p.length>1?p.slice(1).join(' '):(m.slogan||''))+'</span>'
+  if(m.logo_url){
+    const li=document.querySelector('.logo-i')
+    if(li){li.innerHTML='<img src="'+esc(m.logo_url)+'" style="width:100%;height:100%;object-fit:cover">';li.style.background='transparent'}
+  }
+}
+
+function setTipo(t){_tipo=t;document.querySelectorAll('#ch-tipo .chip').forEach(function(e){e.classList.toggle('on',e.dataset.t===t)});render()}
+function setPer(p){_per=p;document.querySelectorAll('#ch-per .chip').forEach(function(e){e.classList.toggle('on',e.dataset.p===p)});carregar()}
+
+async function carregar(){
+  document.getElementById('loading').style.display='block'
+  document.getElementById('conteudo').style.display='none'
+  const desde=inicioPeriodo()
+
+  // 3 consultas apenas, independente do numero de alunos
+  const [ra,rs,rq,rr]=await Promise.all([
+    _supabase.from('alunos').select('id,nome,concursos(nome)'),
+    _supabase.from('sessoes_estudo').select('aluno_id,tempo_minutos,questoes_feitas,questoes_certas,concluida,data').eq('concluida',true).gte('data',desde),
+    _supabase.from('questao_respostas').select('aluno_id,correta,respondido_em').gte('respondido_em',desde+'T00:00:00'),
+    _supabase.from('registros_diarios').select('aluno_id,questoes_feitas,questoes_certas,cumpriu,data').gte('data',desde)
+  ])
+
+  const alunos=ra.data||[]
+  const acc={}
+  alunos.forEach(function(a){ acc[a.id]={id:a.id,nome:a.nome,concurso:a.concursos?a.concursos.nome:'',min:0,q:0,ac:0,dias:{}} })
+
+  ;(rs.data||[]).forEach(function(s){
+    const x=acc[s.aluno_id]; if(!x)return
+    x.min+=s.tempo_minutos||0
+    x.q+=s.questoes_feitas||0
+    x.ac+=s.questoes_certas||0
+    x.dias[s.data]=1
+  })
+  ;(rq.data||[]).forEach(function(r){
+    const x=acc[r.aluno_id]; if(!x)return
+    x.q+=1; if(r.correta)x.ac+=1
+  })
+  ;(rr.data||[]).forEach(function(r){
+    const x=acc[r.aluno_id]; if(!x)return
+    x.q+=r.questoes_feitas||0
+    x.ac+=r.questoes_certas||0
+    if(r.cumpriu)x.dias[r.data]=1
+  })
+
+  _dados=Object.keys(acc).map(function(k){
+    const x=acc[k]
+    x.ndias=Object.keys(x.dias).length
+    x.pct=x.q>0?Math.round(x.ac/x.q*100):0
+    return x
+  })
+
+  document.getElementById('loading').style.display='none'
+  document.getElementById('conteudo').style.display='block'
+  render()
+}
+
+function render(){
+  const campo=_tipo==='horas'?'min':'q'
+  const lista=_dados.filter(function(x){return x[campo]>0}).sort(function(a,b){
+    if(b[campo]!==a[campo])return b[campo]-a[campo]
+    return b.ndias-a.ndias
+  })
+
+  const per={dia:'hoje',semana:'esta semana',mes:'este mes',geral:'no total'}[_per]
+  document.getElementById('sub').textContent=(_tipo==='horas'?'Horas estudadas':'Questoes respondidas')+' — '+per
+
+  if(!lista.length){
+    document.getElementById('meu').innerHTML=''
+    document.getElementById('podio').innerHTML=''
+    document.getElementById('lista').innerHTML=
+      '<div class="painel vazio"><div style="font-size:42px;margin-bottom:12px">🏆</div>'
+      +'<div style="color:var(--ouro);font-weight:700;font-size:16px">Ranking ainda vazio</div>'
+      +'<p style="color:var(--tx3);font-size:13px;margin-top:8px">Ninguem registrou '+(_tipo==='horas'?'estudo':'questoes')+' '+per+'. Seja o primeiro!</p></div>'
+    document.getElementById('rodape').textContent=''
+    return
+  }
+
+  const val=function(x){return _tipo==='horas'?dur(x.min):x.q}
+  const lbl=_tipo==='horas'?'estudadas':'questoes'
+
+  // meu card
+  const eu=lista.find(function(x){return x.id===_alunoId})
+  const pos=eu?lista.indexOf(eu)+1:null
+  const box=document.getElementById('meu')
+  if(eu){
+    const c=cor(eu.id)
+    box.innerHTML='<div class="av" style="background:'+c+';width:44px;height:44px;font-size:16px">'+iniciais(eu.nome)+'</div>'
+      +'<div style="flex:1;min-width:140px"><div style="font-size:15px;font-weight:700">Voce esta em '+pos+'º lugar</div>'
+      +'<div style="color:var(--tx3);font-size:12.5px;margin-top:2px">'+val(eu)+' '+lbl+' · '+eu.ndias+' dia(s) ativo(s)'+(eu.q>0?' · '+eu.pct+'% de acerto':'')+'</div></div>'
+      +(pos>1?'<div style="text-align:right"><div style="color:var(--ouro);font-size:14px;font-weight:700">'
+        +(_tipo==='horas'?dur(Math.max(0,lista[pos-2].min-eu.min)):Math.max(0,lista[pos-2].q-eu.q))+'</div>'
+        +'<div style="color:var(--tx3);font-size:11px">para subir uma posicao</div></div>'
+        :'<div style="text-align:right;color:var(--ouro);font-size:13px;font-weight:700">🥇 Lider!</div>')
+    box.className='meu'
+  }else{
+    box.className=''
+    box.innerHTML='<div class="painel" style="margin-bottom:16px;text-align:center;color:var(--tx3);font-size:13px">Voce ainda nao pontuou '+per+'. Registre seu estudo para entrar no ranking!</div>'
+  }
+
+  // podio
+  const top=lista.slice(0,3)
+  const ord=[1,0,2]
+  document.getElementById('podio').innerHTML=top.length>=3?ord.map(function(i){
+    const x=top[i];if(!x)return ''
+    const c=cor(x.id)
+    return '<div class="pod p'+(i+1)+'"><div class="pod-m">'+['🥇','🥈','🥉'][i]+'</div>'
+      +'<div class="pod-av" style="background:'+c+'">'+iniciais(x.nome)+'</div>'
+      +'<div class="pod-n">'+esc(nomeCurto(x.nome))+'</div>'
+      +'<div class="pod-v">'+val(x)+'</div><div class="pod-l">'+lbl+'</div></div>'
+  }).join(''):''
+
+  // lista
+  const resto=top.length>=3?lista.slice(3):lista
+  const ini=top.length>=3?4:1
+  document.getElementById('lista').innerHTML=resto.map(function(x,i){
+    const c=cor(x.id)
+    const p=ini+i
+    return '<div class="lin'+(x.id===_alunoId?' eu':'')+'">'
+      +'<div class="pos">'+p+'º</div>'
+      +'<div class="av" style="background:'+c+'">'+iniciais(x.nome)+'</div>'
+      +'<div class="nm"><div class="nm-t">'+esc(nomeCurto(x.nome))+(x.id===_alunoId?' <span style="color:var(--ouro);font-size:11px">(voce)</span>':'')+'</div>'
+      +'<div class="nm-s">'+x.ndias+' dia(s) ativo(s)'+(x.q>0?' · '+x.pct+'% acerto':'')+'</div></div>'
+      +'<div class="vl"><div class="vl-n">'+val(x)+'</div><div class="vl-l">'+lbl+'</div></div></div>'
+  }).join('')
+
+  const totMin=lista.reduce(function(s,x){return s+x.min},0)
+  const totQ=lista.reduce(function(s,x){return s+x.q},0)
+  document.getElementById('rodape').textContent=lista.length+' aluno(s) no ranking · a turma somou '+dur(totMin)+' e '+totQ+' questoes '+per
+}
+
+async function sair(){await _supabase.auth.signOut();location.href='index.html'}
+init()
+</script>
+</body>
+</html>
