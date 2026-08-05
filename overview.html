@@ -14,66 +14,67 @@
       margin-top: 16px;
     }
     .aluno-card {
-      background: #1a2f45;
+      background: var(--card);
       border-radius: 12px;
       padding: 16px;
-      border-left: 4px solid #2a4a6a;
+      border-left: 4px solid var(--bd2);
       transition: border-color 0.2s;
       cursor: pointer;
     }
-    .aluno-card:hover { border-color: #C9A83C; }
-    .aluno-card.verde { border-color: #81c784; }
-    .aluno-card.amarelo { border-color: #ffb74d; }
-    .aluno-card.vermelho { border-color: #e57373; }
-    .aluno-card.sem-dados { border-color: #2a4a6a; opacity: 0.7; }
+    .aluno-card:hover { border-color: var(--ouro); }
+    .aluno-card.verde { border-color: var(--ok); }
+    .aluno-card.amarelo { border-color: var(--alerta); }
+    .aluno-card.vermelho { border-color: var(--erro); }
+    .aluno-card.sem-dados { border-color: var(--bd2); opacity: 0.7; }
     .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
     .card-nome { font-size: 15px; font-weight: bold; flex: 1; }
-    .card-concurso { font-size: 11px; color: #aaa; margin-top: 2px; }
-    .card-streak { font-size: 22px; font-weight: bold; color: #C9A83C; }
-    .card-streak-label { font-size: 10px; color: #aaa; text-align: center; }
+    .card-concurso { font-size: 11px; color: var(--tx3); margin-top: 2px; }
+    .card-streak { font-size: 22px; font-weight: bold; color: var(--ouro); }
+    .card-streak-label { font-size: 10px; color: var(--tx3); text-align: center; }
     .card-stats { display: flex; gap: 8px; margin-top: 10px; }
-    .card-stat { flex: 1; background: #0d1b2a; border-radius: 8px; padding: 8px; text-align: center; }
+    .card-stat { flex: 1; background: var(--card2); border-radius: 8px; padding: 8px; text-align: center; }
     .card-stat-val { font-size: 16px; font-weight: bold; }
-    .card-stat-label { font-size: 10px; color: #aaa; margin-top: 2px; }
-    .card-ultima { font-size: 11px; color: #aaa; margin-top: 10px; padding-top: 8px; border-top: 1px solid #2a4a6a; }
+    .card-stat-label { font-size: 10px; color: var(--tx3); margin-top: 2px; }
+    .card-ultima { font-size: 11px; color: var(--tx3); margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--bd2); }
     .card-dias-row { display: flex; gap: 3px; margin-top: 8px; }
     .card-dia { width: 14px; height: 14px; border-radius: 3px; }
     .filtros { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
-    .filtro-btn { width: auto; padding: 7px 14px; font-size: 13px; background: #1a2f45; color: #aaa; border: 1px solid #2a4a6a; border-radius: 8px; font-weight: normal; }
-    .filtro-btn.ativo { background: #C9A83C; color: #0d1b2a; border-color: #C9A83C; }
+    .filtro-btn { width: auto; padding: 7px 14px; font-size: 13px; background: var(--card); color: var(--tx3); border: 1px solid var(--bd2); border-radius: 8px; font-weight: normal; }
+    .filtro-btn.ativo { background: var(--ouro); color: var(--card2); border-color: var(--ouro); }
     .resumo-topo { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 20px; }
-    .resumo-card { background: #1a2f45; border-radius: 10px; padding: 14px; text-align: center; }
+    .resumo-card { background: var(--card); border-radius: 10px; padding: 14px; text-align: center; }
     .resumo-val { font-size: 26px; font-weight: bold; }
-    .resumo-label { font-size: 12px; color: #aaa; margin-top: 4px; }
-    .loading { text-align: center; padding: 40px; color: #aaa; }
-    .barra-progresso { height: 4px; border-radius: 2px; background: #0d1b2a; margin-top: 8px; overflow: hidden; }
+    .resumo-label { font-size: 12px; color: var(--tx3); margin-top: 4px; }
+    .loading { text-align: center; padding: 40px; color: var(--tx3); }
+    .barra-progresso { height: 4px; border-radius: 2px; background: var(--card2); margin-top: 8px; overflow: hidden; }
     .barra-fill { height: 100%; border-radius: 2px; transition: width 0.5s; }
     @media (max-width: 600px) {
       .overview-grid { grid-template-columns: 1fr; }
       .resumo-topo { grid-template-columns: repeat(2, 1fr); }
     }
   </style>
+<script>document.documentElement.setAttribute("data-tema",localStorage.getItem("tema")||"escuro")</script>
 </head>
 <body>
 <div class="container">
   <header>
     <div>
       <h2>Visao Geral dos Alunos</h2>
-      <div style="color:#aaa;font-size:13px;margin-top:2px" id="ultima-atualizacao"></div>
+      <div style="color:var(--tx3);font-size:13px;margin-top:2px" id="ultima-atualizacao"></div>
     </div>
     <div style="display:flex;gap:8px">
-      <button onclick="recarregar()" style="width:auto;padding:8px 14px;background:#1a2f45;color:#C9A83C;border:1px solid #C9A83C">Atualizar</button>
-      <button onclick="window.location.href='relatorio.html'" style="width:auto;padding:8px 14px;background:#1a3a1a;color:#81c784;border:1px solid #81c784">Relatorios</button><button onclick="window.location.href='admin.html'" style="width:auto;padding:8px 14px">Painel Admin</button>
+      <button onclick="recarregar()" style="width:auto;padding:8px 14px;background:var(--card);color:var(--ouro);border:1px solid var(--ouro)">Atualizar</button>
+      <button onclick="window.location.href='relatorio.html'" style="width:auto;padding:8px 14px;background:var(--card2);color:var(--ok);border:1px solid var(--ok)">Relatorios</button><button onclick="window.location.href='admin.html'" style="width:auto;padding:8px 14px">Painel Admin</button>
     </div>
   </header>
 
   <!-- Resumo no topo -->
   <div class="resumo-topo" id="resumo-topo">
-    <div class="resumo-card"><div class="resumo-val" id="r-total" style="color:#C9A83C">--</div><div class="resumo-label">Total de alunos</div></div>
-    <div class="resumo-card"><div class="resumo-val" id="r-ativos" style="color:#81c784">--</div><div class="resumo-label">Ativos hoje</div></div>
-    <div class="resumo-card"><div class="resumo-val" id="r-streak" style="color:#C9A83C">--</div><div class="resumo-label">Maior streak</div></div>
-    <div class="resumo-card"><div class="resumo-val" id="r-inativo" style="color:#e57373">--</div><div class="resumo-label">Inativos +3 dias</div></div>
-    <div class="resumo-card"><div class="resumo-val" id="r-questoes" style="color:#4a8ab5">--</div><div class="resumo-label">Questoes hoje</div></div>
+    <div class="resumo-card"><div class="resumo-val" id="r-total" style="color:var(--ouro)">--</div><div class="resumo-label">Total de alunos</div></div>
+    <div class="resumo-card"><div class="resumo-val" id="r-ativos" style="color:var(--ok)">--</div><div class="resumo-label">Ativos hoje</div></div>
+    <div class="resumo-card"><div class="resumo-val" id="r-streak" style="color:var(--ouro)">--</div><div class="resumo-label">Maior streak</div></div>
+    <div class="resumo-card"><div class="resumo-val" id="r-inativo" style="color:var(--erro)">--</div><div class="resumo-label">Inativos +3 dias</div></div>
+    <div class="resumo-card"><div class="resumo-val" id="r-questoes" style="color:var(--info)">--</div><div class="resumo-label">Questoes hoje</div></div>
   </div>
 
   <!-- Filtros e busca -->
@@ -85,9 +86,9 @@
   </div>
   <div class="filtros">
     <button class="filtro-btn ativo" onclick="setFiltro('todos', this)">Todos</button>
-    <button class="filtro-btn" onclick="setFiltro('verde', this)" style="color:#81c784;border-color:#81c784">Em dia</button>
-    <button class="filtro-btn" onclick="setFiltro('amarelo', this)" style="color:#ffb74d;border-color:#ffb74d">Atencao</button>
-    <button class="filtro-btn" onclick="setFiltro('vermelho', this)" style="color:#e57373;border-color:#e57373">Critico</button>
+    <button class="filtro-btn" onclick="setFiltro('verde', this)" style="color:var(--ok);border-color:var(--ok)">Em dia</button>
+    <button class="filtro-btn" onclick="setFiltro('amarelo', this)" style="color:var(--alerta);border-color:var(--alerta)">Atencao</button>
+    <button class="filtro-btn" onclick="setFiltro('vermelho', this)" style="color:var(--erro);border-color:var(--erro)">Critico</button>
     <button class="filtro-btn" onclick="setFiltro('sem-dados', this)">Sem registro</button>
     <button class="filtro-btn" onclick="ordenarPor('streak')" id="ord-streak">Streak</button>
     <button class="filtro-btn" onclick="ordenarPor('cumprimento')" id="ord-cump">Cumprimento</button>
@@ -274,22 +275,22 @@ function renderizarCards(cards) {
   grid.innerHTML = ''
 
   if (cards.length === 0) {
-    grid.innerHTML = '<p style="color:#aaa;grid-column:1/-1;text-align:center;padding:20px">Nenhum aluno encontrado.</p>'
+    grid.innerHTML = '<p style="color:var(--tx3);grid-column:1/-1;text-align:center;padding:20px">Nenhum aluno encontrado.</p>'
     return
   }
 
   cards.forEach(c => {
-    const corStreak = c.streak >= 14 ? '#C9A83C' : c.streak >= 7 ? '#4a8ab5' : c.streak >= 3 ? '#81c784' : '#aaa'
+    const corStreak = c.streak >= 14 ? 'var(--ouro)' : c.streak >= 7 ? 'var(--info)' : c.streak >= 3 ? 'var(--ok)' : 'var(--tx3)'
     const iconeStreak = c.streak >= 14 ? '🔥🔥' : c.streak >= 7 ? '🔥' : c.streak >= 3 ? '🔥' : ''
 
     const ultimaStr = c.ultimaData
       ? (c.diasSemReg === 0 ? 'Hoje' : c.diasSemReg === 1 ? 'Ontem' : 'Ha ' + c.diasSemReg + ' dias')
       : 'Nunca registrou'
-    const corUltima = !c.ultimaData ? '#e57373' : c.diasSemReg > 7 ? '#e57373' : c.diasSemReg > 3 ? '#ffb74d' : '#81c784'
+    const corUltima = !c.ultimaData ? 'var(--erro)' : c.diasSemReg > 7 ? 'var(--erro)' : c.diasSemReg > 3 ? 'var(--alerta)' : 'var(--ok)'
 
     const miniDias = c.ultimos7.map(d => {
-      const bg = d.cumpriu ? '#C9A83C' : d.isHoje ? '#1a3a5c' : d.temReg ? '#2a4a6a' : '#1a1a2a'
-      const border = d.isHoje ? '1px solid #4a8ab5' : 'none'
+      const bg = d.cumpriu ? 'var(--ouro)' : d.isHoje ? 'var(--hov)' : d.temReg ? 'var(--bd2)' : '#1a1a2a'
+      const border = d.isHoje ? '1px solid var(--info)' : 'none'
       return `<div class="card-dia" style="background:${bg};border:${border}" title="${d.key}"></div>`
     }).join('')
 
@@ -308,29 +309,29 @@ function renderizarCards(cards) {
 
         <div class="card-stats">
           <div class="card-stat">
-            <div class="card-stat-val" style="color:${c.pctCumprimento === null ? '#aaa' : c.pctCumprimento >= 70 ? '#81c784' : c.pctCumprimento >= 40 ? '#ffb74d' : '#e57373'}">
+            <div class="card-stat-val" style="color:${c.pctCumprimento === null ? 'var(--tx3)' : c.pctCumprimento >= 70 ? 'var(--ok)' : c.pctCumprimento >= 40 ? 'var(--alerta)' : 'var(--erro)'}">
               ${c.pctCumprimento !== null ? c.pctCumprimento + '%' : '--'}
             </div>
             <div class="card-stat-label">cumprimento</div>
             ${c.pctCumprimento !== null ? `
             <div class="barra-progresso">
-              <div class="barra-fill" style="width:${c.pctCumprimento}%;background:${c.pctCumprimento >= 70 ? '#81c784' : c.pctCumprimento >= 40 ? '#ffb74d' : '#e57373'}"></div>
+              <div class="barra-fill" style="width:${c.pctCumprimento}%;background:${c.pctCumprimento >= 70 ? 'var(--ok)' : c.pctCumprimento >= 40 ? 'var(--alerta)' : 'var(--erro)'}"></div>
             </div>` : ''}
           </div>
           <div class="card-stat">
-            <div class="card-stat-val" style="color:${c.pctAcerto === null ? '#aaa' : '#4a8ab5'}">
+            <div class="card-stat-val" style="color:${c.pctAcerto === null ? 'var(--tx3)' : 'var(--info)'}">
               ${c.pctAcerto !== null ? c.pctAcerto + '%' : '--'}
             </div>
             <div class="card-stat-label">acerto</div>
           </div>
           <div class="card-stat">
-            <div class="card-stat-val" style="color:#aaa">${c.totalQ || 0}</div>
+            <div class="card-stat-val" style="color:var(--tx3)">${c.totalQ || 0}</div>
             <div class="card-stat-label">questoes/sem</div>
           </div>
         </div>
 
         <div class="card-dias-row">${miniDias}</div>
-        <p style="color:#aaa;font-size:10px;margin-top:4px">ultimos 7 dias</p>
+        <p style="color:var(--tx3);font-size:10px;margin-top:4px">ultimos 7 dias</p>
 
         <div class="card-ultima">
           Ultima atividade: <span style="color:${corUltima}">${ultimaStr}</span>
@@ -338,7 +339,7 @@ function renderizarCards(cards) {
       </div>`
   })
 
-  grid.innerHTML += `<p style="color:#aaa;font-size:12px;grid-column:1/-1;text-align:right">${cards.length} aluno(s)</p>`
+  grid.innerHTML += `<p style="color:var(--tx3);font-size:12px;grid-column:1/-1;text-align:right">${cards.length} aluno(s)</p>`
 }
 
 function irParaAluno(id, nome) {
