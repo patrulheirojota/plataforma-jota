@@ -1,72 +1,69 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin — Patrulheiros de Elite</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel Admin — Patrulheiros de Elite</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <div class="login-box" id="tela-login">
-  <h1>Area Admin</h1>
-  <p>Patrulheiro Jota</p>
+  <div style="width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,var(--ouro),var(--ouro-esc));display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 16px">🛡️</div>
+  <h1>Painel do Mentor</h1>
+  <p>Patrulheiros de Elite</p>
   <input type="email" id="admin-email" placeholder="Seu e-mail">
   <input type="password" id="admin-senha" placeholder="Sua senha">
-  <button onclick="loginAdmin()">Entrar</button>
-  <p id="msg-erro-admin" style="color:#e57373;display:none;margin-top:10px"></p>
+  <button onclick="loginAdmin()" style="margin-top:12px">Entrar</button>
+  <p id="msg-erro-admin" style="color:var(--erro);display:none;margin-top:12px;font-size:13px"></p>
 </div>
 
-<div class="container" id="painel-admin" style="display:none">
-  <header>
-    <h2>Painel Admin</h2>
-    <div style="display:flex;gap:8px"><button onclick="window.location.href='importador.html'" style="width:auto;padding:8px 14px;background:#0d2a1a;color:#81c784;border:1px solid #81c784">Importar Prova</button><button onclick="window.location.href='questoes-admin.html'" style="width:auto;padding:8px 14px;background:#1a2a3a;color:#5bb3f0;border:1px solid #5bb3f0">Questoes</button><button onclick="window.location.href='marca.html'" style="width:auto;padding:8px 14px;background:#2a1a3a;color:#e0a0d0;border:1px solid #e0a0d0">Marca</button><button onclick="window.location.href='temas.html'" style="width:auto;padding:8px 14px;background:#0d2a1a;color:#81c784;border:1px solid #81c784">Temas</button><button onclick="window.location.href='gerador.html'" style="width:auto;padding:8px 14px;background:#2a1a3a;color:#b98ae0;border:1px solid #b98ae0">Gerador</button><button onclick="window.location.href='edital-admin.html'" style="width:auto;padding:8px 14px;background:#1a3a2a;color:#4a8ab5;border:1px solid #4a8ab5">Editais</button><button onclick="window.location.href='relatorio.html'" style="width:auto;padding:8px 14px;background:#1a3a1a;color:#81c784;border:1px solid #81c784">Relatorios</button><button onclick="window.location.href='overview.html'" style="width:auto;padding:8px 14px;background:#1a3a5c;color:#C9A83C;border:1px solid #C9A83C">Visao Geral</button><button onclick="sairAdmin()" style="width:auto;padding:8px 16px">Sair</button></div>
-  </header>
+<div class="shell" id="painel-admin" style="display:none">
 
-  <div class="abas">
-    <button class="aba-btn ativa" onclick="mostrarAba('aba-concursos')">Concursos</button>
-    <button class="aba-btn" onclick="mostrarAba('aba-alunos')">Alunos</button>
-    <button class="aba-btn" onclick="mostrarAba('aba-templates')">Templates</button>
-    <button class="aba-btn" onclick="mostrarAba('aba-cronograma')">Cronograma</button>
-    <button class="aba-btn" onclick="mostrarAba('aba-desempenho')">Desempenho</button>
-    <button class="aba-btn" onclick="mostrarAba('aba-avisos')">Avisos</button>
-  </div>
-
-  <!-- ABA: CONCURSOS -->
-  <div id="aba-concursos" class="aba-conteudo">
-    <div class="card">
-      <h3>Cadastrar novo concurso</h3>
-      <input type="text" id="novo-concurso-nome" placeholder="Nome (ex: GMA Aracaju 2026)">
-      <input type="text" id="novo-concurso-banca" placeholder="Banca (ex: IDECAN)">
-      <input type="date" id="novo-concurso-data">
-      <button onclick="criarConcurso()">Cadastrar concurso</button>
-    </div>
-    <div class="card">
-      <h3>Concursos cadastrados</h3>
-      <div id="lista-concursos"></div>
+  <aside class="side">
+    <div class="logo">
+      <div class="logo-i">🛡️</div>
+      <div class="logo-t">Painel<span>do Mentor</span></div>
     </div>
 
-    <div class="card" id="card-editar-concurso" style="display:none">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <h3 id="titulo-editar-concurso">Editar concurso</h3>
-        <button onclick="fecharEditarConcurso()" style="width:auto;padding:6px 14px;background:#1a2f45;color:#aaa;border:1px solid #2a4a6a">Fechar</button>
-      </div>
-      <input type="hidden" id="edc-id">
-      <label style="color:#aaa;font-size:12px;display:block;margin-bottom:4px">Nome do concurso</label>
-      <input type="text" id="edc-nome" placeholder="Ex: GCM Aracaju 2026">
-      <label style="color:#aaa;font-size:12px;display:block;margin-top:10px;margin-bottom:4px">Banca</label>
-      <input type="text" id="edc-banca" placeholder="Ex: IDECAN">
-      <label style="color:#aaa;font-size:12px;display:block;margin-top:10px;margin-bottom:4px">Data da prova</label>
-      <input type="date" id="edc-data">
-      <p style="color:#555;font-size:11px;margin-top:4px">Ao alterar a data, o contador regressivo dos alunos e os cronogramas ja gerados sao atualizados junto.</p>
-      <button onclick="salvarEdicaoConcurso()" style="margin-top:12px">Salvar alteracoes</button>
-      <p id="msg-editar-concurso" style="margin-top:8px;font-size:13px"></p>
-    </div>
-  </div>
+    <div class="side-h">Gestao</div>
+    <div class="nav-i on" data-a="aba-alunos" onclick="mostrarAba('aba-alunos')"><span class="nav-ic">👥</span>Alunos</div>
+    <div class="nav-i" data-a="aba-concursos" onclick="mostrarAba('aba-concursos')"><span class="nav-ic">🏆</span>Concursos</div>
+    <div class="nav-i" data-a="aba-avisos" onclick="mostrarAba('aba-avisos')"><span class="nav-ic">🔔</span>Avisos</div>
 
-  <!-- ABA: ALUNOS -->
-  <div id="aba-alunos" class="aba-conteudo" style="display:none">
+    <div class="side-h">Cronograma</div>
+    <div class="nav-i" onclick="location.href='gerador.html'"><span class="nav-ic">⚡</span>Gerador<span class="nav-tag">NOVO</span></div>
+    <div class="nav-i" data-a="aba-cronograma" onclick="mostrarAba('aba-cronograma')"><span class="nav-ic">📅</span>Planos</div>
+    <div class="nav-i" data-a="aba-templates" onclick="mostrarAba('aba-templates')"><span class="nav-ic">📋</span>Templates</div>
+    <div class="nav-i" onclick="location.href='temas.html'"><span class="nav-ic">🎯</span>Controle de Temas</div>
+
+    <div class="side-h">Conteudo</div>
+    <div class="nav-i" onclick="location.href='importador.html'"><span class="nav-ic">📄</span>Importar Prova</div>
+    <div class="nav-i" onclick="location.href='questoes-admin.html'"><span class="nav-ic">❓</span>Questoes</div>
+    <div class="nav-i" onclick="location.href='edital-admin.html'"><span class="nav-ic">📖</span>Editais</div>
+
+    <div class="side-h">Acompanhamento</div>
+    <div class="nav-i" onclick="location.href='overview.html'"><span class="nav-ic">📊</span>Visao Geral</div>
+    <div class="nav-i" data-a="aba-desempenho" onclick="mostrarAba('aba-desempenho')"><span class="nav-ic">📈</span>Desempenho</div>
+    <div class="nav-i" onclick="location.href='relatorio.html'"><span class="nav-ic">📑</span>Relatorios</div>
+
+    <div class="side-h">Ajustes</div>
+    <div class="nav-i" onclick="location.href='marca.html'"><span class="nav-ic">🎨</span>Marca</div>
+
+    <div class="side-b">
+      <div class="nav-i" onclick="trocarTema()" id="nav-tema"><span class="nav-ic">🌙</span>Tema</div>
+      <div class="nav-i" onclick="sairAdmin()"><span class="nav-ic">🚪</span>Sair</div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div style="margin-bottom:22px">
+      <div class="pag-t" id="pag-t">Alunos</div>
+      <div class="pag-s" id="pag-s">Cadastro, acesso e acompanhamento</div>
+    </div>
+
+    <div id="aba-alunos" class="aba-conteudo" style="display:block">
     <div class="card">
       <h3>Cadastrar novo aluno</h3>
       <input type="text" id="novo-aluno-nome" placeholder="Nome completo">
@@ -157,74 +154,56 @@
       <div id="preview-template" style="margin-top:12px"></div>
       <button id="btn-confirmar-aplicar" onclick="confirmarAplicarTemplate()" style="display:none;margin-top:12px;background:#1a3a1a;color:#81c784;border:1px solid #81c784">Confirmar e aplicar template</button>
     </div>
-  </div>
-
-  <!-- ABA: TEMPLATES -->
-  <div id="aba-templates" class="aba-conteudo" style="display:none">
-
-    <div class="card">
-      <h3>Criar novo template</h3>
-      <select id="template-concurso"></select>
-      <input type="text" id="template-nome" placeholder="Nome do template (ex: PMBA Basico 60min/dia)">
-      <input type="text" id="template-descricao" placeholder="Descricao (opcional)">
-      <button onclick="criarTemplate()">Criar template</button>
     </div>
 
+    <div id="aba-concursos" class="aba-conteudo" style="display:none">
     <div class="card">
-      <h3>Templates existentes</h3>
-      <select id="filtro-template-concurso" onchange="carregarTemplates()">
-        <option value="">Selecione o concurso</option>
-      </select>
-      <div id="lista-templates" style="margin-top:12px"></div>
+      <h3>Cadastrar novo concurso</h3>
+      <input type="text" id="novo-concurso-nome" placeholder="Nome (ex: GMA Aracaju 2026)">
+      <input type="text" id="novo-concurso-banca" placeholder="Banca (ex: IDECAN)">
+      <input type="date" id="novo-concurso-data">
+      <button onclick="criarConcurso()">Cadastrar concurso</button>
+    </div>
+    <div class="card">
+      <h3>Concursos cadastrados</h3>
+      <div id="lista-concursos"></div>
     </div>
 
-    <div class="card" id="card-itens-template" style="display:none">
+    <div class="card" id="card-editar-concurso" style="display:none">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <h3 id="titulo-itens-template">Itens do template</h3>
-        <button onclick="document.getElementById('card-itens-template').style.display='none'" style="width:auto;padding:6px 14px;background:#1a2f45;color:#aaa;border:1px solid #2a4a6a">Fechar</button>
+        <h3 id="titulo-editar-concurso">Editar concurso</h3>
+        <button onclick="fecharEditarConcurso()" style="width:auto;padding:6px 14px;background:#1a2f45;color:#aaa;border:1px solid #2a4a6a">Fechar</button>
       </div>
-      <div id="lista-itens-template" style="margin-bottom:16px"></div>
-      <div style="background:#0d1b2a;border-radius:8px;padding:14px">
-        <p style="color:#C9A83C;font-size:13px;font-weight:bold;margin-bottom:10px">Adicionar disciplina ao template</p>
-        <input type="text" id="item-disciplina" placeholder="Disciplina (ex: Direito Penal Militar)">
-        <select id="item-dia">
-          <option value="segunda">Segunda-feira</option>
-          <option value="terca">Terca-feira</option>
-          <option value="quarta">Quarta-feira</option>
-          <option value="quinta">Quinta-feira</option>
-          <option value="sexta">Sexta-feira</option>
-          <option value="sabado">Sabado</option>
-          <option value="domingo">Domingo</option>
-        </select>
-        <div style="display:flex;gap:8px">
-          <input type="number" id="item-tempo" placeholder="Tempo padrao (min)" min="15" step="15">
-          <input type="number" id="item-questoes" placeholder="Meta de questoes" value="30" min="0">
-        </div>
-        <button onclick="adicionarItemTemplate()" style="margin-top:8px">+ Adicionar disciplina</button>
-      </div>
+      <input type="hidden" id="edc-id">
+      <label style="color:#aaa;font-size:12px;display:block;margin-bottom:4px">Nome do concurso</label>
+      <input type="text" id="edc-nome" placeholder="Ex: GCM Aracaju 2026">
+      <label style="color:#aaa;font-size:12px;display:block;margin-top:10px;margin-bottom:4px">Banca</label>
+      <input type="text" id="edc-banca" placeholder="Ex: IDECAN">
+      <label style="color:#aaa;font-size:12px;display:block;margin-top:10px;margin-bottom:4px">Data da prova</label>
+      <input type="date" id="edc-data">
+      <p style="color:#555;font-size:11px;margin-top:4px">Ao alterar a data, o contador regressivo dos alunos e os cronogramas ja gerados sao atualizados junto.</p>
+      <button onclick="salvarEdicaoConcurso()" style="margin-top:12px">Salvar alteracoes</button>
+      <p id="msg-editar-concurso" style="margin-top:8px;font-size:13px"></p>
+    </div>
     </div>
 
+    <div id="aba-avisos" class="aba-conteudo" style="display:none">
     <div class="card">
-      <h3>Aplicar template em massa</h3>
-      <p style="color:#aaa;font-size:13px;margin-bottom:12px">Selecione um concurso, escolha o template e marque os alunos que vao receber.</p>
-      <button onclick="document.getElementById('card-massa').style.display='block';document.getElementById('card-massa').scrollIntoView({behavior:'smooth'})"
-        style="background:#1a3a1a;color:#81c784;border:1px solid #81c784">Abrir aplicacao em massa</button>
+      <h3>Novo aviso para os alunos</h3>
+      <select id="aviso-concurso"></select>
+      <input type="text" id="aviso-titulo" placeholder="Titulo do aviso">
+      <textarea id="aviso-mensagem" placeholder="Mensagem completa..." rows="4"
+        style="width:100%;padding:12px;margin:8px 0;border-radius:8px;border:1px solid #2a4a6a;background:#0d1b2a;color:#fff;font-size:15px;resize:vertical"></textarea>
+      <button onclick="criarAviso()">Publicar aviso</button>
+    </div>
+    <div class="card">
+      <h3>Avisos publicados</h3>
+      <select id="filtro-avisos-concurso" onchange="carregarAvisos()"></select>
+      <div id="lista-avisos"></div>
+    </div>
     </div>
 
-    <div class="card" id="card-massa" style="display:none">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <h3>Aplicar em massa</h3>
-        <button onclick="document.getElementById('card-massa').style.display='none'" style="width:auto;padding:6px 14px;background:#1a2f45;color:#aaa;border:1px solid #2a4a6a">Fechar</button>
-      </div>
-      <select id="massa-concurso-select" onchange="carregarAlunosParaMassa()"></select>
-      <select id="massa-template-select" style="margin-top:8px"><option value="">Selecione o template</option></select>
-      <div id="lista-massa-alunos" style="margin-top:12px"></div>
-      <button onclick="aplicarTemplateEmMassa()" style="margin-top:12px;background:#1a3a1a;color:#81c784;border:1px solid #81c784">Aplicar template aos selecionados</button>
-    </div>
-  </div>
-
-  <!-- ABA: CRONOGRAMA -->
-  <div id="aba-cronograma" class="aba-conteudo" style="display:none">
+    <div id="aba-cronograma" class="aba-conteudo" style="display:none">
     <div class="card">
       <h3>Visualizar cronograma por concurso</h3>
       <select id="filtro-cron-concurso" onchange="visualizarCronogramaConcurso()"></select>
@@ -302,10 +281,72 @@
       <h3>Revisoes programadas</h3>
       <div id="lista-revisoes-admin"></div>
     </div>
-  </div>
+    </div>
 
-  <!-- ABA: DESEMPENHO -->
-  <div id="aba-desempenho" class="aba-conteudo" style="display:none">
+    <div id="aba-templates" class="aba-conteudo" style="display:none">
+
+    <div class="card">
+      <h3>Criar novo template</h3>
+      <select id="template-concurso"></select>
+      <input type="text" id="template-nome" placeholder="Nome do template (ex: PMBA Basico 60min/dia)">
+      <input type="text" id="template-descricao" placeholder="Descricao (opcional)">
+      <button onclick="criarTemplate()">Criar template</button>
+    </div>
+
+    <div class="card">
+      <h3>Templates existentes</h3>
+      <select id="filtro-template-concurso" onchange="carregarTemplates()">
+        <option value="">Selecione o concurso</option>
+      </select>
+      <div id="lista-templates" style="margin-top:12px"></div>
+    </div>
+
+    <div class="card" id="card-itens-template" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h3 id="titulo-itens-template">Itens do template</h3>
+        <button onclick="document.getElementById('card-itens-template').style.display='none'" style="width:auto;padding:6px 14px;background:#1a2f45;color:#aaa;border:1px solid #2a4a6a">Fechar</button>
+      </div>
+      <div id="lista-itens-template" style="margin-bottom:16px"></div>
+      <div style="background:#0d1b2a;border-radius:8px;padding:14px">
+        <p style="color:#C9A83C;font-size:13px;font-weight:bold;margin-bottom:10px">Adicionar disciplina ao template</p>
+        <input type="text" id="item-disciplina" placeholder="Disciplina (ex: Direito Penal Militar)">
+        <select id="item-dia">
+          <option value="segunda">Segunda-feira</option>
+          <option value="terca">Terca-feira</option>
+          <option value="quarta">Quarta-feira</option>
+          <option value="quinta">Quinta-feira</option>
+          <option value="sexta">Sexta-feira</option>
+          <option value="sabado">Sabado</option>
+          <option value="domingo">Domingo</option>
+        </select>
+        <div style="display:flex;gap:8px">
+          <input type="number" id="item-tempo" placeholder="Tempo padrao (min)" min="15" step="15">
+          <input type="number" id="item-questoes" placeholder="Meta de questoes" value="30" min="0">
+        </div>
+        <button onclick="adicionarItemTemplate()" style="margin-top:8px">+ Adicionar disciplina</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Aplicar template em massa</h3>
+      <p style="color:#aaa;font-size:13px;margin-bottom:12px">Selecione um concurso, escolha o template e marque os alunos que vao receber.</p>
+      <button onclick="document.getElementById('card-massa').style.display='block';document.getElementById('card-massa').scrollIntoView({behavior:'smooth'})"
+        style="background:#1a3a1a;color:#81c784;border:1px solid #81c784">Abrir aplicacao em massa</button>
+    </div>
+
+    <div class="card" id="card-massa" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h3>Aplicar em massa</h3>
+        <button onclick="document.getElementById('card-massa').style.display='none'" style="width:auto;padding:6px 14px;background:#1a2f45;color:#aaa;border:1px solid #2a4a6a">Fechar</button>
+      </div>
+      <select id="massa-concurso-select" onchange="carregarAlunosParaMassa()"></select>
+      <select id="massa-template-select" style="margin-top:8px"><option value="">Selecione o template</option></select>
+      <div id="lista-massa-alunos" style="margin-top:12px"></div>
+      <button onclick="aplicarTemplateEmMassa()" style="margin-top:12px;background:#1a3a1a;color:#81c784;border:1px solid #81c784">Aplicar template aos selecionados</button>
+    </div>
+    </div>
+
+    <div id="aba-desempenho" class="aba-conteudo" style="display:none">
     <div class="card">
       <h3>Alertas de inatividade</h3>
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
@@ -328,28 +369,29 @@
       </div>
       <div id="conteudo-relatorio-individual"></div>
     </div>
-  </div>
-
-  <!-- ABA: AVISOS -->
-  <div id="aba-avisos" class="aba-conteudo" style="display:none">
-    <div class="card">
-      <h3>Novo aviso para os alunos</h3>
-      <select id="aviso-concurso"></select>
-      <input type="text" id="aviso-titulo" placeholder="Titulo do aviso">
-      <textarea id="aviso-mensagem" placeholder="Mensagem completa..." rows="4"
-        style="width:100%;padding:12px;margin:8px 0;border-radius:8px;border:1px solid #2a4a6a;background:#0d1b2a;color:#fff;font-size:15px;resize:vertical"></textarea>
-      <button onclick="criarAviso()">Publicar aviso</button>
     </div>
-    <div class="card">
-      <h3>Avisos publicados</h3>
-      <select id="filtro-avisos-concurso" onchange="carregarAvisos()"></select>
-      <div id="lista-avisos"></div>
-    </div>
-  </div>
 
+  </main>
 </div>
 
 <script src="config.js"></script>
+<script>
+function trocarTema(){
+  const cl=document.documentElement.getAttribute('data-tema')==='claro'
+  document.documentElement.setAttribute('data-tema',cl?'escuro':'claro')
+  localStorage.setItem('tema',cl?'escuro':'claro')
+  const n=document.getElementById('nav-tema')
+  if(n)n.querySelector('.nav-ic').textContent=cl?'🌙':'☀️'
+}
+;(function(){
+  const t=localStorage.getItem('tema')||'escuro'
+  document.documentElement.setAttribute('data-tema',t)
+  window.addEventListener('DOMContentLoaded',function(){
+    const n=document.getElementById('nav-tema')
+    if(n)n.querySelector('.nav-ic').textContent=t==='claro'?'☀️':'🌙'
+  })
+})()
+</script>
 <script src="admin.js"></script>
 </body>
 </html>
