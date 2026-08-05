@@ -7,31 +7,32 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="stylesheet" href="style.css">
 <style>
-  .qa{background:#0d1b2a;border-radius:10px;padding:13px;margin-bottom:9px;border-left:3px solid #2a4a6a}
+  .qa{background:var(--card2);border-radius:10px;padding:13px;margin-bottom:9px;border-left:3px solid var(--bd2)}
   .qa-h{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-bottom:6px}
   .tag{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:700}
-  .t-aut{background:#C9A83C22;color:#C9A83C;border:1px solid #C9A83C}
-  .t-prova{background:#4a8ab522;color:#4a8ab5;border:1px solid #4a8ab5}
-  .t-ce{background:#81c78422;color:#81c784;border:1px solid #81c784}
-  .t-mult{background:#b98ae022;color:#b98ae0;border:1px solid #b98ae0}
+  .t-aut{background:var(--ouro)22;color:var(--ouro);border:1px solid var(--ouro)}
+  .t-prova{background:var(--info)22;color:var(--info);border:1px solid var(--info)}
+  .t-ce{background:var(--ok)22;color:var(--ok);border:1px solid var(--ok)}
+  .t-mult{background:var(--roxo)22;color:var(--roxo);border:1px solid var(--roxo)}
   .st{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:14px}
-  .st-c{background:#0d1b2a;border-radius:10px;padding:13px;text-align:center}
+  .st-c{background:var(--card2);border-radius:10px;padding:13px;text-align:center}
   .st-n{font-size:21px;font-weight:bold}
-  .st-l{color:#aaa;font-size:11px;margin-top:2px}
-  .drop{border:2px dashed #2a4a6a;border-radius:12px;padding:22px;text-align:center;cursor:pointer;background:#0d1b2a;transition:.2s}
-  .drop:hover,.drop.dentro{border-color:#C9A83C;background:#12233a}
+  .st-l{color:var(--tx3);font-size:11px;margin-top:2px}
+  .drop{border:2px dashed var(--bd2);border-radius:12px;padding:22px;text-align:center;cursor:pointer;background:var(--card2);transition:.2s}
+  .drop:hover,.drop.dentro{border-color:var(--ouro);background:var(--hov)}
   .modo{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
-  .modo button{width:auto;margin:0;padding:9px 15px;font-size:13px;background:#0d1b2a;color:#7f96ae;border:1px solid #2a4a6a;border-radius:9px;font-weight:600}
-  .modo button.on{background:#1a3a5c;color:#C9A83C;border-color:#C9A83C}
-  textarea.big{width:100%;padding:12px;border-radius:8px;border:1px solid #2a4a6a;background:#0d1b2a;color:#fff;font-size:12px;font-family:ui-monospace,Menlo,monospace;min-height:230px;resize:vertical;line-height:1.5}
+  .modo button{width:auto;margin:0;padding:9px 15px;font-size:13px;background:var(--card2);color:var(--tx3);border:1px solid var(--bd2);border-radius:9px;font-weight:600}
+  .modo button.on{background:var(--hov);color:var(--ouro);border-color:var(--ouro)}
+  textarea.big{width:100%;padding:12px;border-radius:8px;border:1px solid var(--bd2);background:var(--card2);color:#fff;font-size:12px;font-family:ui-monospace,Menlo,monospace;min-height:230px;resize:vertical;line-height:1.5}
 </style>
+<script>document.documentElement.setAttribute("data-tema",localStorage.getItem("tema")||"escuro")</script>
 </head>
 <body>
 <div class="container">
   <header>
     <div>
       <h2>Banco de Questoes</h2>
-      <div style="color:#aaa;font-size:13px">Importe, gerencie e vincule questoes aos concursos</div>
+      <div style="color:var(--tx3);font-size:13px">Importe, gerencie e vincule questoes aos concursos</div>
     </div>
     <button onclick="location.href='admin.html'" style="width:auto;padding:8px 14px">Painel Admin</button>
   </header>
@@ -46,18 +47,18 @@
   <div id="a-imp" class="aba-conteudo">
     <div class="card">
       <h3>Importar questoes em lote</h3>
-      <p style="color:#aaa;font-size:13px;margin-bottom:12px">Cole o JSON gerado no outro chat. Use o prompt padrao para garantir o formato certo.</p>
+      <p style="color:var(--tx3);font-size:13px;margin-bottom:12px">Cole o JSON gerado no outro chat. Use o prompt padrao para garantir o formato certo.</p>
 
-      <label style="color:#aaa;font-size:12px;display:block;margin-bottom:4px">Vincular ao concurso (opcional, mas recomendado)</label>
+      <label style="color:var(--tx3);font-size:12px;display:block;margin-bottom:4px">Vincular ao concurso (opcional, mas recomendado)</label>
       <select id="imp-concurso"><option value="">Nenhum — questao geral</option></select>
 
-      <div style="background:linear-gradient(135deg,#1a3a2a,#0d1b2a);border:1px solid #81c784;border-radius:11px;padding:14px;margin-top:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+      <div style="background:linear-gradient(135deg,var(--card2),var(--card2));border:1px solid var(--ok);border-radius:11px;padding:14px;margin-top:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
         <div style="font-size:26px">📄</div>
         <div style="flex:1;min-width:190px">
-          <div style="color:#81c784;font-size:14px;font-weight:bold">Tem o Word ou o PDF da prova?</div>
-          <div style="color:#aaa;font-size:12.5px;margin-top:3px">O importador le o arquivo direto e extrai as questoes, sem precisar de outro chat.</div>
+          <div style="color:var(--ok);font-size:14px;font-weight:bold">Tem o Word ou o PDF da prova?</div>
+          <div style="color:var(--tx3);font-size:12.5px;margin-top:3px">O importador le o arquivo direto e extrai as questoes, sem precisar de outro chat.</div>
         </div>
-        <button onclick="location.href='importador.html'" style="width:auto;padding:10px 18px;background:#81c784;color:#0d1b2a;border:none;font-weight:700">Abrir importador</button>
+        <button onclick="location.href='importador.html'" style="width:auto;padding:10px 18px;background:var(--ok);color:var(--card2);border:none;font-weight:700">Abrir importador</button>
       </div>
 
       <div class="modo" style="margin-top:14px">
@@ -69,22 +70,22 @@
       <div id="box-arq" style="display:none">
         <div class="drop" id="drop" onclick="document.getElementById('file').click()">
           <div style="font-size:28px;margin-bottom:8px">📄</div>
-          <div style="color:#C9A83C;font-size:14px;font-weight:bold">Clique ou arraste o arquivo</div>
-          <div style="color:#555;font-size:12px;margin-top:4px">.json · .csv · .txt — ate 5 MB</div>
+          <div style="color:var(--ouro);font-size:14px;font-weight:bold">Clique ou arraste o arquivo</div>
+          <div style="color:var(--tx4);font-size:12px;margin-top:4px">.json · .csv · .txt — ate 5 MB</div>
         </div>
         <input type="file" id="file" accept=".json,.csv,.txt" style="display:none" onchange="lerArquivo(this.files[0])">
-        <button onclick="baixarModeloCSV()" style="margin-top:10px;background:#1a2f45;color:#aaa;border:1px solid #2a4a6a">Baixar planilha modelo (.csv)</button>
-        <p style="color:#555;font-size:11px;margin-top:6px">Preencha a planilha no Excel, salve como CSV e envie aqui. Tambem aceita o JSON gerado no outro chat salvo como arquivo.</p>
+        <button onclick="baixarModeloCSV()" style="margin-top:10px;background:var(--card);color:var(--tx3);border:1px solid var(--bd2)">Baixar planilha modelo (.csv)</button>
+        <p style="color:var(--tx4);font-size:11px;margin-top:6px">Preencha a planilha no Excel, salve como CSV e envie aqui. Tambem aceita o JSON gerado no outro chat salvo como arquivo.</p>
       </div>
 
       <div id="box-csv" style="display:none">
-        <label style="color:#aaa;font-size:12px;display:block;margin-bottom:4px">Cole as linhas da planilha (copiadas do Excel)</label>
+        <label style="color:var(--tx3);font-size:12px;display:block;margin-bottom:4px">Cole as linhas da planilha (copiadas do Excel)</label>
         <textarea class="big" id="imp-csv" style="min-height:170px" placeholder="disciplina;assunto;tipo;enunciado;gabarito;comentario;bizu;banca;ano;origem
 Lingua Portuguesa;Crase;certo_errado;Julgue o item...;C;Explicacao...;Regra pratica...;CEBRASPE;2026;autoral"></textarea>
-        <button onclick="converterCSV()" style="margin-top:8px;background:#1a2f45;color:#C9A83C;border:1px solid #C9A83C">Converter para JSON</button>
+        <button onclick="converterCSV()" style="margin-top:8px;background:var(--card);color:var(--ouro);border:1px solid var(--ouro)">Converter para JSON</button>
       </div>
 
-      <label id="lb-json" style="color:#aaa;font-size:12px;display:block;margin-top:10px;margin-bottom:4px">JSON das questoes</label>
+      <label id="lb-json" style="color:var(--tx3);font-size:12px;display:block;margin-top:10px;margin-bottom:4px">JSON das questoes</label>
       <textarea class="big" id="imp-json" placeholder='[
   {
     "disciplina": "Lingua Portuguesa",
@@ -101,8 +102,8 @@ Lingua Portuguesa;Crase;certo_errado;Julgue o item...;C;Explicacao...;Regra prat
 ]'></textarea>
 
       <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
-        <button onclick="validar()" style="flex:1;min-width:150px;background:#1a3a5c;color:#C9A83C;border:1px solid #C9A83C">Validar JSON</button>
-        <button onclick="importar()" id="btn-imp" style="flex:1;min-width:150px;display:none;background:#1a3a1a;color:#81c784;border:1px solid #81c784">Importar questoes</button>
+        <button onclick="validar()" style="flex:1;min-width:150px;background:var(--hov);color:var(--ouro);border:1px solid var(--ouro)">Validar JSON</button>
+        <button onclick="importar()" id="btn-imp" style="flex:1;min-width:150px;display:none;background:var(--card2);color:var(--ok);border:1px solid var(--ok)">Importar questoes</button>
       </div>
       <div id="msg-imp" style="display:none;margin-top:10px;font-size:13px"></div>
       <div id="prev-imp" style="margin-top:12px"></div>
@@ -110,13 +111,13 @@ Lingua Portuguesa;Crase;certo_errado;Julgue o item...;C;Explicacao...;Regra prat
 
     <div class="card">
       <h3>Prompt para gerar o JSON</h3>
-      <p style="color:#aaa;font-size:13px;margin-bottom:10px">Copie e use em outro chat junto com suas questoes.</p>
+      <p style="color:var(--tx3);font-size:13px;margin-bottom:10px">Copie e use em outro chat junto com suas questoes.</p>
       <textarea class="big" id="prompt-txt" readonly style="min-height:190px"></textarea>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
         <button onclick="copiarPrompt('q')" style="flex:1;min-width:160px">Copiar prompt (minhas questoes)</button>
-        <button onclick="copiarPrompt('p')" style="flex:1;min-width:160px;background:#1a2a3a;color:#5bb3f0;border:1px solid #5bb3f0">Copiar prompt (prova anterior)</button>
+        <button onclick="copiarPrompt('p')" style="flex:1;min-width:160px;background:var(--card2);color:var(--info);border:1px solid var(--info)">Copiar prompt (prova anterior)</button>
       </div>
-      <p style="color:#555;font-size:11px;margin-top:8px">Use o segundo prompt quando for enviar o PDF de uma prova antiga. Anexe o arquivo no outro chat junto com o prompt.</p>
+      <p style="color:var(--tx4);font-size:11px;margin-top:8px">Use o segundo prompt quando for enviar o PDF de uma prova antiga. Anexe o arquivo no outro chat junto com o prompt.</p>
     </div>
   </div>
 
@@ -144,7 +145,7 @@ Lingua Portuguesa;Crase;certo_errado;Julgue o item...;C;Explicacao...;Regra prat
   <div id="a-mat" class="aba-conteudo" style="display:none">
     <div class="card">
       <h3>Adicionar material</h3>
-      <p style="color:#aaa;font-size:13px;margin-bottom:12px">Resumos, lei seca e PDFs. Cole o link da Kiwify, Drive ou de onde o material estiver hospedado.</p>
+      <p style="color:var(--tx3);font-size:13px;margin-bottom:12px">Resumos, lei seca e PDFs. Cole o link da Kiwify, Drive ou de onde o material estiver hospedado.</p>
       <select id="m-concurso"><option value="">Todos os concursos</option></select>
       <input type="text" id="m-titulo" placeholder="Titulo (ex: Lei 13.869/19 — Abuso de Autoridade)">
       <input type="text" id="m-disc" placeholder="Disciplina (opcional)">
@@ -285,7 +286,7 @@ function copiarPrompt(tipo){
 
 function lerArquivo(file){
   if(!file)return
-  if(file.size>5*1024*1024){msg('msg-imp','Arquivo maior que 5 MB. Divida em partes.','#e57373');return}
+  if(file.size>5*1024*1024){msg('msg-imp','Arquivo maior que 5 MB. Divida em partes.','var(--erro)');return}
   const r=new FileReader()
   r.onload=function(e){
     const txt=String(e.target.result||'').trim()
@@ -332,9 +333,9 @@ function parseLinhaCSV(linha,sep){
 
 function converterCSV(){
   const txt=document.getElementById('imp-csv').value.trim()
-  if(!txt){msg('msg-imp','Cole as linhas da planilha primeiro.','#e57373');return}
+  if(!txt){msg('msg-imp','Cole as linhas da planilha primeiro.','var(--erro)');return}
   const linhas=txt.split(/\r?\n/).filter(function(l){return l.trim()})
-  if(linhas.length<2){msg('msg-imp','Preciso do cabecalho e pelo menos uma questao.','#e57373');return}
+  if(linhas.length<2){msg('msg-imp','Preciso do cabecalho e pelo menos uma questao.','var(--erro)');return}
 
   const sep=(linhas[0].indexOf(';')>=0)?';':((linhas[0].indexOf('\t')>=0)?'\t':',')
   const cab=parseLinhaCSV(linhas[0],sep).map(function(x){
@@ -343,7 +344,7 @@ function converterCSV(){
 
   const obrig=['disciplina','enunciado','gabarito']
   const falta=obrig.filter(function(x){return cab.indexOf(x)<0})
-  if(falta.length){msg('msg-imp','Faltam colunas no cabecalho: '+falta.join(', '),'#e57373');return}
+  if(falta.length){msg('msg-imp','Faltam colunas no cabecalho: '+falta.join(', '),'var(--erro)');return}
 
   const arr=[]
   for(let i=1;i<linhas.length;i++){
@@ -360,7 +361,7 @@ function converterCSV(){
     if(o.ano)o.ano=parseInt(o.ano)
     arr.push(o)
   }
-  if(!arr.length){msg('msg-imp','Nenhuma linha valida encontrada na planilha.','#e57373');return}
+  if(!arr.length){msg('msg-imp','Nenhuma linha valida encontrada na planilha.','var(--erro)');return}
 
   setModo('json')
   document.getElementById('imp-json').value=JSON.stringify(arr,null,2)
@@ -374,15 +375,15 @@ function msg(el,txt,cor){
 
 function validar(){
   const txt=document.getElementById('imp-json').value.trim()
-  if(!txt){msg('msg-imp','Cole o JSON primeiro.','#e57373');return}
+  if(!txt){msg('msg-imp','Cole o JSON primeiro.','var(--erro)');return}
   let arr
   try{
     arr=JSON.parse(txt.replace(/^```json/i,'').replace(/```$/,'').trim())
   }catch(e){
-    msg('msg-imp','JSON invalido: '+e.message+'<br><span style="color:#aaa;font-size:12px">Verifique se copiou o array inteiro, comecando com [ e terminando com ]</span>','#e57373')
+    msg('msg-imp','JSON invalido: '+e.message+'<br><span style="color:var(--tx3);font-size:12px">Verifique se copiou o array inteiro, comecando com [ e terminando com ]</span>','var(--erro)')
     return
   }
-  if(!Array.isArray(arr)){msg('msg-imp','O JSON precisa ser uma lista (array) de questoes.','#e57373');return}
+  if(!Array.isArray(arr)){msg('msg-imp','O JSON precisa ser uma lista (array) de questoes.','var(--erro)');return}
 
   const erros=[]
   arr.forEach(function(q,i){
@@ -398,7 +399,7 @@ function validar(){
     }
   })
   if(erros.length){
-    msg('msg-imp','<strong>'+erros.length+' problema(s):</strong><br>'+erros.slice(0,12).join('<br>')+(erros.length>12?'<br>...':''),'#e57373')
+    msg('msg-imp','<strong>'+erros.length+' problema(s):</strong><br>'+erros.slice(0,12).join('<br>')+(erros.length>12?'<br>...':''),'var(--erro)')
     document.getElementById('btn-imp').style.display='none'
     return
   }
@@ -409,12 +410,12 @@ function validar(){
   const ce=arr.filter(function(q){return (q.tipo||'certo_errado')==='certo_errado'}).length
   const semBizu=arr.filter(function(q){return !q.bizu}).length
 
-  msg('msg-imp','<strong style="color:#81c784">'+arr.length+' questoes validas!</strong>'+(semBizu?' <span style="color:#ffb74d">('+semBizu+' sem bizu)</span>':''),'#81c784')
+  msg('msg-imp','<strong style="color:var(--ok)">'+arr.length+' questoes validas!</strong>'+(semBizu?' <span style="color:var(--alerta)">('+semBizu+' sem bizu)</span>':''),'var(--ok)')
   document.getElementById('prev-imp').innerHTML=
-    '<div style="background:#0d1b2a;border-radius:8px;padding:12px">'
-   +'<div style="color:#C9A83C;font-size:13px;font-weight:bold;margin-bottom:8px">'+ce+' certo/errado · '+(arr.length-ce)+' multipla escolha</div>'
+    '<div style="background:var(--card2);border-radius:8px;padding:12px">'
+   +'<div style="color:var(--ouro);font-size:13px;font-weight:bold;margin-bottom:8px">'+ce+' certo/errado · '+(arr.length-ce)+' multipla escolha</div>'
    +Object.keys(discs).sort().map(function(d){
-      return '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #1a2f45;font-size:13px"><span>'+d+'</span><span style="color:#aaa">'+discs[d]+'</span></div>'
+      return '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--card);font-size:13px"><span>'+d+'</span><span style="color:var(--tx3)">'+discs[d]+'</span></div>'
     }).join('')+'</div>'
   document.getElementById('btn-imp').style.display='block'
 }
@@ -423,7 +424,7 @@ async function importar(){
   if(!_lote){alert('Valide o JSON primeiro.');return}
   const concurso_id=document.getElementById('imp-concurso').value
   if(!confirm('Importar '+_lote.length+' questoes'+(concurso_id?' vinculadas ao concurso selecionado':'')+'?'))return
-  msg('msg-imp','Importando...','#aaa')
+  msg('msg-imp','Importando...','var(--tx3)')
 
   const linhas=_lote.map(function(q){
     const tp=q.tipo||'certo_errado'
@@ -449,9 +450,9 @@ async function importar(){
   let ids=[]
   for(let i=0;i<linhas.length;i+=LOTE){
     const { data,error }=await _supabase.from('questoes').insert(linhas.slice(i,i+LOTE)).select('id')
-    if(error){msg('msg-imp','Erro ao importar: '+error.message,'#e57373');return}
+    if(error){msg('msg-imp','Erro ao importar: '+error.message,'var(--erro)');return}
     if(data)ids=ids.concat(data.map(function(x){return x.id}))
-    msg('msg-imp','Importando... '+ids.length+'/'+linhas.length,'#aaa')
+    msg('msg-imp','Importando... '+ids.length+'/'+linhas.length,'var(--tx3)')
   }
 
   if(concurso_id&&ids.length){
@@ -461,7 +462,7 @@ async function importar(){
     }
   }
 
-  msg('msg-imp','<strong style="color:#81c784">'+ids.length+' questoes importadas com sucesso!</strong>','#81c784')
+  msg('msg-imp','<strong style="color:var(--ok)">'+ids.length+' questoes importadas com sucesso!</strong>','var(--ok)')
   document.getElementById('imp-json').value=''
   document.getElementById('prev-imp').innerHTML=''
   document.getElementById('btn-imp').style.display='none'
@@ -471,16 +472,16 @@ async function importar(){
 async function stats(){
   const { data:qs }=await _supabase.from('questoes').select('disciplina,origem,tipo,ativo')
   const box=document.getElementById('stats')
-  if(!qs||!qs.length){box.innerHTML='<p style="color:#aaa">Nenhuma questao cadastrada ainda.</p>';return}
+  if(!qs||!qs.length){box.innerHTML='<p style="color:var(--tx3)">Nenhuma questao cadastrada ainda.</p>';return}
   const aut=qs.filter(function(q){return q.origem==='autoral'}).length
   const ce=qs.filter(function(q){return q.tipo==='certo_errado'}).length
   const discs={}
   qs.forEach(function(q){discs[q.disciplina]=1})
   box.innerHTML=
-    '<div class="st-c"><div class="st-n" style="color:#C9A83C">'+qs.length+'</div><div class="st-l">Total</div></div>'
-   +'<div class="st-c"><div class="st-n" style="color:#C9A83C">'+aut+'</div><div class="st-l">Autorais</div></div>'
-   +'<div class="st-c"><div class="st-n" style="color:#4a8ab5">'+(qs.length-aut)+'</div><div class="st-l">De prova</div></div>'
-   +'<div class="st-c"><div class="st-n" style="color:#81c784">'+ce+'</div><div class="st-l">Certo/Errado</div></div>'
+    '<div class="st-c"><div class="st-n" style="color:var(--ouro)">'+qs.length+'</div><div class="st-l">Total</div></div>'
+   +'<div class="st-c"><div class="st-n" style="color:var(--ouro)">'+aut+'</div><div class="st-l">Autorais</div></div>'
+   +'<div class="st-c"><div class="st-n" style="color:var(--info)">'+(qs.length-aut)+'</div><div class="st-l">De prova</div></div>'
+   +'<div class="st-c"><div class="st-n" style="color:var(--ok)">'+ce+'</div><div class="st-l">Certo/Errado</div></div>'
    +'<div class="st-c"><div class="st-n">'+Object.keys(discs).length+'</div><div class="st-l">Disciplinas</div></div>'
   const sd=document.getElementById('g-disc')
   sd.innerHTML='<option value="">Todas as disciplinas</option>'
@@ -493,13 +494,13 @@ async function listar(){
   const conc=document.getElementById('g-conc').value
   const orig=document.getElementById('g-orig').value
   const box=document.getElementById('lista')
-  box.innerHTML='<p style="color:#aaa;font-size:13px">Carregando...</p>'
+  box.innerHTML='<p style="color:var(--tx3);font-size:13px">Carregando...</p>'
 
   let ids=null
   if(conc){
     const { data:v }=await _supabase.from('questao_concursos').select('questao_id').eq('concurso_id',conc)
     ids=(v||[]).map(function(x){return x.questao_id})
-    if(!ids.length){box.innerHTML='<p style="color:#aaa">Nenhuma questao vinculada a este concurso.</p>';return}
+    if(!ids.length){box.innerHTML='<p style="color:var(--tx3)">Nenhuma questao vinculada a este concurso.</p>';return}
   }
 
   let q=_supabase.from('questoes').select('*').order('criado_em',{ascending:false}).limit(60)
@@ -509,22 +510,22 @@ async function listar(){
   if(ids)q=q.in('id',ids)
   const { data:qs }=await q
 
-  if(!qs||!qs.length){box.innerHTML='<p style="color:#aaa">Nenhuma questao encontrada.</p>';return}
+  if(!qs||!qs.length){box.innerHTML='<p style="color:var(--tx3)">Nenhuma questao encontrada.</p>';return}
   box.innerHTML=qs.map(function(x){
     return '<div class="qa"><div class="qa-h">'
       +'<span class="tag '+(x.origem==='autoral'?'t-aut':'t-prova')+'">'+(x.origem==='autoral'?'AUTORAL':'PROVA')+'</span>'
       +'<span class="tag '+(x.tipo==='certo_errado'?'t-ce':'t-mult')+'">'+(x.tipo==='certo_errado'?'C/E':'MULTIPLA')+'</span>'
-      +'<span style="color:#C9A83C;font-size:12px;font-weight:600">'+x.disciplina+'</span>'
-      +(x.assunto?'<span style="color:#aaa;font-size:12px">· '+x.assunto+'</span>':'')
-      +'<span style="margin-left:auto;color:#aaa;font-size:11px">'+(x.banca||'')+(x.ano?' '+x.ano:'')+'</span>'
+      +'<span style="color:var(--ouro);font-size:12px;font-weight:600">'+x.disciplina+'</span>'
+      +(x.assunto?'<span style="color:var(--tx3);font-size:12px">· '+x.assunto+'</span>':'')
+      +'<span style="margin-left:auto;color:var(--tx3);font-size:11px">'+(x.banca||'')+(x.ano?' '+x.ano:'')+'</span>'
       +'</div>'
-      +'<div style="font-size:13px;color:#ccc;line-height:1.5">'+String(x.enunciado).substring(0,190)+(String(x.enunciado).length>190?'...':'')+'</div>'
+      +'<div style="font-size:13px;color:var(--tx2);line-height:1.5">'+String(x.enunciado).substring(0,190)+(String(x.enunciado).length>190?'...':'')+'</div>'
       +'<div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap">'
-      +'<span style="color:#81c784;font-size:12px;font-weight:700">Gabarito: '+x.gabarito+'</span>'
-      +(x.bizu?'<span style="color:#b98ae0;font-size:11px">tem bizu</span>':'<span style="color:#e57373;font-size:11px">sem bizu</span>')
+      +'<span style="color:var(--ok);font-size:12px;font-weight:700">Gabarito: '+x.gabarito+'</span>'
+      +(x.bizu?'<span style="color:var(--roxo);font-size:11px">tem bizu</span>':'<span style="color:var(--erro);font-size:11px">sem bizu</span>')
       +'<button class="btn-acao btn-excluir" style="margin-left:auto;font-size:11px;padding:3px 8px" onclick="excluirQ(\''+x.id+'\')">Excluir</button>'
       +'</div></div>'
-  }).join('')+(qs.length>=60?'<p style="color:#aaa;font-size:12px;text-align:center;margin-top:10px">Mostrando as 60 mais recentes. Use os filtros para refinar.</p>':'')
+  }).join('')+(qs.length>=60?'<p style="color:var(--tx3);font-size:12px;text-align:center;margin-top:10px">Mostrando as 60 mais recentes. Use os filtros para refinar.</p>':'')
 }
 
 async function excluirQ(id){
@@ -536,7 +537,7 @@ async function excluirQ(id){
 async function salvarMaterial(){
   const titulo=document.getElementById('m-titulo').value.trim()
   const url=document.getElementById('m-url').value.trim()
-  if(!titulo||!url){msg('msg-mat','Preencha titulo e link.','#e57373');return}
+  if(!titulo||!url){msg('msg-mat','Preencha titulo e link.','var(--erro)');return}
   const { error }=await _supabase.from('materiais').insert({
     concurso_id:document.getElementById('m-concurso').value||null,
     titulo:titulo, url:url,
@@ -544,8 +545,8 @@ async function salvarMaterial(){
     tipo:document.getElementById('m-tipo').value,
     descricao:document.getElementById('m-desc').value||null
   })
-  if(error){msg('msg-mat','Erro: '+error.message,'#e57373');return}
-  msg('msg-mat','Material adicionado!','#81c784')
+  if(error){msg('msg-mat','Erro: '+error.message,'var(--erro)');return}
+  msg('msg-mat','Material adicionado!','var(--ok)')
   document.getElementById('m-titulo').value=''
   document.getElementById('m-url').value=''
   document.getElementById('m-desc').value=''
@@ -558,11 +559,11 @@ async function listarMateriais(){
   if(f)q=q.eq('concurso_id',f)
   const { data:ms }=await q
   const box=document.getElementById('lista-mat')
-  if(!ms||!ms.length){box.innerHTML='<p style="color:#aaa">Nenhum material cadastrado.</p>';return}
+  if(!ms||!ms.length){box.innerHTML='<p style="color:var(--tx3)">Nenhum material cadastrado.</p>';return}
   box.innerHTML=ms.map(function(m){
     return '<div class="item-lista" style="flex-wrap:wrap;gap:8px">'
       +'<div style="flex:1;min-width:160px"><strong>'+m.titulo+'</strong>'
-      +'<div style="color:#aaa;font-size:12px">'+(m.tipo||'')+(m.disciplina?' · '+m.disciplina:'')+(m.concursos?' · '+m.concursos.nome:' · todos os concursos')+'</div></div>'
+      +'<div style="color:var(--tx3);font-size:12px">'+(m.tipo||'')+(m.disciplina?' · '+m.disciplina:'')+(m.concursos?' · '+m.concursos.nome:' · todos os concursos')+'</div></div>'
       +'<a href="'+m.url+'" target="_blank" class="btn-acao btn-editar" style="text-decoration:none;display:inline-block">Abrir</a>'
       +'<button class="btn-acao btn-excluir" onclick="excluirMat(\''+m.id+'\')">Excluir</button></div>'
   }).join('')
