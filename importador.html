@@ -9,35 +9,36 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <link rel="stylesheet" href="style.css">
 <style>
-  .drop{border:2px dashed #2a4a6a;border-radius:14px;padding:36px 20px;text-align:center;cursor:pointer;background:#0d1b2a;transition:.2s}
-  .drop:hover,.drop.dentro{border-color:#C9A83C;background:#12233a}
+  .drop{border:2px dashed var(--bd2);border-radius:14px;padding:36px 20px;text-align:center;cursor:pointer;background:var(--card2);transition:.2s}
+  .drop:hover,.drop.dentro{border-color:var(--ouro);background:var(--hov)}
   .passo{display:flex;gap:10px;align-items:center;margin-bottom:14px}
-  .passo-n{width:26px;height:26px;border-radius:50%;background:#C9A83C;color:#0d1b2a;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex-shrink:0}
+  .passo-n{width:26px;height:26px;border-radius:50%;background:var(--ouro);color:var(--card2);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex-shrink:0}
   .fx{display:grid;grid-template-columns:70px 70px 1fr 34px;gap:7px;align-items:center;margin-bottom:6px}
   .fx input,.fx select{margin:0;padding:8px;font-size:13px}
   .st{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:9px;margin-bottom:14px}
-  .st-c{background:#0d1b2a;border-radius:10px;padding:12px;text-align:center}
+  .st-c{background:var(--card2);border-radius:10px;padding:12px;text-align:center}
   .st-n{font-size:20px;font-weight:bold}
-  .st-l{color:#aaa;font-size:11px;margin-top:2px}
-  .qp{background:#0d1b2a;border-radius:9px;padding:11px;margin-bottom:7px;border-left:3px solid #2a4a6a;font-size:13px}
+  .st-l{color:var(--tx3);font-size:11px;margin-top:2px}
+  .qp{background:var(--card2);border-radius:9px;padding:11px;margin-bottom:7px;border-left:3px solid var(--bd2);font-size:13px}
   .qp-h{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:5px}
   .gb{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;flex-shrink:0}
-  .gb-c{background:#81c78422;color:#81c784;border:1px solid #81c784}
-  .gb-e{background:#e5737322;color:#e57373;border:1px solid #e57373}
-  .gb-x{background:#2a2410;color:#ffb74d;border:1px solid #ffb74d}
-  .bar{height:6px;border-radius:3px;background:#0d1b2a;overflow:hidden;margin-top:8px}
-  .bar-f{height:100%;background:#C9A83C;transition:.3s}
+  .gb-c{background:var(--ok)22;color:var(--ok);border:1px solid var(--ok)}
+  .gb-e{background:var(--erro)22;color:var(--erro);border:1px solid var(--erro)}
+  .gb-x{background:var(--card2);color:var(--alerta);border:1px solid var(--alerta)}
+  .bar{height:6px;border-radius:3px;background:var(--card2);overflow:hidden;margin-top:8px}
+  .bar-f{height:100%;background:var(--ouro);transition:.3s}
 </style>
+<script>document.documentElement.setAttribute("data-tema",localStorage.getItem("tema")||"escuro")</script>
 </head>
 <body>
 <div class="container">
   <header>
     <div>
       <h2>Importador de Provas</h2>
-      <div style="color:#aaa;font-size:13px">Envie o Word ou o PDF e a plataforma extrai as questoes</div>
+      <div style="color:var(--tx3);font-size:13px">Envie o Word ou o PDF e a plataforma extrai as questoes</div>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button onclick="location.href='questoes-admin.html'" style="width:auto;padding:8px 14px;background:#1a2a3a;color:#5bb3f0;border:1px solid #5bb3f0">Banco de Questoes</button>
+      <button onclick="location.href='questoes-admin.html'" style="width:auto;padding:8px 14px;background:var(--card2);color:var(--info);border:1px solid var(--info)">Banco de Questoes</button>
       <button onclick="location.href='admin.html'" style="width:auto;padding:8px 14px">Painel Admin</button>
     </div>
   </header>
@@ -47,12 +48,12 @@
     <div class="passo"><div class="passo-n">1</div><h3 style="margin:0">Envie o arquivo</h3></div>
     <div class="drop" id="drop" onclick="document.getElementById('file').click()">
       <div style="font-size:34px;margin-bottom:10px">📄</div>
-      <div style="color:#C9A83C;font-size:15px;font-weight:bold">Clique ou arraste o arquivo</div>
-      <div style="color:#555;font-size:12px;margin-top:6px">.docx (Word) · .pdf · .txt — ate 15 MB</div>
+      <div style="color:var(--ouro);font-size:15px;font-weight:bold">Clique ou arraste o arquivo</div>
+      <div style="color:var(--tx4);font-size:12px;margin-top:6px">.docx (Word) · .pdf · .txt — ate 15 MB</div>
     </div>
     <input type="file" id="file" accept=".docx,.pdf,.txt" style="display:none" onchange="processar(this.files[0])">
     <div id="lendo" style="display:none;margin-top:12px">
-      <div style="color:#aaa;font-size:13px" id="lendo-txt">Lendo arquivo...</div>
+      <div style="color:var(--tx3);font-size:13px" id="lendo-txt">Lendo arquivo...</div>
       <div class="bar"><div class="bar-f" id="bar" style="width:10%"></div></div>
     </div>
     <p id="msg-arq" style="display:none;margin-top:10px;font-size:13px"></p>
@@ -68,24 +69,24 @@
   <!-- 3. GABARITO -->
   <div class="card" id="c-gab" style="display:none">
     <div class="passo"><div class="passo-n">3</div><h3 style="margin:0">Gabarito oficial</h3></div>
-    <p style="color:#aaa;font-size:13px;margin-bottom:10px">O PDF da prova nao traz o gabarito. Cole aqui a sequencia oficial — aceita varios formatos.</p>
+    <p style="color:var(--tx3);font-size:13px;margin-bottom:10px">O PDF da prova nao traz o gabarito. Cole aqui a sequencia oficial — aceita varios formatos.</p>
     <textarea id="gab-txt" rows="4" placeholder="Aceita qualquer um destes formatos:
 CEECEECCEE...   (sequencia direta, item 1 em diante)
 1-C 2-E 3-C ...
-1) C  2) E  3) C ..." style="width:100%;padding:12px;border-radius:8px;border:1px solid #2a4a6a;background:#0d1b2a;color:#fff;font-size:13px;font-family:ui-monospace,monospace;resize:vertical"></textarea>
-    <button onclick="aplicarGabarito()" style="margin-top:10px;background:#1a3a5c;color:#C9A83C;border:1px solid #C9A83C">Aplicar gabarito</button>
+1) C  2) E  3) C ..." style="width:100%;padding:12px;border-radius:8px;border:1px solid var(--bd2);background:var(--card2);color:#fff;font-size:13px;font-family:ui-monospace,monospace;resize:vertical"></textarea>
+    <button onclick="aplicarGabarito()" style="margin-top:10px;background:var(--hov);color:var(--ouro);border:1px solid var(--ouro)">Aplicar gabarito</button>
     <p id="msg-gab" style="display:none;margin-top:8px;font-size:13px"></p>
   </div>
 
   <!-- 4. DISCIPLINAS -->
   <div class="card" id="c-disc" style="display:none">
     <div class="passo"><div class="passo-n">4</div><h3 style="margin:0">Disciplinas por faixa</h3></div>
-    <p style="color:#aaa;font-size:13px;margin-bottom:12px">A plataforma tentou identificar sozinha. Confira e ajuste as faixas — os numeros seguem a numeracao da prova.</p>
-    <div class="fx" style="color:#aaa;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">
+    <p style="color:var(--tx3);font-size:13px;margin-bottom:12px">A plataforma tentou identificar sozinha. Confira e ajuste as faixas — os numeros seguem a numeracao da prova.</p>
+    <div class="fx" style="color:var(--tx3);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">
       <div>De</div><div>Ate</div><div>Disciplina</div><div></div>
     </div>
     <div id="faixas"></div>
-    <button onclick="addFaixa()" style="margin-top:8px;background:#1a2f45;color:#aaa;border:1px solid #2a4a6a">+ Adicionar faixa</button>
+    <button onclick="addFaixa()" style="margin-top:8px;background:var(--card);color:var(--tx3);border:1px solid var(--bd2)">+ Adicionar faixa</button>
     <p id="msg-fx" style="display:none;margin-top:8px;font-size:13px"></p>
   </div>
 
@@ -93,12 +94,12 @@ CEECEECCEE...   (sequencia direta, item 1 em diante)
   <div class="card" id="c-meta" style="display:none">
     <div class="passo"><div class="passo-n">5</div><h3 style="margin:0">Dados da prova</h3></div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">
-      <div><label style="color:#aaa;font-size:12px">Concurso</label><select id="m-conc"><option value="">Nenhum</option></select></div>
-      <div><label style="color:#aaa;font-size:12px">Origem</label><select id="m-orig">
+      <div><label style="color:var(--tx3);font-size:12px">Concurso</label><select id="m-conc"><option value="">Nenhum</option></select></div>
+      <div><label style="color:var(--tx3);font-size:12px">Origem</label><select id="m-orig">
         <option value="prova">Prova anterior</option><option value="autoral">Autoral</option></select></div>
-      <div><label style="color:#aaa;font-size:12px">Banca</label><input type="text" id="m-banca" value="CEBRASPE"></div>
-      <div><label style="color:#aaa;font-size:12px">Ano</label><input type="number" id="m-ano"></div>
-      <div><label style="color:#aaa;font-size:12px">Orgao</label><input type="text" id="m-orgao" placeholder="Ex: PMAL"></div>
+      <div><label style="color:var(--tx3);font-size:12px">Banca</label><input type="text" id="m-banca" value="CEBRASPE"></div>
+      <div><label style="color:var(--tx3);font-size:12px">Ano</label><input type="number" id="m-ano"></div>
+      <div><label style="color:var(--tx3);font-size:12px">Orgao</label><input type="text" id="m-orgao" placeholder="Ex: PMAL"></div>
     </div>
   </div>
 
@@ -106,7 +107,7 @@ CEECEECCEE...   (sequencia direta, item 1 em diante)
   <div class="card" id="c-prev" style="display:none">
     <div class="passo"><div class="passo-n">6</div><h3 style="margin:0">Previa e importacao</h3></div>
     <div id="prev"></div>
-    <button onclick="importar()" id="btn-imp" style="margin-top:14px;background:#1a3a1a;color:#81c784;border:1px solid #81c784">Importar para a plataforma</button>
+    <button onclick="importar()" id="btn-imp" style="margin-top:14px;background:var(--card2);color:var(--ok);border:1px solid var(--ok)">Importar para a plataforma</button>
     <p id="msg-imp" style="display:none;margin-top:10px;font-size:13px"></p>
   </div>
 </div>
@@ -153,7 +154,7 @@ async function init(){
 
 async function processar(file){
   if(!file)return
-  if(file.size>15*1024*1024){msg('msg-arq','Arquivo maior que 15 MB.','#e57373');return}
+  if(file.size>15*1024*1024){msg('msg-arq','Arquivo maior que 15 MB.','var(--erro)');return}
   document.getElementById('msg-arq').style.display='none'
   document.getElementById('lendo').style.display='block'
   ;['c-res','c-gab','c-disc','c-meta','c-prev'].forEach(function(x){document.getElementById(x).style.display='none'})
@@ -191,7 +192,7 @@ async function processar(file){
     }
   }catch(e){
     document.getElementById('lendo').style.display='none'
-    msg('msg-arq','Nao consegui ler o arquivo: '+e.message,'#e57373');return
+    msg('msg-arq','Nao consegui ler o arquivo: '+e.message,'var(--erro)');return
   }
 
   bar(80,'Identificando questoes...')
@@ -201,7 +202,7 @@ async function processar(file){
     const prova=parseProva(linhas)
     if(prova.length<3){
       document.getElementById('lendo').style.display='none'
-      msg('msg-arq','Nao encontrei questoes neste arquivo.<br><span style="color:#aaa;font-size:12px">O importador reconhece dois formatos: material comentado (com "Gabarito:" e "Comentario") e prova da CEBRASPE (itens numerados de 1 a 120).</span>','#e57373')
+      msg('msg-arq','Nao encontrei questoes neste arquivo.<br><span style="color:var(--tx3);font-size:12px">O importador reconhece dois formatos: material comentado (com "Gabarito:" e "Comentario") e prova da CEBRASPE (itens numerados de 1 a 120).</span>','var(--erro)')
       return
     }
     _itens=prova; _tipo='prova'
@@ -308,14 +309,14 @@ function mostrar(){
   const comGab=_itens.filter(function(q){return q.gab}).length
   const comCom=_itens.filter(function(q){return q.com&&q.com.length}).length
   document.getElementById('stats').innerHTML=
-    '<div class="st-c"><div class="st-n" style="color:#C9A83C">'+_itens.length+'</div><div class="st-l">Questoes</div></div>'
-   +'<div class="st-c"><div class="st-n" style="color:'+(comGab?'#81c784':'#ffb74d')+'">'+comGab+'</div><div class="st-l">Com gabarito</div></div>'
-   +'<div class="st-c"><div class="st-n" style="color:'+(comCom?'#81c784':'#aaa')+'">'+comCom+'</div><div class="st-l">Com comentario</div></div>'
+    '<div class="st-c"><div class="st-n" style="color:var(--ouro)">'+_itens.length+'</div><div class="st-l">Questoes</div></div>'
+   +'<div class="st-c"><div class="st-n" style="color:'+(comGab?'var(--ok)':'var(--alerta)')+'">'+comGab+'</div><div class="st-l">Com gabarito</div></div>'
+   +'<div class="st-c"><div class="st-n" style="color:'+(comCom?'var(--ok)':'var(--tx3)')+'">'+comCom+'</div><div class="st-l">Com comentario</div></div>'
    +'<div class="st-c"><div class="st-n">'+_itens[0].n+'–'+_itens[_itens.length-1].n+'</div><div class="st-l">Numeracao</div></div>'
 
   if(_tipo==='comentado'){
     document.getElementById('aviso-tipo').innerHTML=
-      '<div style="background:#0d2a1a;border:1px solid #81c784;border-radius:9px;padding:12px;font-size:13px;color:#81c784">'
+      '<div style="background:var(--card2);border:1px solid var(--ok);border-radius:9px;padding:12px;font-size:13px;color:var(--ok)">'
       +'<strong>Material comentado reconhecido.</strong> Disciplina, assunto, gabarito e comentario vieram prontos do arquivo. Pode ir direto para a previa.</div>'
     document.getElementById('c-gab').style.display='none'
     document.getElementById('c-disc').style.display='none'
@@ -323,7 +324,7 @@ function mostrar(){
     montarPrevia()
   }else{
     document.getElementById('aviso-tipo').innerHTML=
-      '<div style="background:#2a2410;border:1px solid #ffb74d;border-radius:9px;padding:12px;font-size:13px;color:#ffb74d">'
+      '<div style="background:var(--card2);border:1px solid var(--alerta);border-radius:9px;padding:12px;font-size:13px;color:var(--alerta)">'
       +'<strong>Prova reconhecida.</strong> Faltam duas coisas: o gabarito oficial e a conferencia das disciplinas.</div>'
     document.getElementById('c-gab').style.display='block'
     _itens.forEach(function(q){q.disc=classificar(q.txt,q.cmd)})
@@ -368,14 +369,14 @@ function salvarFaixas(){
     q.disc=f?f.disc:null
   })
   const sem=_itens.filter(function(q){return !q.disc}).length
-  if(sem)msg('msg-fx',sem+' questao(oes) ainda sem disciplina. Ajuste as faixas.','#ffb74d')
-  else msg('msg-fx','Todas as questoes tem disciplina definida.','#81c784')
+  if(sem)msg('msg-fx',sem+' questao(oes) ainda sem disciplina. Ajuste as faixas.','var(--alerta)')
+  else msg('msg-fx','Todas as questoes tem disciplina definida.','var(--ok)')
   montarPrevia()
 }
 
 function aplicarGabarito(){
   const raw=document.getElementById('gab-txt').value.trim()
-  if(!raw){msg('msg-gab','Cole o gabarito primeiro.','#e57373');return}
+  if(!raw){msg('msg-gab','Cole o gabarito primeiro.','var(--erro)');return}
   const mapa={}
   const pares=raw.match(/(\d{1,3})\s*[-–)ºo.:]?\s*([CEce])\b/g)
   if(pares&&pares.length>=5){
@@ -385,14 +386,14 @@ function aplicarGabarito(){
     })
   }else{
     const seq=raw.toUpperCase().replace(/[^CE]/g,'')
-    if(seq.length<3){msg('msg-gab','Nao consegui entender o gabarito. Use CEEC... ou 1-C 2-E ...','#e57373');return}
+    if(seq.length<3){msg('msg-gab','Nao consegui entender o gabarito. Use CEEC... ou 1-C 2-E ...','var(--erro)');return}
     const base=_itens[0].n
     for(let i=0;i<seq.length;i++)mapa[base+i]=seq[i]
   }
   let ok=0
   _itens.forEach(function(q){ if(mapa[q.n]){q.gab=mapa[q.n];ok++} })
-  if(!ok){msg('msg-gab','Nenhum item bateu com a numeracao das questoes.','#e57373');return}
-  msg('msg-gab',ok+' de '+_itens.length+' questoes receberam gabarito.',ok===_itens.length?'#81c784':'#ffb74d')
+  if(!ok){msg('msg-gab','Nenhum item bateu com a numeracao das questoes.','var(--erro)');return}
+  msg('msg-gab',ok+' de '+_itens.length+' questoes receberam gabarito.',ok===_itens.length?'var(--ok)':'var(--alerta)')
   mostrarStats()
   montarPrevia()
 }
@@ -400,7 +401,7 @@ function aplicarGabarito(){
 function mostrarStats(){
   const comGab=_itens.filter(function(q){return q.gab}).length
   const el=document.querySelector('#stats .st-c:nth-child(2)')
-  if(el)el.innerHTML='<div class="st-n" style="color:'+(comGab===_itens.length?'#81c784':'#ffb74d')+'">'+comGab+'</div><div class="st-l">Com gabarito</div>'
+  if(el)el.innerHTML='<div class="st-n" style="color:'+(comGab===_itens.length?'var(--ok)':'var(--alerta)')+'">'+comGab+'</div><div class="st-l">Com gabarito</div>'
 }
 
 function montarPrevia(){
@@ -410,27 +411,27 @@ function montarPrevia(){
   const porD={}
   prontas.forEach(function(q){const d=q.disciplina||q.disc;porD[d]=(porD[d]||0)+1})
   box.innerHTML=
-    '<div style="background:#0d1b2a;border-radius:9px;padding:12px;margin-bottom:12px">'
-   +'<div style="color:#C9A83C;font-size:13px;font-weight:bold;margin-bottom:8px">'+prontas.length+' de '+_itens.length+' questoes prontas para importar</div>'
+    '<div style="background:var(--card2);border-radius:9px;padding:12px;margin-bottom:12px">'
+   +'<div style="color:var(--ouro);font-size:13px;font-weight:bold;margin-bottom:8px">'+prontas.length+' de '+_itens.length+' questoes prontas para importar</div>'
    +Object.keys(porD).sort().map(function(d){
-      return '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #1a2f45;font-size:13px"><span>'+esc(d)+'</span><span style="color:#aaa">'+porD[d]+'</span></div>'
+      return '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--card);font-size:13px"><span>'+esc(d)+'</span><span style="color:var(--tx3)">'+porD[d]+'</span></div>'
     }).join('')+'</div>'
-   +'<div style="color:#aaa;font-size:12px;margin-bottom:8px">Amostra das 5 primeiras:</div>'
+   +'<div style="color:var(--tx3);font-size:12px;margin-bottom:8px">Amostra das 5 primeiras:</div>'
    +_itens.slice(0,5).map(function(q){
       const d=q.disciplina||q.disc
       const g=q.gab?('<div class="gb gb-'+(q.gab==='C'?'c':'e')+'">'+q.gab+'</div>'):'<div class="gb gb-x">?</div>'
       const txt=q.txt||(q.corpo?q.corpo[q.corpo.length-1]:'')
       return '<div class="qp"><div class="qp-h">'+g
-        +'<span style="color:#C9A83C;font-size:12px;font-weight:700">'+esc(d||'sem disciplina')+'</span>'
-        +'<span style="color:#555;font-size:11px;margin-left:auto">item '+q.n+'</span></div>'
-        +'<div style="color:#ccc;line-height:1.5">'+esc(String(txt).substring(0,170))+'...</div></div>'
+        +'<span style="color:var(--ouro);font-size:12px;font-weight:700">'+esc(d||'sem disciplina')+'</span>'
+        +'<span style="color:var(--tx4);font-size:11px;margin-left:auto">item '+q.n+'</span></div>'
+        +'<div style="color:var(--tx2);line-height:1.5">'+esc(String(txt).substring(0,170))+'...</div></div>'
     }).join('')
   document.getElementById('btn-imp').style.display=prontas.length?'block':'none'
 }
 
 async function importar(){
   const prontas=_itens.filter(function(q){return q.gab&&(q.disc||q.disciplina)})
-  if(!prontas.length){msg('msg-imp','Nenhuma questao pronta.','#e57373');return}
+  if(!prontas.length){msg('msg-imp','Nenhuma questao pronta.','var(--erro)');return}
   const pulou=_itens.length-prontas.length
   if(!confirm('Importar '+prontas.length+' questoes?'+(pulou?'\n\n'+pulou+' serao puladas por falta de gabarito ou disciplina.':'')))return
 
@@ -462,20 +463,20 @@ async function importar(){
     }
   })
 
-  msg('msg-imp','Importando...','#aaa')
+  msg('msg-imp','Importando...','var(--tx3)')
   const L=100;let ids=[]
   for(let i=0;i<linhas.length;i+=L){
     const { data,error }=await _supabase.from('questoes').insert(linhas.slice(i,i+L)).select('id')
-    if(error){msg('msg-imp','Erro: '+error.message,'#e57373');return}
+    if(error){msg('msg-imp','Erro: '+error.message,'var(--erro)');return}
     if(data)ids=ids.concat(data.map(function(x){return x.id}))
-    msg('msg-imp','Importando... '+ids.length+'/'+linhas.length,'#aaa')
+    msg('msg-imp','Importando... '+ids.length+'/'+linhas.length,'var(--tx3)')
   }
   if(conc&&ids.length){
     const v=ids.map(function(id){return {questao_id:id,concurso_id:conc}})
     for(let i=0;i<v.length;i+=L)await _supabase.from('questao_concursos').insert(v.slice(i,i+L))
   }
-  msg('msg-imp','<strong style="color:#81c784">'+ids.length+' questoes importadas!</strong> '
-    +'<a href="questoes-admin.html" style="color:#C9A83C">Ver no banco de questoes</a>','#81c784')
+  msg('msg-imp','<strong style="color:var(--ok)">'+ids.length+' questoes importadas!</strong> '
+    +'<a href="questoes-admin.html" style="color:var(--ouro)">Ver no banco de questoes</a>','var(--ok)')
   document.getElementById('btn-imp').style.display='none'
 }
 
