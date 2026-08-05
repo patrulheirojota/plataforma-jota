@@ -8,45 +8,46 @@
 <link rel="stylesheet" href="style.css">
 <style>
   .cfg-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px }
-  .cfg-item label { color:#aaa;font-size:12px;display:block;margin-bottom:4px }
+  .cfg-item label { color:var(--tx3);font-size:12px;display:block;margin-bottom:4px }
   .dias-row { display:flex;gap:6px;flex-wrap:wrap;margin-top:4px }
-  .dia-chip { padding:8px 12px;border-radius:8px;border:1px solid #2a4a6a;background:#0d1b2a;color:#aaa;font-size:13px;cursor:pointer;user-select:none }
-  .dia-chip.on { background:#C9A83C;color:#0d1b2a;border-color:#C9A83C;font-weight:bold }
-  .modo-chip { display:flex;align-items:center;gap:7px;padding:9px 14px;border-radius:8px;border:1px solid #2a4a6a;background:#0d1b2a;color:#666;font-size:13px;cursor:pointer;user-select:none;opacity:.5 }
-  .modo-chip.on { opacity:1;color:#fff;border-color:#4a6a8a;background:#1a2f45 }
+  .dia-chip { padding:8px 12px;border-radius:8px;border:1px solid var(--bd2);background:var(--card2);color:var(--tx3);font-size:13px;cursor:pointer;user-select:none }
+  .dia-chip.on { background:var(--ouro);color:var(--card2);border-color:var(--ouro);font-weight:bold }
+  .modo-chip { display:flex;align-items:center;gap:7px;padding:9px 14px;border-radius:8px;border:1px solid var(--bd2);background:var(--card2);color:#666;font-size:13px;cursor:pointer;user-select:none;opacity:.5 }
+  .modo-chip.on { opacity:1;color:#fff;border-color:#4a6a8a;background:var(--card) }
   .modo-dot { width:9px;height:9px;border-radius:50%;flex-shrink:0 }
-  .tema-row { display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #2a4a6a;flex-wrap:wrap }
+  .tema-row { display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--bd2);flex-wrap:wrap }
   .tema-row:last-child { border-bottom:none }
   .badge-p { font-size:10px;padding:2px 7px;border-radius:10px;font-weight:bold;flex-shrink:0 }
-  .p-alta { background:#e5737322;color:#e57373;border:1px solid #e57373 }
-  .p-media { background:#ffb74d22;color:#ffb74d;border:1px solid #ffb74d }
-  .p-baixa { background:#4a8ab522;color:#4a8ab5;border:1px solid #4a8ab5 }
-  .disc-head { color:#C9A83C;font-size:14px;font-weight:bold;margin:14px 0 6px;display:flex;justify-content:space-between;align-items:center }
-  .dia-card { background:#0d1b2a;border-radius:10px;padding:12px;margin-bottom:8px }
-  .sessao { border-left:3px solid #2a4a6a;border-radius:6px;padding:8px 10px;margin-top:6px;background:#1a2f45 }
-  .s-teoria { border-left-color:#4a8ab5 }
-  .s-questoes { border-left-color:#C9A83C }
-  .s-revisao { border-left-color:#81c784 }
+  .p-alta { background:var(--erro)22;color:var(--erro);border:1px solid var(--erro) }
+  .p-media { background:var(--alerta)22;color:var(--alerta);border:1px solid var(--alerta) }
+  .p-baixa { background:var(--info)22;color:var(--info);border:1px solid var(--info) }
+  .disc-head { color:var(--ouro);font-size:14px;font-weight:bold;margin:14px 0 6px;display:flex;justify-content:space-between;align-items:center }
+  .dia-card { background:var(--card2);border-radius:10px;padding:12px;margin-bottom:8px }
+  .sessao { border-left:3px solid var(--bd2);border-radius:6px;padding:8px 10px;margin-top:6px;background:var(--card) }
+  .s-teoria { border-left-color:var(--info) }
+  .s-questoes { border-left-color:var(--ouro) }
+  .s-revisao { border-left-color:var(--ok) }
   .tag { font-size:10px;padding:1px 7px;border-radius:8px;font-weight:bold;text-transform:uppercase;letter-spacing:.5px }
-  .t-teoria { background:#4a8ab522;color:#4a8ab5 }
-  .t-questoes { background:#C9A83C22;color:#C9A83C }
-  .t-revisao { background:#81c78422;color:#81c784 }
+  .t-teoria { background:var(--info)22;color:var(--info) }
+  .t-questoes { background:var(--ouro)22;color:var(--ouro) }
+  .t-revisao { background:var(--ok)22;color:var(--ok) }
   .resumo-box { display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:14px }
-  .resumo-c { background:#0d1b2a;border-radius:8px;padding:12px;text-align:center }
+  .resumo-c { background:var(--card2);border-radius:8px;padding:12px;text-align:center }
   .resumo-n { font-size:20px;font-weight:bold }
-  .resumo-l { color:#aaa;font-size:11px;margin-top:2px }
+  .resumo-l { color:var(--tx3);font-size:11px;margin-top:2px }
 </style>
+<script>document.documentElement.setAttribute("data-tema",localStorage.getItem("tema")||"escuro")</script>
 </head>
 <body>
 <div class="container">
   <header>
     <div>
       <h2>Gerador de Cronograma</h2>
-      <div style="color:#aaa;font-size:13px">Cronograma por tema com questoes e revisao automaticas</div>
+      <div style="color:var(--tx3);font-size:13px">Cronograma por tema com questoes e revisao automaticas</div>
     </div>
     <div style="display:flex;gap:8px">
-      <button onclick="window.location.href='temas.html'" style="width:auto;padding:8px 14px;background:#0d2a1a;color:#81c784;border:1px solid #81c784">Controle de Temas</button>
-      <button onclick="window.location.href='edital-admin.html'" style="width:auto;padding:8px 14px;background:#1a3a2a;color:#4a8ab5;border:1px solid #4a8ab5">Editais</button>
+      <button onclick="window.location.href='temas.html'" style="width:auto;padding:8px 14px;background:var(--card2);color:var(--ok);border:1px solid var(--ok)">Controle de Temas</button>
+      <button onclick="window.location.href='edital-admin.html'" style="width:auto;padding:8px 14px;background:var(--card2);color:var(--info);border:1px solid var(--info)">Editais</button>
       <button onclick="window.location.href='admin.html'" style="width:auto;padding:8px 14px">Painel Admin</button>
     </div>
   </header>
@@ -64,7 +65,7 @@
         <select id="g-concurso" onchange="carregarTemas()"><option value="">Selecione o concurso</option></select>
       </div>
     </div>
-    <p id="msg-existente" style="display:none;margin-top:10px;font-size:13px;color:#ffb74d"></p>
+    <p id="msg-existente" style="display:none;margin-top:10px;font-size:13px;color:var(--alerta)"></p>
   </div>
 
   <!-- 2. CONFIGURACAO -->
@@ -91,27 +92,27 @@
     </div>
 
     <div style="margin-top:12px">
-      <label style="color:#aaa;font-size:12px">Dias da semana que o aluno estuda</label>
+      <label style="color:var(--tx3);font-size:12px">Dias da semana que o aluno estuda</label>
       <div class="dias-row" id="g-dias"></div>
     </div>
 
-    <div style="background:#0d1b2a;border-radius:8px;padding:12px;margin-top:14px">
-      <p style="color:#C9A83C;font-size:13px;font-weight:bold;margin-bottom:8px">Modos de sessao ativos</p>
-      <p style="color:#555;font-size:11px;margin-bottom:10px">Desmarque o que nao entra no plano. Ex: aluno que ja fechou a teoria do edital fica so com questoes e revisao.</p>
+    <div style="background:var(--card2);border-radius:8px;padding:12px;margin-top:14px">
+      <p style="color:var(--ouro);font-size:13px;font-weight:bold;margin-bottom:8px">Modos de sessao ativos</p>
+      <p style="color:var(--tx4);font-size:11px;margin-bottom:10px">Desmarque o que nao entra no plano. Ex: aluno que ja fechou a teoria do edital fica so com questoes e revisao.</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <label class="modo-chip on" data-m="teoria" onclick="alternarModo(this)"><span class="modo-dot" style="background:#4a8ab5"></span>Teoria</label>
-        <label class="modo-chip on" data-m="questoes" onclick="alternarModo(this)"><span class="modo-dot" style="background:#C9A83C"></span>Questoes</label>
-        <label class="modo-chip on" data-m="revisao" onclick="alternarModo(this)"><span class="modo-dot" style="background:#81c784"></span>Revisao</label>
+        <label class="modo-chip on" data-m="teoria" onclick="alternarModo(this)"><span class="modo-dot" style="background:var(--info)"></span>Teoria</label>
+        <label class="modo-chip on" data-m="questoes" onclick="alternarModo(this)"><span class="modo-dot" style="background:var(--ouro)"></span>Questoes</label>
+        <label class="modo-chip on" data-m="revisao" onclick="alternarModo(this)"><span class="modo-dot" style="background:var(--ok)"></span>Revisao</label>
       </div>
       <label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:13px;cursor:pointer">
-        <input type="checkbox" id="g-pular" style="width:18px;height:18px;accent-color:#C9A83C">
+        <input type="checkbox" id="g-pular" style="width:18px;height:18px;accent-color:var(--ouro)">
         Pular temas cuja teoria o aluno ja concluiu
       </label>
-      <p style="color:#555;font-size:11px;margin-top:4px">Use junto com "Teoria" desmarcada para replanejar so o que falta.</p>
+      <p style="color:var(--tx4);font-size:11px;margin-top:4px">Use junto com "Teoria" desmarcada para replanejar so o que falta.</p>
     </div>
 
-    <div style="background:#0d1b2a;border-radius:8px;padding:12px;margin-top:14px">
-      <p style="color:#C9A83C;font-size:13px;font-weight:bold;margin-bottom:10px">Intervalos do ciclo</p>
+    <div style="background:var(--card2);border-radius:8px;padding:12px;margin-top:14px">
+      <p style="color:var(--ouro);font-size:13px;font-weight:bold;margin-bottom:10px">Intervalos do ciclo</p>
       <div class="cfg-grid">
         <div class="cfg-item">
           <label>Questoes apos (dias)</label>
@@ -126,11 +127,11 @@
           <input type="number" id="g-mq" value="20" min="0" max="200" style="margin:0">
         </div>
       </div>
-      <p style="color:#555;font-size:11px;margin-top:8px">Cada tema estudado gera automaticamente uma sessao de questoes e uma de revisao nos prazos definidos.</p>
+      <p style="color:var(--tx4);font-size:11px;margin-top:8px">Cada tema estudado gera automaticamente uma sessao de questoes e uma de revisao nos prazos definidos.</p>
     </div>
 
     <label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:14px;cursor:pointer">
-      <input type="checkbox" id="g-manter" checked style="width:18px;height:18px;accent-color:#C9A83C">
+      <input type="checkbox" id="g-manter" checked style="width:18px;height:18px;accent-color:var(--ouro)">
       Preservar sessoes ja concluidas ao regerar
     </label>
 
@@ -143,15 +144,15 @@
       <h3 style="margin:0">3. Temas do cronograma</h3>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         <button class="btn-acao btn-editar" onclick="marcarTodos(true)">Marcar todos</button>
-        <button class="btn-acao" onclick="marcarTodos(false)" style="background:#1a2f45;color:#aaa;border:1px solid #2a4a6a">Desmarcar</button>
-        <button class="btn-acao" onclick="marcarPorPrioridade('alta')" style="background:#e5737322;color:#e57373;border:1px solid #e57373">So alta</button>
+        <button class="btn-acao" onclick="marcarTodos(false)" style="background:var(--card);color:var(--tx3);border:1px solid var(--bd2)">Desmarcar</button>
+        <button class="btn-acao" onclick="marcarPorPrioridade('alta')" style="background:var(--erro)22;color:var(--erro);border:1px solid var(--erro)">So alta</button>
       </div>
     </div>
-    <p style="color:#aaa;font-size:13px;margin-bottom:10px">Puxados do edital cadastrado. Desmarque o que nao entra e edite os textos se precisar.</p>
+    <p style="color:var(--tx3);font-size:13px;margin-bottom:10px">Puxados do edital cadastrado. Desmarque o que nao entra e edite os textos se precisar.</p>
     <div id="lista-temas"></div>
 
-    <div style="background:#0d1b2a;border-radius:8px;padding:12px;margin-top:14px">
-      <p style="color:#C9A83C;font-size:13px;font-weight:bold;margin-bottom:8px">Adicionar tema manualmente</p>
+    <div style="background:var(--card2);border-radius:8px;padding:12px;margin-top:14px">
+      <p style="color:var(--ouro);font-size:13px;font-weight:bold;margin-bottom:8px">Adicionar tema manualmente</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <input type="text" id="novo-tema-disc" placeholder="Disciplina" style="flex:1;min-width:130px;margin:0">
         <input type="text" id="novo-tema-txt" placeholder="Tema" style="flex:2;min-width:150px;margin:0">
@@ -166,7 +167,7 @@
 
     <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
       <button onclick="gerarPreview()" style="flex:1;min-width:180px">Gerar cronograma</button>
-      <button onclick="modoReplanejar()" style="width:auto;padding:14px 18px;background:#2a1a3a;color:#b98ae0;border:1px solid #b98ae0">Replanejar de hoje</button>
+      <button onclick="modoReplanejar()" style="width:auto;padding:14px 18px;background:var(--card2);color:var(--roxo);border:1px solid var(--roxo)">Replanejar de hoje</button>
     </div>
     <p id="msg-gerar" style="display:none;margin-top:8px;font-size:13px"></p>
   </div>
@@ -175,12 +176,12 @@
   <div class="card" id="card-preview" style="display:none">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
       <h3 style="margin:0">4. Previa do cronograma</h3>
-      <button onclick="salvarCronograma()" style="width:auto;padding:10px 20px;background:#1a3a1a;color:#81c784;border:1px solid #81c784">Salvar para o aluno</button>
+      <button onclick="salvarCronograma()" style="width:auto;padding:10px 20px;background:var(--card2);color:var(--ok);border:1px solid var(--ok)">Salvar para o aluno</button>
     </div>
     <div class="resumo-box" id="resumo-preview"></div>
     <div id="alerta-preview"></div>
     <div id="preview-dias"></div>
-    <button onclick="salvarCronograma()" style="margin-top:14px;background:#1a3a1a;color:#81c784;border:1px solid #81c784">Salvar para o aluno</button>
+    <button onclick="salvarCronograma()" style="margin-top:14px;background:var(--card2);color:var(--ok);border:1px solid var(--ok)">Salvar para o aluno</button>
     <p id="msg-salvar" style="display:none;margin-top:8px;font-size:13px"></p>
   </div>
 
@@ -290,20 +291,20 @@ function atualizarCapacidade(){
 
   let cor, texto
   if (nTemas === 0) { box.innerHTML = ''; return }
-  if (sobra <= 0) { cor = '#81c784'; texto = 'Todos os '+nTemas+' temas cabem no periodo, com folga de '+(cabe-nTemas)+' tema(s).' }
-  else { cor = '#e57373'; texto = 'Faltam vagas para '+sobra+' tema(s). Aumente as sessoes por dia, adicione dias da semana ou desmarque temas.' }
+  if (sobra <= 0) { cor = 'var(--ok)'; texto = 'Todos os '+nTemas+' temas cabem no periodo, com folga de '+(cabe-nTemas)+' tema(s).' }
+  else { cor = 'var(--erro)'; texto = 'Faltam vagas para '+sobra+' tema(s). Aumente as sessoes por dia, adicione dias da semana ou desmarque temas.' }
 
   box.innerHTML =
-    '<div style="background:#0d1b2a;border:1px solid '+cor+';border-radius:8px;padding:12px">'
+    '<div style="background:var(--card2);border:1px solid '+cor+';border-radius:8px;padding:12px">'
     + '<p style="color:'+cor+';font-size:13px;font-weight:bold;margin-bottom:8px">Capacidade do periodo</p>'
     + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px;margin-bottom:8px">'
-    +   '<div style="text-align:center"><div style="color:#C9A83C;font-size:18px;font-weight:bold">'+nDatas+'</div><div style="color:#aaa;font-size:11px">dias de estudo</div></div>'
-    +   '<div style="text-align:center"><div style="color:#4a8ab5;font-size:18px;font-weight:bold">'+slots+'</div><div style="color:#aaa;font-size:11px">vagas totais</div></div>'
-    +   '<div style="text-align:center"><div style="color:#fff;font-size:18px;font-weight:bold">'+necessarios+'</div><div style="color:#aaa;font-size:11px">vagas necessarias</div></div>'
-    +   '<div style="text-align:center"><div style="color:'+cor+';font-size:18px;font-weight:bold">'+cabe+'</div><div style="color:#aaa;font-size:11px">temas cabem</div></div>'
+    +   '<div style="text-align:center"><div style="color:var(--ouro);font-size:18px;font-weight:bold">'+nDatas+'</div><div style="color:var(--tx3);font-size:11px">dias de estudo</div></div>'
+    +   '<div style="text-align:center"><div style="color:var(--info);font-size:18px;font-weight:bold">'+slots+'</div><div style="color:var(--tx3);font-size:11px">vagas totais</div></div>'
+    +   '<div style="text-align:center"><div style="color:#fff;font-size:18px;font-weight:bold">'+necessarios+'</div><div style="color:var(--tx3);font-size:11px">vagas necessarias</div></div>'
+    +   '<div style="text-align:center"><div style="color:'+cor+';font-size:18px;font-weight:bold">'+cabe+'</div><div style="color:var(--tx3);font-size:11px">temas cabem</div></div>'
     + '</div>'
     + '<p style="color:'+cor+';font-size:12px">'+texto+'</p>'
-    + '<p style="color:#555;font-size:11px;margin-top:6px">Tema normal ocupa '+nEtapas+' vaga(s): '+modosAtivos().join(' + ')+'.'
+    + '<p style="color:var(--tx4);font-size:11px;margin-top:6px">Tema normal ocupa '+nEtapas+' vaga(s): '+modosAtivos().join(' + ')+'.'
     + (nRev>0 ? ' '+nRev+' tema(s) marcados como "so revisao" ocupam 1 vaga cada.' : '')+'</p>'
     + '</div>'
 }
@@ -391,7 +392,7 @@ async function carregarTemas(){
 
   if (!tops || !tops.length) {
     _temas = []
-    document.getElementById('lista-temas').innerHTML = '<p style="color:#e57373;font-size:13px">Nenhum edital cadastrado para este concurso. Cadastre em "Editais" ou adicione temas manualmente abaixo.</p>'
+    document.getElementById('lista-temas').innerHTML = '<p style="color:var(--erro);font-size:13px">Nenhum edital cadastrado para este concurso. Cadastre em "Editais" ou adicione temas manualmente abaixo.</p>'
     return
   }
 
@@ -406,7 +407,7 @@ async function carregarTemas(){
 function renderTemas(){
   const div = document.getElementById('lista-temas')
   div.innerHTML = ''
-  if (!_temas.length) { div.innerHTML = '<p style="color:#aaa;font-size:13px">Nenhum tema. Adicione manualmente abaixo.</p>'; return }
+  if (!_temas.length) { div.innerHTML = '<p style="color:var(--tx3);font-size:13px">Nenhum tema. Adicione manualmente abaixo.</p>'; return }
 
   const porDisc = {}
   _temas.forEach(function(t){ if(!porDisc[t.disciplina]) porDisc[t.disciplina]=[]; porDisc[t.disciplina].push(t) })
@@ -414,10 +415,10 @@ function renderTemas(){
   Object.keys(porDisc).forEach(function(disc){
     const itens = porDisc[disc]
     const marcados = itens.filter(function(t){return t.incluir}).length
-    let html = '<div class="disc-head"><span>'+disc+'</span><span style="color:#aaa;font-size:12px;font-weight:normal">'+marcados+'/'+itens.length+' temas</span></div>'
+    let html = '<div class="disc-head"><span>'+disc+'</span><span style="color:var(--tx3);font-size:12px;font-weight:normal">'+marcados+'/'+itens.length+' temas</span></div>'
     itens.forEach(function(t){
       html += '<div class="tema-row">'
-        + '<input type="checkbox" '+(t.incluir?'checked':'')+' onchange="alternarTema(\''+t.key+'\',this.checked)" style="width:18px;height:18px;accent-color:#C9A83C;flex-shrink:0">'
+        + '<input type="checkbox" '+(t.incluir?'checked':'')+' onchange="alternarTema(\''+t.key+'\',this.checked)" style="width:18px;height:18px;accent-color:var(--ouro);flex-shrink:0">'
         + '<input type="text" value="'+String(t.topico).replace(/"/g,'&quot;')+'" onchange="editarTema(\''+t.key+'\',this.value)" style="flex:1;min-width:140px;margin:0;padding:6px;font-size:13px">'
         + '<span class="badge-p p-'+t.prioridade+'">'+t.prioridade.toUpperCase()+'</span>'
         + '</div>'
@@ -426,7 +427,7 @@ function renderTemas(){
   })
 
   const total = _temas.filter(function(t){return t.incluir}).length
-  div.innerHTML += '<p style="color:#C9A83C;font-size:13px;text-align:center;margin-top:12px">'+total+' temas selecionados</p>'
+  div.innerHTML += '<p style="color:var(--ouro);font-size:13px;text-align:center;margin-top:12px">'+total+' temas selecionados</p>'
   atualizarCapacidade()
 }
 
@@ -536,7 +537,7 @@ function gerarPreview(){
   const dq = parseInt(document.getElementById('g-dq').value)||5
   const dr = parseInt(document.getElementById('g-dr').value)||15
 
-  msg.style.display='block'; msg.style.color='#e57373'
+  msg.style.display='block'; msg.style.color='var(--erro)'
   if (!inicio || !prova) { msg.textContent='Defina a data de inicio e a data da prova.'; return }
   if (parseD(prova) <= parseD(inicio)) { msg.textContent='A data da prova precisa ser depois da data de inicio.'; return }
   if (!dias.length) { msg.textContent='Selecione pelo menos um dia da semana.'; return }
@@ -568,27 +569,27 @@ function renderPreview(plano){
   })})
 
   document.getElementById('resumo-preview').innerHTML =
-    '<div class="resumo-c"><div class="resumo-n" style="color:#C9A83C">'+cal.length+'</div><div class="resumo-l">dias de estudo</div></div>'
-  + '<div class="resumo-c"><div class="resumo-n" style="color:#4a8ab5">'+nT+'</div><div class="resumo-l">sessoes de teoria</div></div>'
-  + '<div class="resumo-c"><div class="resumo-n" style="color:#C9A83C">'+nQ+'</div><div class="resumo-l">sessoes de questoes</div></div>'
-  + '<div class="resumo-c"><div class="resumo-n" style="color:#81c784">'+nR+'</div><div class="resumo-l">sessoes de revisao</div></div>'
+    '<div class="resumo-c"><div class="resumo-n" style="color:var(--ouro)">'+cal.length+'</div><div class="resumo-l">dias de estudo</div></div>'
+  + '<div class="resumo-c"><div class="resumo-n" style="color:var(--info)">'+nT+'</div><div class="resumo-l">sessoes de teoria</div></div>'
+  + '<div class="resumo-c"><div class="resumo-n" style="color:var(--ouro)">'+nQ+'</div><div class="resumo-l">sessoes de questoes</div></div>'
+  + '<div class="resumo-c"><div class="resumo-n" style="color:var(--ok)">'+nR+'</div><div class="resumo-l">sessoes de revisao</div></div>'
 
   const al = document.getElementById('alerta-preview')
   al.innerHTML = ''
   if (_soRevisao > 0) {
-    al.innerHTML += '<div style="background:#0d2a1a;border:1px solid #81c784;border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px;color:#81c784">'
+    al.innerHTML += '<div style="background:var(--card2);border:1px solid var(--ok);border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px;color:var(--ok)">'
       + _soRevisao+' tema(s) marcados como <strong>so revisao</strong> no Controle de Temas entraram apenas com a sessao de revisao.</div>'
   }
   if (_pulados > 0) {
-    al.innerHTML += '<div style="background:#1a3a1a;border:1px solid #81c784;border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px;color:#81c784">'
+    al.innerHTML += '<div style="background:var(--card2);border:1px solid var(--ok);border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px;color:var(--ok)">'
       + _pulados+' tema(s) foram pulados porque o aluno ja concluiu a teoria deles.</div>'
   }
   if (plano.naoAlocados > 0) {
-    al.innerHTML += '<div style="background:#3a1a1a;border:1px solid #e57373;border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px;color:#e57373">'
+    al.innerHTML += '<div style="background:var(--card2);border:1px solid var(--erro);border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px;color:var(--erro)">'
       + '<strong>'+plano.naoAlocados+' temas ficaram de fora.</strong> Lembre que cada tema ocupa 3 vagas (teoria + questoes + revisao). Aumente as sessoes por dia, adicione dias da semana, antecipe a data de inicio ou desmarque os temas de baixa prioridade.</div>'
   }
   if (plano.pendentes > 0) {
-    al.innerHTML += '<div style="background:#2a2410;border:1px solid #ffb74d;border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px;color:#ffb74d">'
+    al.innerHTML += '<div style="background:var(--card2);border:1px solid var(--alerta);border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px;color:var(--alerta)">'
       + plano.pendentes+' sessoes de questoes/revisao dos ultimos temas cairiam depois da prova e foram descartadas.</div>'
   }
 
@@ -598,13 +599,13 @@ function renderPreview(plano){
   mostrar.forEach(function(d){
     const dt = parseD(d.data)
     let html = '<div class="dia-card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'
-      + '<strong style="color:#C9A83C;font-size:13px">'+CURTO_DIA[dt.getDay()]+', '+fmtBR(d.data)+'</strong>'
-      + '<span style="color:#aaa;font-size:11px">'+d.sessoes.length+' sessoes</span></div>'
+      + '<strong style="color:var(--ouro);font-size:13px">'+CURTO_DIA[dt.getDay()]+', '+fmtBR(d.data)+'</strong>'
+      + '<span style="color:var(--tx3);font-size:11px">'+d.sessoes.length+' sessoes</span></div>'
     d.sessoes.forEach(function(s){
       const lbl = s.tipo==='teoria'?'Teoria':(s.tipo==='questoes'?'Questoes':'Revisao')
       html += '<div class="sessao s-'+s.tipo+'">'
         + '<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap">'
-        + '<span style="font-size:12px;color:#aaa">'+s.disciplina+'</span>'
+        + '<span style="font-size:12px;color:var(--tx3)">'+s.disciplina+'</span>'
         + '<span class="tag t-'+s.tipo+'">'+lbl+'</span></div>'
         + '<div style="font-size:13px;margin-top:2px">'+s.topico+'</div></div>'
     })
@@ -612,7 +613,7 @@ function renderPreview(plano){
     div.innerHTML += html
   })
   if (cal.length > 30) {
-    div.innerHTML += '<p style="color:#aaa;font-size:13px;text-align:center;padding:10px">... e mais '+(cal.length-30)+' dias. Salve para ver o cronograma completo.</p>'
+    div.innerHTML += '<p style="color:var(--tx3);font-size:13px;text-align:center;padding:10px">... e mais '+(cal.length-30)+' dias. Salve para ver o cronograma completo.</p>'
   }
 }
 
@@ -628,13 +629,13 @@ async function salvarCronograma(){
 
   if (!confirm('Isso vai substituir o cronograma atual deste aluno neste concurso.\n\nConfirmar?')) return
 
-  msg.style.display='block'; msg.style.color='#aaa'; msg.textContent='Salvando...'
+  msg.style.display='block'; msg.style.color='var(--tx3)'; msg.textContent='Salvando...'
 
   // limpa o plano anterior
   let del = _supabase.from('sessoes_estudo').delete().eq('aluno_id',aluno_id).eq('concurso_id',concurso_id)
   if (manter) del = del.eq('concluida', false)
   const r0 = await del
-  if (r0.error) { msg.style.color='#e57373'; msg.textContent='Erro ao limpar plano anterior: '+r0.error.message; return }
+  if (r0.error) { msg.style.color='var(--erro)'; msg.textContent='Erro ao limpar plano anterior: '+r0.error.message; return }
 
   // monta as linhas
   const linhas = []
@@ -661,7 +662,7 @@ async function salvarCronograma(){
   for (let i=0;i<linhas.length;i+=LOTE){
     const parte = linhas.slice(i, i+LOTE)
     const r = await _supabase.from('sessoes_estudo').insert(parte)
-    if (r.error) { msg.style.color='#e57373'; msg.textContent='Erro ao salvar: '+r.error.message+' (salvos '+inseridos+')'; return }
+    if (r.error) { msg.style.color='var(--erro)'; msg.textContent='Erro ao salvar: '+r.error.message+' (salvos '+inseridos+')'; return }
     inseridos += parte.length
     msg.textContent = 'Salvando... '+inseridos+'/'+linhas.length
   }
@@ -684,7 +685,7 @@ async function salvarCronograma(){
     atualizado_em: new Date().toISOString()
   }, { onConflict: 'aluno_id,concurso_id' })
 
-  msg.style.color='#81c784'
+  msg.style.color='var(--ok)'
   msg.textContent='Cronograma salvo! '+inseridos+' sessoes distribuidas em '+_plano.calendario.length+' dias.'
   document.getElementById('msg-existente').style.display='none'
 }
