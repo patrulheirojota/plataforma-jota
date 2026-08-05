@@ -8,37 +8,38 @@
 <link rel="stylesheet" href="style.css">
 <style>
   .st-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:16px}
-  .st-c{background:#0d1b2a;border-radius:10px;padding:14px;text-align:center;border-top:3px solid #2a4a6a}
+  .st-c{background:var(--card2);border-radius:10px;padding:14px;text-align:center;border-top:3px solid var(--bd2)}
   .st-n{font-size:22px;font-weight:bold}
-  .st-l{color:#aaa;font-size:11px;margin-top:2px}
-  .disc-h{color:#C9A83C;font-size:14px;font-weight:bold;margin:16px 0 8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
-  .t-row{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;background:#0d1b2a;margin-bottom:5px;flex-wrap:wrap}
+  .st-l{color:var(--tx3);font-size:11px;margin-top:2px}
+  .disc-h{color:var(--ouro);font-size:14px;font-weight:bold;margin:16px 0 8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+  .t-row{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;background:var(--card2);margin-bottom:5px;flex-wrap:wrap}
   .t-row.removido{opacity:.45}
   .t-txt{flex:1;min-width:150px;font-size:13px}
   .t-row.removido .t-txt{text-decoration:line-through}
-  .seg{display:flex;gap:0;border-radius:8px;overflow:hidden;border:1px solid #2a4a6a;flex-shrink:0}
-  .seg button{width:auto;margin:0;padding:6px 11px;font-size:11px;font-weight:600;background:#0d1b2a;color:#7f96ae;border:none;border-radius:0;cursor:pointer;white-space:nowrap}
-  .seg button:hover{background:#1a2f45;color:#fff}
-  .seg button.on{background:#1a3a5c;color:#fff}
-  .seg button.on.ativo{background:#4a8ab5;color:#0d1b2a}
-  .seg button.on.so_revisao{background:#81c784;color:#0d1b2a}
-  .seg button.on.removido{background:#e57373;color:#fff}
+  .seg{display:flex;gap:0;border-radius:8px;overflow:hidden;border:1px solid var(--bd2);flex-shrink:0}
+  .seg button{width:auto;margin:0;padding:6px 11px;font-size:11px;font-weight:600;background:var(--card2);color:var(--tx3);border:none;border-radius:0;cursor:pointer;white-space:nowrap}
+  .seg button:hover{background:var(--card);color:#fff}
+  .seg button.on{background:var(--hov);color:#fff}
+  .seg button.on.ativo{background:var(--info);color:var(--card2)}
+  .seg button.on.so_revisao{background:var(--ok);color:var(--card2)}
+  .seg button.on.removido{background:var(--erro);color:#fff}
   .badge-p{font-size:9px;padding:2px 6px;border-radius:9px;font-weight:bold;flex-shrink:0}
-  .p-alta{background:#e5737322;color:#e57373;border:1px solid #e57373}
-  .p-media{background:#ffb74d22;color:#ffb74d;border:1px solid #ffb74d}
-  .p-baixa{background:#4a8ab522;color:#4a8ab5;border:1px solid #4a8ab5}
-  .chip-feito{font-size:9px;padding:2px 7px;border-radius:9px;background:#81c78422;color:#81c784;border:1px solid #81c784;font-weight:bold;flex-shrink:0}
+  .p-alta{background:var(--erro)22;color:var(--erro);border:1px solid var(--erro)}
+  .p-media{background:var(--alerta)22;color:var(--alerta);border:1px solid var(--alerta)}
+  .p-baixa{background:var(--info)22;color:var(--info);border:1px solid var(--info)}
+  .chip-feito{font-size:9px;padding:2px 7px;border-radius:9px;background:var(--ok)22;color:var(--ok);border:1px solid var(--ok);font-weight:bold;flex-shrink:0}
 </style>
+<script>document.documentElement.setAttribute("data-tema",localStorage.getItem("tema")||"escuro")</script>
 </head>
 <body>
 <div class="container">
   <header>
     <div>
       <h2>Controle de Temas</h2>
-      <div style="color:#aaa;font-size:13px">Defina o que entra, o que fica so na revisao e o que sai do cronograma</div>
+      <div style="color:var(--tx3);font-size:13px">Defina o que entra, o que fica so na revisao e o que sai do cronograma</div>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button onclick="location.href='gerador.html'" style="width:auto;padding:8px 14px;background:#2a1a3a;color:#b98ae0;border:1px solid #b98ae0">Gerador</button>
+      <button onclick="location.href='gerador.html'" style="width:auto;padding:8px 14px;background:var(--card2);color:var(--roxo);border:1px solid var(--roxo)">Gerador</button>
       <button onclick="location.href='admin.html'" style="width:auto;padding:8px 14px">Painel Admin</button>
     </div>
   </header>
@@ -47,11 +48,11 @@
     <h3>Selecionar aluno</h3>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">
       <div>
-        <label style="color:#aaa;font-size:12px;display:block;margin-bottom:4px">Aluno</label>
+        <label style="color:var(--tx3);font-size:12px;display:block;margin-bottom:4px">Aluno</label>
         <select id="t-aluno" onchange="aoTrocarAluno()"><option value="">Selecione o aluno</option></select>
       </div>
       <div>
-        <label style="color:#aaa;font-size:12px;display:block;margin-bottom:4px">Concurso</label>
+        <label style="color:var(--tx3);font-size:12px;display:block;margin-bottom:4px">Concurso</label>
         <select id="t-concurso" onchange="carregar()"><option value="">Selecione o concurso</option></select>
       </div>
     </div>
@@ -61,12 +62,12 @@
     <div class="card">
       <h3>Resumo</h3>
       <div class="st-grid" id="resumo"></div>
-      <div style="background:#0d1b2a;border-radius:8px;padding:12px">
-        <p style="color:#C9A83C;font-size:13px;font-weight:bold;margin-bottom:8px">O que cada status faz no proximo cronograma gerado</p>
-        <div style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:#aaa">
-          <div><span style="color:#4a8ab5;font-weight:bold">Ativo</span> — ciclo completo conforme os modos ligados no gerador.</div>
-          <div><span style="color:#81c784;font-weight:bold">So revisao</span> — o aluno ja estudou. Entra apenas com sessao de revisao, sem teoria.</div>
-          <div><span style="color:#e57373;font-weight:bold">Removido</span> — fica fora do cronograma por completo.</div>
+      <div style="background:var(--card2);border-radius:8px;padding:12px">
+        <p style="color:var(--ouro);font-size:13px;font-weight:bold;margin-bottom:8px">O que cada status faz no proximo cronograma gerado</p>
+        <div style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--tx3)">
+          <div><span style="color:var(--info);font-weight:bold">Ativo</span> — ciclo completo conforme os modos ligados no gerador.</div>
+          <div><span style="color:var(--ok);font-weight:bold">So revisao</span> — o aluno ja estudou. Entra apenas com sessao de revisao, sem teoria.</div>
+          <div><span style="color:var(--erro);font-weight:bold">Removido</span> — fica fora do cronograma por completo.</div>
         </div>
       </div>
     </div>
@@ -76,7 +77,7 @@
         <h3 style="margin:0">Temas do edital</h3>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           <button class="btn-acao btn-editar" onclick="aplicarTodos('ativo')">Todos ativos</button>
-          <button class="btn-acao" onclick="marcarFeitosComoRevisao()" style="background:#1a3a1a;color:#81c784;border:1px solid #81c784">Concluidos &#8594; so revisao</button>
+          <button class="btn-acao" onclick="marcarFeitosComoRevisao()" style="background:var(--card2);color:var(--ok);border:1px solid var(--ok)">Concluidos &#8594; so revisao</button>
         </div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
@@ -127,7 +128,7 @@ async function carregar(){
     .eq('concurso_id',_concursoId).order('disciplina').order('ordem')
   if(!tops||!tops.length){
     document.getElementById('painel').style.display='block'
-    document.getElementById('lista').innerHTML='<p style="color:#e57373;font-size:13px">Nenhum edital cadastrado para este concurso.</p>'
+    document.getElementById('lista').innerHTML='<p style="color:var(--erro);font-size:13px">Nenhum edital cadastrado para este concurso.</p>'
     document.getElementById('resumo').innerHTML=''
     return
   }
@@ -160,10 +161,10 @@ function render(){
     if(_feitos[t.id])f++
   })
   document.getElementById('resumo').innerHTML=
-    '<div class="st-c" style="border-top-color:#4a8ab5"><div class="st-n" style="color:#4a8ab5">'+a+'</div><div class="st-l">Ativos</div></div>'
-   +'<div class="st-c" style="border-top-color:#81c784"><div class="st-n" style="color:#81c784">'+r+'</div><div class="st-l">So revisao</div></div>'
-   +'<div class="st-c" style="border-top-color:#e57373"><div class="st-n" style="color:#e57373">'+x+'</div><div class="st-l">Removidos</div></div>'
-   +'<div class="st-c" style="border-top-color:#C9A83C"><div class="st-n" style="color:#C9A83C">'+f+'</div><div class="st-l">Teoria concluida</div></div>'
+    '<div class="st-c" style="border-top-color:var(--info)"><div class="st-n" style="color:var(--info)">'+a+'</div><div class="st-l">Ativos</div></div>'
+   +'<div class="st-c" style="border-top-color:var(--ok)"><div class="st-n" style="color:var(--ok)">'+r+'</div><div class="st-l">So revisao</div></div>'
+   +'<div class="st-c" style="border-top-color:var(--erro)"><div class="st-n" style="color:var(--erro)">'+x+'</div><div class="st-l">Removidos</div></div>'
+   +'<div class="st-c" style="border-top-color:var(--ouro)"><div class="st-n" style="color:var(--ouro)">'+f+'</div><div class="st-l">Teoria concluida</div></div>'
    +'<div class="st-c"><div class="st-n">'+_topicos.length+'</div><div class="st-l">Total no edital</div></div>'
 
   const porDisc={}
@@ -182,9 +183,9 @@ function render(){
     const nAtivos=porDisc[disc].filter(function(t){return statusDe(t.id)==='ativo'}).length
     html+='<div class="disc-h"><span>'+disc+'</span>'
       +'<span style="display:flex;gap:6px;align-items:center">'
-      +'<span style="color:#aaa;font-size:12px;font-weight:normal">'+nAtivos+'/'+porDisc[disc].length+' ativos</span>'
+      +'<span style="color:var(--tx3);font-size:12px;font-weight:normal">'+nAtivos+'/'+porDisc[disc].length+' ativos</span>'
       +'<button class="btn-acao btn-editar" style="font-size:10px;padding:3px 8px" onclick="aplicarDisc(\''+disc.replace(/'/g,"\\'")+'\',\'ativo\')">ativar</button>'
-      +'<button class="btn-acao" style="font-size:10px;padding:3px 8px;background:#1a3a1a;color:#81c784;border:1px solid #81c784" onclick="aplicarDisc(\''+disc.replace(/'/g,"\\'")+'\',\'so_revisao\')">revisao</button>'
+      +'<button class="btn-acao" style="font-size:10px;padding:3px 8px;background:var(--card2);color:var(--ok);border:1px solid var(--ok)" onclick="aplicarDisc(\''+disc.replace(/'/g,"\\'")+'\',\'so_revisao\')">revisao</button>'
       +'<button class="btn-acao btn-excluir" style="font-size:10px;padding:3px 8px" onclick="aplicarDisc(\''+disc.replace(/'/g,"\\'")+'\',\'removido\')">remover</button>'
       +'</span></div>'
     itens.forEach(function(t){
@@ -200,7 +201,7 @@ function render(){
         +'</span></div>'
     })
   })
-  if(!mostrados)html='<p style="color:#aaa;font-size:13px">Nenhum tema encontrado com esses filtros.</p>'
+  if(!mostrados)html='<p style="color:var(--tx3);font-size:13px">Nenhum tema encontrado com esses filtros.</p>'
   document.getElementById('lista').innerHTML=html
 }
 
@@ -211,7 +212,7 @@ async function setStatus(topico_id,status){
     aluno_id:_alunoId, concurso_id:_concursoId, topico_id:topico_id,
     status:status, atualizado_em:new Date().toISOString()
   },{onConflict:'aluno_id,topico_id'})
-  if(r.error)aviso('Erro ao salvar: '+r.error.message,'#e57373')
+  if(r.error)aviso('Erro ao salvar: '+r.error.message,'var(--erro)')
 }
 
 async function aplicarDisc(disc,status){
@@ -232,7 +233,7 @@ async function aplicarTodos(status){
 
 async function marcarFeitosComoRevisao(){
   const alvos=_topicos.filter(function(t){return _feitos[t.id]})
-  if(!alvos.length){aviso('Nenhum tema com teoria concluida ainda.','#ffb74d');return}
+  if(!alvos.length){aviso('Nenhum tema com teoria concluida ainda.','var(--alerta)');return}
   if(!confirm(alvos.length+' temas ja tiveram a teoria concluida. Passar todos para "so revisao"?'))return
   alvos.forEach(function(t){_status[t.id]='so_revisao'})
   render()
@@ -240,7 +241,7 @@ async function marcarFeitosComoRevisao(){
 }
 
 async function salvarLote(itens,status){
-  aviso('Salvando...','#aaa')
+  aviso('Salvando...','var(--tx3)')
   const linhas=itens.map(function(t){return {
     aluno_id:_alunoId, concurso_id:_concursoId, topico_id:t.id,
     status:status, atualizado_em:new Date().toISOString()
@@ -248,15 +249,15 @@ async function salvarLote(itens,status){
   const LOTE=300
   for(let i=0;i<linhas.length;i+=LOTE){
     const r=await _supabase.from('tema_aluno_status').upsert(linhas.slice(i,i+LOTE),{onConflict:'aluno_id,topico_id'})
-    if(r.error){aviso('Erro: '+r.error.message,'#e57373');return}
+    if(r.error){aviso('Erro: '+r.error.message,'var(--erro)');return}
   }
-  aviso(itens.length+' temas atualizados. Gere o cronograma novamente para aplicar.','#81c784')
+  aviso(itens.length+' temas atualizados. Gere o cronograma novamente para aplicar.','var(--ok)')
 }
 
 function aviso(txt,cor){
   const m=document.getElementById('msg')
   m.style.display='block';m.style.color=cor;m.textContent=txt
-  if(cor==='#81c784')setTimeout(function(){m.style.display='none'},5000)
+  if(cor==='var(--ok)')setTimeout(function(){m.style.display='none'},5000)
 }
 
 init()
