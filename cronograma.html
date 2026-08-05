@@ -216,7 +216,6 @@
     <div class="nav-i" onclick="location.href='questoes.html'"><span class="nav-ic">❓</span>Questoes</div>
     <div class="nav-i" onclick="location.href='questoes.html#simulados'"><span class="nav-ic">🎯</span>Simulados</div>
     <div class="nav-i" onclick="location.href='questoes.html#materiais'"><span class="nav-ic">📁</span>Materiais</div>
-    <div class="nav-i" onclick="location.href='tutor.html'"><span class="nav-ic">🤖</span>Tirar duvida</div>
     <div class="nav-i" onclick="location.href='ranking.html'"><span class="nav-ic">🏆</span>Ranking</div>
     <div class="nav-i" onclick="location.href='edital.html'"><span class="nav-ic">📖</span>Edital</div>
     <div class="side-sep"></div>
@@ -777,30 +776,75 @@ async function exportarPDF(){
 
 /* ---------- AVISOS ---------- */
 async function checarAvisos(){
-  if(!_concursoId)return
-  const { data:av }=await _supabase.from('avisos').select('id').eq('concurso_id',_concursoId)
+  const filtros=[]
+  if(_concursoId)filtros.push('and(aluno_id.is.null,concurso_id.eq.'+_concursoId+')')
+  filtros.push('aluno_id.eq.'+_alunoId)
+  const { data:av }=await _supabase.from('avisos').select('id,aluno_id,lido_em').or(filtros.join(','))
   const bd=document.getElementById('bd-av')
+  if(!av||!av.length){bd.style.display='none';return}
+  const naoLidos=av.filter(function(a){return a.aluno_id&&!a.lido_em}).length
   const vistos=parseInt(localStorage.getItem('av_'+_alunoId)||'0')
-  if(av&&av.length>vistos){bd.style.display='inline-block';bd.textContent=av.length-vistos}
+  const novosTurma=Math.max(0,av.filter(function(a){return !a.aluno_id}).length-vistos)
+  const total=naoLidos+novosTurma
+  if(total>0){bd.style.display='inline-block';bd.textContent=total}
   else bd.style.display='none'
 }
 
 async function renderAvisos(){
   const box=document.getElementById('lista-avisos')
   box.innerHTML='<div style="color:var(--tx3);font-size:13px">Carregando...</div>'
-  const { data:av }=await _supabase.from('avisos').select('*').eq('concurso_id',_concursoId).order('criado_em',{ascending:false})
+
+  const filtros=[]
+  if(_concursoId)filtros.push('and(aluno_id.is.null,concurso_id.eq.'+_concursoId+')')
+  filtros.push('aluno_id.eq.'+_alunoId)
+  const { data:av }=await _supabase.from('avisos').select('*').or(filtros.join(',')).order('criado_em',{ascending:false})
+
   document.getElementById('bd-av').style.display='none'
-  if(av)localStorage.setItem('av_'+_alunoId,String(av.length))
+  const daTurma=(av||[]).filter(function(a){return !a.aluno_id})
+  localStorage.setItem('av_'+_alunoId,String(daTurma.length))
+
+  // marca os individuais como lidos
+  const naoLidos=(av||[]).filter(function(a){return a.aluno_id&&!a.lido_em})
+  if(naoLidos.length){
+    const agora=new Date().toISOString()
+    for(let i=0;i<naoLidos.length;i++){
+      await _supabase.from('avisos').update({lido_em:agora}).eq('id',naoLidos[i].id)
+    }
+  }
+
   if(!av||!av.length){
-    box.innerHTML='<div class="painel estado"><div style="font-size:40px;margin-bottom:10px">🔔</div><div style="color:var(--tx3);font-size:14px">Nenhum aviso no momento.</div></div>'
+    box.innerHTML='<div class="painel" style="text-align:center;padding:44px 20px"><div style="font-size:40px;margin-bottom:10px">🔔</div>'
+      +'<div style="color:var(--tx3);font-size:14px">Nenhum aviso no momento.</div></div>'
     return
   }
-  box.innerHTML=av.map(function(a){
-    return '<div class="av"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:7px">'
-      +'<strong style="color:var(--ouro);font-size:15px">'+esc(a.titulo)+'</strong>'
-      +'<span style="color:var(--tx4);font-size:12px">'+new Date(a.criado_em).toLocaleDateString('pt-BR')+'</span></div>'
-      +'<div style="color:var(--tx2);font-size:13.5px;line-height:1.6;white-space:pre-wrap">'+esc(a.mensagem)+'</div></div>'
-  }).join('')
+
+  const meus=(av||[]).filter(function(a){return a.aluno_id})
+  let html=''
+  if(meus.length){
+    html+='<div style="color:var(--tx3);font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px">Para voce</div>'
+      +meus.map(function(a){return cardAviso(a,true)}).join('')
+  }
+  if(daTurma.length){
+    html+='<div style="color:var(--tx3);font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin:'+(meus.length?'22px':'0')+' 0 10px">Para a turma</div>'
+      +daTurma.map(function(a){return cardAviso(a,false)}).join('')
+  }
+  box.innerHTML=html
+}
+
+function cardAviso(a,individual){
+  const data=new Date(a.criado_em).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'})
+  const urgente=a.prioridade==='alta'
+  const cor=urgente?'#f07171':(individual?'#5bb3f0':'var(--ouro)')
+  const novo=individual&&!a.lido_em
+  return '<div class="av" style="border-left-color:'+cor+(urgente?';background:rgba(240,113,113,.06)':'')+'">'
+    +'<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:7px">'
+    +'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'
+    +(urgente?'<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(240,113,113,.15);color:#f07171;border:1px solid #f07171;font-weight:700">URGENTE</span>':'')
+    +(individual?'<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(91,179,240,.15);color:#5bb3f0;border:1px solid #5bb3f0;font-weight:700">SO PARA VOCE</span>':'')
+    +(novo?'<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(109,219,160,.15);color:#6ddba0;border:1px solid #6ddba0;font-weight:700">NOVO</span>':'')
+    +'<strong style="color:'+cor+';font-size:15px">'+esc(a.titulo)+'</strong></div>'
+    +'<span style="color:var(--tx4);font-size:12px">'+data+'</span></div>'
+    +'<div style="color:var(--tx2);font-size:13.5px;line-height:1.6;white-space:pre-wrap">'+esc(a.mensagem)+'</div></div>'
 }
 
 /* ---------- PERFIL ---------- */
