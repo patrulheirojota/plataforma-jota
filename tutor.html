@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tirar Duvida — Patrulheiros de Elite</title>
+<script>document.documentElement.setAttribute("data-tema",localStorage.getItem("tema")||"escuro")</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="manifest" href="/manifest.json">
+<style>
+  :root{--ouro:#C9A83C;--ouro-esc:#8a6f1e;--bg:#0a1420;--bg2:#0c1826;--card:#101d2c;--card2:#0d1a28;--btn:#132030;--bd:#1b2c40;--bd2:#24384f;--hov:#16283c;--tx:#e8edf4;--tx2:#8fa5bd;--tx3:#63809e;--tx4:#4d6684;--ok:#6ddba0;--erro:#f07171;--roxo:#b98ae0}
+  [data-tema="claro"]{--bg:#eef1f6;--bg2:#fff;--card:#fff;--card2:#f7f9fc;--btn:#fff;--bd:#dde4ed;--bd2:#c6d2e0;--hov:#eaf0f8;--tx:#0f1b2a;--tx2:#4a5f78;--tx3:#66809b;--tx4:#8fa2b8}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--tx);height:100vh;overflow:hidden}
+  .shell{display:flex;height:100vh}
+  .side{width:236px;background:var(--bg2);border-right:1px solid var(--bd);padding:20px 14px;display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0}
+  .logo{display:flex;align-items:center;gap:10px;padding:0 8px 22px}
+  .logo-i{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--ouro),var(--ouro-esc));display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;overflow:hidden}
+  .logo-t{font-size:14px;font-weight:800;line-height:1.2}
+  .logo-t span{color:var(--ouro);display:block;font-size:11px;font-weight:600}
+  .nav-i{display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:11px;color:var(--tx2);font-size:14px;cursor:pointer;margin-bottom:3px;border:1px solid transparent;font-weight:500}
+  .nav-i:hover{background:var(--btn);color:var(--tx)}
+  .nav-i.on{background:var(--hov);color:var(--ouro);border-color:var(--bd2);font-weight:600}
+  .nav-ic{width:19px;text-align:center;font-size:15px;flex-shrink:0}
+  .side-sep{height:1px;background:var(--bd);margin:10px 6px}
+  .side-b{margin-top:auto;padding-top:14px}
+  .chat{flex:1;display:flex;flex-direction:column;min-width:0}
+  .ch-top{padding:16px 22px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .ch-av{width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,var(--ouro),var(--ouro-esc));display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0}
+  .ch-t{font-size:16px;font-weight:800}
+  .ch-s{color:var(--tx3);font-size:12px;margin-top:1px}
+  .btn{padding:8px 14px;border-radius:9px;border:1px solid var(--bd2);background:var(--btn);color:var(--tx2);font-size:12.5px;cursor:pointer;font-weight:500;white-space:nowrap}
+  .btn:hover{border-color:var(--ouro);color:var(--tx)}
+  .msgs{flex:1;overflow-y:auto;padding:22px;display:flex;flex-direction:column;gap:16px}
+  .m{display:flex;gap:11px;max-width:820px;width:100%;margin:0 auto}
+  .m-av{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;flex-shrink:0}
+  .m-eu .m-av{background:var(--bd2);color:var(--tx2)}
+  .m-ia .m-av{background:linear-gradient(135deg,var(--ouro),var(--ouro-esc));color:#0a1420}
+  .m-c{flex:1;min-width:0}
+  .m-n{font-size:11.5px;color:var(--tx3);font-weight:700;margin-bottom:5px;letter-spacing:.3px}
+  .m-b{font-size:14.5px;line-height:1.75;white-space:pre-wrap;word-wrap:break-word}
+  .m-eu .m-b{background:var(--card2);border:1px solid var(--bd);border-radius:12px;padding:12px 14px}
+  .bizu{background:linear-gradient(135deg,rgba(185,138,224,.14),rgba(125,95,168,.05));border:1px solid #7d5fa8;border-radius:11px;padding:12px 14px;margin-top:12px}
+  .bizu-h{color:var(--roxo);font-size:10.5px;font-weight:800;letter-spacing:.7px;text-transform:uppercase;margin-bottom:6px;display:flex;align-items:center;gap:7px}
+  .ctx{background:var(--card2);border-left:3px solid var(--ouro);border-radius:0 10px 10px 0;padding:11px 13px;margin:0 auto 4px;max-width:820px;width:100%;font-size:12.5px;color:var(--tx2)}
+  .digitando{display:flex;gap:5px;padding:6px 0}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--ouro);animation:pulsa 1.2s infinite}
+  .dot:nth-child(2){animation-delay:.2s}.dot:nth-child(3){animation-delay:.4s}
+  @keyframes pulsa{0%,60%,100%{opacity:.25}30%{opacity:1}}
+  .entrada{border-top:1px solid var(--bd);padding:14px 22px 18px}
+  .ent-box{max-width:820px;margin:0 auto;display:flex;gap:9px;align-items:flex-end}
+  .ent-txt{flex:1;padding:13px 15px;border-radius:13px;border:1px solid var(--bd2);background:var(--card);color:var(--tx);font-size:14.5px;font-family:inherit;resize:none;max-height:170px;line-height:1.55}
+  .ent-txt:focus{outline:none;border-color:var(--ouro)}
+  .env{width:46px;height:46px;border-radius:13px;background:var(--ouro);color:#0a1420;border:none;font-size:18px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+  .env:disabled{opacity:.4;cursor:not-allowed}
+  .rodape{max-width:820px;margin:8px auto 0;color:var(--tx4);font-size:11px;text-align:center}
+  .sug{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:9px;max-width:700px;margin:20px auto 0}
+  .sug-c{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;cursor:pointer;text-align:left}
+  .sug-c:hover{border-color:var(--ouro)}
+  .sug-t{font-size:13px;font-weight:700;margin-bottom:3px}
+  .sug-s{color:var(--tx3);font-size:12px;line-height:1.45}
+  .boas{text-align:center;padding:36px 20px;max-width:640px;margin:0 auto}
+  @media(max-width:860px){
+    body{overflow:auto;height:auto}
+    .shell{flex-direction:column;height:auto}
+    .side{width:100%;flex-direction:row;overflow-x:auto;padding:10px;border-right:none;border-bottom:1px solid var(--bd);gap:5px;align-items:center;flex-shrink:1}
+    .logo,.side-sep,.side-b{display:none}
+    .nav-i{margin-bottom:0;white-space:nowrap;padding:9px 13px;font-size:13px}
+    .chat{height:calc(100vh - 62px)}
+    .msgs,.entrada{padding-left:12px;padding-right:12px}
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="side">
+    <div class="logo"><div class="logo-i">🛡️</div><div class="logo-t">Patrulheiros<span>de Elite</span></div></div>
+    <div class="nav-i" onclick="location.href='cronograma.html'"><span class="nav-ic">📅</span>Meu Cronograma</div>
+    <div class="nav-i" onclick="location.href='questoes.html'"><span class="nav-ic">❓</span>Questoes</div>
+    <div class="nav-i on"><span class="nav-ic">🤖</span>Tirar duvida</div>
+    <div class="nav-i" onclick="location.href='edital.html'"><span class="nav-ic">📖</span>Edital</div>
+    <div class="nav-i" onclick="location.href='ranking.html'"><span class="nav-ic">🏆</span>Ranking</div>
+    <div class="side-b"><div class="nav-i" onclick="sair()"><span class="nav-ic">🚪</span>Sair</div></div>
+  </aside>
+
+  <div class="chat">
+    <div class="ch-top">
+      <div class="ch-av">🤖</div>
+      <div style="flex:1;min-width:140px">
+        <div class="ch-t">Tutor da Mentoria</div>
+        <div class="ch-s" id="ch-s">Tire duvidas de teoria e de questoes</div>
+      </div>
+      <button class="btn" onclick="novaConversa()">Nova conversa</button>
+    </div>
+
+    <div class="msgs" id="msgs"></div>
+
+    <div class="entrada">
+      <div class="ent-box">
+        <textarea class="ent-txt" id="txt" rows="1" placeholder="Escreva sua duvida..."
+          oninput="ajustar(this)" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();enviar()}"></textarea>
+        <button class="env" id="btn-env" onclick="enviar()">➤</button>
+      </div>
+      <div class="rodape" id="rodape">O tutor pode errar. Confira sempre a lei e o material oficial.</div>
+    </div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script>
+const LIMITE_DIA=40
+let _alunoId=null,_nome='',_msgs=[],_ctx=null,_ocupado=false,_usoHoje=0
+
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function hoje(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function ajustar(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,170)+'px'}
+
+async function init(){
+  const { data:{user} }=await _supabase.auth.getUser()
+  if(!user){location.href='index.html';return}
+  _alunoId=user.id
+  carregarMarca()
+
+  const { data:al }=await _supabase.from('alunos').select('nome,data_expiracao').eq('id',user.id).single()
+  if(al){
+    _nome=al.nome
+    if(al.data_expiracao){
+      const h=new Date();h.setHours(0,0,0,0)
+      if(h>new Date(al.data_expiracao+'T00:00:00')){location.href='cronograma.html';return}
+    }
+  }
+
+  const { data:u }=await _supabase.from('tutor_uso').select('mensagens').eq('aluno_id',_alunoId).eq('data',hoje()).maybeSingle()
+  _usoHoje=u?u.mensagens:0
+  atualizarRodape()
+
+  // contexto vindo da pagina de questoes
+  const ctx=sessionStorage.getItem('tutor_ctx')
+  if(ctx){ _ctx=ctx; sessionStorage.removeItem('tutor_ctx') }
+
+  render()
+  if(_ctx)document.getElementById('txt').focus()
+}
+
+async function carregarMarca(){
+  const { data:m }=await _supabase.from('config_marca').select('*').eq('id',1).maybeSingle()
+  if(!m)return
+  if(m.cor_primaria)document.documentElement.style.setProperty('--ouro',m.cor_primaria)
+  const nome=m.nome_marca||'Patrulheiros de Elite',p=nome.split(' ')
+  const lt=document.querySelector('.logo-t')
+  if(lt)lt.innerHTML=esc(p[0])+'<span>'+esc(p.length>1?p.slice(1).join(' '):(m.slogan||''))+'</span>'
+  if(m.logo_url){
+    const li=document.querySelector('.logo-i')
+    if(li){li.innerHTML='<img src="'+esc(m.logo_url)+'" style="width:100%;height:100%;object-fit:cover">';li.style.background='transparent'}
+  }
+}
+
+function atualizarRodape(){
+  const rest=Math.max(0,LIMITE_DIA-_usoHoje)
+  document.getElementById('rodape').textContent=
+    'O tutor pode errar. Confira sempre a lei e o material oficial. · '+rest+' de '+LIMITE_DIA+' perguntas restantes hoje'
+}
+
+const SUGESTOES=[
+  ['Explicar um tema','Explique de forma simples a diferenca entre dolo eventual e culpa consciente, com exemplo policial.'],
+  ['Entender um erro','Errei uma questao sobre crase. Me explique a regra de forma pratica e me da um macete.'],
+  ['Resumo de lei','Faca um resumo dos pontos mais cobrados da Lei 13.869/19 (Abuso de Autoridade).'],
+  ['Pegadinha de banca','Quais sao as pegadinhas mais comuns da CEBRASPE em Direito Constitucional?']
+]
+
+function render(){
+  const box=document.getElementById('msgs')
+  if(!_msgs.length){
+    box.innerHTML='<div class="boas">'
+      +'<div style="font-size:44px;margin-bottom:14px">🤖</div>'
+      +'<div style="font-size:19px;font-weight:800">Ola'+(_nome?', '+esc(_nome.split(' ')[0]):'')+'!</div>'
+      +'<p style="color:var(--tx3);font-size:14px;margin-top:9px;line-height:1.65">Sou o tutor da mentoria. Pergunte sobre qualquer materia do seu edital, '
+      +'peca explicacao de uma questao que voce errou ou um resumo de lei. Respondo do jeito que a banca cobra.</p>'
+      +(_ctx?'<div class="ctx" style="margin-top:16px;text-align:left"><strong style="color:var(--ouro)">Questao em analise:</strong><br>'+esc(_ctx.substring(0,260))+'...</div>':'')
+      +'<div class="sug">'+SUGESTOES.map(function(s,i){
+        return '<div class="sug-c" onclick="usarSugestao('+i+')"><div class="sug-t">'+s[0]+'</div><div class="sug-s">'+esc(s[1].substring(0,72))+'...</div></div>'
+      }).join('')+'</div></div>'
+    return
+  }
+
+  box.innerHTML=(_ctx?'<div class="ctx"><strong style="color:var(--ouro)">Questao em analise:</strong> '+esc(_ctx.substring(0,240))+'...</div>':'')
+    +_msgs.map(function(m){
+      const eu=m.role==='user'
+      return '<div class="m '+(eu?'m-eu':'m-ia')+'">'
+        +'<div class="m-av">'+(eu?(_nome?_nome[0].toUpperCase():'V'):'🤖')+'</div>'
+        +'<div class="m-c"><div class="m-n">'+(eu?'VOCE':'TUTOR')+'</div>'
+        +'<div class="m-b">'+formatar(m.content,eu)+'</div></div></div>'
+    }).join('')
+  box.scrollTop=box.scrollHeight
+}
+
+function formatar(t,eu){
+  if(eu)return esc(t)
+  const i=t.search(/BIZU\s*:/i)
+  if(i<0)return esc(t)
+  const antes=t.slice(0,i).trim()
+  const bizu=t.slice(i).replace(/^BIZU\s*:/i,'').trim()
+  return esc(antes)+'<div class="bizu"><div class="bizu-h">📓 Bizu para o caderno de erros</div>'+esc(bizu)+'</div>'
+}
+
+function usarSugestao(i){
+  document.getElementById('txt').value=SUGESTOES[i][1]
+  ajustar(document.getElementById('txt'))
+  enviar()
+}
+
+async function enviar(){
+  if(_ocupado)return
+  const el=document.getElementById('txt')
+  const t=el.value.trim()
+  if(!t)return
+  if(_usoHoje>=LIMITE_DIA){
+    alert('Voce atingiu o limite de '+LIMITE_DIA+' perguntas por dia. O contador reinicia amanha.')
+    return
+  }
+
+  _msgs.push({role:'user',content:t})
+  el.value='';ajustar(el)
+  _ocupado=true
+  document.getElementById('btn-env').disabled=true
+  render()
+
+  const box=document.getElementById('msgs')
+  const carga=document.createElement('div')
+  carga.className='m m-ia'
+  carga.innerHTML='<div class="m-av">🤖</div><div class="m-c"><div class="m-n">TUTOR</div>'
+    +'<div class="digitando"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>'
+  box.appendChild(carga)
+  box.scrollTop=box.scrollHeight
+
+  try{
+    const r=await fetch('/api/tutor',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({mensagens:_msgs,contexto:_ctx})
+    })
+    const d=await r.json()
+    carga.remove()
+    if(!r.ok||d.erro){
+      _msgs.push({role:'assistant',content:'Nao consegui responder agora. '+(d.erro||'Tente novamente em instantes.')})
+    }else{
+      _msgs.push({role:'assistant',content:d.resposta})
+      _usoHoje++
+      salvarUso()
+      salvarConversa()
+    }
+  }catch(e){
+    carga.remove()
+    _msgs.push({role:'assistant',content:'Falha de conexao. Verifique sua internet e tente de novo.'})
+  }
+
+  _ocupado=false
+  document.getElementById('btn-env').disabled=false
+  atualizarRodape()
+  render()
+  el.focus()
+}
+
+async function salvarUso(){
+  await _supabase.from('tutor_uso').upsert(
+    {aluno_id:_alunoId,data:hoje(),mensagens:_usoHoje},{onConflict:'aluno_id,data'})
+}
+
+let _convId=null
+async function salvarConversa(){
+  const titulo=String(_msgs[0].content).substring(0,70)
+  if(_convId){
+    await _supabase.from('tutor_conversas').update({mensagens:_msgs,atualizado_em:new Date().toISOString()}).eq('id',_convId)
+  }else{
+    const { data }=await _supabase.from('tutor_conversas')
+      .insert({aluno_id:_alunoId,titulo:titulo,mensagens:_msgs}).select('id').single()
+    if(data)_convId=data.id
+  }
+}
+
+function novaConversa(){
+  if(_msgs.length&&!confirm('Comecar uma conversa nova? A atual fica salva no seu historico.'))return
+  _msgs=[];_convId=null;_ctx=null
+  document.getElementById('ch-s').textContent='Tire duvidas de teoria e de questoes'
+  render()
+}
+
+async function sair(){await _supabase.auth.signOut();location.href='index.html'}
+init()
+</script>
+</body>
+</html>
