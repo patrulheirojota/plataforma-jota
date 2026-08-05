@@ -189,17 +189,51 @@
     </div>
 
     <div id="aba-avisos" class="aba-conteudo" style="display:none">
-    <div class="card">
-      <h3>Novo aviso para os alunos</h3>
-      <select id="aviso-concurso"></select>
-      <input type="text" id="aviso-titulo" placeholder="Titulo do aviso">
-      <textarea id="aviso-mensagem" placeholder="Mensagem completa..." rows="4"
-        style="width:100%;padding:12px;margin:8px 0;border-radius:8px;border:1px solid #2a4a6a;background:#0d1b2a;color:#fff;font-size:15px;resize:vertical"></textarea>
-      <button onclick="criarAviso()">Publicar aviso</button>
+      <div class="card">
+        <h3>Novo aviso</h3>
+
+        <label style="color:var(--tx3);font-size:12px;display:block;margin-bottom:4px">Para quem</label>
+        <select id="aviso-destino" onchange="trocarDestino()">
+          <option value="turma">Turma inteira de um concurso</option>
+          <option value="aluno">Um aluno especifico</option>
+        </select>
+
+        <div id="box-turma" style="margin-top:10px">
+          <label style="color:var(--tx3);font-size:12px;display:block;margin-bottom:4px">Concurso</label>
+          <select id="aviso-concurso"></select>
+        </div>
+
+        <div id="box-aluno" style="display:none;margin-top:10px">
+          <label style="color:var(--tx3);font-size:12px;display:block;margin-bottom:4px">Aluno</label>
+          <select id="aviso-aluno"></select>
+          <p style="color:var(--tx4);font-size:11.5px;margin-top:4px">So este aluno vera o aviso. Voce acompanha se ele leu.</p>
+        </div>
+
+        <label style="color:var(--tx3);font-size:12px;display:block;margin-top:12px;margin-bottom:4px">Prioridade</label>
+        <select id="aviso-prioridade">
+          <option value="normal">Normal</option>
+          <option value="alta">Urgente — destaque em vermelho</option>
+        </select>
+
+        <label style="color:var(--tx3);font-size:12px;display:block;margin-top:12px;margin-bottom:4px">Titulo</label>
+        <input type="text" id="aviso-titulo" placeholder="Ex: Ajuste no seu cronograma">
+
+        <label style="color:var(--tx3);font-size:12px;display:block;margin-top:10px;margin-bottom:4px">Mensagem</label>
+        <textarea id="aviso-mensagem" rows="5" placeholder="Escreva o recado..."></textarea>
+
+        <button onclick="criarAviso()" style="margin-top:12px">Publicar aviso</button>
+        <p id="msg-aviso" style="display:none;margin-top:10px;font-size:13px"></p>
+      </div>
+
+      <div class="card">
+        <h3>Avisos publicados</h3>
+        <select id="filtro-avisos" onchange="carregarAvisos()" style="margin-bottom:14px"></select>
+        <div id="lista-avisos"></div>
+      </div>
+
     </div>
     <div class="card">
       <h3>Avisos publicados</h3>
-      <select id="filtro-avisos-concurso" onchange="carregarAvisos()"></select>
       <div id="lista-avisos"></div>
     </div>
     </div>
