@@ -7,15 +7,15 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="stylesheet" href="style.css">
 <style>
-  .drop{border:2px dashed #2a4a6a;border-radius:12px;padding:26px;text-align:center;cursor:pointer;transition:.2s;background:#0d1b2a}
-  .drop:hover{border-color:#C9A83C;background:#12233a}
-  .drop.dentro{border-color:#C9A83C;background:#1a2f45}
-  .prev-logo{max-width:150px;max-height:150px;border-radius:12px;background:#0d1b2a;padding:10px}
+  .drop{border:2px dashed var(--bd2);border-radius:12px;padding:26px;text-align:center;cursor:pointer;transition:.2s;background:var(--card2)}
+  .drop:hover{border-color:var(--ouro);background:var(--hov)}
+  .drop.dentro{border-color:var(--ouro);background:var(--card)}
+  .prev-logo{max-width:150px;max-height:150px;border-radius:12px;background:var(--card2);padding:10px}
   .cores{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
   .cor{width:38px;height:38px;border-radius:9px;cursor:pointer;border:2px solid transparent;transition:.15s}
   .cor:hover{transform:scale(1.08)}
-  .cor.on{border-color:#fff;box-shadow:0 0 0 2px #0d1b2a,0 0 0 4px currentColor}
-  .demo{border-radius:14px;overflow:hidden;border:1px solid #2a4a6a}
+  .cor.on{border-color:#fff;box-shadow:0 0 0 2px var(--card2),0 0 0 4px currentColor}
+  .demo{border-radius:14px;overflow:hidden;border:1px solid var(--bd2)}
   .demo-side{background:#0c1826;padding:14px;width:190px;flex-shrink:0}
   .demo-logo{display:flex;align-items:center;gap:9px;margin-bottom:16px}
   .demo-li{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;overflow:hidden;flex-shrink:0}
@@ -23,35 +23,36 @@
   .demo-nav{padding:8px 10px;border-radius:8px;font-size:12px;color:#8fa5bd;margin-bottom:3px}
   .demo-nav.on{background:#16283c;font-weight:600}
 </style>
+<script>document.documentElement.setAttribute("data-tema",localStorage.getItem("tema")||"escuro")</script>
 </head>
 <body>
 <div class="container">
   <header>
     <div>
       <h2>Personalizar Marca</h2>
-      <div style="color:#aaa;font-size:13px">Logo, nome e cor que os alunos veem na plataforma</div>
+      <div style="color:var(--tx3);font-size:13px">Logo, nome e cor que os alunos veem na plataforma</div>
     </div>
     <button onclick="location.href='admin.html'" style="width:auto;padding:8px 14px">Painel Admin</button>
   </header>
 
   <div class="card">
     <h3>Logotipo</h3>
-    <p style="color:#aaa;font-size:13px;margin-bottom:14px">PNG ou JPG, de preferencia quadrado. Aparece na barra lateral do aluno.</p>
+    <p style="color:var(--tx3);font-size:13px;margin-bottom:14px">PNG ou JPG, de preferencia quadrado. Aparece na barra lateral do aluno.</p>
     <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start">
       <div style="flex:1;min-width:230px">
         <div class="drop" id="drop" onclick="document.getElementById('file').click()">
           <div style="font-size:30px;margin-bottom:8px">🖼️</div>
-          <div style="color:#C9A83C;font-size:14px;font-weight:bold">Clique ou arraste a imagem</div>
-          <div style="color:#555;font-size:12px;margin-top:4px">PNG, JPG ou WEBP · ate 2 MB</div>
+          <div style="color:var(--ouro);font-size:14px;font-weight:bold">Clique ou arraste a imagem</div>
+          <div style="color:var(--tx4);font-size:12px;margin-top:4px">PNG, JPG ou WEBP · ate 2 MB</div>
         </div>
         <input type="file" id="file" accept="image/*" style="display:none" onchange="enviarArquivo(this.files[0])">
-        <p style="color:#aaa;font-size:12px;margin-top:10px">Ou cole a URL de uma imagem:</p>
+        <p style="color:var(--tx3);font-size:12px;margin-top:10px">Ou cole a URL de uma imagem:</p>
         <input type="text" id="logo-url" placeholder="https://..." oninput="atualizarDemo()">
       </div>
       <div style="text-align:center">
-        <div style="color:#aaa;font-size:12px;margin-bottom:8px">Logo atual</div>
+        <div style="color:var(--tx3);font-size:12px;margin-bottom:8px">Logo atual</div>
         <img id="prev" class="prev-logo" style="display:none">
-        <div id="prev-vazio" style="width:110px;height:110px;border-radius:12px;background:#0d1b2a;border:1px dashed #2a4a6a;display:flex;align-items:center;justify-content:center;font-size:28px">🛡️</div>
+        <div id="prev-vazio" style="width:110px;height:110px;border-radius:12px;background:var(--card2);border:1px dashed var(--bd2);display:flex;align-items:center;justify-content:center;font-size:28px">🛡️</div>
         <button class="btn-acao btn-excluir" style="margin-top:10px" onclick="removerLogo()">Remover</button>
       </div>
     </div>
@@ -60,23 +61,23 @@
 
   <div class="card">
     <h3>Identidade</h3>
-    <label style="color:#aaa;font-size:12px;display:block;margin-bottom:4px">Nome da marca</label>
+    <label style="color:var(--tx3);font-size:12px;display:block;margin-bottom:4px">Nome da marca</label>
     <input type="text" id="nome-marca" placeholder="Patrulheiros de Elite" oninput="atualizarDemo()">
-    <label style="color:#aaa;font-size:12px;display:block;margin-top:10px;margin-bottom:4px">Slogan (linha de baixo)</label>
+    <label style="color:var(--tx3);font-size:12px;display:block;margin-top:10px;margin-bottom:4px">Slogan (linha de baixo)</label>
     <input type="text" id="slogan" placeholder="Mentoria Policial" oninput="atualizarDemo()">
 
-    <label style="color:#aaa;font-size:12px;display:block;margin-top:14px;margin-bottom:4px">Cor principal</label>
+    <label style="color:var(--tx3);font-size:12px;display:block;margin-top:14px;margin-bottom:4px">Cor principal</label>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-      <input type="color" id="cor" value="#C9A83C" oninput="document.getElementById('cor-hex').value=this.value;atualizarDemo()" style="width:56px;height:42px;padding:3px;margin:0;cursor:pointer">
-      <input type="text" id="cor-hex" value="#C9A83C" oninput="document.getElementById('cor').value=this.value;atualizarDemo()" style="width:110px;margin:0;font-family:monospace">
+      <input type="color" id="cor" value="var(--ouro)" oninput="document.getElementById('cor-hex').value=this.value;atualizarDemo()" style="width:56px;height:42px;padding:3px;margin:0;cursor:pointer">
+      <input type="text" id="cor-hex" value="var(--ouro)" oninput="document.getElementById('cor').value=this.value;atualizarDemo()" style="width:110px;margin:0;font-family:monospace">
     </div>
     <div class="cores" id="paleta"></div>
   </div>
 
   <div class="card">
     <h3>Previa</h3>
-    <p style="color:#aaa;font-size:13px;margin-bottom:14px">E assim que o aluno vai ver</p>
-    <div class="demo" style="display:flex;background:#0a1420">
+    <p style="color:var(--tx3);font-size:13px;margin-bottom:14px">E assim que o aluno vai ver</p>
+    <div class="demo" style="display:flex;background:var(--bg)">
       <div class="demo-side">
         <div class="demo-logo">
           <div class="demo-li" id="d-li">🛡️</div>
@@ -104,13 +105,13 @@
     </div>
   </div>
 
-  <button onclick="salvar()" style="background:#1a3a1a;color:#81c784;border:1px solid #81c784">Salvar personalizacao</button>
+  <button onclick="salvar()" style="background:var(--card2);color:var(--ok);border:1px solid var(--ok)">Salvar personalizacao</button>
   <p id="msg" style="display:none;margin-top:10px;font-size:13px;text-align:center"></p>
 </div>
 
 <script src="config.js"></script>
 <script>
-const PALETA=['#C9A83C','#e8b04b','#5bb3f0','#6ddba0','#f07171','#4ecdc4','#b98ae0','#f0955b','#d4e05b','#e05b8a']
+const PALETA=['var(--ouro)','#e8b04b','var(--info)','#6ddba0','#f07171','#4ecdc4','var(--roxo)','#f0955b','#d4e05b','#e05b8a']
 
 async function init(){
   const { data:{user} }=await _supabase.auth.getUser()
@@ -123,7 +124,7 @@ async function init(){
     document.getElementById('nome-marca').value=m.nome_marca||''
     document.getElementById('slogan').value=m.slogan||''
     document.getElementById('logo-url').value=m.logo_url||''
-    const cor=m.cor_primaria||'#C9A83C'
+    const cor=m.cor_primaria||'var(--ouro)'
     document.getElementById('cor').value=cor
     document.getElementById('cor-hex').value=cor
   }
@@ -141,7 +142,7 @@ function usarCor(c){
 }
 
 function atualizarDemo(){
-  const cor=document.getElementById('cor-hex').value||'#C9A83C'
+  const cor=document.getElementById('cor-hex').value||'var(--ouro)'
   const nome=document.getElementById('nome-marca').value||'Patrulheiros de Elite'
   const slogan=document.getElementById('slogan').value||'Mentoria Policial'
   const url=document.getElementById('logo-url').value
@@ -157,7 +158,7 @@ function atualizarDemo(){
   document.getElementById('d-num').style.color=cor
   document.getElementById('d-trofeu').style.background=cor
   const b=document.getElementById('d-btn')
-  b.style.background=cor;b.style.color='#0a1420'
+  b.style.background=cor;b.style.color='var(--bg)'
 
   const li=document.getElementById('d-li')
   const pv=document.getElementById('prev')
@@ -184,20 +185,20 @@ async function enviarArquivo(file){
   if(!file)return
   const m=document.getElementById('msg-upload')
   m.style.display='block'
-  if(file.size>2*1024*1024){m.style.color='#e57373';m.textContent='Arquivo maior que 2 MB. Reduza a imagem.';return}
-  m.style.color='#aaa';m.textContent='Enviando...'
+  if(file.size>2*1024*1024){m.style.color='var(--erro)';m.textContent='Arquivo maior que 2 MB. Reduza a imagem.';return}
+  m.style.color='var(--tx3)';m.textContent='Enviando...'
   const ext=(file.name.split('.').pop()||'png').toLowerCase()
   const nome='logo-'+Date.now()+'.'+ext
   const { error }=await _supabase.storage.from('marca').upload(nome,file,{upsert:true,cacheControl:'3600'})
   if(error){
-    m.style.color='#e57373'
+    m.style.color='var(--erro)'
     m.textContent='Erro no upload: '+error.message+'. Confirme que existe um bucket publico chamado "marca" no Supabase Storage.'
     return
   }
   const { data }=_supabase.storage.from('marca').getPublicUrl(nome)
   document.getElementById('logo-url').value=data.publicUrl
   atualizarDemo()
-  m.style.color='#81c784';m.textContent='Imagem enviada! Clique em Salvar personalizacao para aplicar.'
+  m.style.color='var(--ok)';m.textContent='Imagem enviada! Clique em Salvar personalizacao para aplicar.'
 }
 
 function removerLogo(){
@@ -207,17 +208,17 @@ function removerLogo(){
 
 async function salvar(){
   const m=document.getElementById('msg')
-  m.style.display='block';m.style.color='#aaa';m.textContent='Salvando...'
+  m.style.display='block';m.style.color='var(--tx3)';m.textContent='Salvando...'
   const r=await _supabase.from('config_marca').upsert({
     id:1,
     nome_marca:document.getElementById('nome-marca').value||'Patrulheiros de Elite',
     slogan:document.getElementById('slogan').value||'',
     logo_url:document.getElementById('logo-url').value||null,
-    cor_primaria:document.getElementById('cor-hex').value||'#C9A83C',
+    cor_primaria:document.getElementById('cor-hex').value||'var(--ouro)',
     atualizado_em:new Date().toISOString()
   },{onConflict:'id'})
-  if(r.error){m.style.color='#e57373';m.textContent='Erro: '+r.error.message;return}
-  m.style.color='#81c784';m.textContent='Personalizacao salva! Os alunos ja veem as mudancas.'
+  if(r.error){m.style.color='var(--erro)';m.textContent='Erro: '+r.error.message;return}
+  m.style.color='var(--ok)';m.textContent='Personalizacao salva! Os alunos ja veem as mudancas.'
 }
 
 init()
