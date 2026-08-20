@@ -40,6 +40,8 @@
   <div class="abas">
     <button class="aba-btn ativa" onclick="aba('a-imp')">Importar</button>
     <button class="aba-btn" onclick="aba('a-ger')">Gerenciar</button>
+    <button class="aba-btn" onclick="aba('a-dup')">Duplicadas</button>
+    <button class="aba-btn" onclick="aba('a-vin')">Reaproveitar</button>
     <button class="aba-btn" onclick="aba('a-mat')">Materiais</button>
   </div>
 
@@ -142,6 +144,79 @@ Lingua Portuguesa;Crase;certo_errado;Julgue o item...;C;Explicacao...;Regra prat
   </div>
 
   <!-- MATERIAIS -->
+  <!-- DUPLICADAS -->
+  <div id="a-dup" class="aba-conteudo" style="display:none">
+    <div class="card">
+      <h3>Encontrar questoes repetidas</h3>
+      <p style="color:var(--tx3);font-size:13px;margin-bottom:14px">Compara o enunciado de todas as questoes do banco. Rodar isso de vez em quando evita que o aluno responda a mesma questao duas vezes.</p>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;cursor:pointer">
+          <input type="checkbox" id="dup-parecidas" checked style="width:18px;height:18px">
+          Incluir questoes parecidas (nao so identicas)
+        </label>
+        <select id="dup-rigor" style="width:auto;margin:0">
+          <option value="0.90">Rigor alto — so quase identicas</option>
+          <option value="0.82" selected>Rigor medio — recomendado</option>
+          <option value="0.72">Rigor baixo — pega mais, revise antes</option>
+        </select>
+      </div>
+      <button onclick="buscarDuplicadas()" style="margin-top:12px">Analisar banco de questoes</button>
+      <p id="msg-dup" style="display:none;margin-top:10px;font-size:13px"></p>
+    </div>
+
+    <div class="card" id="card-dup" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+        <h3 style="margin:0" id="tit-dup">Grupos encontrados</h3>
+        <button onclick="limparTodas()" class="btn-acao btn-excluir" style="padding:9px 15px">Remover todas as copias de uma vez</button>
+      </div>
+      <p style="color:var(--tx3);font-size:12.5px;margin-bottom:14px">Em cada grupo, a questao marcada com <span class="tag tag-ok">MANTER</span> e a mais completa. Clique em outra para trocar a escolha.</p>
+      <div id="lista-dup"></div>
+    </div>
+  </div>
+
+  <!-- REAPROVEITAR -->
+  <div id="a-vin" class="aba-conteudo" style="display:none">
+    <div class="card">
+      <h3>Reaproveitar questoes em outro concurso</h3>
+      <p style="color:var(--tx3);font-size:13px;margin-bottom:14px">Uma mesma questao pode servir a varios concursos. Direito Penal da PMAL vale igual para a PMBA — vincule sem duplicar nada.</p>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">
+        <div>
+          <label style="color:var(--tx3);font-size:12px;display:block;margin-bottom:4px">Pegar questoes de</label>
+          <select id="v-origem" onchange="previewVinculo()"><option value="">Todo o banco</option></select>
+        </div>
+        <div>
+          <label style="color:var(--tx3);font-size:12px;display:block;margin-bottom:4px">Origem</label>
+          <select id="v-tipo" onchange="previewVinculo()">
+            <option value="">Autorais e de prova</option>
+            <option value="autoral">So autorais</option>
+            <option value="prova">So de prova</option>
+          </select>
+        </div>
+        <div>
+          <label style="color:var(--tx3);font-size:12px;display:block;margin-bottom:4px">Banca</label>
+          <select id="v-banca" onchange="previewVinculo()"><option value="">Todas</option></select>
+        </div>
+      </div>
+
+      <label style="color:var(--tx3);font-size:12px;display:block;margin-top:14px;margin-bottom:6px">Disciplinas — clique para escolher (vazio = todas)</label>
+      <div id="v-discs" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+
+      <div style="background:var(--card2);border:1px solid var(--bd2);border-radius:11px;padding:14px;margin-top:16px">
+        <label style="color:var(--tx3);font-size:12px;display:block;margin-bottom:4px">Vincular ao concurso</label>
+        <select id="v-destino" onchange="previewVinculo()"><option value="">Selecione o concurso destino</option></select>
+        <div id="prev-vinculo" style="margin-top:12px"></div>
+        <button onclick="aplicarVinculo()" id="btn-vin" style="margin-top:12px;display:none">Vincular questoes</button>
+      </div>
+      <p id="msg-vin" style="display:none;margin-top:10px;font-size:13px"></p>
+    </div>
+
+    <div class="card">
+      <h3>Questoes por concurso</h3>
+      <div id="mapa-conc"></div>
+    </div>
+  </div>
+
   <div id="a-mat" class="aba-conteudo" style="display:none">
     <div class="card">
       <h3>Adicionar material</h3>
@@ -206,6 +281,8 @@ function aba(id){
   document.getElementById(id).style.display='block'
   event.target.classList.add('ativa')
   if(id==='a-ger'){stats();listar()}
+  if(id==='a-dup')prepararDup()
+  if(id==='a-vin')prepararVinculo()
   if(id==='a-mat')listarMateriais()
 }
 
@@ -573,6 +650,329 @@ async function excluirMat(id){
   if(!confirm('Excluir este material?'))return
   await _supabase.from('materiais').delete().eq('id',id)
   listarMateriais()
+}
+
+/* ================== DUPLICADAS ================== */
+let _grupos=[],_todasQ=[]
+
+function normQ(t){
+  return String(t||'').toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9]+/g,' ').trim()
+}
+function tokens(t){
+  const s=new Set()
+  normQ(t).split(' ').forEach(function(w){ if(w.length>3)s.add(w) })
+  return s
+}
+function jaccard(a,b){
+  let inter=0
+  a.forEach(function(x){ if(b.has(x))inter++ })
+  const uni=a.size+b.size-inter
+  return uni?inter/uni:0
+}
+// pontua o quanto a questao esta completa, para escolher qual manter
+function completude(q){
+  let p=0
+  if(q.comentario)p+=3
+  if(q.bizu)p+=3
+  if(q.assunto)p+=1
+  if(q.texto_apoio)p+=1
+  if(q.banca)p+=1
+  if(q.ano)p+=1
+  return p
+}
+
+function prepararDup(){
+  document.getElementById('card-dup').style.display='none'
+  document.getElementById('msg-dup').style.display='none'
+}
+
+async function buscarDuplicadas(){
+  const usarParecidas=document.getElementById('dup-parecidas').checked
+  const LIM=parseFloat(document.getElementById('dup-rigor').value)||0.82
+  msg('msg-dup','Carregando o banco...','var(--tx3)')
+
+  let todas=[],de=0
+  while(true){
+    const { data,error }=await _supabase.from('questoes')
+      .select('id,disciplina,assunto,enunciado,gabarito,comentario,bizu,texto_apoio,banca,ano,origem,criado_em')
+      .order('criado_em').range(de,de+999)
+    if(error){msg('msg-dup','Erro: '+error.message,'var(--erro)');return}
+    if(!data||!data.length)break
+    todas=todas.concat(data)
+    if(data.length<1000)break
+    de+=1000
+    msg('msg-dup','Carregando... '+todas.length+' questoes','var(--tx3)')
+  }
+  if(!todas.length){msg('msg-dup','Nenhuma questao no banco ainda.','var(--alerta)');return}
+  _todasQ=todas
+
+  msg('msg-dup','Comparando '+todas.length+' questoes...','var(--tx3)')
+  await new Promise(function(r){setTimeout(r,30)})
+
+  const vistos={}, grupos=[]
+  // 1) identicas: agrupamento direto pelo enunciado normalizado
+  const mapa={}
+  todas.forEach(function(q){
+    const k=normQ(q.enunciado)
+    if(!k)return
+    if(!mapa[k])mapa[k]=[]
+    mapa[k].push(q)
+  })
+  Object.keys(mapa).forEach(function(k){
+    if(mapa[k].length>1){
+      grupos.push({tipo:'identica',itens:mapa[k]})
+      mapa[k].forEach(function(q){vistos[q.id]=1})
+    }
+  })
+
+  // 2) parecidas: compara dentro da mesma disciplina, com tamanho proximo.
+  // Uma questao solta pode entrar num grupo de identicas ja formado.
+  if(usarParecidas){
+    todas.forEach(function(q){ q._tk=tokens(q.enunciado); q._ln=normQ(q.enunciado).length })
+
+    // representante de cada grupo ja existente, para permitir agregacao
+    const reps=grupos.map(function(g,gi){ return {q:g.itens[0],gi:gi} })
+
+    const porDisc={}
+    todas.forEach(function(q){
+      if(vistos[q.id])return
+      const d=q.disciplina||'?'
+      if(!porDisc[d])porDisc[d]=[]
+      porDisc[d].push(q)
+    })
+
+    // 2a) solta que se parece com um grupo de identicas entra nele
+    Object.keys(porDisc).forEach(function(d){
+      porDisc[d].slice().forEach(function(q){
+        if(vistos[q.id]||q._ln<40)return
+        for(let r=0;r<reps.length;r++){
+          const rq=reps[r].q
+          if((rq.disciplina||'?')!==d)continue
+          const rz=Math.max(q._ln,rq._ln)/Math.max(1,Math.min(q._ln,rq._ln))
+          if(rz>1.25)continue
+          if(jaccard(q._tk,rq._tk)>=LIM){
+            grupos[reps[r].gi].itens.push(q)
+            grupos[reps[r].gi].tipo='mista'
+            vistos[q.id]=1
+            porDisc[d]=porDisc[d].filter(function(x){return x.id!==q.id})
+            return
+          }
+        }
+      })
+    })
+
+    // 2b) soltas parecidas entre si formam grupo novo
+    Object.keys(porDisc).forEach(function(d){
+      const lista=porDisc[d].filter(function(q){return !vistos[q.id]})
+      lista.sort(function(a,b){return a._ln-b._ln})
+      for(let i=0;i<lista.length;i++){
+        if(vistos[lista[i].id])continue
+        const g=[lista[i]]
+        for(let j=i+1;j<lista.length;j++){
+          if(vistos[lista[j].id])continue
+          if(lista[j]._ln>lista[i]._ln*1.25)break
+          if(lista[i]._ln<40)continue
+          if(jaccard(lista[i]._tk,lista[j]._tk)>=LIM){
+            g.push(lista[j]); vistos[lista[j].id]=1
+          }
+        }
+        if(g.length>1){ vistos[lista[i].id]=1; grupos.push({tipo:'parecida',itens:g}) }
+      }
+    })
+  }
+
+  // escolhe automaticamente qual manter em cada grupo
+  grupos.forEach(function(g){
+    let melhor=g.itens[0]
+    g.itens.forEach(function(q){
+      const c1=completude(q), c2=completude(melhor)
+      if(c1>c2 || (c1===c2 && q.criado_em<melhor.criado_em)) melhor=q
+    })
+    g.manter=melhor.id
+  })
+
+  _grupos=grupos
+  if(!grupos.length){
+    document.getElementById('card-dup').style.display='none'
+    msg('msg-dup','<strong style="color:var(--ok)">Nenhuma duplicata encontrada!</strong> Seu banco de '+todas.length+' questoes esta limpo.','var(--ok)')
+    return
+  }
+  const copias=grupos.reduce(function(s,g){return s+g.itens.length-1},0)
+  msg('msg-dup','<strong>'+grupos.length+' grupo(s)</strong> com repeticao — '+copias+' copia(s) para remover.','var(--alerta)')
+  renderDup()
+}
+
+function renderDup(){
+  document.getElementById('card-dup').style.display='block'
+  const copias=_grupos.reduce(function(s,g){return s+g.itens.length-1},0)
+  document.getElementById('tit-dup').textContent=_grupos.length+' grupo(s) · '+copias+' copia(s)'
+  document.getElementById('lista-dup').innerHTML=_grupos.map(function(g,gi){
+    return '<div style="background:var(--card2);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:11px">'
+      +'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">'
+      +'<span class="tag '+(g.tipo==='identica'?'tag-erro':'tag-alerta')+'">'+(g.tipo==='identica'?'IDENTICAS':g.tipo==='mista'?'IDENTICAS + PARECIDA':'MUITO PARECIDAS')+'</span>'
+      +'<span style="color:var(--ouro);font-size:12.5px;font-weight:700">'+esc(g.itens[0].disciplina||'')+'</span>'
+      +'<span style="color:var(--tx3);font-size:12px">'+g.itens.length+' versoes</span>'
+      +'<button class="btn-acao btn-excluir" style="margin-left:auto;font-size:11.5px;padding:5px 10px" onclick="limparGrupo('+gi+')">Remover copias deste grupo</button>'
+      +'</div>'
+      +g.itens.map(function(q){
+         const manter=q.id===g.manter
+         return '<div onclick="escolher('+gi+',\''+q.id+'\')" style="cursor:pointer;padding:10px;border-radius:9px;margin-bottom:6px;border:1px solid '
+           +(manter?'var(--ok)':'var(--bd)')+';background:'+(manter?'rgba(109,219,160,.07)':'transparent')+'">'
+           +'<div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-bottom:5px">'
+           +(manter?'<span class="tag tag-ok">MANTER</span>':'<span class="tag" style="background:rgba(240,113,113,.12);color:var(--erro);border:1px solid var(--erro)">REMOVER</span>')
+           +'<span style="color:var(--tx4);font-size:11px">gab '+q.gabarito+' · '+(q.origem==='autoral'?'autoral':'prova')+(q.ano?' '+q.ano:'')+'</span>'
+           +(q.comentario?'<span class="tag tag-info">com comentario</span>':'')
+           +(q.bizu?'<span class="tag" style="background:rgba(185,138,224,.12);color:var(--roxo);border:1px solid var(--roxo)">com bizu</span>':'')
+           +'<span style="margin-left:auto;color:var(--tx4);font-size:11px">'+new Date(q.criado_em).toLocaleDateString('pt-BR')+'</span></div>'
+           +'<div style="color:var(--tx2);font-size:12.5px;line-height:1.5">'+esc(String(q.enunciado).substring(0,180))+'...</div></div>'
+       }).join('')
+      +'</div>'
+  }).join('')
+}
+
+function escolher(gi,id){ _grupos[gi].manter=id; renderDup() }
+
+async function limparGrupo(gi){
+  const g=_grupos[gi]
+  const remover=g.itens.filter(function(q){return q.id!==g.manter}).map(function(q){return q.id})
+  if(!remover.length)return
+  if(!confirm('Remover '+remover.length+' copia(s)? A questao marcada como MANTER continua no banco.'))return
+  const { error }=await _supabase.from('questoes').delete().in('id',remover)
+  if(error){alert('Erro: '+error.message);return}
+  _grupos.splice(gi,1)
+  if(!_grupos.length){
+    document.getElementById('card-dup').style.display='none'
+    msg('msg-dup','<strong style="color:var(--ok)">Banco limpo!</strong> Todas as duplicatas foram removidas.','var(--ok)')
+    return
+  }
+  renderDup()
+}
+
+async function limparTodas(){
+  const todos=[]
+  _grupos.forEach(function(g){
+    g.itens.forEach(function(q){ if(q.id!==g.manter)todos.push(q.id) })
+  })
+  if(!todos.length)return
+  if(!confirm('Remover '+todos.length+' copia(s) de uma vez?\n\nEm cada grupo, a questao mais completa e mantida. Isso nao pode ser desfeito.'))return
+  msg('msg-dup','Removendo...','var(--tx3)')
+  for(let i=0;i<todos.length;i+=200){
+    const { error }=await _supabase.from('questoes').delete().in('id',todos.slice(i,i+200))
+    if(error){msg('msg-dup','Erro: '+error.message,'var(--erro)');return}
+  }
+  _grupos=[]
+  document.getElementById('card-dup').style.display='none'
+  msg('msg-dup','<strong style="color:var(--ok)">'+todos.length+' copia(s) removida(s)!</strong>','var(--ok)')
+}
+
+/* ================== REAPROVEITAR ================== */
+let _vDiscs=[]
+
+async function prepararVinculo(){
+  ;['v-origem','v-destino'].forEach(function(id){
+    const s=document.getElementById(id)
+    s.innerHTML=(id==='v-origem'?'<option value="">Todo o banco</option>':'<option value="">Selecione o concurso destino</option>')
+    _concursos.forEach(function(c){ s.innerHTML+='<option value="'+c.id+'">'+esc(c.nome)+'</option>' })
+  })
+  const { data:qs }=await _supabase.from('questoes').select('disciplina,banca')
+  const d={},b={}
+  ;(qs||[]).forEach(function(q){ if(q.disciplina)d[q.disciplina]=(d[q.disciplina]||0)+1; if(q.banca)b[q.banca]=1 })
+  document.getElementById('v-discs').innerHTML=Object.keys(d).sort().map(function(x){
+    return '<span class="tag" data-d="'+esc(x)+'" onclick="this.classList.toggle(\'tag-ouro\');previewVinculo()" style="cursor:pointer;padding:6px 12px;font-size:12px;border:1px solid var(--bd2);color:var(--tx3)">'+esc(x)+' '+d[x]+'</span>'
+  }).join('')||'<span style="color:var(--tx4);font-size:12px">Nenhuma questao cadastrada.</span>'
+  const sb=document.getElementById('v-banca')
+  sb.innerHTML='<option value="">Todas</option>'
+  Object.keys(b).sort().forEach(function(x){ sb.innerHTML+='<option value="'+esc(x)+'">'+esc(x)+'</option>' })
+  mapaConcursos()
+}
+
+async function mapaConcursos(){
+  const { data:v }=await _supabase.from('questao_concursos').select('concurso_id')
+  const cont={}
+  ;(v||[]).forEach(function(x){ cont[x.concurso_id]=(cont[x.concurso_id]||0)+1 })
+  const { count:total }=await _supabase.from('questoes').select('id',{count:'exact',head:true})
+  document.getElementById('mapa-conc').innerHTML=
+    _concursos.map(function(c){
+      const n=cont[c.id]||0
+      const pct=total?Math.round(n/total*100):0
+      return '<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;margin-bottom:5px;flex-wrap:wrap;gap:6px">'
+        +'<span style="font-size:13.5px;font-weight:600">'+esc(c.nome)+'</span>'
+        +'<span style="color:var(--tx3);font-size:12.5px">'+n+' questoes</span></div>'
+        +'<div class="barra"><div class="barra-f" style="width:'+pct+'%;background:var(--ouro)"></div></div></div>'
+    }).join('')
+    +'<p style="color:var(--tx4);font-size:11.5px;margin-top:10px">Banco total: '+(total||0)+' questoes. Uma questao pode estar em varios concursos.</p>'
+}
+
+function filtrosVinculo(){
+  const discs=Array.from(document.querySelectorAll('#v-discs .tag-ouro')).map(function(e){return e.dataset.d})
+  return {
+    origem:document.getElementById('v-origem').value,
+    tipo:document.getElementById('v-tipo').value,
+    banca:document.getElementById('v-banca').value,
+    destino:document.getElementById('v-destino').value,
+    discs:discs
+  }
+}
+
+async function idsFiltrados(f){
+  let q=_supabase.from('questoes').select('id').eq('ativo',true)
+  if(f.tipo)q=q.eq('origem',f.tipo)
+  if(f.banca)q=q.eq('banca',f.banca)
+  if(f.discs.length)q=q.in('disciplina',f.discs)
+  if(f.origem){
+    const { data:v }=await _supabase.from('questao_concursos').select('questao_id').eq('concurso_id',f.origem)
+    const ids=(v||[]).map(function(x){return x.questao_id})
+    if(!ids.length)return []
+    q=q.in('id',ids)
+  }
+  const { data }=await q.limit(5000)
+  return (data||[]).map(function(x){return x.id})
+}
+
+async function previewVinculo(){
+  const f=filtrosVinculo()
+  const box=document.getElementById('prev-vinculo')
+  const btn=document.getElementById('btn-vin')
+  if(!f.destino){ box.innerHTML='<span style="color:var(--tx4);font-size:12.5px">Escolha o concurso destino para ver quantas questoes serao vinculadas.</span>'; btn.style.display='none'; return }
+  box.innerHTML='<span style="color:var(--tx3);font-size:12.5px">Calculando...</span>'
+
+  const ids=await idsFiltrados(f)
+  if(!ids.length){ box.innerHTML='<span style="color:var(--alerta);font-size:12.5px">Nenhuma questao bate com esses filtros.</span>'; btn.style.display='none'; return }
+
+  const { data:ja }=await _supabase.from('questao_concursos').select('questao_id').eq('concurso_id',f.destino)
+  const jaTem={}
+  ;(ja||[]).forEach(function(x){ jaTem[x.questao_id]=1 })
+  const novas=ids.filter(function(i){ return !jaTem[i] })
+  window._vNovas=novas
+
+  const cd=_concursos.find(function(c){return c.id===f.destino})
+  box.innerHTML='<div style="display:flex;gap:16px;flex-wrap:wrap">'
+    +'<div><div style="font-size:20px;font-weight:800;color:var(--ouro)">'+novas.length+'</div><div style="color:var(--tx3);font-size:11.5px">serao vinculadas</div></div>'
+    +'<div><div style="font-size:20px;font-weight:800;color:var(--tx3)">'+(ids.length-novas.length)+'</div><div style="color:var(--tx3);font-size:11.5px">ja estavam la</div></div>'
+    +'<div><div style="font-size:20px;font-weight:800;color:var(--ok)">'+((ja||[]).length+novas.length)+'</div><div style="color:var(--tx3);font-size:11.5px">total em '+esc(cd?cd.nome:'')+'</div></div>'
+    +'</div>'
+  btn.style.display=novas.length?'block':'none'
+}
+
+async function aplicarVinculo(){
+  const f=filtrosVinculo()
+  const novas=window._vNovas||[]
+  if(!f.destino||!novas.length)return
+  const cd=_concursos.find(function(c){return c.id===f.destino})
+  if(!confirm('Vincular '+novas.length+' questoes ao concurso '+(cd?cd.nome:'')+'?\n\nAs questoes nao sao duplicadas — elas passam a valer para os dois concursos.'))return
+
+  msg('msg-vin','Vinculando...','var(--tx3)')
+  const linhas=novas.map(function(id){ return {questao_id:id,concurso_id:f.destino} })
+  for(let i=0;i<linhas.length;i+=300){
+    const { error }=await _supabase.from('questao_concursos').insert(linhas.slice(i,i+300))
+    if(error){ msg('msg-vin','Erro: '+error.message,'var(--erro)'); return }
+    msg('msg-vin','Vinculando... '+Math.min(i+300,linhas.length)+'/'+linhas.length,'var(--tx3)')
+  }
+  msg('msg-vin','<strong style="color:var(--ok)">'+novas.length+' questoes vinculadas a '+esc(cd?cd.nome:'')+'!</strong>','var(--ok)')
+  previewVinculo()
+  mapaConcursos()
 }
 
 init()
