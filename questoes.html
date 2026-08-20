@@ -73,6 +73,20 @@
   .est-n{font-size:22px;font-weight:800}
   .est-l{color:var(--tx3);font-size:11px;margin-top:2px}
   .vazio{text-align:center;padding:50px 20px;color:var(--tx3)}
+  .sim-cfg{display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:11px;background:var(--card2);border:1px solid var(--bd);margin-bottom:7px;flex-wrap:wrap}
+  .sim-d{flex:1;min-width:130px;font-size:13.5px;font-weight:600}
+  .sim-av{color:var(--tx4);font-size:11.5px}
+  .sim-qtd{width:66px;padding:8px;border-radius:8px;border:1px solid var(--bd2);background:var(--bg);color:var(--tx);font-size:14px;text-align:center}
+  .sim-topo{position:sticky;top:0;background:var(--bg);z-index:10;padding:12px 0;border-bottom:1px solid var(--bd);margin-bottom:16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  .sim-prog{flex:1;min-width:120px}
+  .sim-bar{height:7px;border-radius:20px;background:var(--card2);overflow:hidden;margin-top:5px}
+  .sim-bar-f{height:100%;background:var(--ouro);border-radius:20px;transition:width .3s}
+  .sim-nav{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:16px}
+  .sim-n{width:32px;height:32px;border-radius:8px;border:1px solid var(--bd2);background:var(--card2);color:var(--tx3);font-size:12.5px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .sim-n.resp{background:var(--hov);border-color:var(--ouro);color:var(--ouro)}
+  .sim-n.atual{background:var(--ouro);border-color:var(--ouro);color:#0a1420}
+  .res-c{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:26px;text-align:center;margin-bottom:16px}
+  .res-n{font-size:52px;font-weight:800;line-height:1}
   .mat{background:var(--card);border:1px solid var(--bd);border-left:3px solid var(--ouro);border-radius:12px;padding:15px;margin-bottom:10px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
   @media(max-width:860px){
     .side{position:static;width:100%;flex-direction:row;overflow-x:auto;padding:10px;border-right:none;border-bottom:1px solid var(--bd);gap:5px;align-items:center}
@@ -145,7 +159,55 @@
 
     <!-- SIMULADOS -->
     <section class="sec" id="sec-simulados">
-      <div id="lista-sim"></div>
+      <div id="sim-inicio">
+        <div class="painel" style="margin-bottom:16px">
+          <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
+            <div style="font-size:26px">🎯</div>
+            <div style="flex:1;min-width:180px">
+              <div style="font-size:16px;font-weight:800">Montar meu simulado</div>
+              <div style="color:var(--tx3);font-size:12.5px;margin-top:2px">Escolha quantas questoes quer de cada materia. So entram questoes que voce ainda nao respondeu.</div>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin:14px 0">
+            <div><label style="color:var(--tx3);font-size:11px;font-weight:600">Concurso</label>
+              <select class="inp" id="sim-conc" onchange="prepararSimulado()"></select></div>
+            <div><label style="color:var(--tx3);font-size:11px;font-weight:600">Origem</label>
+              <select class="inp" id="sim-orig" onchange="prepararSimulado()">
+                <option value="">Autorais e de prova</option>
+                <option value="autoral">So autorais do Jota</option>
+                <option value="prova">So de provas anteriores</option>
+              </select></div>
+          </div>
+
+          <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px">
+            <span style="color:var(--tx3);font-size:12px;align-self:center">Atalhos:</span>
+            <button class="btn" onclick="distribuir(10)">10 questoes</button>
+            <button class="btn" onclick="distribuir(20)">20 questoes</button>
+            <button class="btn" onclick="distribuir(30)">30 questoes</button>
+            <button class="btn" onclick="distribuir(0)">Zerar</button>
+          </div>
+
+          <div id="sim-discs"></div>
+
+          <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px solid var(--bd)">
+            <div style="flex:1;min-width:130px">
+              <div style="font-size:22px;font-weight:800;color:var(--ouro)" id="sim-total">0</div>
+              <div style="color:var(--tx3);font-size:11.5px">questoes selecionadas</div>
+            </div>
+            <button class="btn btn-ouro" onclick="iniciarSimulado()" style="padding:13px 26px">Comecar simulado</button>
+          </div>
+          <p id="sim-msg" style="display:none;margin-top:10px;font-size:13px"></p>
+        </div>
+
+        <div style="font-size:13px;font-weight:700;color:var(--ouro);margin-bottom:10px">Simulados do mentor</div>
+        <div id="lista-sim"></div>
+
+        <div id="hist-sim" style="margin-top:22px"></div>
+      </div>
+
+      <div id="sim-prova" style="display:none"></div>
+      <div id="sim-result" style="display:none"></div>
     </section>
 
     <!-- MATERIAIS -->
@@ -211,7 +273,7 @@ function irSecao(s){
     materiais:['Materiais','Resumos, lei seca e apoio'],flashcards:['Flashcards','Repeticao espacada'],mapas:['Mapas mentais','Revisao visual']}
   if(t[s]){document.getElementById('tit').textContent=t[s][0];document.getElementById('sub').textContent=t[s][1]}
   if(s==='materiais')carregarMateriais()
-  if(s==='simulados')carregarSimulados()
+  if(s==='simulados'){carregarSimulados();prepararSimulado();carregarHistorico()}
   window.scrollTo({top:0,behavior:'smooth'})
 }
 
@@ -552,6 +614,334 @@ async function carregarSimulados(){
       +'<span class="btn" style="opacity:.6">Em breve</span></div>'
   }).join('')
   box.innerHTML+='<p style="color:var(--tx4);font-size:12px;text-align:center;margin-top:12px">A resolucao de simulados cronometrados chega na proxima atualizacao.</p>'
+}
+
+/* ================== MEU SIMULADO ================== */
+let _simDisp={},_simQs=[],_simResp={},_simAtual=0,_simIni=null,_simTimer=null
+
+async function prepararSimulado(){
+  const sc=document.getElementById('sim-conc')
+  if(!sc.options.length){
+    sc.innerHTML='<option value="">Todos os meus concursos</option>'
+    _concursos.forEach(function(c){ sc.innerHTML+='<option value="'+c.id+'">'+esc(c.nome)+'</option>' })
+  }
+  const box=document.getElementById('sim-discs')
+  box.innerHTML='<div style="color:var(--tx3);font-size:12.5px;padding:10px">Verificando questoes disponiveis...</div>'
+
+  const conc=sc.value, orig=document.getElementById('sim-orig').value
+  let ids=null
+  if(conc){
+    const { data:v }=await _supabase.from('questao_concursos').select('questao_id').eq('concurso_id',conc)
+    ids=(v||[]).map(function(x){return x.questao_id})
+    if(!ids.length){ box.innerHTML='<div style="color:var(--alerta);font-size:13px;padding:10px">Nenhuma questao vinculada a este concurso ainda.</div>'; _simDisp={}; somar(); return }
+  }else if(_concursos.length){
+    const { data:v }=await _supabase.from('questao_concursos').select('questao_id')
+      .in('concurso_id',_concursos.map(function(c){return c.id}))
+    ids=(v||[]).map(function(x){return x.questao_id})
+  }
+
+  let q=_supabase.from('questoes').select('id,disciplina').eq('ativo',true)
+  if(ids)q=q.in('id',ids)
+  if(orig)q=q.eq('origem',orig)
+  const { data:qs }=await q.limit(5000)
+
+  const resolvidas=Object.keys(_resp)
+  _simDisp={}
+  ;(qs||[]).forEach(function(x){
+    if(resolvidas.indexOf(x.id)>=0)return
+    const d=x.disciplina||'Outras'
+    if(!_simDisp[d])_simDisp[d]=[]
+    _simDisp[d].push(x.id)
+  })
+
+  const discs=Object.keys(_simDisp).sort()
+  if(!discs.length){
+    box.innerHTML='<div style="color:var(--ok);font-size:13px;padding:10px">Voce ja respondeu todas as questoes disponiveis com esses filtros! Troque o concurso ou a origem.</div>'
+    somar(); return
+  }
+  box.innerHTML=discs.map(function(d){
+    return '<div class="sim-cfg"><div class="sim-d">'+esc(d)+'</div>'
+      +'<div class="sim-av">'+_simDisp[d].length+' disponiveis</div>'
+      +'<input type="number" class="sim-qtd" data-d="'+esc(d)+'" min="0" max="'+_simDisp[d].length+'" value="0" oninput="somar()"></div>'
+  }).join('')
+  somar()
+}
+
+function somar(){
+  let t=0
+  document.querySelectorAll('.sim-qtd').forEach(function(e){ t+=parseInt(e.value)||0 })
+  document.getElementById('sim-total').textContent=t
+}
+
+function distribuir(total){
+  const campos=Array.from(document.querySelectorAll('.sim-qtd'))
+  if(!campos.length)return
+  if(!total){ campos.forEach(function(e){e.value=0}); somar(); return }
+  const disp=campos.map(function(e){ return Math.min(parseInt(e.max)||0, 9999) })
+  const somaDisp=disp.reduce(function(a,b){return a+b},0)
+  const alvo=Math.min(total,somaDisp)
+  const val=campos.map(function(e,i){ return Math.min(disp[i], Math.floor(alvo*disp[i]/somaDisp)) })
+  let resto=alvo-val.reduce(function(a,b){return a+b},0)
+  let i=0
+  while(resto>0&&i<campos.length*4){
+    const k=i%campos.length
+    if(val[k]<disp[k]){ val[k]++; resto-- }
+    i++
+  }
+  campos.forEach(function(e,k){ e.value=val[k] })
+  somar()
+}
+
+function embaralhar(a){
+  for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); const t=a[i];a[i]=a[j];a[j]=t }
+  return a
+}
+
+async function iniciarSimulado(){
+  const pedido={}
+  let total=0
+  document.querySelectorAll('.sim-qtd').forEach(function(e){
+    const n=parseInt(e.value)||0
+    if(n>0){ pedido[e.dataset.d]=n; total+=n }
+  })
+  const m=document.getElementById('sim-msg')
+  if(!total){ m.style.display='block'; m.style.color='var(--erro)'; m.textContent='Escolha ao menos uma questao.'; return }
+  if(total>80){ m.style.display='block'; m.style.color='var(--erro)'; m.textContent='Maximo de 80 questoes por simulado.'; return }
+
+  m.style.display='block'; m.style.color='var(--tx3)'; m.textContent='Montando seu simulado...'
+
+  let escolhidos=[]
+  Object.keys(pedido).forEach(function(d){
+    escolhidos=escolhidos.concat(embaralhar(_simDisp[d].slice()).slice(0,pedido[d]))
+  })
+
+  const { data:qs }=await _supabase.from('questoes').select('*').in('id',escolhidos)
+  if(!qs||!qs.length){ m.style.color='var(--erro)'; m.textContent='Nao consegui carregar as questoes.'; return }
+
+  // intercala disciplinas para nao cair tudo junto
+  const porD={}
+  qs.forEach(function(q){ const d=q.disciplina||'?'; if(!porD[d])porD[d]=[]; porD[d].push(q) })
+  const filas=Object.keys(porD).map(function(d){ return embaralhar(porD[d]) })
+  const ord=[]
+  let vazio=false
+  while(!vazio){
+    vazio=true
+    filas.forEach(function(f){ if(f.length){ ord.push(f.shift()); vazio=false } })
+  }
+
+  _simQs=ord;_simResp={};_simAtual=0;_simIni=Date.now()
+  m.style.display='none'
+  document.getElementById('sim-inicio').style.display='none'
+  document.getElementById('sim-result').style.display='none'
+  document.getElementById('sim-prova').style.display='block'
+  if(_simTimer)clearInterval(_simTimer)
+  _simTimer=setInterval(atualizarCrono,1000)
+  renderProva()
+}
+
+function crono(){
+  const s=Math.floor((Date.now()-_simIni)/1000)
+  const h=Math.floor(s/3600),mi=Math.floor((s%3600)/60),se=s%60
+  return (h?h+':':'')+String(mi).padStart(2,'0')+':'+String(se).padStart(2,'0')
+}
+function atualizarCrono(){
+  const e=document.getElementById('sim-crono')
+  if(e)e.textContent=crono()
+}
+
+function renderProva(){
+  const q=_simQs[_simAtual]
+  const resp=Object.keys(_simResp).length
+  const ce=q.tipo==='certo_errado'
+  const alts=ce?[['C','Certo'],['E','Errado']]:(q.alternativas||[]).map(function(t,i){return ['ABCDE'[i],t]})
+  const sel=_simResp[q.id]
+
+  document.getElementById('sim-prova').innerHTML=
+    '<div class="sim-topo">'
+    +'<div class="sim-prog"><div style="display:flex;justify-content:space-between;font-size:12.5px;color:var(--tx3)">'
+    +'<span>Questao '+(_simAtual+1)+' de '+_simQs.length+'</span><span>'+resp+' respondidas</span></div>'
+    +'<div class="sim-bar"><div class="sim-bar-f" style="width:'+Math.round(resp/_simQs.length*100)+'%"></div></div></div>'
+    +'<div style="font-family:ui-monospace,monospace;font-size:16px;font-weight:700;color:var(--ouro)" id="sim-crono">'+crono()+'</div>'
+    +'<button class="btn" onclick="abandonar()">Sair</button></div>'
+
+    +'<div class="sim-nav">'+_simQs.map(function(x,i){
+       const cls=i===_simAtual?'atual':(_simResp[x.id]?'resp':'')
+       return '<div class="sim-n '+cls+'" onclick="irQ('+i+')">'+(i+1)+'</div>'
+     }).join('')+'</div>'
+
+    +'<div class="q">'
+    +'<div class="q-h"><span style="color:var(--ouro);font-size:12px;font-weight:700">'+esc(q.disciplina)+'</span>'
+    +(q.assunto?'<span style="color:var(--tx3);font-size:12px">› '+esc(q.assunto)+'</span>':'')
+    +'<span style="margin-left:auto;color:var(--tx4);font-size:11px">'+esc(q.banca||'')+(q.ano?' · '+q.ano:'')+'</span></div>'
+    +(q.texto_apoio?'<div class="q-ap">'+esc(q.texto_apoio)+'</div>':'')
+    +'<div class="q-tx">'+esc(q.enunciado)+'</div>'
+    +'<div style="margin-top:14px">'+alts.map(function(a){
+        return '<div class="alt'+(sel===a[0]?' sel':'')+'" onclick="marcarSim(\''+a[0]+'\')">'
+          +'<div class="alt-l">'+a[0]+'</div><div class="alt-t">'+esc(a[1])+'</div></div>'
+      }).join('')+'</div></div>'
+
+    +'<div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:6px">'
+    +'<button class="btn" onclick="irQ('+(_simAtual-1)+')" '+(_simAtual===0?'disabled style="opacity:.4"':'')+'>Anterior</button>'
+    +(_simAtual<_simQs.length-1
+       ? '<button class="btn btn-ouro" style="flex:1" onclick="irQ('+(_simAtual+1)+')">Proxima</button>'
+       : '<button class="btn btn-ouro" style="flex:1" onclick="finalizarSimulado()">Finalizar simulado</button>')
+    +(resp===_simQs.length&&_simAtual<_simQs.length-1
+       ? '<button class="btn" style="border-color:var(--ouro);color:var(--ouro)" onclick="finalizarSimulado()">Finalizar</button>':'')
+    +'</div>'
+  window.scrollTo({top:0,behavior:'smooth'})
+}
+
+function marcarSim(l){
+  _simResp[_simQs[_simAtual].id]=l
+  renderProva()
+}
+function irQ(i){
+  if(i<0||i>=_simQs.length)return
+  _simAtual=i;renderProva()
+}
+function abandonar(){
+  if(!confirm('Sair do simulado? Suas respostas nao serao salvas.'))return
+  if(_simTimer)clearInterval(_simTimer)
+  document.getElementById('sim-prova').style.display='none'
+  document.getElementById('sim-inicio').style.display='block'
+  prepararSimulado()
+}
+
+async function finalizarSimulado(){
+  const faltam=_simQs.length-Object.keys(_simResp).length
+  if(faltam>0&&!confirm(faltam+' questao(oes) sem resposta serao contadas como erro. Finalizar assim?'))return
+  if(_simTimer)clearInterval(_simTimer)
+  const seg=Math.floor((Date.now()-_simIni)/1000)
+
+  let acertos=0
+  const porD={}
+  const linhas=[]
+  _simQs.forEach(function(q){
+    const r=_simResp[q.id]||null
+    const ok=r===String(q.gabarito).toUpperCase()
+    if(ok)acertos++
+    const d=q.disciplina||'?'
+    if(!porD[d])porD[d]={t:0,a:0}
+    porD[d].t++; if(ok)porD[d].a++
+    if(r)linhas.push({aluno_id:_alunoId,questao_id:q.id,resposta:r,correta:ok,respondido_em:new Date().toISOString()})
+    _resp[q.id]={correta:ok}
+  })
+
+  // grava as respostas para contar nas estatisticas e no ranking
+  if(linhas.length){
+    for(let i=0;i<linhas.length;i+=100){
+      await _supabase.from('questao_respostas').upsert(linhas.slice(i,i+100),{onConflict:'aluno_id,questao_id'})
+    }
+  }
+  await _supabase.from('simulado_tentativas').insert({
+    aluno_id:_alunoId, simulado_id:null, tipo:'proprio',
+    nome:'Meu simulado — '+_simQs.length+' questoes',
+    acertos:acertos, total:_simQs.length, tempo_segundos:seg,
+    detalhes:porD, finalizado_em:new Date().toISOString()
+  })
+
+  renderEstat()
+  const pct=Math.round(acertos/_simQs.length*100)
+  const cor=pct>=70?'#6ddba0':pct>=50?'#e8b04b':'#f07171'
+  const min=Math.floor(seg/60)
+
+  document.getElementById('sim-prova').style.display='none'
+  document.getElementById('sim-result').style.display='block'
+  document.getElementById('sim-result').innerHTML=
+    '<div class="res-c"><div style="font-size:40px;margin-bottom:8px">'+(pct>=70?'🎯':pct>=50?'💪':'📚')+'</div>'
+    +'<div class="res-n" style="color:'+cor+'">'+pct+'%</div>'
+    +'<div style="font-size:15px;font-weight:700;margin-top:8px">'+acertos+' de '+_simQs.length+' questoes</div>'
+    +'<div style="color:var(--tx3);font-size:13px;margin-top:4px">'+min+' min de prova · '
+    +(_simQs.length?Math.round(seg/_simQs.length)+'s por questao':'')+'</div>'
+    +'<div style="color:var(--tx3);font-size:13px;margin-top:12px">'
+    +(pct>=70?'Muito bom! Esse ritmo aprova.':pct>=50?'No caminho. Revise os erros abaixo.':'Hora de voltar na teoria dos temas que voce errou.')+'</div></div>'
+
+    +'<div class="painel" style="margin-bottom:16px"><div style="font-size:13px;font-weight:700;color:var(--ouro);margin-bottom:14px">Por disciplina</div>'
+    +Object.keys(porD).sort().map(function(d){
+       const x=porD[d],p=Math.round(x.a/x.t*100)
+       const cc=p>=70?'#6ddba0':p>=50?'#e8b04b':'#f07171'
+       return '<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;margin-bottom:5px;flex-wrap:wrap;gap:6px">'
+         +'<span style="font-size:13.5px">'+esc(d)+'</span>'
+         +'<span style="color:'+cc+';font-size:13px;font-weight:700">'+x.a+'/'+x.t+' · '+p+'%</span></div>'
+         +'<div class="sim-bar"><div class="sim-bar-f" style="width:'+p+'%;background:'+cc+'"></div></div></div>'
+     }).join('')+'</div>'
+
+    +'<div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:18px">'
+    +'<button class="btn btn-ouro" style="flex:1;min-width:150px" onclick="voltarSimulado()">Fazer outro simulado</button>'
+    +'<button class="btn" onclick="salvarErrosCaderno()" style="border-color:#7d5fa8;color:#c9a9e8">Salvar erros no caderno</button></div>'
+    +'<div id="msg-cad" style="font-size:12.5px;margin-bottom:14px;text-align:center"></div>'
+
+    +'<div style="font-size:13px;font-weight:700;color:var(--ouro);margin-bottom:12px">Correcao questao por questao</div>'
+    +_simQs.map(function(q,i){
+       const r=_simResp[q.id]||null
+       const g=String(q.gabarito).toUpperCase()
+       const ok=r===g
+       return '<div class="q" style="border-left:3px solid '+(ok?'#6ddba0':'#f07171')+'">'
+         +'<div class="q-h"><span style="color:var(--tx4);font-size:11.5px;font-weight:700">'+(i+1)+'</span>'
+         +'<span style="color:var(--ouro);font-size:12px;font-weight:700">'+esc(q.disciplina)+'</span>'
+         +'<span style="margin-left:auto" class="tag" style="background:'+(ok?'rgba(109,219,160,.15);color:#6ddba0;border:1px solid #6ddba0':'rgba(240,113,113,.15);color:#f07171;border:1px solid #f07171')+'">'
+         +(ok?'ACERTOU':(r?'ERROU':'EM BRANCO'))+'</span></div>'
+         +(q.texto_apoio?'<div class="q-ap">'+esc(q.texto_apoio)+'</div>':'')
+         +'<div class="q-tx">'+esc(q.enunciado)+'</div>'
+         +'<div style="margin-top:10px;font-size:13px"><span style="color:var(--tx3)">Sua resposta: </span>'
+         +'<strong style="color:'+(ok?'#6ddba0':'#f07171')+'">'+(r||'em branco')+'</strong>'
+         +'<span style="color:var(--tx3);margin-left:14px">Gabarito: </span><strong style="color:#6ddba0">'+g+'</strong></div>'
+         +(q.comentario?'<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--bd)">'
+            +'<div style="color:var(--ouro);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">Comentario do Jota</div>'
+            +'<div style="font-size:13.5px;line-height:1.7;color:var(--tx2);white-space:pre-wrap">'+esc(q.comentario)+'</div></div>':'')
+         +(q.bizu?'<div class="bizu"><div class="bizu-h"><span style="font-size:15px">📓</span><span class="bizu-t">Para o caderno de erros</span></div>'
+            +'<div style="font-size:13.5px;line-height:1.65;color:var(--tx)">'+esc(q.bizu)+'</div></div>':'')
+         +'</div>'
+     }).join('')
+  window.scrollTo({top:0,behavior:'smooth'})
+}
+
+function voltarSimulado(){
+  document.getElementById('sim-result').style.display='none'
+  document.getElementById('sim-inicio').style.display='block'
+  prepararSimulado()
+  carregarHistorico()
+}
+
+async function salvarErrosCaderno(){
+  const errados=_simQs.filter(function(q){ return _simResp[q.id]!==String(q.gabarito).toUpperCase() })
+  const m=document.getElementById('msg-cad')
+  if(!errados.length){ m.style.color='#6ddba0'; m.textContent='Voce nao errou nenhuma. Nada para salvar!'; return }
+  m.style.color='var(--tx3)'; m.textContent='Salvando '+errados.length+' anotacao(oes)...'
+  const linhas=errados.map(function(q){
+    return {
+      aluno_id:_alunoId, disciplina:q.disciplina,
+      titulo:(q.assunto||q.disciplina)+' — errei no simulado',
+      conteudo:'QUESTAO:\n'+q.enunciado+'\n\nGABARITO: '+q.gabarito
+        +(q.bizu?'\n\nBIZU:\n'+q.bizu:'')+(q.comentario?'\n\nCOMENTARIO:\n'+q.comentario:''),
+      atualizado_em:new Date().toISOString()
+    }
+  })
+  const { error }=await _supabase.from('caderno_erros').insert(linhas)
+  if(error){ m.style.color='#f07171'; m.textContent='Erro: '+error.message; return }
+  m.style.color='#6ddba0'
+  m.textContent=errados.length+' questao(oes) salva(s) no seu caderno de erros!'
+}
+
+async function carregarHistorico(){
+  const box=document.getElementById('hist-sim')
+  if(!box)return
+  const { data:ts }=await _supabase.from('simulado_tentativas').select('*')
+    .eq('aluno_id',_alunoId).eq('tipo','proprio').not('finalizado_em','is',null)
+    .order('finalizado_em',{ascending:false}).limit(8)
+  if(!ts||!ts.length){ box.innerHTML=''; return }
+  box.innerHTML='<div style="font-size:13px;font-weight:700;color:var(--ouro);margin-bottom:10px">Meus simulados anteriores</div>'
+    +ts.map(function(t){
+       const p=t.total?Math.round(t.acertos/t.total*100):0
+       const cc=p>=70?'#6ddba0':p>=50?'#e8b04b':'#f07171'
+       return '<div class="mat"><div style="font-size:20px">📊</div>'
+         +'<div style="flex:1;min-width:150px"><div style="font-size:13.5px;font-weight:600">'+esc(t.nome||'Simulado')+'</div>'
+         +'<div style="color:var(--tx4);font-size:11.5px;margin-top:2px">'
+         +new Date(t.finalizado_em).toLocaleDateString('pt-BR')
+         +(t.tempo_segundos?' · '+Math.floor(t.tempo_segundos/60)+' min':'')+'</div></div>'
+         +'<div style="text-align:right"><div style="font-size:17px;font-weight:800;color:'+cc+'">'+p+'%</div>'
+         +'<div style="color:var(--tx3);font-size:11px">'+t.acertos+'/'+t.total+'</div></div></div>'
+     }).join('')
 }
 
 async function sair(){await _supabase.auth.signOut();location.href='index.html'}
