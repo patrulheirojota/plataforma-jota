@@ -263,6 +263,7 @@ async function carregarAlunos() {
   <div id="lista-alunos-inner"></div>`
 
   window._todosAlunos = alunos
+  await carregarAlertas()
   filtrarAlunos()
 }
 
@@ -327,27 +328,74 @@ function renderizarListaAlunos(alunos) {
   if (!div) return
   div.innerHTML = ''
   if (alunos.length === 0) { div.innerHTML='<p style="color:var(--tx3)">Nenhum aluno encontrado.</p>'; return }
+  const alertas = window._alertasAluno || {}
 
   alunos.forEach(a => {
     const status = statusAcesso(a.data_expiracao)
+    const al = alertas[a.id] || {}
     div.innerHTML += `<div class="item-lista" style="flex-wrap:wrap;gap:8px" id="card-aluno-${a.id}">
       <div style="flex:1;min-width:140px">
         <strong>${a.nome}</strong>
         <div style="color:var(--tx3);font-size:12px">${a.email}</div>
         <div style="color:var(--tx3);font-size:12px">${a.concursos?.nome||'Sem concurso'}</div>
         <div style="color:${status.cor};font-size:11px;margin-top:2px;font-weight:bold">${status.texto}</div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:5px">
+          ${a.diretrizes?'<span class="tag tag-info">tem diretrizes</span>':''}
+          ${al.mudou?'<span class="tag tag-alerta">mexeu no cronograma</span>':''}
+          ${al.fraco?'<span class="tag tag-erro">'+al.fraco+'</span>':''}
+        </div>
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         <button class="btn-acao btn-editar" onclick="abrirEditarAluno('${a.id}','${a.nome}','${a.email}','${a.concurso_id||''}')">Editar</button>
         <button class="btn-acao btn-editar" onclick="gerenciarConcursosAluno('${a.id}','${a.nome}')">Concursos</button>
-        <button class="btn-acao btn-editar" onclick="irParaCronogramaAluno('${a.id}','${a.nome}')" style="background:#1a3a5c;color:var(--info);border:1px solid #4a8ab5">Cronograma</button>
-        <button class="btn-acao" onclick="abrirAplicarTemplate('${a.id}','${a.nome}')" style="background:#1a3a1a;color:var(--ok);border:1px solid #81c784">Template</button>
+        <button class="btn-acao btn-editar" onclick="irParaCronogramaAluno('${a.id}','${a.nome}')" style="background:var(--hov);color:var(--info);border:1px solid var(--info)">Cronograma</button>
+        <button class="btn-acao" onclick="abrirAplicarTemplate('${a.id}','${a.nome}')" style="background:var(--card2);color:var(--ok);border:1px solid var(--ok)">Template</button>
         <button class="btn-acao btn-info" onclick="avisoParaAluno('${a.id}','${String(a.nome).replace(/'/g,"\\'")}')">Aviso</button>
         <button class="btn-acao btn-excluir" onclick="confirmarExcluirAluno('${a.id}','${a.nome}')">Excluir</button>
       </div>
     </div>`
   })
   div.innerHTML += `<p style="color:var(--tx3);font-size:12px;margin-top:8px">${alunos.length} aluno(s)</p>`
+}
+
+// Alertas: quem mexeu no cronograma e quem esta fraco em alguma disciplina
+async function carregarAlertas() {
+  const alertas = {}
+  const setedias = new Date(); setedias.setDate(setedias.getDate()-7)
+  const lim = setedias.toISOString()
+
+  const [rl, rs] = await Promise.all([
+    _supabase.from('cronograma_log').select('aluno_id').eq('visto', false),
+    _supabase.from('sessoes_estudo').select('aluno_id,disciplina,questoes_feitas,questoes_certas').gt('questoes_feitas', 0)
+  ])
+
+  ;(rl.data||[]).forEach(function(l){
+    if(!alertas[l.aluno_id])alertas[l.aluno_id]={}
+    alertas[l.aluno_id].mudou = true
+  })
+
+  const acc = {}
+  ;(rs.data||[]).forEach(function(s){
+    const k = s.aluno_id+'||'+s.disciplina
+    if(!acc[k])acc[k]={aluno:s.aluno_id,disc:s.disciplina,f:0,c:0}
+    acc[k].f += s.questoes_feitas||0
+    acc[k].c += s.questoes_certas||0
+  })
+  const piores = {}
+  Object.keys(acc).forEach(function(k){
+    const x = acc[k]
+    if(x.f < 15) return
+    const pct = Math.round(x.c/x.f*100)
+    if(pct >= 50) return
+    if(!piores[x.aluno] || pct < piores[x.aluno].pct) piores[x.aluno] = {disc:x.disc, pct:pct}
+  })
+  Object.keys(piores).forEach(function(id){
+    if(!alertas[id])alertas[id]={}
+    alertas[id].fraco = piores[id].pct+'% em '+piores[id].disc
+  })
+
+  window._alertasAluno = alertas
+  return alertas
 }
 
 async function confirmarExcluirAluno(aluno_id, nome) {
@@ -450,6 +498,11 @@ function abrirEditarAluno(id, nome, email, concurso_id) {
   const sel = document.getElementById('editar-aluno-concurso')
   if (sel) sel.value = concurso_id || ''
   document.getElementById('msg-editar-aluno').textContent = ''
+  const a = (window._todosAlunos||[]).find(function(x){return x.id===id})
+  const mq = document.getElementById('editar-aluno-meta')
+  if (mq) mq.value = (a && a.meta_questoes_dia) ? a.meta_questoes_dia : 30
+  const dz = document.getElementById('editar-aluno-diretrizes')
+  if (dz) dz.value = (a && a.diretrizes) ? a.diretrizes : ''
   document.getElementById('card-editar-aluno').scrollIntoView({ behavior:'smooth' })
   // Carrega senha atual como placeholder
   const senhaInput = document.getElementById('editar-aluno-senha')
@@ -476,6 +529,8 @@ async function salvarEdicaoAluno() {
   const concurso_id = document.getElementById('editar-aluno-concurso').value
   const novaSenha = document.getElementById('editar-aluno-senha')?.value || ''
   const data_expiracao = document.getElementById('editar-aluno-data-expiracao')?.value || null
+  const meta = parseInt(document.getElementById('editar-aluno-meta')?.value) || 30
+  const diretrizes = (document.getElementById('editar-aluno-diretrizes')?.value || '').trim()
   const msg = document.getElementById('msg-editar-aluno')
 
   if (!nome||!email) { msg.style.color='var(--erro)'; msg.textContent='Preencha nome e e-mail.'; return }
@@ -484,12 +539,14 @@ async function salvarEdicaoAluno() {
 
   // Atualiza dados na tabela alunos
   const { error } = await _supabase.from('alunos')
-    .update({ nome, email, concurso_id: concurso_id||null, data_expiracao: data_expiracao||null }).eq('id', id)
+    .update({ nome, email, concurso_id: concurso_id||null, data_expiracao: data_expiracao||null,
+              meta_questoes_dia: meta, diretrizes: diretrizes||null,
+              diretrizes_em: diretrizes?new Date().toISOString():null }).eq('id', id)
   if (error) { msg.style.color='var(--erro)'; msg.textContent='Erro: '+error.message; return }
 
   // Atualiza cache local
   const alunoCache = window._todosAlunos?.find(a => a.id === id)
-  if (alunoCache) alunoCache.data_expiracao = data_expiracao
+  if (alunoCache) { alunoCache.data_expiracao = data_expiracao; alunoCache.meta_questoes_dia = meta; alunoCache.diretrizes = diretrizes }
 
   // Se digitou nova senha, envia link de redefinicao por email
   if (novaSenha && novaSenha.length >= 6) {
@@ -1078,6 +1135,37 @@ async function copiarPlano() {
 // ========== DESEMPENHO ==========
 function carregarSelectDesempenho() {
   verificarInatividade()
+  carregarLog()
+}
+
+async function carregarLog() {
+  const div = document.getElementById('lista-log')
+  if (!div) return
+  div.innerHTML = '<p style="color:var(--tx3);font-size:13px">Carregando...</p>'
+  const { data: logs } = await _supabase.from('cronograma_log')
+    .select('*, alunos(nome)').order('criado_em', { ascending: false }).limit(60)
+  if (!logs || !logs.length) {
+    div.innerHTML = '<p style="color:var(--tx3);font-size:13px">Nenhuma alteracao registrada ainda.</p>'
+    return
+  }
+  const naoVistos = logs.filter(function(l){ return !l.visto }).length
+  div.innerHTML = (naoVistos ? '<p style="color:var(--alerta);font-size:13px;font-weight:600;margin-bottom:10px">'+naoVistos+' alteracao(oes) que voce ainda nao viu</p>' : '')
+    + logs.map(function(l){
+      const d = new Date(l.criado_em).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})
+      return '<div class="item-lista" style="border-left:3px solid '+(l.visto?'var(--bd2)':'var(--alerta)')+'">'
+        +'<div style="flex:1;min-width:150px">'
+        +'<strong>'+(l.alunos?l.alunos.nome:'Aluno')+'</strong>'
+        +(l.visto?'':' <span class="tag tag-alerta">NOVO</span>')
+        +'<div style="color:var(--tx2);font-size:12.5px;margin-top:3px">'+(l.detalhe||l.acao)+'</div></div>'
+        +'<span style="color:var(--tx4);font-size:11.5px">'+d+'</span>'
+        +'<button class="btn-acao btn-editar" onclick="irParaCronogramaAluno(\''+l.aluno_id+'\',\''+String(l.alunos?l.alunos.nome:'').replace(/'/g,"\\'")+'\')">Ver plano</button></div>'
+    }).join('')
+}
+
+async function marcarLogVisto() {
+  await _supabase.from('cronograma_log').update({ visto: true }).eq('visto', false)
+  carregarLog()
+  carregarAlertas().then(function(){ if(window._todosAlunos) filtrarAlunos() })
 }
 
 async function verificarInatividade() {
