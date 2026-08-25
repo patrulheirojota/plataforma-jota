@@ -252,6 +252,7 @@
 
       <!-- CRONOGRAMA -->
       <section class="sec on" id="sec-cronograma">
+        <div id="diretrizes"></div>
         <div class="strip" id="strip"></div>
         <div class="hero" id="hero"></div>
         <div id="aviso-atraso"></div>
@@ -362,7 +363,7 @@ const MES=['Janeiro','Fevereiro','Marco','Abril','Maio','Junho','Julho','Agosto'
 const PALETA=['#e8b04b','#5bb3f0','#6ddba0','#f07171','#4ecdc4','#b98ae0','#f0955b','#8ab4f0','#d4e05b','#f08ab4','#7fd1ae','#e0916b']
 const LABEL={teoria:'Teoria',questoes:'Questoes',revisao:'Revisao'}
 
-let _alunoId=null,_nome='',_email='',_concursoId=null,_concursoNome='',_dataProva=null,_cfg=null
+let _alunoId=null,_nome='',_email='',_diretrizes=null,_diretrizesEm=null,_concursoId=null,_concursoNome='',_dataProva=null,_cfg=null
 let _sessoes=[],_porData={},_refSem=null,_refMes=null,_corDisc={},_graf=null,_secAtual='cronograma'
 
 function ymd(d){const x=new Date(d);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')}
@@ -421,9 +422,11 @@ async function init(){
   if(!user){location.href='index.html';return}
   _alunoId=user.id; _email=user.email
 
-  const { data:aluno }=await _supabase.from('alunos').select('nome, data_expiracao, concurso_id').eq('id',user.id).single()
+  const { data:aluno }=await _supabase.from('alunos').select('nome, data_expiracao, concurso_id, diretrizes, diretrizes_em').eq('id',user.id).single()
   if(!aluno){alert('Aluno nao encontrado. Contate o mentor.');return}
   _nome=aluno.nome
+  _diretrizes=aluno.diretrizes||null
+  _diretrizesEm=aluno.diretrizes_em||null
   document.getElementById('nome').textContent=_nome.split(' ')[0]
 
   if(aluno.data_expiracao){
@@ -483,7 +486,43 @@ function proxima(a){
   for(let i=0;i<ds.length;i++)if(ds[i]>=a)return ds[i]
   return ds.length?ds[ds.length-1]:a
 }
-function desenhar(){renderStrip();renderHero();renderAtraso();renderBoard();renderCal();renderLegenda()}
+function desenhar(){renderDiretrizes();renderStrip();renderHero();renderAtraso();renderBoard();renderCal();renderLegenda()}
+
+function renderDiretrizes(){
+  const box=document.getElementById('diretrizes')
+  if(!box)return
+  if(!_diretrizes){box.innerHTML='';return}
+  const chave='dir_'+_alunoId
+  const visto=localStorage.getItem(chave)
+  const novo=_diretrizesEm && visto!==_diretrizesEm
+  const aberto=novo||localStorage.getItem(chave+'_open')==='1'
+  box.innerHTML='<div style="background:linear-gradient(135deg,rgba(201,168,60,.10),var(--card));border:1px solid var(--ouro);border-radius:14px;padding:16px;margin-bottom:16px">'
+    +'<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;cursor:pointer" onclick="toggleDiretrizes()">'
+    +'<div style="font-size:22px">🎖️</div>'
+    +'<div style="flex:1;min-width:160px"><div style="font-size:14px;font-weight:800;color:var(--ouro)">Diretrizes do seu mentor'
+    +(novo?' <span style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(109,219,160,.15);color:#6ddba0;border:1px solid #6ddba0;font-weight:700;margin-left:6px">ATUALIZADO</span>':'')
+    +'</div>'
+    +'<div style="color:var(--tx3);font-size:12px;margin-top:2px">'+(aberto?'Toque para recolher':'Toque para ler')+'</div></div>'
+    +'<div style="color:var(--tx3);font-size:18px">'+(aberto?'▾':'▸')+'</div></div>'
+    +(aberto?'<div style="margin-top:13px;padding-top:13px;border-top:1px solid var(--bd);font-size:13.5px;line-height:1.75;color:var(--tx2);white-space:pre-wrap">'+esc(_diretrizes)+'</div>':'')
+    +'</div>'
+  if(novo&&aberto&&_diretrizesEm)localStorage.setItem(chave,_diretrizesEm)
+}
+
+function toggleDiretrizes(){
+  const chave='dir_'+_alunoId
+  const aberto=localStorage.getItem(chave+'_open')==='1'
+  localStorage.setItem(chave+'_open',aberto?'0':'1')
+  if(!aberto&&_diretrizesEm)localStorage.setItem(chave,_diretrizesEm)
+  renderDiretrizes()
+}
+
+// registra no painel do mentor o que o aluno mexeu
+async function logar(acao,detalhe){
+  try{
+    await _supabase.from('cronograma_log').insert({aluno_id:_alunoId,acao:acao,detalhe:detalhe})
+  }catch(e){}
+}
 
 function renderStrip(){
   const total=_sessoes.length, feitas=_sessoes.filter(function(s){return s.concluida}).length
@@ -1006,6 +1045,7 @@ async function naoFinalizei(id){
   if(s.topico_id)await marcarEdital(s.topico_id,false)
 
   fecharModal()
+  logar('nao_finalizou','Nao terminou "'+s.topico+'" ('+s.disciplina+'). O tema voltou para '+parseD(alvo).toLocaleDateString('pt-BR'))
   await recarregar()
 
   // se o dia de destino estourou a capacidade, empurra o excedente
@@ -1122,6 +1162,7 @@ async function aplicarTempoDia(k){
   const r=await _supabase.from('sessoes_estudo').update({tempo_minutos:v}).eq('aluno_id',_alunoId).eq('data',k)
   if(r.error){ajMsg('Erro: '+r.error.message,'#f07171');return}
   ;(_porData[k]||[]).forEach(function(s){s.tempo_minutos=v})
+  logar('ajustou_tempo','Mudou o tempo das sessoes de '+parseD(k).toLocaleDateString('pt-BR')+' para '+dur(v))
   desenhar()
   ajMsg('Todas as sessoes do dia agora tem '+dur(v)+'.','#6ddba0')
 }
@@ -1138,6 +1179,7 @@ async function adiantar(k){
     if(r.error){ajMsg('Erro: '+r.error.message,'#f07171');return}
   }
   await recarregar()
+  logar('adiantou','Adiantou '+cand.length+' sessao(oes) para '+parseD(k).toLocaleDateString('pt-BR'))
   ajustesDoDia(k)
   ajMsg(cand.length+' sessao(oes) trazida(s) para este dia.','#6ddba0')
 }
@@ -1158,6 +1200,7 @@ async function adiarDia(k){
     if(r.error){ajMsg('Erro: '+r.error.message,'#f07171');return}
   }
   await recarregar()
+  logar('adiou','Empurrou '+pend.length+' sessao(oes) de '+parseD(k).toLocaleDateString('pt-BR')+' para os dias seguintes')
   fecharModal()
 }
 
@@ -1176,6 +1219,7 @@ async function replanejarAtrasadas(){
     if(r.error){alert('Erro ao replanejar: '+r.error.message);return}
   }
   await recarregar()
+  logar('replanejou','Replanejou '+at.length+' sessoes atrasadas a partir de '+parseD(hj).toLocaleDateString('pt-BR'))
   irData(hj)
   alert(at.length+' sessoes redistribuidas. Bora colocar em dia!')
 }
