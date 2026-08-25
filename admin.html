@@ -36,6 +36,7 @@
     <div class="nav-i" onclick="location.href='gerador.html'"><span class="nav-ic">⚡</span>Gerador<span class="nav-tag">NOVO</span></div>
     <div class="nav-i" data-a="aba-cronograma" onclick="mostrarAba('aba-cronograma')"><span class="nav-ic">📅</span>Planos</div>
     <div class="nav-i" data-a="aba-templates" onclick="mostrarAba('aba-templates')"><span class="nav-ic">📋</span>Templates</div>
+    <div class="nav-i" onclick="location.href='ajustar.html'"><span class="nav-ic">🔄</span>Ajustar ao edital<span class="nav-tag">NOVO</span></div>
     <div class="nav-i" onclick="location.href='temas.html'"><span class="nav-ic">🎯</span>Controle de Temas</div>
 
     <div class="side-h">Conteudo</div>
@@ -72,7 +73,7 @@
       <input type="password" id="novo-aluno-senha" placeholder="Senha provisoria (min. 6 caracteres)">
       <select id="novo-aluno-concurso"></select>
 
-      <label style="color:#aaa;font-size:12px;display:block;margin-top:10px;margin-bottom:4px">Prazo de acesso a plataforma</label>
+      <label style="color:var(--tx3);font-size:12px;display:block;margin-top:10px;margin-bottom:4px">Prazo de acesso a plataforma</label>
       <select id="novo-aluno-acesso">
         <option value="0">Sem prazo (acesso ilimitado)</option>
         <option value="1">1 mes</option>
@@ -94,35 +95,47 @@
     <div class="card" id="card-editar-aluno" style="display:none">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <h3 id="titulo-editar-aluno">Editar aluno</h3>
-        <button onclick="fecharEditarAluno()" style="width:auto;padding:6px 14px;background:#1a2f45;color:#aaa;border:1px solid #2a4a6a">Fechar</button>
+        <button onclick="fecharEditarAluno()" style="width:auto;padding:6px 14px;background:var(--card);color:var(--tx3);border:1px solid var(--bd2)">Fechar</button>
       </div>
       <input type="hidden" id="editar-aluno-id">
 
-      <label style="color:#aaa;font-size:12px;display:block;margin-bottom:4px">Nome completo</label>
+      <label style="color:var(--tx3);font-size:12px;display:block;margin-bottom:4px">Nome completo</label>
       <input type="text" id="editar-aluno-nome" placeholder="Nome completo do aluno">
 
-      <label style="color:#aaa;font-size:12px;display:block;margin-top:10px;margin-bottom:4px">E-mail</label>
+      <label style="color:var(--tx3);font-size:12px;display:block;margin-top:10px;margin-bottom:4px">E-mail</label>
       <input type="email" id="editar-aluno-email" placeholder="E-mail do aluno">
 
-      <label style="color:#aaa;font-size:12px;display:block;margin-top:10px;margin-bottom:4px">Concurso principal</label>
+      <label style="color:var(--tx3);font-size:12px;display:block;margin-top:10px;margin-bottom:4px">Concurso principal</label>
       <select id="editar-aluno-concurso"></select>
 
-      <div style="background:#0d1b2a;border-radius:8px;padding:12px;margin-top:10px">
-        <label style="color:#aaa;font-size:12px;display:block;margin-bottom:4px">Redefinir senha do aluno (opcional)</label>
+      <div style="background:var(--card2);border-radius:8px;padding:12px;margin-top:10px">
+        <label style="color:var(--tx3);font-size:12px;display:block;margin-bottom:4px">Redefinir senha do aluno (opcional)</label>
         <input type="password" id="editar-aluno-senha" placeholder="Nova senha (min. 6 caracteres) — deixe vazio para nao alterar">
-        <p style="color:#555;font-size:11px;margin-top:4px">Se preencher, um link de redefinicao sera enviado ao e-mail do aluno.</p>
+        <p style="color:var(--tx4);font-size:11px;margin-top:4px">Se preencher, um link de redefinicao sera enviado ao e-mail do aluno.</p>
       </div>
 
-      <div style="background:#0d1b2a;border-radius:8px;padding:12px;margin-top:10px">
-        <label style="color:#aaa;font-size:12px;display:block;margin-bottom:4px">Prazo de acesso a plataforma</label>
+      <div style="background:var(--card2);border-radius:8px;padding:12px;margin-top:10px">
+        <label style="color:var(--tx3);font-size:12px;display:block;margin-bottom:4px">Meta diaria de questoes</label>
+        <input type="number" id="editar-aluno-meta" min="0" max="300" value="30">
+        <p style="color:var(--tx4);font-size:11px;margin-top:4px">Vira barra de progresso na area de questoes do aluno.</p>
+      </div>
+
+      <div style="background:var(--card2);border-radius:8px;padding:12px;margin-top:10px">
+        <label style="color:var(--tx3);font-size:12px;display:block;margin-bottom:4px">Diretrizes para este aluno</label>
+        <textarea id="editar-aluno-diretrizes" rows="5" placeholder="Orientacoes fixas que ficam visiveis no painel dele. Ex: foque em Portugues e Legislacao ate o dia 20. Nao pule as revisoes."></textarea>
+        <p style="color:var(--tx4);font-size:11px;margin-top:4px">Diferente do aviso: as diretrizes ficam fixas no painel do aluno, como um norte permanente.</p>
+      </div>
+
+      <div style="background:var(--card2);border-radius:8px;padding:12px;margin-top:10px">
+        <label style="color:var(--tx3);font-size:12px;display:block;margin-bottom:4px">Prazo de acesso a plataforma</label>
         <input type="date" id="editar-aluno-data-expiracao">
-        <p style="color:#555;font-size:11px;margin:6px 0">Deixe vazio para acesso sem prazo (ilimitado)</p>
+        <p style="color:var(--tx4);font-size:11px;margin:6px 0">Deixe vazio para acesso sem prazo (ilimitado)</p>
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
           <button onclick="estenderAcesso(1)" class="btn-acao btn-editar" style="padding:6px 10px">+1 mes</button>
           <button onclick="estenderAcesso(3)" class="btn-acao btn-editar" style="padding:6px 10px">+3 meses</button>
           <button onclick="estenderAcesso(6)" class="btn-acao btn-editar" style="padding:6px 10px">+6 meses</button>
           <button onclick="estenderAcesso(12)" class="btn-acao btn-editar" style="padding:6px 10px">+1 ano</button>
-          <button onclick="document.getElementById('editar-aluno-data-expiracao').value=''" class="btn-acao" style="padding:6px 10px;background:#1a2f45;color:#aaa;border:1px solid #2a4a6a">Remover prazo</button>
+          <button onclick="document.getElementById('editar-aluno-data-expiracao').value=''" class="btn-acao" style="padding:6px 10px;background:var(--card);color:var(--tx3);border:1px solid var(--bd2)">Remover prazo</button>
         </div>
       </div>
 
@@ -133,7 +146,7 @@
     <div class="card" id="card-concursos-aluno" style="display:none">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <h3 id="titulo-concursos-aluno">Concursos do aluno</h3>
-        <button onclick="fecharConcursosAluno()" style="width:auto;padding:6px 14px;background:#1a2f45;color:#aaa;border:1px solid #2a4a6a">Fechar</button>
+        <button onclick="fecharConcursosAluno()" style="width:auto;padding:6px 14px;background:var(--card);color:var(--tx3);border:1px solid var(--bd2)">Fechar</button>
       </div>
       <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
         <select id="select-add-concurso" style="flex:1"></select>
@@ -145,15 +158,15 @@
     <div class="card" id="card-aplicar-template" style="display:none">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <h3 id="titulo-aplicar-template">Aplicar template</h3>
-        <button onclick="document.getElementById('card-aplicar-template').style.display='none'" style="width:auto;padding:6px 14px;background:#1a2f45;color:#aaa;border:1px solid #2a4a6a">Fechar</button>
+        <button onclick="document.getElementById('card-aplicar-template').style.display='none'" style="width:auto;padding:6px 14px;background:var(--card);color:var(--tx3);border:1px solid var(--bd2)">Fechar</button>
       </div>
       <select id="aplicar-template-concurso" onchange="carregarTemplatesParaAplicar()"></select>
       <select id="aplicar-template-select" style="margin-top:8px">
         <option value="">Selecione o template</option>
       </select>
-      <button onclick="preVisualizarTemplate()" style="margin-top:8px;background:#1a3a5c;color:#C9A83C;border:1px solid #C9A83C">Visualizar e ajustar carga horaria</button>
+      <button onclick="preVisualizarTemplate()" style="margin-top:8px;background:#1a3a5c;color:var(--ouro);border:1px solid var(--ouro)">Visualizar e ajustar carga horaria</button>
       <div id="preview-template" style="margin-top:12px"></div>
-      <button id="btn-confirmar-aplicar" onclick="confirmarAplicarTemplate()" style="display:none;margin-top:12px;background:#1a3a1a;color:#81c784;border:1px solid #81c784">Confirmar e aplicar template</button>
+      <button id="btn-confirmar-aplicar" onclick="confirmarAplicarTemplate()" style="display:none;margin-top:12px;background:#1a3a1a;color:var(--ok);border:1px solid var(--ok)">Confirmar e aplicar template</button>
     </div>
     </div>
 
@@ -173,16 +186,16 @@
     <div class="card" id="card-editar-concurso" style="display:none">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <h3 id="titulo-editar-concurso">Editar concurso</h3>
-        <button onclick="fecharEditarConcurso()" style="width:auto;padding:6px 14px;background:#1a2f45;color:#aaa;border:1px solid #2a4a6a">Fechar</button>
+        <button onclick="fecharEditarConcurso()" style="width:auto;padding:6px 14px;background:var(--card);color:var(--tx3);border:1px solid var(--bd2)">Fechar</button>
       </div>
       <input type="hidden" id="edc-id">
-      <label style="color:#aaa;font-size:12px;display:block;margin-bottom:4px">Nome do concurso</label>
+      <label style="color:var(--tx3);font-size:12px;display:block;margin-bottom:4px">Nome do concurso</label>
       <input type="text" id="edc-nome" placeholder="Ex: GCM Aracaju 2026">
-      <label style="color:#aaa;font-size:12px;display:block;margin-top:10px;margin-bottom:4px">Banca</label>
+      <label style="color:var(--tx3);font-size:12px;display:block;margin-top:10px;margin-bottom:4px">Banca</label>
       <input type="text" id="edc-banca" placeholder="Ex: IDECAN">
-      <label style="color:#aaa;font-size:12px;display:block;margin-top:10px;margin-bottom:4px">Data da prova</label>
+      <label style="color:var(--tx3);font-size:12px;display:block;margin-top:10px;margin-bottom:4px">Data da prova</label>
       <input type="date" id="edc-data">
-      <p style="color:#555;font-size:11px;margin-top:4px">Ao alterar a data, o contador regressivo dos alunos e os cronogramas ja gerados sao atualizados junto.</p>
+      <p style="color:var(--tx4);font-size:11px;margin-top:4px">Ao alterar a data, o contador regressivo dos alunos e os cronogramas ja gerados sao atualizados junto.</p>
       <button onclick="salvarEdicaoConcurso()" style="margin-top:12px">Salvar alteracoes</button>
       <p id="msg-editar-concurso" style="margin-top:8px;font-size:13px"></p>
     </div>
@@ -249,25 +262,25 @@
       <h3>Editar plano individual do aluno</h3>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <div style="flex:1;min-width:160px">
-          <label style="color:#aaa;font-size:12px;display:block;margin-bottom:4px">Aluno</label>
+          <label style="color:var(--tx3);font-size:12px;display:block;margin-bottom:4px">Aluno</label>
           <select id="cron-aluno" onchange="carregarConcursosParaCronograma()"></select>
         </div>
         <div style="flex:1;min-width:160px">
-          <label style="color:#aaa;font-size:12px;display:block;margin-bottom:4px">Concurso</label>
+          <label style="color:var(--tx3);font-size:12px;display:block;margin-bottom:4px">Concurso</label>
           <select id="cron-concurso-filtro" onchange="carregarPlanoAluno()"><option value="">Selecione</option></select>
         </div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
         <div style="flex:1;min-width:160px">
-          <label style="color:#aaa;font-size:12px;display:block;margin-bottom:4px">Copiar plano de</label>
+          <label style="color:var(--tx3);font-size:12px;display:block;margin-bottom:4px">Copiar plano de</label>
           <select id="cron-aluno-origem"></select>
         </div>
         <button onclick="copiarPlano()" style="width:auto;padding:10px 16px;align-self:flex-end">Copiar plano</button>
       </div>
 
       <div id="form-plano" style="display:none;margin-top:16px">
-        <div style="background:#0d1b2a;border-radius:8px;padding:14px">
-          <p style="color:#C9A83C;font-weight:bold;margin-bottom:10px">Adicionar disciplina manualmente</p>
+        <div style="background:var(--card2);border-radius:8px;padding:14px">
+          <p style="color:var(--ouro);font-weight:bold;margin-bottom:10px">Adicionar disciplina manualmente</p>
           <input type="text" id="cron-disciplina" placeholder="Disciplina">
           <select id="cron-dia">
             <option value="segunda">Segunda-feira</option>
@@ -282,22 +295,22 @@
             <input type="number" id="cron-tempo" placeholder="Tempo (min)" min="15" step="15">
             <input type="number" id="cron-questoes" placeholder="Meta questoes" value="30">
           </div>
-          <div style="background:#1a2f45;border-radius:8px;padding:12px;margin-top:12px">
+          <div style="background:var(--card);border-radius:8px;padding:12px;margin-top:12px">
             <label style="display:flex;align-items:center;gap:8px;font-size:14px">
               <input type="checkbox" id="usar-revisao" checked>
               Ativar revisao espacada
             </label>
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-              <div><label style="color:#aaa;font-size:12px">Exercicios apos</label>
+              <div><label style="color:var(--tx3);font-size:12px">Exercicios apos</label>
                 <div style="display:flex;align-items:center;gap:4px">
                   <input type="number" id="dias-exercicios" value="5" min="1" max="30" style="width:70px">
-                  <span style="color:#aaa;font-size:13px">dias</span>
+                  <span style="color:var(--tx3);font-size:13px">dias</span>
                 </div>
               </div>
-              <div><label style="color:#aaa;font-size:12px">Revisao apos</label>
+              <div><label style="color:var(--tx3);font-size:12px">Revisao apos</label>
                 <div style="display:flex;align-items:center;gap:4px">
                   <input type="number" id="dias-revisao" value="12" min="1" max="60" style="width:70px">
-                  <span style="color:#aaa;font-size:13px">dias</span>
+                  <span style="color:var(--tx3);font-size:13px">dias</span>
                 </div>
               </div>
             </div>
@@ -339,11 +352,11 @@
     <div class="card" id="card-itens-template" style="display:none">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <h3 id="titulo-itens-template">Itens do template</h3>
-        <button onclick="document.getElementById('card-itens-template').style.display='none'" style="width:auto;padding:6px 14px;background:#1a2f45;color:#aaa;border:1px solid #2a4a6a">Fechar</button>
+        <button onclick="document.getElementById('card-itens-template').style.display='none'" style="width:auto;padding:6px 14px;background:var(--card);color:var(--tx3);border:1px solid var(--bd2)">Fechar</button>
       </div>
       <div id="lista-itens-template" style="margin-bottom:16px"></div>
-      <div style="background:#0d1b2a;border-radius:8px;padding:14px">
-        <p style="color:#C9A83C;font-size:13px;font-weight:bold;margin-bottom:10px">Adicionar disciplina ao template</p>
+      <div style="background:var(--card2);border-radius:8px;padding:14px">
+        <p style="color:var(--ouro);font-size:13px;font-weight:bold;margin-bottom:10px">Adicionar disciplina ao template</p>
         <input type="text" id="item-disciplina" placeholder="Disciplina (ex: Direito Penal Militar)">
         <select id="item-dia">
           <option value="segunda">Segunda-feira</option>
@@ -364,30 +377,39 @@
 
     <div class="card">
       <h3>Aplicar template em massa</h3>
-      <p style="color:#aaa;font-size:13px;margin-bottom:12px">Selecione um concurso, escolha o template e marque os alunos que vao receber.</p>
+      <p style="color:var(--tx3);font-size:13px;margin-bottom:12px">Selecione um concurso, escolha o template e marque os alunos que vao receber.</p>
       <button onclick="document.getElementById('card-massa').style.display='block';document.getElementById('card-massa').scrollIntoView({behavior:'smooth'})"
-        style="background:#1a3a1a;color:#81c784;border:1px solid #81c784">Abrir aplicacao em massa</button>
+        style="background:#1a3a1a;color:var(--ok);border:1px solid var(--ok)">Abrir aplicacao em massa</button>
     </div>
 
     <div class="card" id="card-massa" style="display:none">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <h3>Aplicar em massa</h3>
-        <button onclick="document.getElementById('card-massa').style.display='none'" style="width:auto;padding:6px 14px;background:#1a2f45;color:#aaa;border:1px solid #2a4a6a">Fechar</button>
+        <button onclick="document.getElementById('card-massa').style.display='none'" style="width:auto;padding:6px 14px;background:var(--card);color:var(--tx3);border:1px solid var(--bd2)">Fechar</button>
       </div>
       <select id="massa-concurso-select" onchange="carregarAlunosParaMassa()"></select>
       <select id="massa-template-select" style="margin-top:8px"><option value="">Selecione o template</option></select>
       <div id="lista-massa-alunos" style="margin-top:12px"></div>
-      <button onclick="aplicarTemplateEmMassa()" style="margin-top:12px;background:#1a3a1a;color:#81c784;border:1px solid #81c784">Aplicar template aos selecionados</button>
+      <button onclick="aplicarTemplateEmMassa()" style="margin-top:12px;background:#1a3a1a;color:var(--ok);border:1px solid var(--ok)">Aplicar template aos selecionados</button>
     </div>
     </div>
 
     <div id="aba-desempenho" class="aba-conteudo" style="display:none">
+      <div class="card" id="card-log">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:6px">
+          <h3 style="margin:0">Alteracoes feitas pelos alunos</h3>
+          <button onclick="marcarLogVisto()" class="btn-acao btn-neutro" style="padding:8px 14px">Marcar tudo como visto</button>
+        </div>
+        <p style="color:var(--tx3);font-size:13px;margin-bottom:12px">Quando um aluno mexe no proprio cronograma, aparece aqui.</p>
+        <div id="lista-log"></div>
+      </div>
+
     <div class="card">
       <h3>Alertas de inatividade</h3>
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
-        <span style="color:#aaa;font-size:14px">Alunos sem registro ha mais de</span>
-        <input type="number" id="dias-inatividade" value="3" min="1" max="30" style="width:60px;padding:6px;border-radius:6px;border:1px solid #2a4a6a;background:#0d1b2a;color:#fff">
-        <span style="color:#aaa;font-size:14px">dias</span>
+        <span style="color:var(--tx3);font-size:14px">Alunos sem registro ha mais de</span>
+        <input type="number" id="dias-inatividade" value="3" min="1" max="30" style="width:60px;padding:6px;border-radius:6px;border:1px solid var(--bd2);background:var(--card2);color:#fff">
+        <span style="color:var(--tx3);font-size:14px">dias</span>
         <button onclick="verificarInatividade()" style="width:auto;padding:8px 16px">Verificar</button>
       </div>
       <div id="lista-inatividade"></div>
@@ -400,7 +422,7 @@
     <div class="card" id="card-relatorio-individual" style="display:none">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
         <h3 id="titulo-relatorio-individual">Historico do aluno</h3>
-        <button onclick="fecharRelatorioIndividual()" style="width:auto;padding:6px 14px;background:#1a2f45;color:#aaa;border:1px solid #2a4a6a">Fechar</button>
+        <button onclick="fecharRelatorioIndividual()" style="width:auto;padding:6px 14px;background:var(--card);color:var(--tx3);border:1px solid var(--bd2)">Fechar</button>
       </div>
       <div id="conteudo-relatorio-individual"></div>
     </div>
