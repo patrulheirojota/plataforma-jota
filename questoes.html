@@ -134,6 +134,7 @@
 
     <!-- QUESTOES -->
     <section class="sec on" id="sec-questoes" style="display:none">
+      <div id="meta-dia"></div>
       <div class="est" id="est"></div>
       <div class="painel" style="margin-bottom:16px">
         <div style="font-size:13px;font-weight:700;color:var(--ouro);margin-bottom:12px">Filtros</div>
@@ -147,6 +148,10 @@
         </div>
         <label style="color:var(--tx3);font-size:11px;display:block;margin-bottom:6px;font-weight:600">Disciplinas — clique para selecionar</label>
         <div class="chips" id="ch-disc"></div>
+        <div id="box-assunto" style="display:none">
+          <label style="color:var(--tx3);font-size:11px;display:block;margin-bottom:6px;font-weight:600">Assuntos — refine ainda mais</label>
+          <div class="chips" id="ch-assunto"></div>
+        </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
           <input class="inp" id="f-busca" placeholder="Palavra-chave no enunciado..." style="flex:1;min-width:170px" onkeydown="if(event.key==='Enter')buscar()">
           <button class="btn btn-ouro" onclick="buscar()" style="padding:10px 22px">Filtrar</button>
@@ -179,6 +184,8 @@
                 <option value="prova">So de provas anteriores</option>
               </select></div>
           </div>
+
+          <div id="box-erros"></div>
 
           <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px">
             <span style="color:var(--tx3);font-size:12px;align-self:center">Atalhos:</span>
@@ -246,7 +253,8 @@
 
 <script src="config.js"></script>
 <script>
-let _alunoId=null,_concursos=[],_discSel=[],_status='todas',_pag=0,_qs=[],_resp={},_matTipo=''
+let _alunoId=null,_concursos=[],_discSel=[],_assSel=[],_status='todas',_pag=0,_qs=[],_resp={},_matTipo=''
+let _metaDia=30,_respHoje=0,_assuntos={},_errosVelhos=[]
 const PP=10
 
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
@@ -273,7 +281,7 @@ function irSecao(s){
     materiais:['Materiais','Resumos, lei seca e apoio'],flashcards:['Flashcards','Repeticao espacada'],mapas:['Mapas mentais','Revisao visual']}
   if(t[s]){document.getElementById('tit').textContent=t[s][0];document.getElementById('sub').textContent=t[s][1]}
   if(s==='materiais')carregarMateriais()
-  if(s==='simulados'){carregarSimulados();prepararSimulado();carregarHistorico()}
+  if(s==='simulados'){carregarSimulados();prepararSimulado();carregarHistorico();renderBoxErros()}
   window.scrollTo({top:0,behavior:'smooth'})
 }
 
@@ -284,7 +292,7 @@ async function init(){
   _alunoId=user.id
   carregarMarca()
 
-  const { data:al }=await _supabase.from('alunos').select('nome,data_expiracao').eq('id',user.id).single()
+  const { data:al }=await _supabase.from('alunos').select('nome,data_expiracao,meta_questoes_dia').eq('id',user.id).single()
   if(al&&al.data_expiracao){
     const h=new Date();h.setHours(0,0,0,0)
     if(h>new Date(al.data_expiracao+'T00:00:00')){location.href='cronograma.html';return}
@@ -301,8 +309,13 @@ async function init(){
     [['todas','Todas'],['nao','Nao resolvidas'],['resolvidas','Resolvidas'],['acertei','Acertei'],['errei','Errei']]
     .map(function(x){return '<div class="chip'+(x[0]==='todas'?' on':'')+'" data-st="'+x[0]+'" onclick="setStatus(\''+x[0]+'\')">'+x[1]+'</div>'}).join('')
 
-  const { data:rs }=await _supabase.from('questao_respostas').select('questao_id,correta').eq('aluno_id',_alunoId)
-  ;(rs||[]).forEach(function(r){_resp[r.questao_id]={correta:r.correta}})
+  const { data:rs }=await _supabase.from('questao_respostas').select('questao_id,correta,respondido_em').eq('aluno_id',_alunoId)
+  ;(rs||[]).forEach(function(r){_resp[r.questao_id]={correta:r.correta,em:r.respondido_em}})
+
+  if(al&&al.meta_questoes_dia)_metaDia=al.meta_questoes_dia
+  const hj=new Date().toISOString().split('T')[0]
+  _respHoje=(rs||[]).filter(function(r){return String(r.respondido_em||'').slice(0,10)===hj}).length
+  renderMeta()
 
   await carregarFacetas()
   document.getElementById('loading').style.display='none'
@@ -325,10 +338,17 @@ async function carregarMarca(){
 }
 
 async function carregarFacetas(){
-  const { data:qs }=await _supabase.from('questoes').select('disciplina,banca,ano').eq('ativo',true)
+  const { data:qs }=await _supabase.from('questoes').select('disciplina,assunto,banca,ano').eq('ativo',true)
   const d={},b={},a={}
+  _assuntos={}
   ;(qs||[]).forEach(function(q){
-    if(q.disciplina)d[q.disciplina]=(d[q.disciplina]||0)+1
+    if(q.disciplina){
+      d[q.disciplina]=(d[q.disciplina]||0)+1
+      if(q.assunto){
+        if(!_assuntos[q.disciplina])_assuntos[q.disciplina]={}
+        _assuntos[q.disciplina][q.assunto]=(_assuntos[q.disciplina][q.assunto]||0)+1
+      }
+    }
     if(q.banca)b[q.banca]=1
     if(q.ano)a[q.ano]=1
   })
@@ -336,9 +356,52 @@ async function carregarFacetas(){
     return '<div class="chip" data-d="'+esc(x)+'" onclick="toggleDisc(this)">'+esc(x)+' <span style="opacity:.6">'+d[x]+'</span></div>'
   }).join('')||'<span style="color:var(--tx4);font-size:12px">Nenhuma questao cadastrada ainda.</span>'
   const sb=document.getElementById('f-banca')
-  Object.keys(b).sort().forEach(function(x){sb.innerHTML+='<option value="'+esc(x)+'">'+esc(x)+'</option>'})
+  Object.keys(b).sort().forEach(function(x){ sb.innerHTML+='<option value="'+esc(x)+'">'+esc(x)+'</option>' })
   const sa=document.getElementById('f-ano')
-  Object.keys(a).sort().reverse().forEach(function(x){sa.innerHTML+='<option value="'+x+'">'+x+'</option>'})
+  Object.keys(a).sort().reverse().forEach(function(x){ sa.innerHTML+='<option value="'+x+'">'+x+'</option>' })
+}
+
+function renderAssuntos(){
+  const box=document.getElementById('box-assunto')
+  const ch=document.getElementById('ch-assunto')
+  const mapa={}
+  _discSel.forEach(function(d){
+    const a=_assuntos[d]||{}
+    Object.keys(a).forEach(function(k){ mapa[k]=(mapa[k]||0)+a[k] })
+  })
+  const lista=Object.keys(mapa).sort()
+  if(!_discSel.length||!lista.length){ box.style.display='none'; _assSel=[]; return }
+  box.style.display='block'
+  ch.innerHTML=lista.map(function(x){
+    const on=_assSel.indexOf(x)>=0?' on':''
+    return '<div class="chip'+on+'" data-a="'+esc(x)+'" onclick="toggleAss(this)">'+esc(x)+' <span style="opacity:.6">'+mapa[x]+'</span></div>'
+  }).join('')
+}
+
+function toggleAss(el){
+  el.classList.toggle('on')
+  _assSel=Array.from(document.querySelectorAll('#ch-assunto .chip.on')).map(function(e){return e.dataset.a})
+  buscar()
+}
+
+function renderMeta(){
+  const box=document.getElementById('meta-dia')
+  if(!box)return
+  const pct=Math.min(100,Math.round(_respHoje/Math.max(1,_metaDia)*100))
+  const bateu=_respHoje>=_metaDia
+  const cor=bateu?'#6ddba0':pct>=50?'#e8b04b':'var(--ouro)'
+  box.innerHTML='<div class="painel" style="margin-bottom:14px;border-color:'+(bateu?'#6ddba0':'var(--bd)')+
+    (bateu?';background:rgba(109,219,160,.06)':'')+'">'
+    +'<div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">'
+    +'<div style="font-size:26px">'+(bateu?'🎯':'📊')+'</div>'
+    +'<div style="flex:1;min-width:170px">'
+    +'<div style="font-size:14px;font-weight:700">'+(bateu?'Meta do dia batida!':'Meta de hoje')+'</div>'
+    +'<div style="color:var(--tx3);font-size:12.5px;margin-top:2px">'
+    +(bateu?'Voce fez '+_respHoje+' questoes hoje. Cada uma a mais e vantagem.'
+           :'Faltam '+(_metaDia-_respHoje)+' questoes para bater sua meta diaria.')+'</div>'
+    +'<div class="barra" style="margin-top:8px"><div class="barra-f" style="width:'+pct+'%;background:'+cor+'"></div></div></div>'
+    +'<div style="text-align:right"><div style="font-size:24px;font-weight:800;color:'+cor+'">'+_respHoje+'<span style="font-size:15px;color:var(--tx3)">/'+_metaDia+'</span></div>'
+    +'<div style="color:var(--tx3);font-size:11px">questoes hoje</div></div></div></div>'
 }
 
 function renderEstat(){
@@ -361,6 +424,8 @@ function setStatus(s){
 function toggleDisc(el){
   el.classList.toggle('on')
   _discSel=Array.from(document.querySelectorAll('#ch-disc .chip.on')).map(function(e){return e.dataset.d})
+  _assSel=[]
+  renderAssuntos()
   buscar()
 }
 function aoTrocarConcurso(){buscar()}
@@ -371,7 +436,7 @@ function limpar(){
   document.getElementById('f-ano').value=''
   document.getElementById('f-busca').value=''
   document.querySelectorAll('#ch-disc .chip').forEach(function(e){e.classList.remove('on')})
-  _discSel=[];setStatus('todas')
+  _discSel=[];_assSel=[];renderAssuntos();setStatus('todas')
 }
 
 async function buscar(pag){
@@ -406,6 +471,7 @@ async function buscar(pag){
   let q=_supabase.from('questoes').select('*',{count:'exact'}).eq('ativo',true)
   if(ids)q=q.in('id',ids)
   if(_discSel.length)q=q.in('disciplina',_discSel)
+  if(_assSel.length)q=q.in('assunto',_assSel)
   const o=document.getElementById('f-orig').value; if(o)q=q.eq('origem',o)
   const b=document.getElementById('f-banca').value; if(b)q=q.eq('banca',b)
   const a=document.getElementById('f-ano').value; if(a)q=q.eq('ano',parseInt(a))
@@ -479,8 +545,9 @@ async function responder(id){
     e.onclick=null
   })
 
-  _resp[id]={correta:acertou,visto:true}
-  renderEstat()
+  _resp[id]={correta:acertou,visto:true,em:new Date().toISOString()}
+  _respHoje++
+  renderEstat();renderMeta()
 
   await _supabase.from('questao_respostas').upsert({
     aluno_id:_alunoId,questao_id:id,resposta:letra,correta:acertou,respondido_em:new Date().toISOString()
@@ -616,7 +683,63 @@ async function carregarSimulados(){
   box.innerHTML+='<p style="color:var(--tx4);font-size:12px;text-align:center;margin-top:12px">A resolucao de simulados cronometrados chega na proxima atualizacao.</p>'
 }
 
+/* ============ REFAZER OS ERROS (repeticao espacada) ============ */
+function renderBoxErros(){
+  const box=document.getElementById('box-erros')
+  if(!box)return
+  const agora=Date.now()
+  const errados=Object.keys(_resp).filter(function(id){
+    const r=_resp[id]
+    if(r.correta)return false
+    if(!r.em)return true
+    return (agora-new Date(r.em).getTime())/86400000>=3
+  })
+  _errosVelhos=errados
+  const recentes=Object.keys(_resp).filter(function(id){return !_resp[id].correta}).length
+
+  if(!recentes){ box.innerHTML=''; return }
+  box.innerHTML='<div style="background:linear-gradient(135deg,rgba(240,113,113,.10),var(--card2));border:1px solid #f07171;border-radius:12px;padding:14px;margin-bottom:14px">'
+    +'<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">'
+    +'<div style="font-size:24px">🔁</div>'
+    +'<div style="flex:1;min-width:170px">'
+    +'<div style="font-size:14px;font-weight:700;color:#f07171">Refazer o que voce errou</div>'
+    +'<div style="color:var(--tx3);font-size:12.5px;margin-top:2px">'
+    +(errados.length
+       ? errados.length+' questao(oes) que voce errou ha 3 dias ou mais. E o intervalo certo para a memoria fixar.'
+       : 'Voce tem '+recentes+' erro(s), mas todos sao recentes. Volte em alguns dias — refazer cedo demais nao fixa.')
+    +'</div></div>'
+    +(errados.length?'<button class="btn" style="border-color:#f07171;color:#f07171" onclick="simuladoErros()">Refazer '+Math.min(errados.length,40)+'</button>':'')
+    +'</div></div>'
+}
+
+async function simuladoErros(){
+  if(!_errosVelhos.length)return
+  const ids=embaralhar(_errosVelhos.slice()).slice(0,40)
+  const m=document.getElementById('sim-msg')
+  m.style.display='block';m.style.color='var(--tx3)';m.textContent='Montando revisao dos seus erros...'
+
+  const { data:qs }=await _supabase.from('questoes').select('*').in('id',ids)
+  if(!qs||!qs.length){m.style.color='var(--erro)';m.textContent='Nao consegui carregar as questoes.';return}
+
+  const porD={}
+  qs.forEach(function(q){ const d=q.disciplina||'?'; if(!porD[d])porD[d]=[]; porD[d].push(q) })
+  const filas=Object.keys(porD).map(function(d){ return embaralhar(porD[d]) })
+  const ord=[];let vazio=false
+  while(!vazio){ vazio=true; filas.forEach(function(f){ if(f.length){ord.push(f.shift());vazio=false} }) }
+
+  _simQs=ord;_simResp={};_simAtual=0;_simIni=Date.now();_simTipoAtual='erros'
+  m.style.display='none'
+  document.getElementById('sim-inicio').style.display='none'
+  document.getElementById('sim-result').style.display='none'
+  document.getElementById('sim-prova').style.display='block'
+  if(_simTimer)clearInterval(_simTimer)
+  _simTimer=setInterval(atualizarCrono,1000)
+  renderProva()
+}
+
 /* ================== MEU SIMULADO ================== */
+let _simTipoAtual='proprio'
+
 let _simDisp={},_simQs=[],_simResp={},_simAtual=0,_simIni=null,_simTimer=null
 
 async function prepararSimulado(){
@@ -729,7 +852,7 @@ async function iniciarSimulado(){
     filas.forEach(function(f){ if(f.length){ ord.push(f.shift()); vazio=false } })
   }
 
-  _simQs=ord;_simResp={};_simAtual=0;_simIni=Date.now()
+  _simQs=ord;_simResp={};_simAtual=0;_simIni=Date.now();_simTipoAtual='proprio'
   m.style.display='none'
   document.getElementById('sim-inicio').style.display='none'
   document.getElementById('sim-result').style.display='none'
@@ -824,7 +947,7 @@ async function finalizarSimulado(){
     if(!porD[d])porD[d]={t:0,a:0}
     porD[d].t++; if(ok)porD[d].a++
     if(r)linhas.push({aluno_id:_alunoId,questao_id:q.id,resposta:r,correta:ok,respondido_em:new Date().toISOString()})
-    _resp[q.id]={correta:ok}
+    _resp[q.id]={correta:ok,em:new Date().toISOString()}
   })
 
   // grava as respostas para contar nas estatisticas e no ranking
@@ -834,13 +957,14 @@ async function finalizarSimulado(){
     }
   }
   await _supabase.from('simulado_tentativas').insert({
-    aluno_id:_alunoId, simulado_id:null, tipo:'proprio',
-    nome:'Meu simulado — '+_simQs.length+' questoes',
+    aluno_id:_alunoId, simulado_id:null, tipo:_simTipoAtual,
+    nome:(_simTipoAtual==='erros'?'Revisao de erros — ':'Meu simulado — ')+_simQs.length+' questoes',
     acertos:acertos, total:_simQs.length, tempo_segundos:seg,
     detalhes:porD, finalizado_em:new Date().toISOString()
   })
 
-  renderEstat()
+  _respHoje+=linhas.length
+  renderEstat();renderMeta();renderBoxErros()
   const pct=Math.round(acertos/_simQs.length*100)
   const cor=pct>=70?'#6ddba0':pct>=50?'#e8b04b':'#f07171'
   const min=Math.floor(seg/60)
@@ -901,6 +1025,7 @@ function voltarSimulado(){
   document.getElementById('sim-inicio').style.display='block'
   prepararSimulado()
   carregarHistorico()
+  renderBoxErros()
 }
 
 async function salvarErrosCaderno(){
@@ -927,7 +1052,7 @@ async function carregarHistorico(){
   const box=document.getElementById('hist-sim')
   if(!box)return
   const { data:ts }=await _supabase.from('simulado_tentativas').select('*')
-    .eq('aluno_id',_alunoId).eq('tipo','proprio').not('finalizado_em','is',null)
+    .eq('aluno_id',_alunoId).in('tipo',['proprio','erros']).not('finalizado_em','is',null)
     .order('finalizado_em',{ascending:false}).limit(8)
   if(!ts||!ts.length){ box.innerHTML=''; return }
   box.innerHTML='<div style="font-size:13px;font-weight:700;color:var(--ouro);margin-bottom:10px">Meus simulados anteriores</div>'
