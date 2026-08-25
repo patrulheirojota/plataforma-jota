@@ -180,6 +180,8 @@ Lingua Portuguesa;Crase;certo_errado;Julgue o item...;C;Explicacao...;Regra prat
       <h3>Reaproveitar questoes em outro concurso</h3>
       <p style="color:var(--tx3);font-size:13px;margin-bottom:14px">Uma mesma questao pode servir a varios concursos. Direito Penal da PMAL vale igual para a PMBA — vincule sem duplicar nada.</p>
 
+      <div id="sug-banca"></div>
+
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">
         <div>
           <label style="color:var(--tx3);font-size:12px;display:block;margin-bottom:4px">Pegar questoes de</label>
@@ -886,6 +888,58 @@ async function prepararVinculo(){
   sb.innerHTML='<option value="">Todas</option>'
   Object.keys(b).sort().forEach(function(x){ sb.innerHTML+='<option value="'+esc(x)+'">'+esc(x)+'</option>' })
   mapaConcursos()
+  sugerirPorBanca()
+}
+
+async function sugerirPorBanca(){
+  const box=document.getElementById('sug-banca')
+  if(!box)return
+  const porBanca={}
+  _concursos.forEach(function(c){
+    const b=(c.banca||'').trim().toUpperCase()
+    if(!b)return
+    if(!porBanca[b])porBanca[b]=[]
+    porBanca[b].push(c)
+  })
+  const pares=[]
+  Object.keys(porBanca).forEach(function(b){
+    if(porBanca[b].length<2)return
+    pares.push({banca:b,concursos:porBanca[b]})
+  })
+  if(!pares.length){ box.innerHTML=''; return }
+
+  const { data:v }=await _supabase.from('questao_concursos').select('concurso_id')
+  const cont={}
+  ;(v||[]).forEach(function(x){ cont[x.concurso_id]=(cont[x.concurso_id]||0)+1 })
+
+  box.innerHTML=pares.map(function(p){
+    const ord=p.concursos.slice().sort(function(a,b){ return (cont[b.id]||0)-(cont[a.id]||0) })
+    const rico=ord[0], pobres=ord.slice(1)
+    return '<div style="background:linear-gradient(135deg,rgba(201,168,60,.09),var(--card2));border:1px solid var(--ouro);border-radius:12px;padding:14px;margin-bottom:12px">'
+      +'<div style="display:flex;gap:11px;align-items:center;flex-wrap:wrap">'
+      +'<div style="font-size:22px">💡</div>'
+      +'<div style="flex:1;min-width:200px">'
+      +'<div style="font-size:13.5px;font-weight:700;color:var(--ouro)">Mesma banca: '+esc(p.banca)+'</div>'
+      +'<div style="color:var(--tx3);font-size:12.5px;margin-top:3px">'
+      +esc(rico.nome)+' tem <strong>'+(cont[rico.id]||0)+'</strong> questoes. '
+      +pobres.map(function(c){return esc(c.nome)+' tem '+(cont[c.id]||0)}).join(', ')+'.'
+      +' Como a banca e a mesma, o estilo de cobranca se repete.</div></div></div>'
+      +'<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:11px">'
+      +pobres.map(function(c){
+         return '<button class="btn-acao btn-editar" style="font-size:12px" onclick="preencherSugestao(\''+rico.id+'\',\''+c.id+'\')">'
+           +esc(rico.nome)+' &#8594; '+esc(c.nome)+'</button>'
+       }).join('')
+      +'</div></div>'
+  }).join('')
+}
+
+function preencherSugestao(de,para){
+  document.getElementById('v-origem').value=de
+  document.getElementById('v-destino').value=para
+  document.getElementById('v-tipo').value=''
+  document.querySelectorAll('#v-discs .tag-ouro').forEach(function(e){e.classList.remove('tag-ouro')})
+  previewVinculo()
+  document.getElementById('v-destino').scrollIntoView({behavior:'smooth',block:'center'})
 }
 
 async function mapaConcursos(){
