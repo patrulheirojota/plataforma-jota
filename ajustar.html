@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ajustar ao novo edital — Admin</title>
+<script>document.documentElement.setAttribute("data-tema",localStorage.getItem("tema")||"escuro")</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="style.css">
+<style>
+  .passo{display:flex;gap:10px;align-items:center;margin-bottom:14px}
+  .passo-n{width:26px;height:26px;border-radius:50%;background:var(--ouro);color:#0a1420;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex-shrink:0}
+  .cx{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px}
+  .cx-c{background:var(--card2);border:1px solid var(--bd);border-radius:12px;padding:14px;text-align:center}
+  .cx-n{font-size:23px;font-weight:800}
+  .cx-l{color:var(--tx3);font-size:11.5px;margin-top:3px}
+  .lin-t{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:9px;background:var(--card2);margin-bottom:5px;flex-wrap:wrap}
+  .lin-t.sai{border-left:3px solid var(--erro)}
+  .lin-t.entra{border-left:3px solid var(--ok)}
+  .lin-t.fica{border-left:3px solid var(--bd2);opacity:.7}
+  .grupo-h{color:var(--ouro);font-size:13.5px;font-weight:700;margin:16px 0 8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div>
+      <div class="pag-t">Ajustar ao novo edital</div>
+      <div class="pag-s">Atualiza o cronograma sem apagar o que o aluno ja estudou</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button onclick="location.href='gerador.html'" class="btn-neutro" style="width:auto;padding:9px 15px">Gerador</button>
+      <button onclick="location.href='admin.html'" style="width:auto;padding:9px 15px">Painel</button>
+    </div>
+  </header>
+
+  <div class="card">
+    <div class="passo"><div class="passo-n">1</div><h3 style="margin:0">Escolha o aluno</h3></div>
+    <p style="color:var(--tx3);font-size:13px;margin-bottom:12px">O sistema compara o cronograma atual dele com o edital que esta cadastrado agora. Atualize o edital em <strong>Editais</strong> antes de vir aqui.</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">
+      <div>
+        <label style="color:var(--tx3);font-size:12px;display:block;margin-bottom:4px">Aluno</label>
+        <select id="a-aluno" onchange="aoTrocarAluno()"><option value="">Selecione</option></select>
+      </div>
+      <div>
+        <label style="color:var(--tx3);font-size:12px;display:block;margin-bottom:4px">Concurso</label>
+        <select id="a-conc" onchange="comparar()"><option value="">Selecione</option></select>
+      </div>
+    </div>
+    <label style="display:flex;align-items:center;gap:9px;margin-top:14px;font-size:13.5px;cursor:pointer">
+      <input type="checkbox" id="a-turma" style="width:18px;height:18px">
+      Aplicar tambem a todos os outros alunos deste concurso
+    </label>
+    <p id="msg-a" style="display:none;margin-top:10px;font-size:13px"></p>
+  </div>
+
+  <div class="card" id="card-comp" style="display:none">
+    <div class="passo"><div class="passo-n">2</div><h3 style="margin:0">O que mudou</h3></div>
+    <div class="cx" id="resumo"></div>
+    <div id="detalhe"></div>
+  </div>
+
+  <div class="card" id="card-acao" style="display:none">
+    <div class="passo"><div class="passo-n">3</div><h3 style="margin:0">Como ajustar</h3></div>
+    <div style="background:var(--card2);border-radius:11px;padding:14px;margin-bottom:14px">
+      <label style="display:flex;align-items:flex-start;gap:9px;font-size:13.5px;cursor:pointer;margin-bottom:11px">
+        <input type="checkbox" id="op-remover" checked style="width:18px;height:18px;margin-top:2px">
+        <span><strong>Remover os temas que sairam do edital</strong>
+        <span style="display:block;color:var(--tx3);font-size:12px;margin-top:2px">So apaga sessoes que o aluno ainda nao fez. O que ele ja estudou fica no historico.</span></span>
+      </label>
+      <label style="display:flex;align-items:flex-start;gap:9px;font-size:13.5px;cursor:pointer;margin-bottom:11px">
+        <input type="checkbox" id="op-adicionar" checked style="width:18px;height:18px;margin-top:2px">
+        <span><strong>Adicionar os temas que entraram</strong>
+        <span style="display:block;color:var(--tx3);font-size:12px;margin-top:2px">Entram nas vagas livres a partir de hoje, priorizando os de alta prioridade.</span></span>
+      </label>
+      <label style="display:flex;align-items:flex-start;gap:9px;font-size:13.5px;cursor:pointer">
+        <input type="checkbox" id="op-reordenar" style="width:18px;height:18px;margin-top:2px">
+        <span><strong>Reordenar o que sobrou por prioridade</strong>
+        <span style="display:block;color:var(--tx3);font-size:12px;margin-top:2px">Puxa os temas de alta prioridade para os primeiros dias. Use quando faltar pouco tempo para a prova.</span></span>
+      </label>
+    </div>
+    <div id="prev-acao"></div>
+    <button onclick="aplicar()" id="btn-aplicar" class="btn-ok" style="width:100%;padding:13px;margin-top:12px">Aplicar ajuste</button>
+    <p id="msg-ap" style="display:none;margin-top:10px;font-size:13px"></p>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script>
+const PESO={alta:0,media:1,baixa:2}
+let _alunos=[],_concursos=[],_comp=null
+
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function ymd(d){const x=new Date(d);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')}
+function parseD(s){return new Date(s+'T12:00:00')}
+function addDays(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x}
+function norm(t){return String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim()}
+function msg(id,t,c){const m=document.getElementById(id);m.style.display='block';m.style.color=c;m.innerHTML=t}
+
+async function init(){
+  const { data:{user} }=await _supabase.auth.getUser()
+  if(!user){location.href='index.html';return}
+  const { data:al }=await _supabase.from('alunos').select('id,nome').order('nome')
+  _alunos=al||[]
+  const s=document.getElementById('a-aluno')
+  _alunos.forEach(function(a){s.innerHTML+='<option value="'+a.id+'">'+esc(a.nome)+'</option>'})
+  const { data:cc }=await _supabase.from('concursos').select('id,nome')
+  _concursos=cc||[]
+}
+
+async function aoTrocarAluno(){
+  const id=document.getElementById('a-aluno').value
+  const sc=document.getElementById('a-conc')
+  sc.innerHTML='<option value="">Selecione</option>'
+  document.getElementById('card-comp').style.display='none'
+  document.getElementById('card-acao').style.display='none'
+  if(!id)return
+  const { data:v }=await _supabase.from('aluno_concursos').select('concurso_id, concursos(nome)').eq('aluno_id',id)
+  if(!v||!v.length){sc.innerHTML='<option value="">Aluno sem concurso</option>';return}
+  v.forEach(function(x){sc.innerHTML+='<option value="'+x.concurso_id+'">'+esc(x.concursos?x.concursos.nome:'')+'</option>'})
+  if(v.length===1){sc.value=v[0].concurso_id;comparar()}
+}
+
+async function comparar(){
+  const aluno=document.getElementById('a-aluno').value
+  const conc=document.getElementById('a-conc').value
+  if(!aluno||!conc){document.getElementById('card-comp').style.display='none';return}
+  msg('msg-a','Comparando cronograma com o edital...','var(--tx3)')
+
+  const [rs,rt]=await Promise.all([
+    _supabase.from('sessoes_estudo').select('*').eq('aluno_id',aluno).eq('concurso_id',conc),
+    _supabase.from('edital_topicos').select('*').eq('concurso_id',conc).order('disciplina').order('ordem')
+  ])
+  const sess=rs.data||[], tops=rt.data||[]
+
+  if(!sess.length){msg('msg-a','Este aluno ainda nao tem cronograma neste concurso. Use o <a href="gerador.html" style="color:var(--ouro)">Gerador</a>.','var(--alerta)');document.getElementById('card-comp').style.display='none';return}
+  if(!tops.length){msg('msg-a','Nenhum edital cadastrado para este concurso. Cadastre em <a href="edital-admin.html" style="color:var(--ouro)">Editais</a> primeiro.','var(--erro)');document.getElementById('card-comp').style.display='none';return}
+
+  // chave por texto normalizado, para funcionar mesmo quando o topico_id mudou
+  const noEdital={}
+  tops.forEach(function(t){ noEdital[norm(t.topico)]={t:t,usado:false} })
+
+  const noPlano={}
+  sess.forEach(function(s){
+    const k=norm(String(s.topico).replace(/\s*\(continuacao[^)]*\)\s*$/i,''))
+    if(!noPlano[k])noPlano[k]={topico:s.topico,disciplina:s.disciplina,sessoes:[],feitas:0}
+    noPlano[k].sessoes.push(s)
+    if(s.concluida)noPlano[k].feitas++
+  })
+
+  const saem=[],ficam=[]
+  Object.keys(noPlano).forEach(function(k){
+    if(noEdital[k]){ noEdital[k].usado=true; ficam.push(noPlano[k]) }
+    else saem.push(noPlano[k])
+  })
+  const entram=tops.filter(function(t){ return !noEdital[norm(t.topico)].usado })
+
+  const pendSaem=saem.reduce(function(a,x){return a+x.sessoes.filter(function(s){return !s.concluida}).length},0)
+  const feitasSaem=saem.reduce(function(a,x){return a+x.feitas},0)
+
+  _comp={aluno:aluno,conc:conc,sess:sess,saem:saem,ficam:ficam,entram:entram,pendSaem:pendSaem}
+  msg('msg-a','','var(--tx3)')
+  document.getElementById('msg-a').style.display='none'
+  document.getElementById('card-comp').style.display='block'
+  document.getElementById('card-acao').style.display='block'
+
+  document.getElementById('resumo').innerHTML=
+    '<div class="cx-c" style="border-color:var(--erro)"><div class="cx-n" style="color:var(--erro)">'+saem.length+'</div><div class="cx-l">temas sairam</div></div>'
+   +'<div class="cx-c" style="border-color:var(--ok)"><div class="cx-n" style="color:var(--ok)">'+entram.length+'</div><div class="cx-l">temas entraram</div></div>'
+   +'<div class="cx-c"><div class="cx-n">'+ficam.length+'</div><div class="cx-l">continuam iguais</div></div>'
+   +'<div class="cx-c"><div class="cx-n" style="color:var(--ouro)">'+pendSaem+'</div><div class="cx-l">sessoes a remover</div></div>'
+
+  let html=''
+  if(saem.length){
+    html+='<div class="grupo-h"><span>Saem do edital</span><span style="color:var(--tx3);font-size:12px;font-weight:400">'
+      +(feitasSaem?feitasSaem+' ja estudado(s) — o historico e preservado':'nenhum foi estudado ainda')+'</span></div>'
+      +saem.map(function(x){
+        return '<div class="lin-t sai"><span style="flex:1;min-width:150px;font-size:13px">'+esc(x.topico)+'</span>'
+          +'<span style="color:var(--tx3);font-size:11.5px">'+esc(x.disciplina)+'</span>'
+          +(x.feitas?'<span class="tag tag-ok">'+x.feitas+' feita(s)</span>':'')
+          +'<span class="tag tag-erro">'+x.sessoes.filter(function(s){return !s.concluida}).length+' pendente(s)</span></div>'
+      }).join('')
+  }
+  if(entram.length){
+    html+='<div class="grupo-h"><span>Entraram no edital</span></div>'
+      +entram.map(function(t){
+        return '<div class="lin-t entra"><span style="flex:1;min-width:150px;font-size:13px">'+esc(t.topico)+'</span>'
+          +'<span style="color:var(--tx3);font-size:11.5px">'+esc(t.disciplina)+'</span>'
+          +'<span class="tag '+(t.prioridade==='alta'?'tag-erro':t.prioridade==='media'?'tag-alerta':'tag-info')+'">'+String(t.prioridade||'media').toUpperCase()+'</span></div>'
+      }).join('')
+  }
+  if(!saem.length&&!entram.length){
+    html='<div style="text-align:center;padding:26px;color:var(--ok)"><div style="font-size:34px;margin-bottom:8px">✅</div>'
+      +'O cronograma ja esta alinhado com o edital atual. Nada a ajustar.</div>'
+    document.getElementById('card-acao').style.display='none'
+  }
+  document.getElementById('detalhe').innerHTML=html
+  previewAcao()
+  ;['op-remover','op-adicionar','op-reordenar'].forEach(function(id){
+    document.getElementById(id).onchange=previewAcao
+  })
+}
+
+function previewAcao(){
+  if(!_comp)return
+  const rem=document.getElementById('op-remover').checked
+  const add=document.getElementById('op-adicionar').checked
+  const reo=document.getElementById('op-reordenar').checked
+  const partes=[]
+  if(rem&&_comp.pendSaem)partes.push('remover <strong>'+_comp.pendSaem+'</strong> sessao(oes) pendente(s) dos temas que sairam')
+  if(add&&_comp.entram.length)partes.push('criar sessoes para <strong>'+_comp.entram.length+'</strong> tema(s) novo(s)')
+  if(reo)partes.push('reordenar os temas restantes por prioridade')
+  document.getElementById('prev-acao').innerHTML=partes.length
+    ? '<div style="background:var(--card2);border-left:3px solid var(--ouro);border-radius:0 10px 10px 0;padding:13px;font-size:13px;line-height:1.7">O ajuste vai '+partes.join(', ')+'.<br><span style="color:var(--tx3);font-size:12px">Sessoes ja concluidas nunca sao apagadas.</span></div>'
+    : '<div style="color:var(--alerta);font-size:13px">Marque ao menos uma opcao.</div>'
+  document.getElementById('btn-aplicar').style.display=partes.length?'block':'none'
+}
+
+async function aplicar(){
+  if(!_comp)return
+  const rem=document.getElementById('op-remover').checked
+  const add=document.getElementById('op-adicionar').checked
+  const reo=document.getElementById('op-reordenar').checked
+  const turma=document.getElementById('a-turma').checked
+
+  let alvos=[_comp.aluno]
+  if(turma){
+    const { data:v }=await _supabase.from('aluno_concursos').select('aluno_id').eq('concurso_id',_comp.conc)
+    alvos=(v||[]).map(function(x){return x.aluno_id})
+  }
+  if(!confirm('Aplicar o ajuste a '+alvos.length+' aluno(s)?\n\nSessoes ja concluidas nao serao apagadas.'))return
+
+  msg('msg-ap','Ajustando...','var(--tx3)')
+  let totalRem=0,totalAdd=0
+
+  for(let i=0;i<alvos.length;i++){
+    const aid=alvos[i]
+    msg('msg-ap','Ajustando aluno '+(i+1)+' de '+alvos.length+'...','var(--tx3)')
+
+    const [rs,rt,rc]=await Promise.all([
+      _supabase.from('sessoes_estudo').select('*').eq('aluno_id',aid).eq('concurso_id',_comp.conc),
+      _supabase.from('edital_topicos').select('*').eq('concurso_id',_comp.conc),
+      _supabase.from('config_cronograma').select('*').eq('aluno_id',aid).eq('concurso_id',_comp.conc).maybeSingle()
+    ])
+    const sess=rs.data||[], tops=rt.data||[], cfg=rc.data
+    if(!sess.length)continue
+
+    const chaveEd={}
+    tops.forEach(function(t){ chaveEd[norm(t.topico)]=t })
+
+    // 1) remove pendentes dos temas que sairam
+    if(rem){
+      const fora=sess.filter(function(s){
+        if(s.concluida)return false
+        const k=norm(String(s.topico).replace(/\s*\(continuacao[^)]*\)\s*$/i,''))
+        return !chaveEd[k]
+      }).map(function(s){return s.id})
+      if(fora.length){
+        for(let j=0;j<fora.length;j+=200){
+          await _supabase.from('sessoes_estudo').delete().in('id',fora.slice(j,j+200))
+        }
+        totalRem+=fora.length
+      }
+    }
+
+    // 2) adiciona os temas novos nas vagas livres
+    if(add){
+      const { data:atual }=await _supabase.from('sessoes_estudo').select('data,ordem,topico,tipo')
+        .eq('aluno_id',aid).eq('concurso_id',_comp.conc)
+      const noPlano={}
+      ;(atual||[]).forEach(function(s){ noPlano[norm(String(s.topico).replace(/\s*\(continuacao[^)]*\)\s*$/i,''))]=1 })
+      const novos=tops.filter(function(t){ return !noPlano[norm(t.topico)] })
+      if(novos.length){
+        novos.sort(function(a,b){
+          const pa=PESO[a.prioridade]===undefined?1:PESO[a.prioridade]
+          const pb=PESO[b.prioridade]===undefined?1:PESO[b.prioridade]
+          return pa-pb
+        })
+        const cap=(cfg&&cfg.sessoes_por_dia)||3
+        const dias=(cfg&&cfg.dias_semana)?String(cfg.dias_semana).split(',').map(Number):[1,2,3,4,5,6]
+        const tempo=(cfg&&cfg.tempo_sessao)||60
+        const metaQ=(cfg&&cfg.meta_questoes_sessao)||20
+        const dq=(cfg&&cfg.dias_questoes)||5
+        const dr=(cfg&&cfg.dias_revisao)||15
+        const modos=[]
+        if(!cfg||cfg.modo_teoria!==false)modos.push({tipo:'teoria',off:0})
+        if(!cfg||cfg.modo_questoes!==false)modos.push({tipo:'questoes',off:dq})
+        if(!cfg||cfg.modo_revisao!==false)modos.push({tipo:'revisao',off:dr})
+        if(!modos.length)modos.push({tipo:'teoria',off:0})
+        const base=modos[0].off
+        modos.forEach(function(m){m.off-=base})
+
+        const ocup={},ordMax={}
+        ;(atual||[]).forEach(function(s){
+          ocup[s.data]=(ocup[s.data]||0)+1
+          ordMax[s.data]=Math.max(ordMax[s.data]||0,s.ordem||0)
+        })
+        const fimPlano=(atual||[]).reduce(function(m,s){return s.data>m?s.data:m},ymd(new Date()))
+        const hj=ymd(new Date())
+        const inicio=hj>fimPlano?hj:hj
+
+        const linhas=[]
+        let d=parseD(inicio),guarda=0,idx=0
+        const pend=[]
+        while((idx<novos.length||pend.length)&&guarda<900){
+          const k=ymd(d)
+          if(dias.indexOf(d.getDay())>=0){
+            let livres=Math.max(0,cap-(ocup[k]||0))
+            let ord=(ordMax[k]||0)+1
+            const due=pend.filter(function(p){return p.due<=d})
+            while(livres>0&&due.length){
+              const p=due.shift()
+              pend.splice(pend.indexOf(p),1)
+              linhas.push({aluno_id:aid,concurso_id:_comp.conc,data:k,tipo:p.tipo,disciplina:p.t.disciplina,
+                topico:p.t.topico,topico_id:p.t.id,tempo_minutos:tempo,
+                meta_questoes:p.tipo==='questoes'?metaQ:0,ordem:ord++})
+              livres--
+            }
+            while(livres>0&&idx<novos.length){
+              const t=novos[idx++]
+              linhas.push({aluno_id:aid,concurso_id:_comp.conc,data:k,tipo:modos[0].tipo,disciplina:t.disciplina,
+                topico:t.topico,topico_id:t.id,tempo_minutos:tempo,
+                meta_questoes:modos[0].tipo==='questoes'?metaQ:0,ordem:ord++})
+              for(let z=1;z<modos.length;z++)pend.push({tipo:modos[z].tipo,due:addDays(d,modos[z].off),t:t})
+              livres--
+            }
+          }
+          d=addDays(d,1);guarda++
+        }
+        if(linhas.length){
+          for(let j=0;j<linhas.length;j+=300){
+            const r=await _supabase.from('sessoes_estudo').insert(linhas.slice(j,j+300))
+            if(r.error){msg('msg-ap','Erro ao inserir: '+r.error.message,'var(--erro)');return}
+          }
+          totalAdd+=linhas.length
+        }
+      }
+    }
+
+    // 3) reordena os pendentes por prioridade
+    if(reo){
+      const { data:pend2 }=await _supabase.from('sessoes_estudo').select('id,data,ordem,topico,tipo,concluida')
+        .eq('aluno_id',aid).eq('concurso_id',_comp.conc).eq('concluida',false).gte('data',ymd(new Date()))
+      if(pend2&&pend2.length){
+        const prio={}
+        tops.forEach(function(t){ prio[norm(t.topico)]=PESO[t.prioridade]===undefined?1:PESO[t.prioridade] })
+        const datas=[...new Set(pend2.map(function(s){return s.data}))].sort()
+        const fila=pend2.slice().sort(function(a,b){
+          const pa=prio[norm(String(a.topico).replace(/\s*\(continuacao[^)]*\)\s*$/i,''))]
+          const pb=prio[norm(String(b.topico).replace(/\s*\(continuacao[^)]*\)\s*$/i,''))]
+          return (pa===undefined?1:pa)-(pb===undefined?1:pb)
+        })
+        const porData={}
+        pend2.forEach(function(s){ porData[s.data]=(porData[s.data]||0)+1 })
+        let f=0
+        for(let di=0;di<datas.length&&f<fila.length;di++){
+          const k=datas[di]
+          for(let z=0;z<porData[k]&&f<fila.length;z++){
+            const s=fila[f++]
+            if(s.data!==k||s.ordem!==z+1){
+              await _supabase.from('sessoes_estudo').update({data:k,ordem:z+1}).eq('id',s.id)
+            }
+          }
+        }
+      }
+    }
+  }
+
+  msg('msg-ap','<strong style="color:var(--ok)">Ajuste concluido!</strong> '+totalRem+' sessao(oes) removida(s), '
+    +totalAdd+' criada(s), em '+alvos.length+' aluno(s).','var(--ok)')
+  comparar()
+}
+
+init()
+</script>
+</body>
+</html>
