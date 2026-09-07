@@ -22,6 +22,19 @@ async function entrarNoPainel() {
   try { await carregarConcursos() } catch(e) { console.error(e) }
   try { await carregarAlunosParaCronograma() } catch(e) { console.error(e) }
   try { await carregarAlunos() } catch(e) { console.error(e) }
+  const foco = sessionStorage.getItem('alunoFoco')
+  if (foco) {
+    sessionStorage.removeItem('alunoFoco')
+    setTimeout(function(){
+      const el = document.getElementById('card-aluno-'+foco)
+      if (el) {
+        el.scrollIntoView({behavior:'smooth',block:'center'})
+        el.style.borderColor='var(--ouro)'
+        el.style.boxShadow='0 0 0 2px rgba(201,168,60,.25)'
+        setTimeout(function(){ el.style.boxShadow='' },2600)
+      }
+    }, 500)
+  }
 }
 
 async function sairAdmin() { await _supabase.auth.signOut(); location.reload() }
@@ -256,6 +269,8 @@ async function carregarAlunos() {
       <option value="antigo">Mais antigo primeiro</option>
       <option value="nome-az">Nome A-Z</option>
       <option value="nome-za">Nome Z-A</option>
+      <option value="sem-acesso">Sumido ha mais tempo</option>
+      <option value="mexeu">Quem mexeu no cronograma</option>
       <option value="expira-breve">Acesso expirando primeiro</option>
     </select>
     <button onclick="exportarAlunosCSV()" class="btn-acao btn-editar" style="padding:10px 16px;white-space:nowrap">Exportar CSV</button>
@@ -280,6 +295,20 @@ function filtrarAlunos() {
     if (ordem === 'nome-za') return b.nome.localeCompare(a.nome)
     if (ordem === 'recente') return new Date(b.criado_em || 0) - new Date(a.criado_em || 0)
     if (ordem === 'antigo') return new Date(a.criado_em || 0) - new Date(b.criado_em || 0)
+    if (ordem === 'sem-acesso') {
+      const ta = a.ultimo_acesso ? new Date(a.ultimo_acesso).getTime() : 0
+      const tb = b.ultimo_acesso ? new Date(b.ultimo_acesso).getTime() : 0
+      return ta - tb
+    }
+    if (ordem === 'mexeu') {
+      const al = window._alertasAluno||{}
+      const ma = (al[a.id]&&al[a.id].mudou)?0:1
+      const mb = (al[b.id]&&al[b.id].mudou)?0:1
+      if (ma !== mb) return ma - mb
+      const da = (al[a.id]&&al[a.id].ajuste)?new Date(al[a.id].ajuste).getTime():0
+      const db = (al[b.id]&&al[b.id].ajuste)?new Date(al[b.id].ajuste).getTime():0
+      return db - da
+    }
     if (ordem === 'expira-breve') {
       const da = a.data_expiracao ? new Date(a.data_expiracao) : new Date('2099-12-31')
       const db = b.data_expiracao ? new Date(b.data_expiracao) : new Date('2099-12-31')
@@ -333,19 +362,36 @@ function renderizarListaAlunos(alunos) {
   alunos.forEach(a => {
     const status = statusAcesso(a.data_expiracao)
     const al = alertas[a.id] || {}
+    const acesso = tempoRelativo(a.ultimo_acesso)
+    const estudo = al.estudo ? tempoRelativo(al.estudo+'T12:00:00') : null
+    const ajuste = tempoRelativo(al.ajuste)
+    const plano  = tempoRelativo(al.plano)
+
+    const corEstudo = !al.estudo ? 'var(--erro)'
+      : (Math.floor((Date.now()-new Date(al.estudo+'T12:00:00').getTime())/86400000) > 3 ? 'var(--alerta)' : 'var(--ok)')
+
     div.innerHTML += `<div class="item-lista" style="flex-wrap:wrap;gap:8px" id="card-aluno-${a.id}">
-      <div style="flex:1;min-width:140px">
+      <div style="flex:1;min-width:190px">
         <strong>${a.nome}</strong>
         <div style="color:var(--tx3);font-size:12px">${a.email}</div>
         <div style="color:var(--tx3);font-size:12px">${a.concursos?.nome||'Sem concurso'}</div>
         <div style="color:${status.cor};font-size:11px;margin-top:2px;font-weight:bold">${status.texto}</div>
-        <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:5px">
+
+        <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:7px;font-size:11.5px">
+          <span style="color:var(--tx4)">Ultimo acesso: <strong style="color:${acesso?'var(--tx2)':'var(--tx4)'}">${acesso||'nunca entrou'}</strong></span>
+          <span style="color:var(--tx4)">Ultimo estudo: <strong style="color:${corEstudo}">${estudo||'nunca'}</strong></span>
+        </div>
+        ${ajuste ? `<div style="font-size:11.5px;margin-top:4px;color:${al.mudou?'var(--info)':'var(--tx4)'}">
+          Ajustou o cronograma ${ajuste}: ${String(al.ajusteTxt||'').substring(0,68)}</div>` : ''}
+        ${plano ? `<div style="font-size:11.5px;margin-top:3px;color:var(--tx4)">Plano gerado por voce ${plano}</div>` : ''}
+
+        <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:6px">
           ${a.diretrizes?'<span class="tag tag-info">tem diretrizes</span>':''}
           ${al.mudou?'<span class="tag tag-alerta">mexeu no cronograma</span>':''}
           ${al.fraco?'<span class="tag tag-erro">'+al.fraco+'</span>':''}
         </div>
       </div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-content:flex-start">
         <button class="btn-acao btn-editar" onclick="abrirEditarAluno('${a.id}','${a.nome}','${a.email}','${a.concurso_id||''}')">Editar</button>
         <button class="btn-acao btn-editar" onclick="gerenciarConcursosAluno('${a.id}','${a.nome}')">Concursos</button>
         <button class="btn-acao btn-editar" onclick="irParaCronogramaAluno('${a.id}','${a.nome}')" style="background:var(--hov);color:var(--info);border:1px solid var(--info)">Cronograma</button>
@@ -361,25 +407,40 @@ function renderizarListaAlunos(alunos) {
 // Alertas: quem mexeu no cronograma e quem esta fraco em alguma disciplina
 async function carregarAlertas() {
   const alertas = {}
-  const setedias = new Date(); setedias.setDate(setedias.getDate()-7)
-  const lim = setedias.toISOString()
 
-  const [rl, rs] = await Promise.all([
-    _supabase.from('cronograma_log').select('aluno_id').eq('visto', false),
-    _supabase.from('sessoes_estudo').select('aluno_id,disciplina,questoes_feitas,questoes_certas').gt('questoes_feitas', 0)
+  const [rl, rs, rr] = await Promise.all([
+    _supabase.from('cronograma_log').select('aluno_id,acao,detalhe,criado_em,visto').order('criado_em',{ascending:false}),
+    _supabase.from('sessoes_estudo').select('aluno_id,disciplina,questoes_feitas,questoes_certas,concluida,data'),
+    _supabase.from('config_cronograma').select('aluno_id,atualizado_em')
   ])
 
+  // ultimo ajuste feito pelo proprio aluno
   ;(rl.data||[]).forEach(function(l){
     if(!alertas[l.aluno_id])alertas[l.aluno_id]={}
-    alertas[l.aluno_id].mudou = true
+    const a = alertas[l.aluno_id]
+    if(!a.ajuste){ a.ajuste = l.criado_em; a.ajusteTxt = l.detalhe||l.acao }
+    if(!l.visto) a.mudou = true
   })
 
-  const acc = {}
+  // ultima geracao de plano feita por voce
+  ;(rr.data||[]).forEach(function(x){
+    if(!alertas[x.aluno_id])alertas[x.aluno_id]={}
+    alertas[x.aluno_id].plano = x.atualizado_em
+  })
+
+  // ultimo estudo e desempenho fraco por disciplina
+  const acc = {}, ultimo = {}
   ;(rs.data||[]).forEach(function(s){
+    if(s.concluida && (!ultimo[s.aluno_id] || s.data > ultimo[s.aluno_id])) ultimo[s.aluno_id] = s.data
+    if(!s.questoes_feitas) return
     const k = s.aluno_id+'||'+s.disciplina
     if(!acc[k])acc[k]={aluno:s.aluno_id,disc:s.disciplina,f:0,c:0}
     acc[k].f += s.questoes_feitas||0
     acc[k].c += s.questoes_certas||0
+  })
+  Object.keys(ultimo).forEach(function(id){
+    if(!alertas[id])alertas[id]={}
+    alertas[id].estudo = ultimo[id]
   })
   const piores = {}
   Object.keys(acc).forEach(function(k){
@@ -396,6 +457,16 @@ async function carregarAlertas() {
 
   window._alertasAluno = alertas
   return alertas
+}
+
+function tempoRelativo(d) {
+  if(!d) return null
+  const dias = Math.floor((Date.now() - new Date(d).getTime())/86400000)
+  if(dias <= 0) return 'hoje'
+  if(dias === 1) return 'ontem'
+  if(dias < 30) return 'ha '+dias+' dias'
+  const m = Math.floor(dias/30)
+  return 'ha '+m+(m===1?' mes':' meses')
 }
 
 async function confirmarExcluirAluno(aluno_id, nome) {
