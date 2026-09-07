@@ -426,6 +426,7 @@ async function init(){
   if(!aluno){alert('Aluno nao encontrado. Contate o mentor.');return}
   _nome=aluno.nome
   _diretrizes=aluno.diretrizes||null
+  registrarAcesso()
   _diretrizesEm=aluno.diretrizes_em||null
   document.getElementById('nome').textContent=_nome.split(' ')[0]
 
@@ -1358,6 +1359,18 @@ async function carregarMarca(){
     if(li){li.innerHTML='<img src="'+esc(m.logo_url)+'" style="width:100%;height:100%;object-fit:cover;border-radius:10px" onerror="this.parentElement.textContent=\'🛡️\'">';li.style.background='transparent';li.style.padding='0'}
   }
   document.title=nome
+}
+
+async function registrarAcesso(){
+  try{
+    const chave='acesso_'+_alunoId
+    const ultimo=localStorage.getItem(chave)
+    const agora=Date.now()
+    // grava no maximo uma vez a cada 30 min
+    if(ultimo && (agora-parseInt(ultimo))<1800000) return
+    localStorage.setItem(chave,String(agora))
+    await _supabase.from('alunos').update({ultimo_acesso:new Date().toISOString()}).eq('id',_alunoId)
+  }catch(e){}
 }
 
 async function sair(){await _supabase.auth.signOut();location.href='index.html'}
