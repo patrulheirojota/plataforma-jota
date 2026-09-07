@@ -291,6 +291,7 @@ async function init(){
   if(!user){location.href='index.html';return}
   _alunoId=user.id
   carregarMarca()
+  registrarAcesso()
 
   const { data:al }=await _supabase.from('alunos').select('nome,data_expiracao,meta_questoes_dia').eq('id',user.id).single()
   if(al&&al.data_expiracao){
@@ -1067,6 +1068,18 @@ async function carregarHistorico(){
          +'<div style="text-align:right"><div style="font-size:17px;font-weight:800;color:'+cc+'">'+p+'%</div>'
          +'<div style="color:var(--tx3);font-size:11px">'+t.acertos+'/'+t.total+'</div></div></div>'
      }).join('')
+}
+
+async function registrarAcesso(){
+  try{
+    const chave='acesso_'+_alunoId
+    const ultimo=localStorage.getItem(chave)
+    const agora=Date.now()
+    // grava no maximo uma vez a cada 30 min
+    if(ultimo && (agora-parseInt(ultimo))<1800000) return
+    localStorage.setItem(chave,String(agora))
+    await _supabase.from('alunos').update({ultimo_acesso:new Date().toISOString()}).eq('id',_alunoId)
+  }catch(e){}
 }
 
 async function sair(){await _supabase.auth.signOut();location.href='index.html'}
