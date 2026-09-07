@@ -1,352 +1,356 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Visao Geral — Patrulheiros de Elite</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="style.css">
-  <style>
-    .overview-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 14px;
-      margin-top: 16px;
-    }
-    .aluno-card {
-      background: var(--card);
-      border-radius: 12px;
-      padding: 16px;
-      border-left: 4px solid var(--bd2);
-      transition: border-color 0.2s;
-      cursor: pointer;
-    }
-    .aluno-card:hover { border-color: var(--ouro); }
-    .aluno-card.verde { border-color: var(--ok); }
-    .aluno-card.amarelo { border-color: var(--alerta); }
-    .aluno-card.vermelho { border-color: var(--erro); }
-    .aluno-card.sem-dados { border-color: var(--bd2); opacity: 0.7; }
-    .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
-    .card-nome { font-size: 15px; font-weight: bold; flex: 1; }
-    .card-concurso { font-size: 11px; color: var(--tx3); margin-top: 2px; }
-    .card-streak { font-size: 22px; font-weight: bold; color: var(--ouro); }
-    .card-streak-label { font-size: 10px; color: var(--tx3); text-align: center; }
-    .card-stats { display: flex; gap: 8px; margin-top: 10px; }
-    .card-stat { flex: 1; background: var(--card2); border-radius: 8px; padding: 8px; text-align: center; }
-    .card-stat-val { font-size: 16px; font-weight: bold; }
-    .card-stat-label { font-size: 10px; color: var(--tx3); margin-top: 2px; }
-    .card-ultima { font-size: 11px; color: var(--tx3); margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--bd2); }
-    .card-dias-row { display: flex; gap: 3px; margin-top: 8px; }
-    .card-dia { width: 14px; height: 14px; border-radius: 3px; }
-    .filtros { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
-    .filtro-btn { width: auto; padding: 7px 14px; font-size: 13px; background: var(--card); color: var(--tx3); border: 1px solid var(--bd2); border-radius: 8px; font-weight: normal; }
-    .filtro-btn.ativo { background: var(--ouro); color: var(--card2); border-color: var(--ouro); }
-    .resumo-topo { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 20px; }
-    .resumo-card { background: var(--card); border-radius: 10px; padding: 14px; text-align: center; }
-    .resumo-val { font-size: 26px; font-weight: bold; }
-    .resumo-label { font-size: 12px; color: var(--tx3); margin-top: 4px; }
-    .loading { text-align: center; padding: 40px; color: var(--tx3); }
-    .barra-progresso { height: 4px; border-radius: 2px; background: var(--card2); margin-top: 8px; overflow: hidden; }
-    .barra-fill { height: 100%; border-radius: 2px; transition: width 0.5s; }
-    @media (max-width: 600px) {
-      .overview-grid { grid-template-columns: 1fr; }
-      .resumo-topo { grid-template-columns: repeat(2, 1fr); }
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Visao Geral — Painel do Mentor</title>
 <script>document.documentElement.setAttribute("data-tema",localStorage.getItem("tema")||"escuro")</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="style.css">
+<style>
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+  .ac{background:var(--card);border:1px solid var(--bd);border-left:4px solid var(--bd2);border-radius:14px;padding:15px;cursor:pointer;transition:.13s}
+  .ac:hover{border-color:var(--ouro);transform:translateY(-1px)}
+  .ac.v{border-left-color:var(--ok)} .ac.a{border-left-color:var(--alerta)}
+  .ac.r{border-left-color:var(--erro)} .ac.n{border-left-color:var(--bd2);opacity:.72}
+  .ac-h{display:flex;gap:10px;align-items:center;margin-bottom:11px}
+  .av{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#0a1420;flex-shrink:0}
+  .ac-n{flex:1;min-width:0}
+  .ac-nm{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ac-cs{color:var(--tx4);font-size:11.5px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ac-st{text-align:right;flex-shrink:0}
+  .ac-sn{font-size:17px;font-weight:800}
+  .ac-sl{color:var(--tx4);font-size:10px}
+  .met{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-bottom:10px}
+  .met-c{background:var(--card2);border-radius:9px;padding:8px 5px;text-align:center}
+  .met-n{font-size:14px;font-weight:800}
+  .met-l{color:var(--tx4);font-size:9.5px;margin-top:1px}
+  .dias{display:flex;gap:3px;margin-bottom:9px}
+  .d{flex:1;height:20px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:8.5px;font-weight:700}
+  .rod{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:11px;color:var(--tx4);border-top:1px solid var(--bd);padding-top:9px}
+  .flags{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:9px;min-height:1px}
+  .fl{font-size:9px;padding:2px 7px;border-radius:9px;font-weight:700}
+  .top{display:grid;grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:10px;margin-bottom:18px}
+  .tc{background:var(--card);border:1px solid var(--bd);border-radius:13px;padding:14px;text-align:center}
+  .tn{font-size:23px;font-weight:800}
+  .tl{color:var(--tx3);font-size:11px;margin-top:2px}
+  .fbar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+  .fb{padding:8px 14px;border-radius:20px;border:1px solid var(--bd2);background:var(--card);color:var(--tx3);font-size:12.5px;cursor:pointer;font-weight:600}
+  .fb.on{background:var(--ouro);color:#0a1420;border-color:var(--ouro)}
+  .load{text-align:center;padding:50px 20px;color:var(--tx3)}
+  .spin{width:34px;height:34px;border:3px solid var(--bd2);border-top-color:var(--ouro);border-radius:50%;animation:g 1s linear infinite;margin:0 auto 14px}
+  @keyframes g{to{transform:rotate(360deg)}}
+</style>
 </head>
 <body>
 <div class="container">
   <header>
     <div>
-      <h2>Visao Geral dos Alunos</h2>
-      <div style="color:var(--tx3);font-size:13px;margin-top:2px" id="ultima-atualizacao"></div>
+      <div class="pag-t">Visao Geral</div>
+      <div class="pag-s" id="sub">Carregando...</div>
     </div>
-    <div style="display:flex;gap:8px">
-      <button onclick="recarregar()" style="width:auto;padding:8px 14px;background:var(--card);color:var(--ouro);border:1px solid var(--ouro)">Atualizar</button>
-      <button onclick="window.location.href='relatorio.html'" style="width:auto;padding:8px 14px;background:var(--card2);color:var(--ok);border:1px solid var(--ok)">Relatorios</button><button onclick="window.location.href='admin.html'" style="width:auto;padding:8px 14px">Painel Admin</button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button onclick="carregar()" class="btn-neutro" style="width:auto;padding:9px 15px">Atualizar</button>
+      <button onclick="location.href='admin.html'" style="width:auto;padding:9px 15px">Painel</button>
     </div>
   </header>
 
-  <!-- Resumo no topo -->
-  <div class="resumo-topo" id="resumo-topo">
-    <div class="resumo-card"><div class="resumo-val" id="r-total" style="color:var(--ouro)">--</div><div class="resumo-label">Total de alunos</div></div>
-    <div class="resumo-card"><div class="resumo-val" id="r-ativos" style="color:var(--ok)">--</div><div class="resumo-label">Ativos hoje</div></div>
-    <div class="resumo-card"><div class="resumo-val" id="r-streak" style="color:var(--ouro)">--</div><div class="resumo-label">Maior streak</div></div>
-    <div class="resumo-card"><div class="resumo-val" id="r-inativo" style="color:var(--erro)">--</div><div class="resumo-label">Inativos +3 dias</div></div>
-    <div class="resumo-card"><div class="resumo-val" id="r-questoes" style="color:var(--info)">--</div><div class="resumo-label">Questoes hoje</div></div>
-  </div>
+  <div id="load" class="load"><div class="spin"></div><div id="load-t">Carregando dados...</div></div>
 
-  <!-- Filtros e busca -->
-  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:center">
-    <input type="text" id="busca-overview" placeholder="Buscar aluno..." oninput="filtrarCards()" style="flex:1;min-width:180px;margin:0">
-    <select id="filtro-concurso-overview" onchange="filtrarCards()" style="margin:0;flex:1;min-width:160px">
-      <option value="">Todos os concursos</option>
-    </select>
-  </div>
-  <div class="filtros">
-    <button class="filtro-btn ativo" onclick="setFiltro('todos', this)">Todos</button>
-    <button class="filtro-btn" onclick="setFiltro('verde', this)" style="color:var(--ok);border-color:var(--ok)">Em dia</button>
-    <button class="filtro-btn" onclick="setFiltro('amarelo', this)" style="color:var(--alerta);border-color:var(--alerta)">Atencao</button>
-    <button class="filtro-btn" onclick="setFiltro('vermelho', this)" style="color:var(--erro);border-color:var(--erro)">Critico</button>
-    <button class="filtro-btn" onclick="setFiltro('sem-dados', this)">Sem registro</button>
-    <button class="filtro-btn" onclick="ordenarPor('streak')" id="ord-streak">Streak</button>
-    <button class="filtro-btn" onclick="ordenarPor('cumprimento')" id="ord-cump">Cumprimento</button>
-    <button class="filtro-btn" onclick="ordenarPor('nome')" id="ord-nome">Nome A-Z</button>
-  </div>
+  <div id="app" style="display:none">
+    <div class="top" id="top"></div>
 
-  <div class="loading" id="loading">Carregando dados dos alunos...</div>
-  <div class="overview-grid" id="overview-grid" style="display:none"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+      <input type="text" id="busca" placeholder="Buscar aluno..." oninput="render()" style="flex:1;min-width:170px;margin:0">
+      <select id="f-conc" onchange="render()" style="width:auto;margin:0"><option value="">Todos os concursos</option></select>
+      <select id="f-ord" onchange="render()" style="width:auto;margin:0">
+        <option value="risco">Quem precisa de atencao</option>
+        <option value="cump">Maior cumprimento</option>
+        <option value="streak">Maior sequencia</option>
+        <option value="sumiu">Sumido ha mais tempo</option>
+        <option value="nome">Nome A-Z</option>
+      </select>
+    </div>
+
+    <div class="fbar" id="fbar"></div>
+    <div class="grid" id="grid"></div>
+    <p id="rodape" style="color:var(--tx4);font-size:11.5px;text-align:center;margin-top:18px"></p>
+  </div>
 </div>
 
 <script src="config.js"></script>
 <script>
-let _todosCards = []
-let _filtroAtual = 'todos'
-let _ordemAtual = 'cumprimento'
+const CORES=['#C9A83C','#5bb3f0','#6ddba0','#f07171','#b98ae0','#e8b04b','#4ecdc4','#f0955b','#8ab4f0','#d4e05b']
+let _dados=[],_filtro='todos'
 
-async function init() {
-  const { data: { user } } = await _supabase.auth.getUser()
-  if (!user) { window.location.href = 'index.html'; return }
-  await carregarDados()
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function ymd(d){const x=new Date(d);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')}
+function addDays(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x}
+function ini(n){const p=String(n||'').trim().split(/\s+/);return ((p[0]||'?')[0]+(p.length>1?p[p.length-1][0]:'')).toUpperCase()}
+function cor(id){let h=0;for(let i=0;i<String(id).length;i++)h=(h*31+String(id).charCodeAt(i))>>>0;return CORES[h%CORES.length]}
+function cp(p){return p>=70?'var(--ok)':p>=40?'var(--alerta)':'var(--erro)'}
+function quando(d){
+  if(!d)return null
+  const dias=Math.floor((Date.now()-new Date(d).getTime())/86400000)
+  if(dias<=0)return 'hoje'
+  if(dias===1)return 'ontem'
+  if(dias<30)return 'ha '+dias+'d'
+  return 'ha '+Math.floor(dias/30)+' mes(es)'
 }
 
-async function recarregar() {
-  document.getElementById('loading').style.display = 'block'
-  document.getElementById('overview-grid').style.display = 'none'
-  await carregarDados()
+async function init(){
+  const { data:{user} }=await _supabase.auth.getUser()
+  if(!user){location.href='index.html';return}
+  carregar()
 }
 
-async function carregarDados() {
-  const hoje = new Date().toISOString().split('T')[0]
-  const seteDias = new Date(); seteDias.setDate(seteDias.getDate() - 7)
-  const dataLimite7 = seteDias.toISOString().split('T')[0]
-  const trezeDias = new Date(); trezeDias.setDate(trezeDias.getDate() - 13)
-  const dataLimite14 = trezeDias.toISOString().split('T')[0]
-  const tresDias = new Date(); tresDias.setDate(tresDias.getDate() - 3)
-  const dataLimite3 = tresDias.toISOString().split('T')[0]
+async function carregar(){
+  document.getElementById('load').style.display='block'
+  document.getElementById('app').style.display='none'
+  const t=document.getElementById('load-t')
 
-  // Busca todos os alunos
-  const { data: alunos } = await _supabase
-    .from('alunos').select('id, nome, email, concurso_id, concursos(nome)').order('nome')
+  const hoje=ymd(new Date())
+  const d14=ymd(addDays(new Date(),-13))
+  const d7=ymd(addDays(new Date(),-6))
 
-  if (!alunos || alunos.length === 0) {
-    document.getElementById('loading').textContent = 'Nenhum aluno cadastrado.'
+  t.textContent='Buscando dados de todos os alunos...'
+
+  // TUDO em 6 consultas, independente do numero de alunos
+  const [ra,rs,rr,rq,rl,rc]=await Promise.all([
+    _supabase.from('alunos').select('id,nome,email,concurso_id,ultimo_acesso,data_expiracao,meta_questoes_dia,concursos(nome)'),
+    _supabase.from('sessoes_estudo').select('aluno_id,data,concluida,tempo_minutos,questoes_feitas,questoes_certas,caderno_erros_lido').gte('data',d14),
+    _supabase.from('registros_diarios').select('aluno_id,data,cumpriu,questoes_feitas,questoes_certas').gte('data',d14),
+    _supabase.from('questao_respostas').select('aluno_id,correta,respondido_em').gte('respondido_em',d14+'T00:00:00'),
+    _supabase.from('cronograma_log').select('aluno_id,acao,detalhe,criado_em,visto').order('criado_em',{ascending:false}),
+    _supabase.from('config_cronograma').select('aluno_id,atualizado_em,data_prova')
+  ])
+
+  const alunos=ra.data||[]
+  if(!alunos.length){
+    document.getElementById('load').innerHTML='<div style="font-size:40px;margin-bottom:12px">👥</div>Nenhum aluno cadastrado ainda.'
+    return
+  }
+  t.textContent='Processando '+alunos.length+' alunos...'
+
+  const acc={}
+  alunos.forEach(function(a){
+    acc[a.id]={
+      id:a.id,nome:a.nome,email:a.email,concurso_id:a.concurso_id,
+      concurso:a.concursos?a.concursos.nome:'',
+      acesso:a.ultimo_acesso||null,expira:a.data_expiracao||null,
+      meta:a.meta_questoes_dia||30,
+      dias:{},diasFeitos:{},cad:{},
+      sT:0,sF:0,q:0,ac:0,min:0,
+      s7T:0,s7F:0,
+      ultimo:null,ajuste:null,ajusteTxt:null,ajusteNovo:false,prova:null,plano:null
+    }
+  })
+
+  ;(rs.data||[]).forEach(function(s){
+    const x=acc[s.aluno_id]; if(!x)return
+    x.sT++; x.dias[s.data]=1
+    if(s.data>=d7)x.s7T++
+    if(s.concluida){
+      x.sF++; x.diasFeitos[s.data]=1; x.min+=s.tempo_minutos||0
+      if(s.data>=d7)x.s7F++
+      if(!x.ultimo||s.data>x.ultimo)x.ultimo=s.data
+    }
+    x.q+=s.questoes_feitas||0; x.ac+=s.questoes_certas||0
+    if(s.caderno_erros_lido)x.cad[s.data]=1
+  })
+  ;(rr.data||[]).forEach(function(r){
+    const x=acc[r.aluno_id]; if(!x)return
+    x.sT++; x.dias[r.data]=1
+    if(r.data>=d7)x.s7T++
+    if(r.cumpriu){
+      x.sF++; x.diasFeitos[r.data]=1
+      if(r.data>=d7)x.s7F++
+      if(!x.ultimo||r.data>x.ultimo)x.ultimo=r.data
+    }
+    x.q+=r.questoes_feitas||0; x.ac+=r.questoes_certas||0
+  })
+  ;(rq.data||[]).forEach(function(r){
+    const x=acc[r.aluno_id]; if(!x)return
+    x.q+=1; if(r.correta)x.ac+=1
+    const d=String(r.respondido_em||'').slice(0,10)
+    if(d&&(!x.ultimo||d>x.ultimo))x.ultimo=d
+  })
+  ;(rl.data||[]).forEach(function(l){
+    const x=acc[l.aluno_id]; if(!x)return
+    if(!x.ajuste){ x.ajuste=l.criado_em; x.ajusteTxt=l.detalhe||l.acao; x.ajusteNovo=!l.visto }
+  })
+  ;(rc.data||[]).forEach(function(c){
+    const x=acc[c.aluno_id]; if(!x)return
+    x.plano=c.atualizado_em; x.prova=c.data_prova
+  })
+
+  _dados=Object.keys(acc).map(function(k){
+    const x=acc[k]
+    const nd=Object.keys(x.dias).length
+    x.pctCump=x.sT?Math.round(x.sF/x.sT*100):null
+    x.pct7=x.s7T?Math.round(x.s7F/x.s7T*100):null
+    x.pctAc=x.q?Math.round(x.ac/x.q*100):null
+    x.ndias=Object.keys(x.diasFeitos).length
+    x.pctCad=x.ndias?Math.round(Object.keys(x.cad).length/x.ndias*100):null
+    x.semDias=x.ultimo?Math.floor((new Date()-new Date(x.ultimo+'T12:00:00'))/86400000):null
+
+    // sequencia
+    let st=0,ref=new Date();ref.setHours(0,0,0,0)
+    const ds=Object.keys(x.diasFeitos).sort().reverse()
+    for(let i=0;i<ds.length;i++){
+      const dd=new Date(ds[i]+'T12:00:00')
+      const dif=Math.round((ref-dd)/86400000)
+      if(dif<=1){st++;ref=dd}else break
+    }
+    x.streak=st
+
+    // ultimos 7 dias
+    x.ult7=[]
+    for(let i=6;i>=0;i--){
+      const k2=ymd(addDays(new Date(),-i))
+      x.ult7.push({d:k2,ok:!!x.diasFeitos[k2],tinha:!!x.dias[k2],hoje:k2===hoje})
+    }
+
+    // classificacao
+    if(x.pctCump===null&&!x.q)x.cls='n'
+    else{
+      const base=x.pct7!==null?x.pct7:x.pctCump
+      x.cls=base>=70?'v':base>=40?'a':'r'
+    }
+    if(x.semDias!==null&&x.semDias>7)x.cls='r'
+    return x
+  })
+
+  const sc=document.getElementById('f-conc')
+  const cs={}
+  _dados.forEach(function(x){ if(x.concurso)cs[x.concurso_id]=x.concurso })
+  sc.innerHTML='<option value="">Todos os concursos</option>'
+  Object.keys(cs).forEach(function(id){ sc.innerHTML+='<option value="'+id+'">'+esc(cs[id])+'</option>' })
+
+  document.getElementById('load').style.display='none'
+  document.getElementById('app').style.display='block'
+  document.getElementById('sub').textContent=alunos.length+' alunos · dados dos ultimos 14 dias'
+  renderTopo()
+  render()
+}
+
+function renderTopo(){
+  const hoje=ymd(new Date())
+  const ativosHoje=_dados.filter(function(x){return x.diasFeitos[hoje]}).length
+  const sumidos=_dados.filter(function(x){return x.semDias===null||x.semDias>3}).length
+  const criticos=_dados.filter(function(x){return x.cls==='r'}).length
+  const qHoje=_dados.reduce(function(s,x){return s+(x.diasFeitos[hoje]?1:0)},0)
+  const maiorSt=_dados.reduce(function(m,x){return Math.max(m,x.streak)},0)
+  const comDados=_dados.filter(function(x){return x.pctCump!==null})
+  const mediaCump=comDados.length?Math.round(comDados.reduce(function(s,x){return s+x.pctCump},0)/comDados.length):0
+  const totMin=_dados.reduce(function(s,x){return s+x.min},0)
+  const totQ=_dados.reduce(function(s,x){return s+x.q},0)
+
+  document.getElementById('top').innerHTML=
+    '<div class="tc"><div class="tn" style="color:var(--ouro)">'+_dados.length+'</div><div class="tl">alunos</div></div>'
+   +'<div class="tc"><div class="tn" style="color:var(--ok)">'+ativosHoje+'</div><div class="tl">estudaram hoje</div></div>'
+   +'<div class="tc"><div class="tn" style="color:'+(criticos?'var(--erro)':'var(--tx3)')+'">'+criticos+'</div><div class="tl">precisam de atencao</div></div>'
+   +'<div class="tc"><div class="tn" style="color:'+(sumidos?'var(--alerta)':'var(--tx3)')+'">'+sumidos+'</div><div class="tl">sumidos +3 dias</div></div>'
+   +'<div class="tc"><div class="tn" style="color:'+cp(mediaCump)+'">'+mediaCump+'%</div><div class="tl">cumprimento medio</div></div>'
+   +'<div class="tc"><div class="tn" style="color:var(--info)">'+Math.floor(totMin/60)+'h</div><div class="tl">horas da turma (14d)</div></div>'
+   +'<div class="tc"><div class="tn">'+totQ+'</div><div class="tl">questoes (14d)</div></div>'
+
+  const cont={v:0,a:0,r:0,n:0}
+  _dados.forEach(function(x){cont[x.cls]++})
+  document.getElementById('fbar').innerHTML=
+    '<div class="fb'+(_filtro==='todos'?' on':'')+'" onclick="setF(\'todos\')">Todos '+_dados.length+'</div>'
+   +'<div class="fb'+(_filtro==='r'?' on':'')+'" onclick="setF(\'r\')" style="color:var(--erro);border-color:var(--erro)">Critico '+cont.r+'</div>'
+   +'<div class="fb'+(_filtro==='a'?' on':'')+'" onclick="setF(\'a\')" style="color:var(--alerta);border-color:var(--alerta)">Atencao '+cont.a+'</div>'
+   +'<div class="fb'+(_filtro==='v'?' on':'')+'" onclick="setF(\'v\')" style="color:var(--ok);border-color:var(--ok)">Em dia '+cont.v+'</div>'
+   +'<div class="fb'+(_filtro==='n'?' on':'')+'" onclick="setF(\'n\')">Sem dados '+cont.n+'</div>'
+   +'<div class="fb'+(_filtro==='mexeu'?' on':'')+'" onclick="setF(\'mexeu\')" style="color:var(--info);border-color:var(--info)">Mexeu no plano</div>'
+}
+
+function setF(f){_filtro=f;renderTopo();render()}
+
+function render(){
+  const b=(document.getElementById('busca').value||'').toLowerCase()
+  const c=document.getElementById('f-conc').value
+  const o=document.getElementById('f-ord').value
+
+  let l=_dados.filter(function(x){
+    if(b&&x.nome.toLowerCase().indexOf(b)<0&&String(x.email||'').toLowerCase().indexOf(b)<0)return false
+    if(c&&x.concurso_id!==c)return false
+    if(_filtro==='mexeu')return !!x.ajusteNovo
+    if(_filtro!=='todos'&&x.cls!==_filtro)return false
+    return true
+  })
+
+  const ordem={r:0,a:1,n:2,v:3}
+  l.sort(function(a,z){
+    if(o==='nome')return a.nome.localeCompare(z.nome)
+    if(o==='cump')return (z.pctCump===null?-1:z.pctCump)-(a.pctCump===null?-1:a.pctCump)
+    if(o==='streak')return z.streak-a.streak
+    if(o==='sumiu')return (z.semDias===null?9999:z.semDias)-(a.semDias===null?9999:a.semDias)
+    if(ordem[a.cls]!==ordem[z.cls])return ordem[a.cls]-ordem[z.cls]
+    return (a.pctCump===null?999:a.pctCump)-(z.pctCump===null?999:z.pctCump)
+  })
+
+  const g=document.getElementById('grid')
+  if(!l.length){
+    g.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--tx3)">Nenhum aluno com esses filtros.</div>'
+    document.getElementById('rodape').textContent=''
     return
   }
 
-  // Preenche filtro de concurso
-  const concursos = {}
-  alunos.forEach(a => { if (a.concursos) concursos[a.concurso_id] = a.concursos.nome })
-  const sel = document.getElementById('filtro-concurso-overview')
-  sel.innerHTML = '<option value="">Todos os concursos</option>'
-  Object.entries(concursos).forEach(([id, nome]) => { sel.innerHTML += `<option value="${id}">${nome}</option>` })
+  g.innerHTML=l.map(function(x){
+    const cc=cor(x.id)
+    const pc=x.pctCump
+    const acesso=quando(x.acesso)
+    const ajuste=quando(x.ajuste)
+    const st=x.streak
+    const expDias=x.expira?Math.ceil((new Date(x.expira+'T00:00:00')-new Date())/86400000):null
 
-  const cards = []
-  let totalQuestoesHoje = 0
-  let maiorStreak = 0
-  let ativosHoje = 0
-  let inativosPlus3 = 0
+    const flags=[]
+    if(x.ajusteNovo)flags.push('<span class="fl" style="background:rgba(91,179,240,.15);color:var(--info);border:1px solid var(--info)">MEXEU NO PLANO</span>')
+    if(x.semDias!==null&&x.semDias>7)flags.push('<span class="fl" style="background:rgba(240,113,113,.15);color:var(--erro);border:1px solid var(--erro)">SUMIDO '+x.semDias+'D</span>')
+    if(x.semDias===null)flags.push('<span class="fl" style="background:rgba(240,113,113,.15);color:var(--erro);border:1px solid var(--erro)">NUNCA ESTUDOU</span>')
+    if(expDias!==null&&expDias<=15)flags.push('<span class="fl" style="background:rgba(232,176,75,.15);color:var(--alerta);border:1px solid var(--alerta)">'+(expDias<0?'EXPIRADO':'EXPIRA EM '+expDias+'D')+'</span>')
+    if(st>=7)flags.push('<span class="fl" style="background:rgba(201,168,60,.15);color:var(--ouro);border:1px solid var(--ouro)">🔥 '+st+' DIAS</span>')
+    if(x.pctAc!==null&&x.pctAc<50&&x.q>=15)flags.push('<span class="fl" style="background:rgba(240,113,113,.15);color:var(--erro);border:1px solid var(--erro)">'+x.pctAc+'% ACERTO</span>')
 
-  for (const aluno of alunos) {
-    // Registros dos ultimos 14 dias
-    const { data: registros } = await _supabase
-      .from('registros_diarios').select('data, cumpriu, questoes_feitas, questoes_certas')
-      .eq('aluno_id', aluno.id).gte('data', dataLimite14).order('data', { ascending: false })
+    return '<div class="ac '+x.cls+'" onclick="abrir(\''+x.id+'\')">'
+      +'<div class="ac-h"><div class="av" style="background:'+cc+'">'+ini(x.nome)+'</div>'
+      +'<div class="ac-n"><div class="ac-nm">'+esc(x.nome)+'</div>'
+      +'<div class="ac-cs">'+esc(x.concurso||'sem concurso')+'</div></div>'
+      +'<div class="ac-st"><div class="ac-sn" style="color:'+(pc===null?'var(--tx4)':cp(pc))+'">'+(pc===null?'--':pc+'%')+'</div>'
+      +'<div class="ac-sl">cumprimento</div></div></div>'
 
-    // Registros de hoje
-    const regHoje = registros?.filter(r => r.data === hoje) || []
-    const questoesHoje = regHoje.reduce((s, r) => s + (r.questoes_feitas || 0), 0)
-    totalQuestoesHoje += questoesHoje
-    if (regHoje.length > 0) ativosHoje++
+      +'<div class="flags">'+flags.join('')+'</div>'
 
-    // Ultima atividade
-    const { data: ultimoReg } = await _supabase
-      .from('registros_diarios').select('data')
-      .eq('aluno_id', aluno.id).order('data', { ascending: false }).limit(1)
-    const ultimaData = ultimoReg?.[0]?.data
-    const diasSemReg = ultimaData
-      ? Math.floor((new Date() - new Date(ultimaData + 'T12:00:00')) / (1000 * 60 * 60 * 24))
-      : null
-    if (!ultimaData || diasSemReg > 3) inativosPlus3++
+      +'<div class="met">'
+      +'<div class="met-c"><div class="met-n" style="color:'+(st>=3?'var(--ouro)':'var(--tx3)')+'">'+st+'</div><div class="met-l">sequencia</div></div>'
+      +'<div class="met-c"><div class="met-n" style="color:'+(x.pctAc===null?'var(--tx4)':cp(x.pctAc))+'">'+(x.pctAc===null?'--':x.pctAc+'%')+'</div><div class="met-l">'+x.q+' questoes</div></div>'
+      +'<div class="met-c"><div class="met-n" style="color:var(--info)">'+Math.floor(x.min/60)+'h</div><div class="met-l">estudadas</div></div>'
+      +'</div>'
 
-    // Streak
-    const { data: regCumpriu } = await _supabase
-      .from('registros_diarios').select('data')
-      .eq('aluno_id', aluno.id).eq('cumpriu', true).order('data', { ascending: false })
-    const datasSet = new Set(regCumpriu?.map(r => r.data) || [])
-    const datas = [...datasSet].sort((a, b) => b.localeCompare(a))
-    let streak = 0
-    let dataRef = new Date(); dataRef.setHours(0, 0, 0, 0)
-    for (const data of datas) {
-      const d = new Date(data + 'T12:00:00')
-      const diff = Math.round((dataRef - d) / (1000 * 60 * 60 * 24))
-      if (diff <= 1) { streak++; dataRef = d } else break
-    }
-    if (streak > maiorStreak) maiorStreak = streak
+      +'<div class="dias">'+x.ult7.map(function(d){
+         const bg=d.ok?'var(--ouro)':d.hoje?'var(--hov)':d.tinha?'var(--card2)':'transparent'
+         const co=d.ok?'#0a1420':'var(--tx4)'
+         const bd=d.hoje&&!d.ok?'1px solid var(--info)':'1px solid var(--bd)'
+         return '<div class="d" style="background:'+bg+';color:'+co+';border:'+bd+'">'+new Date(d.d+'T12:00:00').getDate()+'</div>'
+       }).join('')+'</div>'
 
-    // % cumprimento semana
-    const reg7 = registros?.filter(r => r.data >= dataLimite7) || []
-    const diasCumpridos = reg7.filter(r => r.cumpriu).length
-    const pctCumprimento = reg7.length > 0 ? Math.round((diasCumpridos / reg7.length) * 100) : null
+      +'<div class="rod">'
+      +'<span>Acesso: <strong style="color:'+(acesso?'var(--tx2)':'var(--tx4)')+'">'+(acesso||'nunca entrou')+'</strong></span>'
+      +'<span>Estudo: <strong style="color:'+(x.semDias===null?'var(--erro)':x.semDias>3?'var(--alerta)':'var(--ok)')+'">'+(x.ultimo?quando(x.ultimo+'T12:00:00'):'nunca')+'</strong></span>'
+      +'</div>'
+      +(ajuste?'<div style="font-size:10.5px;color:'+(x.ajusteNovo?'var(--info)':'var(--tx4)')+';margin-top:6px;line-height:1.4">'
+        +'<strong>Ajustou o plano '+ajuste+':</strong> '+esc(String(x.ajusteTxt||'').substring(0,72))+'</div>':'')
+      +'</div>'
+  }).join('')
 
-    // % acerto semana
-    const totalQ = reg7.reduce((s, r) => s + (r.questoes_feitas || 0), 0)
-    const totalC = reg7.reduce((s, r) => s + (r.questoes_certas || 0), 0)
-    const pctAcerto = totalQ > 0 ? Math.round((totalC / totalQ) * 100) : null
-
-    // Cor do card
-    let cor = 'sem-dados'
-    if (pctCumprimento !== null) {
-      if (pctCumprimento >= 70) cor = 'verde'
-      else if (pctCumprimento >= 40) cor = 'amarelo'
-      else cor = 'vermelho'
-    }
-
-    // Ultimos 7 dias (para miniatura)
-    const ultimos7 = []
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(); d.setDate(d.getDate() - i)
-      const key = d.toISOString().split('T')[0]
-      const regDia = registros?.filter(r => r.data === key) || []
-      const cumpriu = regDia.some(r => r.cumpriu)
-      const temReg = regDia.length > 0
-      ultimos7.push({ key, cumpriu, temReg, isHoje: key === hoje })
-    }
-
-    cards.push({
-      id: aluno.id, nome: aluno.nome, email: aluno.email,
-      concurso_id: aluno.concurso_id, concurso: aluno.concursos?.nome || '',
-      streak, pctCumprimento, pctAcerto, totalQ, cor,
-      ultimaData, diasSemReg, ultimos7, questoesHoje
-    })
-  }
-
-  _todosCards = cards
-
-  // Resumo topo
-  document.getElementById('r-total').textContent = alunos.length
-  document.getElementById('r-ativos').textContent = ativosHoje
-  document.getElementById('r-streak').textContent = maiorStreak + ' dias'
-  document.getElementById('r-inativo').textContent = inativosPlus3
-  document.getElementById('r-questoes').textContent = totalQuestoesHoje
-  document.getElementById('ultima-atualizacao').textContent =
-    'Atualizado em ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-
-  document.getElementById('loading').style.display = 'none'
-  document.getElementById('overview-grid').style.display = 'grid'
-
-  filtrarCards()
+  document.getElementById('rodape').textContent=l.length+' de '+_dados.length+' alunos'
 }
 
-function filtrarCards() {
-  const busca = document.getElementById('busca-overview').value.toLowerCase()
-  const concurso = document.getElementById('filtro-concurso-overview').value
-
-  let cards = _todosCards.filter(c => {
-    const matchBusca = c.nome.toLowerCase().includes(busca) || c.email.toLowerCase().includes(busca)
-    const matchConcurso = !concurso || c.concurso_id === concurso
-    const matchFiltro = _filtroAtual === 'todos' || c.cor === _filtroAtual
-    return matchBusca && matchConcurso && matchFiltro
-  })
-
-  // Ordena
-  if (_ordemAtual === 'streak') cards.sort((a, b) => b.streak - a.streak)
-  else if (_ordemAtual === 'cumprimento') cards.sort((a, b) => (b.pctCumprimento || -1) - (a.pctCumprimento || -1))
-  else cards.sort((a, b) => a.nome.localeCompare(b.nome))
-
-  renderizarCards(cards)
-}
-
-function setFiltro(filtro, btn) {
-  _filtroAtual = filtro
-  document.querySelectorAll('.filtro-btn').forEach(b => b.classList.remove('ativo'))
-  btn.classList.add('ativo')
-  filtrarCards()
-}
-
-function ordenarPor(ordem) {
-  _ordemAtual = ordem
-  filtrarCards()
-}
-
-function renderizarCards(cards) {
-  const grid = document.getElementById('overview-grid')
-  grid.innerHTML = ''
-
-  if (cards.length === 0) {
-    grid.innerHTML = '<p style="color:var(--tx3);grid-column:1/-1;text-align:center;padding:20px">Nenhum aluno encontrado.</p>'
-    return
-  }
-
-  cards.forEach(c => {
-    const corStreak = c.streak >= 14 ? 'var(--ouro)' : c.streak >= 7 ? 'var(--info)' : c.streak >= 3 ? 'var(--ok)' : 'var(--tx3)'
-    const iconeStreak = c.streak >= 14 ? '🔥🔥' : c.streak >= 7 ? '🔥' : c.streak >= 3 ? '🔥' : ''
-
-    const ultimaStr = c.ultimaData
-      ? (c.diasSemReg === 0 ? 'Hoje' : c.diasSemReg === 1 ? 'Ontem' : 'Ha ' + c.diasSemReg + ' dias')
-      : 'Nunca registrou'
-    const corUltima = !c.ultimaData ? 'var(--erro)' : c.diasSemReg > 7 ? 'var(--erro)' : c.diasSemReg > 3 ? 'var(--alerta)' : 'var(--ok)'
-
-    const miniDias = c.ultimos7.map(d => {
-      const bg = d.cumpriu ? 'var(--ouro)' : d.isHoje ? 'var(--hov)' : d.temReg ? 'var(--bd2)' : '#1a1a2a'
-      const border = d.isHoje ? '1px solid var(--info)' : 'none'
-      return `<div class="card-dia" style="background:${bg};border:${border}" title="${d.key}"></div>`
-    }).join('')
-
-    grid.innerHTML += `
-      <div class="aluno-card ${c.cor}" onclick="irParaAluno('${c.id}','${c.nome}')">
-        <div class="card-header">
-          <div style="flex:1">
-            <div class="card-nome">${c.nome}</div>
-            <div class="card-concurso">${c.concurso || 'Sem concurso'}</div>
-          </div>
-          <div style="text-align:center;min-width:50px">
-            <div class="card-streak" style="color:${corStreak}">${iconeStreak} ${c.streak}</div>
-            <div class="card-streak-label">dias seguidos</div>
-          </div>
-        </div>
-
-        <div class="card-stats">
-          <div class="card-stat">
-            <div class="card-stat-val" style="color:${c.pctCumprimento === null ? 'var(--tx3)' : c.pctCumprimento >= 70 ? 'var(--ok)' : c.pctCumprimento >= 40 ? 'var(--alerta)' : 'var(--erro)'}">
-              ${c.pctCumprimento !== null ? c.pctCumprimento + '%' : '--'}
-            </div>
-            <div class="card-stat-label">cumprimento</div>
-            ${c.pctCumprimento !== null ? `
-            <div class="barra-progresso">
-              <div class="barra-fill" style="width:${c.pctCumprimento}%;background:${c.pctCumprimento >= 70 ? 'var(--ok)' : c.pctCumprimento >= 40 ? 'var(--alerta)' : 'var(--erro)'}"></div>
-            </div>` : ''}
-          </div>
-          <div class="card-stat">
-            <div class="card-stat-val" style="color:${c.pctAcerto === null ? 'var(--tx3)' : 'var(--info)'}">
-              ${c.pctAcerto !== null ? c.pctAcerto + '%' : '--'}
-            </div>
-            <div class="card-stat-label">acerto</div>
-          </div>
-          <div class="card-stat">
-            <div class="card-stat-val" style="color:var(--tx3)">${c.totalQ || 0}</div>
-            <div class="card-stat-label">questoes/sem</div>
-          </div>
-        </div>
-
-        <div class="card-dias-row">${miniDias}</div>
-        <p style="color:var(--tx3);font-size:10px;margin-top:4px">ultimos 7 dias</p>
-
-        <div class="card-ultima">
-          Ultima atividade: <span style="color:${corUltima}">${ultimaStr}</span>
-        </div>
-      </div>`
-  })
-
-  grid.innerHTML += `<p style="color:var(--tx3);font-size:12px;grid-column:1/-1;text-align:right">${cards.length} aluno(s)</p>`
-}
-
-function irParaAluno(id, nome) {
-  // Salva o aluno selecionado e vai para o admin na aba cronograma
-  sessionStorage.setItem('alunoSelecionado', id)
-  sessionStorage.setItem('alunoNome', nome)
-  window.location.href = 'admin.html#cronograma'
+function abrir(id){
+  sessionStorage.setItem('alunoFoco',id)
+  location.href='admin.html'
 }
 
 init()
