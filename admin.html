@@ -21,37 +21,48 @@
 
 <div class="shell" id="painel-admin" style="display:none">
 
-  <aside class="side">
+  <div class="mob-top">
+    <button class="mob-b" onclick="abrirMenu()" aria-label="Menu">&#9776;</button>
+    <div class="mob-t">
+      <div class="mob-t1" id="mob-t1">Alunos</div>
+      <div class="mob-t2" id="mob-t2">Cadastro, acesso e acompanhamento</div>
+    </div>
+    <button class="mob-b" onclick="trocarTema()" id="mob-tema" aria-label="Tema">🌙</button>
+  </div>
+
+  <div class="mob-ov" id="mob-ov" onclick="fecharMenu()"></div>
+
+  <aside class="side" id="side">
     <div class="logo">
       <div class="logo-i">🛡️</div>
       <div class="logo-t">Painel<span>do Mentor</span></div>
     </div>
 
     <div class="side-h">Gestao</div>
-    <div class="nav-i on" data-a="aba-alunos" onclick="mostrarAba('aba-alunos')"><span class="nav-ic">👥</span>Alunos</div>
-    <div class="nav-i" data-a="aba-concursos" onclick="mostrarAba('aba-concursos')"><span class="nav-ic">🏆</span>Concursos</div>
-    <div class="nav-i" data-a="aba-avisos" onclick="mostrarAba('aba-avisos')"><span class="nav-ic">🔔</span>Avisos</div>
+    <div class="nav-i on" data-a="aba-alunos" onclick="mostrarAba('aba-alunos');fecharMenu()"><span class="nav-ic">👥</span>Alunos</div>
+    <div class="nav-i" data-a="aba-concursos" onclick="mostrarAba('aba-concursos');fecharMenu()"><span class="nav-ic">🏆</span>Concursos</div>
+    <div class="nav-i" data-a="aba-avisos" onclick="mostrarAba('aba-avisos');fecharMenu()"><span class="nav-ic">🔔</span>Avisos</div>
 
     <div class="side-h">Cronograma</div>
-    <div class="nav-i" onclick="location.href='gerador.html'"><span class="nav-ic">⚡</span>Gerador<span class="nav-tag">NOVO</span></div>
-    <div class="nav-i" data-a="aba-cronograma" onclick="mostrarAba('aba-cronograma')"><span class="nav-ic">📅</span>Planos</div>
-    <div class="nav-i" data-a="aba-templates" onclick="mostrarAba('aba-templates')"><span class="nav-ic">📋</span>Templates</div>
-    <div class="nav-i" onclick="location.href='ajustar.html'"><span class="nav-ic">🔄</span>Ajustar ao edital<span class="nav-tag">NOVO</span></div>
-    <div class="nav-i" onclick="location.href='temas.html'"><span class="nav-ic">🎯</span>Controle de Temas</div>
+    <div class="nav-i" onclick="fecharMenu();location.href=\'gerador.html\'"><span class="nav-ic">⚡</span>Gerador<span class="nav-tag">NOVO</span></div>
+    <div class="nav-i" data-a="aba-cronograma" onclick="mostrarAba('aba-cronograma');fecharMenu()"><span class="nav-ic">📅</span>Planos</div>
+    <div class="nav-i" data-a="aba-templates" onclick="mostrarAba('aba-templates');fecharMenu()"><span class="nav-ic">📋</span>Templates</div>
+    <div class="nav-i" onclick="fecharMenu();location.href=\'ajustar.html\'"><span class="nav-ic">🔄</span>Ajustar ao edital<span class="nav-tag">NOVO</span></div>
+    <div class="nav-i" onclick="fecharMenu();location.href=\'temas.html\'"><span class="nav-ic">🎯</span>Controle de Temas</div>
 
     <div class="side-h">Conteudo</div>
-    <div class="nav-i" onclick="location.href='importador.html'"><span class="nav-ic">📄</span>Importar Prova</div>
-    <div class="nav-i" onclick="location.href='questoes-admin.html'"><span class="nav-ic">❓</span>Questoes</div>
-    <div class="nav-i" onclick="location.href='edital-admin.html'"><span class="nav-ic">📖</span>Editais</div>
+    <div class="nav-i" onclick="fecharMenu();location.href=\'importador.html\'"><span class="nav-ic">📄</span>Importar Prova</div>
+    <div class="nav-i" onclick="fecharMenu();location.href=\'questoes-admin.html\'"><span class="nav-ic">❓</span>Questoes</div>
+    <div class="nav-i" onclick="fecharMenu();location.href=\'edital-admin.html\'"><span class="nav-ic">📖</span>Editais</div>
 
     <div class="side-h">Acompanhamento</div>
-    <div class="nav-i" onclick="location.href='ranking.html'"><span class="nav-ic">🏆</span>Ranking</div>
-    <div class="nav-i" onclick="location.href='overview.html'"><span class="nav-ic">📊</span>Visao Geral</div>
-    <div class="nav-i" data-a="aba-desempenho" onclick="mostrarAba('aba-desempenho')"><span class="nav-ic">📈</span>Desempenho</div>
-    <div class="nav-i" onclick="location.href='relatorio.html'"><span class="nav-ic">📑</span>Relatorios</div>
+    <div class="nav-i" onclick="fecharMenu();location.href=\'ranking.html\'"><span class="nav-ic">🏆</span>Ranking</div>
+    <div class="nav-i" onclick="fecharMenu();location.href=\'overview.html\'"><span class="nav-ic">📊</span>Visao Geral</div>
+    <div class="nav-i" data-a="aba-desempenho" onclick="mostrarAba('aba-desempenho');fecharMenu()"><span class="nav-ic">📈</span>Desempenho</div>
+    <div class="nav-i" onclick="fecharMenu();location.href=\'relatorio.html\'"><span class="nav-ic">📑</span>Relatorios</div>
 
     <div class="side-h">Ajustes</div>
-    <div class="nav-i" onclick="location.href='marca.html'"><span class="nav-ic">🎨</span>Marca</div>
+    <div class="nav-i" onclick="fecharMenu();location.href=\'marca.html\'"><span class="nav-ic">🎨</span>Marca</div>
 
     <div class="side-b">
       <div class="nav-i" onclick="trocarTema()" id="nav-tema"><span class="nav-ic">🌙</span>Tema</div>
@@ -67,7 +78,11 @@
 
     <div id="aba-alunos" class="aba-conteudo" style="display:block">
     <div class="card">
-      <h3>Cadastrar novo aluno</h3>
+      <h3 onclick="toggleNovo()" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;margin-bottom:0">
+        <span>Cadastrar novo aluno</span>
+        <span id="seta-novo" style="color:var(--tx3);font-size:18px">▾</span>
+      </h3>
+      <div id="corpo-novo" style="margin-top:16px">
       <input type="text" id="novo-aluno-nome" placeholder="Nome completo">
       <input type="email" id="novo-aluno-email" placeholder="E-mail do aluno">
       <input type="password" id="novo-aluno-senha" placeholder="Senha provisoria (min. 6 caracteres)">
@@ -85,6 +100,7 @@
 
       <button onclick="criarAluno()" style="margin-top:8px">Cadastrar aluno</button>
       <p id="msg-aluno" style="margin-top:10px"></p>
+      </div>
     </div>
 
     <div class="card">
@@ -433,12 +449,42 @@
 
 <script src="config.js"></script>
 <script>
+function toggleNovo(){
+  const b=document.getElementById('corpo-novo'), s=document.getElementById('seta-novo')
+  const aberto=b.style.display!=='none'
+  b.style.display=aberto?'none':'block'
+  s.textContent=aberto?'▸':'▾'
+  localStorage.setItem('adm_novo',aberto?'0':'1')
+}
+window.addEventListener('DOMContentLoaded',function(){
+  const pref=localStorage.getItem('adm_novo')
+  const recolher = pref!==null ? pref==='0' : window.innerWidth<=860
+  if(recolher){
+    const b=document.getElementById('corpo-novo'), s=document.getElementById('seta-novo')
+    if(b){b.style.display='none';s.textContent='▸'}
+  }
+})
+
+function abrirMenu(){
+  document.getElementById('side').classList.add('aberta')
+  document.getElementById('mob-ov').classList.add('on')
+  document.body.style.overflow='hidden'
+}
+function fecharMenu(){
+  document.getElementById('side').classList.remove('aberta')
+  document.getElementById('mob-ov').classList.remove('on')
+  document.body.style.overflow=''
+}
+document.addEventListener('keydown',function(e){ if(e.key==='Escape')fecharMenu() })
+
 function trocarTema(){
   const cl=document.documentElement.getAttribute('data-tema')==='claro'
   document.documentElement.setAttribute('data-tema',cl?'escuro':'claro')
   localStorage.setItem('tema',cl?'escuro':'claro')
   const n=document.getElementById('nav-tema')
   if(n)n.querySelector('.nav-ic').textContent=cl?'🌙':'☀️'
+  const mb=document.getElementById('mob-tema')
+  if(mb)mb.textContent=cl?'🌙':'☀️'
 }
 ;(function(){
   const t=localStorage.getItem('tema')||'escuro'
@@ -446,6 +492,8 @@ function trocarTema(){
   window.addEventListener('DOMContentLoaded',function(){
     const n=document.getElementById('nav-tema')
     if(n)n.querySelector('.nav-ic').textContent=t==='claro'?'☀️':'🌙'
+    const mb=document.getElementById('mob-tema')
+    if(mb)mb.textContent=t==='claro'?'☀️':'🌙'
   })
 })()
 </script>
