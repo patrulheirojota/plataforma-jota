@@ -66,6 +66,9 @@ function mostrarAba(id) {
     const a=document.getElementById('pag-t'), b=document.getElementById('pag-s')
     if(a)a.textContent=t[0]
     if(b)b.textContent=t[1]
+    const m1=document.getElementById('mob-t1'), m2=document.getElementById('mob-t2')
+    if(m1)m1.textContent=t[0]
+    if(m2)m2.textContent=t[1]
   }
   window.scrollTo({top:0,behavior:'smooth'})
   if (id === 'aba-alunos') carregarAlunos()
@@ -262,7 +265,7 @@ async function carregarAlunos() {
   if (!alunos||alunos.length===0) { div.innerHTML='<p style="color:var(--tx3)">Nenhum aluno cadastrado.</p>'; return }
 
   // Campo de busca + ordenacao + botao exportar
-  div.innerHTML = `<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+  div.innerHTML = `<div class="barra-busca" style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;position:sticky;top:60px;z-index:20;background:var(--card);padding:10px 0">
     <input type="text" id="busca-aluno" placeholder="Buscar aluno..." oninput="filtrarAlunos()" style="margin:0;flex:1;min-width:160px">
     <select id="ordenar-alunos" onchange="filtrarAlunos()" style="margin:0;width:auto;min-width:170px">
       <option value="recente" selected>Mais recente primeiro</option>
@@ -392,12 +395,12 @@ function renderizarListaAlunos(alunos) {
         </div>
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-content:flex-start">
-        <button class="btn-acao btn-editar" onclick="abrirEditarAluno('${a.id}','${a.nome}','${a.email}','${a.concurso_id||''}')">Editar</button>
-        <button class="btn-acao btn-editar" onclick="gerenciarConcursosAluno('${a.id}','${a.nome}')">Concursos</button>
-        <button class="btn-acao btn-editar" onclick="irParaCronogramaAluno('${a.id}','${a.nome}')" style="background:var(--hov);color:var(--info);border:1px solid var(--info)">Cronograma</button>
-        <button class="btn-acao" onclick="abrirAplicarTemplate('${a.id}','${a.nome}')" style="background:var(--card2);color:var(--ok);border:1px solid var(--ok)">Template</button>
-        <button class="btn-acao btn-info" onclick="avisoParaAluno('${a.id}','${String(a.nome).replace(/'/g,"\\'")}')">Aviso</button>
-        <button class="btn-acao btn-excluir" onclick="confirmarExcluirAluno('${a.id}','${a.nome}')">Excluir</button>
+        <button class="btn-acao btn-editar" onclick="abrirEditarAluno('${a.id}','${a.nome}','${a.email}','${a.concurso_id||''}')"><span class="ic">✏️</span><span class="lb">Editar</span></button>
+        <button class="btn-acao btn-editar" onclick="gerenciarConcursosAluno('${a.id}','${a.nome}')"><span class="ic">🏆</span><span class="lb">Concursos</span></button>
+        <button class="btn-acao btn-editar" onclick="irParaCronogramaAluno('${a.id}','${a.nome}')" style="background:var(--hov);color:var(--info);border:1px solid var(--info)"><span class="ic">📅</span><span class="lb">Cronograma</span></button>
+        <button class="btn-acao" onclick="abrirAplicarTemplate('${a.id}','${a.nome}')" style="background:var(--card2);color:var(--ok);border:1px solid var(--ok)"><span class="ic">📋</span><span class="lb">Template</span></button>
+        <button class="btn-acao btn-info" onclick="avisoParaAluno('${a.id}','${String(a.nome).replace(/'/g,"\\'")}')"><span class="ic">🔔</span><span class="lb">Aviso</span></button>
+        <button class="btn-acao btn-excluir" onclick="confirmarExcluirAluno('${a.id}','${a.nome}')"><span class="ic">🗑️</span><span class="lb">Excluir</span></button>
       </div>
     </div>`
   })
