@@ -138,28 +138,96 @@ header button{width:auto;padding:9px 15px;font-size:13px}
 .vazio{text-align:center;padding:44px 20px;color:var(--tx3)}
 .vazio-ic{font-size:40px;margin-bottom:12px}
 
-/* ===== RESPONSIVO ===== */
+/* ===== MOBILE: barra superior e menu gaveta ===== */
+.btn-acao .ic{display:none}
+
+.mob-top{display:none}
+.mob-ov{display:none}
+
 @media (max-width:860px){
-  .side{
-    position:static;width:100%;flex-direction:row;overflow-x:auto;
-    padding:10px;border-right:none;border-bottom:1px solid var(--bd);
-    gap:5px;align-items:center
+  /* barra fixa no topo */
+  .mob-top{
+    display:flex;align-items:center;gap:12px;
+    position:sticky;top:0;z-index:40;
+    background:var(--bg2);border-bottom:1px solid var(--bd);
+    padding:11px 14px;
   }
-  .logo,.side-h,.side-b{display:none}
-  .nav-i{margin-bottom:0;white-space:nowrap;padding:9px 13px;font-size:13px}
-  .nav-tag{display:none}
+  .mob-b{
+    width:42px;height:42px;border-radius:11px;flex-shrink:0;
+    background:var(--card);border:1px solid var(--bd2);color:var(--tx);
+    font-size:19px;display:flex;align-items:center;justify-content:center;
+    cursor:pointer;padding:0;margin:0;width:42px
+  }
+  .mob-t{flex:1;min-width:0}
+  .mob-t1{font-size:16px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mob-t2{color:var(--tx3);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  /* sidebar vira gaveta */
   .shell{flex-direction:column}
-  .main{margin-left:0;padding:16px 12px 50px}
-  .container{padding:16px 12px 50px}
+  .side{
+    position:fixed;top:0;left:-282px;bottom:0;width:272px;
+    flex-direction:column;overflow-y:auto;z-index:60;
+    border-right:1px solid var(--bd);border-bottom:none;
+    transition:left .22s ease;padding:18px 13px
+  }
+  .side.aberta{left:0;box-shadow:0 0 40px rgba(0,0,0,.5)}
+  .logo,.side-h,.side-b{display:flex}
+  .side-h{display:block}
+  .nav-i{margin-bottom:3px;padding:13px 14px;font-size:14.5px;white-space:normal}
+  .nav-tag{display:inline-block}
+  .mob-ov{
+    display:block;position:fixed;inset:0;background:rgba(4,9,16,.62);
+    opacity:0;pointer-events:none;transition:opacity .22s;z-index:50
+  }
+  .mob-ov.on{opacity:1;pointer-events:auto}
+
+  .main{margin-left:0;padding:16px 12px 70px}
+  .container{padding:16px 12px 70px}
+
+  /* cabecalho da pagina fica menor, a barra ja mostra o titulo */
+  .main > div:first-of-type .pag-t{font-size:20px}
+  header{margin-bottom:18px}
   header h2,.pag-t{font-size:20px}
-  .card{padding:15px;border-radius:13px}
-  .item-lista{flex-direction:column;align-items:flex-start;gap:8px}
-  .item-lista>div{width:100%}
+
+  .card{padding:15px;border-radius:14px}
+  .card h3{font-size:15px;margin-bottom:13px}
+
+  /* listas empilham e os botoes viram grade tocavel */
+  .item-lista{flex-direction:column;align-items:stretch;gap:10px;padding:14px}
+  .item-lista > div{width:100%}
+  .item-lista > div:last-child{
+    display:grid !important;grid-template-columns:repeat(3,1fr);gap:7px
+  }
+  .item-lista > div:last-child .btn-acao{
+    width:100%;padding:11px 6px;font-size:12px;text-align:center;
+    display:flex;align-items:center;justify-content:center;min-height:42px
+  }
   .disciplina-card{flex-direction:column;align-items:flex-start;gap:5px}
-  input,select,textarea,button{font-size:16px}
-  .btn-acao{font-size:13px;padding:8px 12px}
+
+  /* icone acima do rotulo nos botoes de acao */
+  .btn-acao .ic{display:block;font-size:15px;line-height:1;margin-bottom:3px}
+  .btn-acao .lb{display:block;font-size:10.5px;line-height:1.1}
+  .item-lista > div:last-child .btn-acao{flex-direction:column;padding:9px 4px;min-height:50px}
+  .barra-busca{top:62px !important}
+
+  /* campos maiores para o toque */
+  input,select,textarea{font-size:16px;padding:13px}
+  button{font-size:15px;padding:14px 18px;min-height:48px}
+  .btn-acao{font-size:13px;padding:10px 13px;min-height:40px}
+  label{font-size:13px}
+
+  .abas{gap:5px;overflow-x:auto;flex-wrap:nowrap;padding-bottom:4px}
+  .aba-btn{white-space:nowrap;flex-shrink:0;padding:11px 15px}
+
+  .kpis{grid-template-columns:repeat(2,1fr);gap:9px}
+  .kpi{padding:13px}
+  .kpi-n{font-size:20px}
 }
+
 @media (max-width:420px){
-  .abas{gap:4px}
-  .aba-btn{font-size:12px;padding:8px 11px}
+  .main,.container{padding:14px 10px 70px}
+  .item-lista > div:last-child{grid-template-columns:repeat(2,1fr)}
+  .card{padding:13px}
+  .mob-t1{font-size:15px}
+  header h2,.pag-t{font-size:18px}
 }
