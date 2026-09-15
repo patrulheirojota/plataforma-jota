@@ -44,25 +44,24 @@
     <div class="nav-i" data-a="aba-avisos" onclick="mostrarAba('aba-avisos');fecharMenu()"><span class="nav-ic">🔔</span>Avisos</div>
 
     <div class="side-h">Cronograma</div>
-    <div class="nav-i" onclick="fecharMenu();location.href=\'gerador.html\'"><span class="nav-ic">⚡</span>Gerador<span class="nav-tag">NOVO</span></div>
+    <div class="nav-i" onclick="fecharMenu();location.href='gerador.html'"><span class="nav-ic">⚡</span>Gerador<span class="nav-tag">NOVO</span></div>
     <div class="nav-i" data-a="aba-cronograma" onclick="mostrarAba('aba-cronograma');fecharMenu()"><span class="nav-ic">📅</span>Planos</div>
-    <div class="nav-i" data-a="aba-templates" onclick="mostrarAba('aba-templates');fecharMenu()"><span class="nav-ic">📋</span>Templates</div>
-    <div class="nav-i" onclick="fecharMenu();location.href=\'ajustar.html\'"><span class="nav-ic">🔄</span>Ajustar ao edital<span class="nav-tag">NOVO</span></div>
-    <div class="nav-i" onclick="fecharMenu();location.href=\'temas.html\'"><span class="nav-ic">🎯</span>Controle de Temas</div>
+    <div class="nav-i" onclick="fecharMenu();location.href='ajustar.html'"><span class="nav-ic">🔄</span>Ajustar ao edital<span class="nav-tag">NOVO</span></div>
+    <div class="nav-i" onclick="fecharMenu();location.href='temas.html'"><span class="nav-ic">🎯</span>Controle de Temas</div>
 
     <div class="side-h">Conteudo</div>
-    <div class="nav-i" onclick="fecharMenu();location.href=\'importador.html\'"><span class="nav-ic">📄</span>Importar Prova</div>
-    <div class="nav-i" onclick="fecharMenu();location.href=\'questoes-admin.html\'"><span class="nav-ic">❓</span>Questoes</div>
-    <div class="nav-i" onclick="fecharMenu();location.href=\'edital-admin.html\'"><span class="nav-ic">📖</span>Editais</div>
+    <div class="nav-i" onclick="fecharMenu();location.href='importador.html'"><span class="nav-ic">📄</span>Importar Prova</div>
+    <div class="nav-i" onclick="fecharMenu();location.href='questoes-admin.html'"><span class="nav-ic">❓</span>Questoes</div>
+    <div class="nav-i" onclick="fecharMenu();location.href='edital-admin.html'"><span class="nav-ic">📖</span>Editais</div>
 
     <div class="side-h">Acompanhamento</div>
-    <div class="nav-i" onclick="fecharMenu();location.href=\'ranking.html\'"><span class="nav-ic">🏆</span>Ranking</div>
-    <div class="nav-i" onclick="fecharMenu();location.href=\'overview.html\'"><span class="nav-ic">📊</span>Visao Geral</div>
+    <div class="nav-i" onclick="fecharMenu();location.href='ranking.html'"><span class="nav-ic">🏆</span>Ranking</div>
+    <div class="nav-i" onclick="fecharMenu();location.href='overview.html'"><span class="nav-ic">📊</span>Visao Geral</div>
     <div class="nav-i" data-a="aba-desempenho" onclick="mostrarAba('aba-desempenho');fecharMenu()"><span class="nav-ic">📈</span>Desempenho</div>
-    <div class="nav-i" onclick="fecharMenu();location.href=\'relatorio.html\'"><span class="nav-ic">📑</span>Relatorios</div>
+    <div class="nav-i" onclick="fecharMenu();location.href='relatorio.html'"><span class="nav-ic">📑</span>Relatorios</div>
 
     <div class="side-h">Ajustes</div>
-    <div class="nav-i" onclick="fecharMenu();location.href=\'marca.html\'"><span class="nav-ic">🎨</span>Marca</div>
+    <div class="nav-i" onclick="fecharMenu();location.href='marca.html'"><span class="nav-ic">🎨</span>Marca</div>
 
     <div class="side-b">
       <div class="nav-i" onclick="trocarTema()" id="nav-tema"><span class="nav-ic">🌙</span>Tema</div>
@@ -171,19 +170,6 @@
       <div id="lista-concursos-aluno"></div>
     </div>
 
-    <div class="card" id="card-aplicar-template" style="display:none">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <h3 id="titulo-aplicar-template">Aplicar template</h3>
-        <button onclick="document.getElementById('card-aplicar-template').style.display='none'" style="width:auto;padding:6px 14px;background:var(--card);color:var(--tx3);border:1px solid var(--bd2)">Fechar</button>
-      </div>
-      <select id="aplicar-template-concurso" onchange="carregarTemplatesParaAplicar()"></select>
-      <select id="aplicar-template-select" style="margin-top:8px">
-        <option value="">Selecione o template</option>
-      </select>
-      <button onclick="preVisualizarTemplate()" style="margin-top:8px;background:#1a3a5c;color:var(--ouro);border:1px solid var(--ouro)">Visualizar e ajustar carga horaria</button>
-      <div id="preview-template" style="margin-top:12px"></div>
-      <button id="btn-confirmar-aplicar" onclick="confirmarAplicarTemplate()" style="display:none;margin-top:12px;background:#1a3a1a;color:var(--ok);border:1px solid var(--ok)">Confirmar e aplicar template</button>
-    </div>
     </div>
 
     <div id="aba-concursos" class="aba-conteudo" style="display:none">
@@ -260,11 +246,6 @@
         <div id="lista-avisos"></div>
       </div>
 
-    </div>
-    <div class="card">
-      <h3>Avisos publicados</h3>
-      <div id="lista-avisos"></div>
-    </div>
     </div>
 
     <div id="aba-cronograma" class="aba-conteudo" style="display:none">
@@ -347,68 +328,6 @@
     </div>
     </div>
 
-    <div id="aba-templates" class="aba-conteudo" style="display:none">
-
-    <div class="card">
-      <h3>Criar novo template</h3>
-      <select id="template-concurso"></select>
-      <input type="text" id="template-nome" placeholder="Nome do template (ex: PMBA Basico 60min/dia)">
-      <input type="text" id="template-descricao" placeholder="Descricao (opcional)">
-      <button onclick="criarTemplate()">Criar template</button>
-    </div>
-
-    <div class="card">
-      <h3>Templates existentes</h3>
-      <select id="filtro-template-concurso" onchange="carregarTemplates()">
-        <option value="">Selecione o concurso</option>
-      </select>
-      <div id="lista-templates" style="margin-top:12px"></div>
-    </div>
-
-    <div class="card" id="card-itens-template" style="display:none">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <h3 id="titulo-itens-template">Itens do template</h3>
-        <button onclick="document.getElementById('card-itens-template').style.display='none'" style="width:auto;padding:6px 14px;background:var(--card);color:var(--tx3);border:1px solid var(--bd2)">Fechar</button>
-      </div>
-      <div id="lista-itens-template" style="margin-bottom:16px"></div>
-      <div style="background:var(--card2);border-radius:8px;padding:14px">
-        <p style="color:var(--ouro);font-size:13px;font-weight:bold;margin-bottom:10px">Adicionar disciplina ao template</p>
-        <input type="text" id="item-disciplina" placeholder="Disciplina (ex: Direito Penal Militar)">
-        <select id="item-dia">
-          <option value="segunda">Segunda-feira</option>
-          <option value="terca">Terca-feira</option>
-          <option value="quarta">Quarta-feira</option>
-          <option value="quinta">Quinta-feira</option>
-          <option value="sexta">Sexta-feira</option>
-          <option value="sabado">Sabado</option>
-          <option value="domingo">Domingo</option>
-        </select>
-        <div style="display:flex;gap:8px">
-          <input type="number" id="item-tempo" placeholder="Tempo padrao (min)" min="15" step="15">
-          <input type="number" id="item-questoes" placeholder="Meta de questoes" value="30" min="0">
-        </div>
-        <button onclick="adicionarItemTemplate()" style="margin-top:8px">+ Adicionar disciplina</button>
-      </div>
-    </div>
-
-    <div class="card">
-      <h3>Aplicar template em massa</h3>
-      <p style="color:var(--tx3);font-size:13px;margin-bottom:12px">Selecione um concurso, escolha o template e marque os alunos que vao receber.</p>
-      <button onclick="document.getElementById('card-massa').style.display='block';document.getElementById('card-massa').scrollIntoView({behavior:'smooth'})"
-        style="background:#1a3a1a;color:var(--ok);border:1px solid var(--ok)">Abrir aplicacao em massa</button>
-    </div>
-
-    <div class="card" id="card-massa" style="display:none">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <h3>Aplicar em massa</h3>
-        <button onclick="document.getElementById('card-massa').style.display='none'" style="width:auto;padding:6px 14px;background:var(--card);color:var(--tx3);border:1px solid var(--bd2)">Fechar</button>
-      </div>
-      <select id="massa-concurso-select" onchange="carregarAlunosParaMassa()"></select>
-      <select id="massa-template-select" style="margin-top:8px"><option value="">Selecione o template</option></select>
-      <div id="lista-massa-alunos" style="margin-top:12px"></div>
-      <button onclick="aplicarTemplateEmMassa()" style="margin-top:12px;background:#1a3a1a;color:var(--ok);border:1px solid var(--ok)">Aplicar template aos selecionados</button>
-    </div>
-    </div>
 
     <div id="aba-desempenho" class="aba-conteudo" style="display:none">
       <div class="card" id="card-log">
@@ -441,7 +360,7 @@
         <button onclick="fecharRelatorioIndividual()" style="width:auto;padding:6px 14px;background:var(--card);color:var(--tx3);border:1px solid var(--bd2)">Fechar</button>
       </div>
       <div id="conteudo-relatorio-individual"></div>
-    </div>
+      </div>
     </div>
 
   </main>
