@@ -18,9 +18,9 @@
   .tema-row { display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--bd2);flex-wrap:wrap }
   .tema-row:last-child { border-bottom:none }
   .badge-p { font-size:10px;padding:2px 7px;border-radius:10px;font-weight:bold;flex-shrink:0 }
-  .p-alta { background:var(--erro)22;color:var(--erro);border:1px solid var(--erro) }
-  .p-media { background:var(--alerta)22;color:var(--alerta);border:1px solid var(--alerta) }
-  .p-baixa { background:var(--info)22;color:var(--info);border:1px solid var(--info) }
+  .p-alta { background:rgba(240,113,113,.13);color:var(--erro);border:1px solid var(--erro) }
+  .p-media { background:rgba(232,176,75,.13);color:var(--alerta);border:1px solid var(--alerta) }
+  .p-baixa { background:rgba(91,179,240,.13);color:var(--info);border:1px solid var(--info) }
   .disc-head { color:var(--ouro);font-size:14px;font-weight:bold;margin:14px 0 6px;display:flex;justify-content:space-between;align-items:center }
   .dia-card { background:var(--card2);border-radius:10px;padding:12px;margin-bottom:8px }
   .sessao { border-left:3px solid var(--bd2);border-radius:6px;padding:8px 10px;margin-top:6px;background:var(--card) }
@@ -28,9 +28,9 @@
   .s-questoes { border-left-color:var(--ouro) }
   .s-revisao { border-left-color:var(--ok) }
   .tag { font-size:10px;padding:1px 7px;border-radius:8px;font-weight:bold;text-transform:uppercase;letter-spacing:.5px }
-  .t-teoria { background:var(--info)22;color:var(--info) }
-  .t-questoes { background:var(--ouro)22;color:var(--ouro) }
-  .t-revisao { background:var(--ok)22;color:var(--ok) }
+  .t-teoria { background:rgba(91,179,240,.13);color:var(--info) }
+  .t-questoes { background:rgba(201,168,60,.13);color:var(--ouro) }
+  .t-revisao { background:rgba(109,219,160,.13);color:var(--ok) }
   .resumo-box { display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:14px }
   .resumo-c { background:var(--card2);border-radius:8px;padding:12px;text-align:center }
   .resumo-n { font-size:20px;font-weight:bold }
@@ -164,7 +164,7 @@
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         <button class="btn-acao btn-editar" onclick="marcarTodos(true)">Marcar todos</button>
         <button class="btn-acao" onclick="marcarTodos(false)" style="background:var(--card);color:var(--tx3);border:1px solid var(--bd2)">Desmarcar</button>
-        <button class="btn-acao" onclick="marcarPorPrioridade('alta')" style="background:var(--erro)22;color:var(--erro);border:1px solid var(--erro)">So alta</button>
+        <button class="btn-acao" onclick="marcarPorPrioridade('alta')" style="background:rgba(240,113,113,.13);color:var(--erro);border:1px solid var(--erro)">So alta</button>
       </div>
     </div>
     <p style="color:var(--tx3);font-size:13px;margin-bottom:10px">Puxados do edital cadastrado. Desmarque o que nao entra e edite os textos se precisar.</p>
