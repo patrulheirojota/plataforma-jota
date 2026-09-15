@@ -50,7 +50,6 @@ const TITULOS = {
   'aba-concursos':['Concursos','Cadastro, data da prova e edicao'],
   'aba-avisos':['Avisos','Recados para a turma'],
   'aba-cronograma':['Planos de estudo','Visualize e edite o plano de cada aluno'],
-  'aba-templates':['Templates','Modelos de cronograma reutilizaveis'],
   'aba-desempenho':['Desempenho','Inatividade e evolucao da turma']
 }
 
@@ -72,7 +71,6 @@ function mostrarAba(id) {
   }
   window.scrollTo({top:0,behavior:'smooth'})
   if (id === 'aba-alunos') carregarAlunos()
-  if (id === 'aba-templates') { carregarTemplates(); preencherSelectsMassa() }
   if (id === 'aba-cronograma') carregarSelectsCronograma()
   if (id === 'aba-desempenho') carregarSelectDesempenho()
   if (id === 'aba-avisos') carregarSelectsAvisos()
@@ -109,8 +107,7 @@ async function carregarConcursos() {
     }
   }
   const ids = ['novo-aluno-concurso','editar-aluno-concurso','filtro-cron-concurso',
-                'template-concurso','filtro-template-concurso','aplicar-template-concurso',
-                'massa-concurso-select','filtro-desempenho-concurso','aviso-concurso','filtro-avisos']
+                'filtro-desempenho-concurso','aviso-concurso','filtro-avisos']
   ids.forEach(sid => {
     const s = document.getElementById(sid)
     if (!s) return
@@ -398,7 +395,6 @@ function renderizarListaAlunos(alunos) {
         <button class="btn-acao btn-editar" onclick="abrirEditarAluno('${a.id}','${a.nome}','${a.email}','${a.concurso_id||''}')"><span class="ic">✏️</span><span class="lb">Editar</span></button>
         <button class="btn-acao btn-editar" onclick="gerenciarConcursosAluno('${a.id}','${a.nome}')"><span class="ic">🏆</span><span class="lb">Concursos</span></button>
         <button class="btn-acao btn-editar" onclick="irParaCronogramaAluno('${a.id}','${a.nome}')" style="background:var(--hov);color:var(--info);border:1px solid var(--info)"><span class="ic">📅</span><span class="lb">Cronograma</span></button>
-        <button class="btn-acao" onclick="abrirAplicarTemplate('${a.id}','${a.nome}')" style="background:var(--card2);color:var(--ok);border:1px solid var(--ok)"><span class="ic">📋</span><span class="lb">Template</span></button>
         <button class="btn-acao btn-info" onclick="avisoParaAluno('${a.id}','${String(a.nome).replace(/'/g,"\\'")}')"><span class="ic">🔔</span><span class="lb">Aviso</span></button>
         <button class="btn-acao btn-excluir" onclick="confirmarExcluirAluno('${a.id}','${a.nome}')"><span class="ic">🗑️</span><span class="lb">Excluir</span></button>
       </div>
@@ -696,261 +692,22 @@ async function removerConcursoAluno(vinculo_id) {
 function fecharConcursosAluno() { document.getElementById('card-concursos-aluno').style.display='none' }
 
 // ========== TEMPLATES ==========
-async function carregarTemplates() {
-  const concurso_id = document.getElementById('filtro-template-concurso').value
-  if (concurso_id) await carregarListaTemplates(concurso_id)
-}
 
-async function carregarListaTemplates(concurso_id) {
-  const { data: templates } = await _supabase.from('templates_cronograma')
-    .select('*').eq('concurso_id', concurso_id).order('criado_em', { ascending: false })
-  const div = document.getElementById('lista-templates')
-  div.innerHTML = ''
-  if (!templates||templates.length===0) { div.innerHTML='<p style="color:var(--tx3)">Nenhum template para este concurso.</p>'; return }
-  templates.forEach(t => {
-    div.innerHTML += `<div class="item-lista" style="flex-wrap:wrap;gap:8px">
-      <div style="flex:1"><strong>${t.nome}</strong><div style="color:var(--tx3);font-size:12px">${t.descricao||''}</div></div>
-      <div style="display:flex;gap:6px">
-        <button class="btn-acao btn-editar" onclick="verItensTemplate('${t.id}','${t.nome}')">Ver itens</button>
-        <button class="btn-acao btn-excluir" onclick="excluirTemplate('${t.id}')">Excluir</button>
-      </div>
-    </div>`
-  })
-  window._templates = templates
-}
 
-function preencherSelectsMassa() {
-  if (!window._concursos) return
-  const s = document.getElementById('massa-concurso-select')
-  if (!s) return
-  const val = s.value
-  s.innerHTML = '<option value="">Selecione o concurso</option>'
-  window._concursos.forEach(c => { s.innerHTML += `<option value="${c.id}">${c.nome}</option>` })
-  if (val) s.value = val
-}
 
-async function criarTemplate() {
-  const concurso_id = document.getElementById('template-concurso').value
-  const nome = document.getElementById('template-nome').value
-  const descricao = document.getElementById('template-descricao').value
-  if (!concurso_id||!nome) { alert('Selecione o concurso e digite o nome.'); return }
-  const { data, error } = await _supabase.from('templates_cronograma').insert({ concurso_id, nome, descricao }).select().single()
-  if (error) { alert('Erro: '+error.message); return }
-  document.getElementById('template-nome').value = ''
-  document.getElementById('template-descricao').value = ''
-  window._templateAtivo = data.id
-  window._templateAtivoNome = nome
-  document.getElementById('card-itens-template').style.display = 'block'
-  document.getElementById('titulo-itens-template').textContent = 'Itens do template: '+nome
-  document.getElementById('lista-itens-template').innerHTML = '<p style="color:var(--tx3)">Nenhum item ainda. Adicione abaixo.</p>'
-  document.getElementById('card-itens-template').scrollIntoView({ behavior:'smooth' })
-  await carregarListaTemplates(concurso_id)
-  alert('Template "'+nome+'" criado! Adicione as disciplinas abaixo.')
-}
 
-async function adicionarItemTemplate() {
-  const template_id = window._templateAtivo
-  if (!template_id) { alert('Crie ou selecione um template primeiro.'); return }
-  const disciplina = document.getElementById('item-disciplina').value
-  const dia_semana = document.getElementById('item-dia').value
-  const tempo_minutos = parseInt(document.getElementById('item-tempo').value)
-  const meta_questoes = parseInt(document.getElementById('item-questoes').value)||30
-  if (!disciplina||!tempo_minutos) { alert('Preencha disciplina e tempo.'); return }
-  const { error } = await _supabase.from('template_itens').insert({ template_id, disciplina, dia_semana, tempo_minutos, meta_questoes })
-  if (error) { alert('Erro: '+error.message); return }
-  document.getElementById('item-disciplina').value = ''
-  document.getElementById('item-tempo').value = ''
-  document.getElementById('item-questoes').value = '30'
-  await verItensTemplate(template_id, window._templateAtivoNome)
-}
 
-async function verItensTemplate(template_id, nome) {
-  window._templateAtivo = template_id
-  window._templateAtivoNome = nome
-  document.getElementById('card-itens-template').style.display = 'block'
-  document.getElementById('titulo-itens-template').textContent = 'Itens: '+nome
-  document.getElementById('card-itens-template').scrollIntoView({ behavior:'smooth' })
-  const { data: itens } = await _supabase.from('template_itens').select('*').eq('template_id', template_id)
-  const div = document.getElementById('lista-itens-template')
-  div.innerHTML = ''
-  if (!itens||itens.length===0) { div.innerHTML='<p style="color:var(--tx3)">Nenhum item ainda.</p>'; return }
-  itens.sort((a,b) => diasOrdem[a.dia_semana]-diasOrdem[b.dia_semana])
-  const porDia = {}
-  itens.forEach(i => { if (!porDia[i.dia_semana]) porDia[i.dia_semana]=[]; porDia[i.dia_semana].push(i) })
-  let totalMinSemana = 0
-  Object.keys(porDia).sort((a,b)=>diasOrdem[a]-diasOrdem[b]).forEach(dia => {
-    const itensDia = porDia[dia]
-    const totalMin = itensDia.reduce((s,i)=>s+i.tempo_minutos,0)
-    totalMinSemana += totalMin
-    div.innerHTML += `<div style="margin-bottom:14px">
-      <div style="display:flex;justify-content:space-between;margin-bottom:6px">
-        <strong style="color:var(--ouro)">${nomeDias[dia]}</strong>
-        <span style="color:var(--tx3);font-size:12px">${Math.floor(totalMin/60)>0?Math.floor(totalMin/60)+'h ':''}${totalMin%60>0?totalMin%60+'min':''}</span>
-      </div>
-      ${itensDia.map(i=>`<div class="item-lista" style="margin-bottom:4px">
-        <strong style="min-width:140px">${i.disciplina}</strong>
-        <span style="color:var(--tx3);font-size:13px">${i.tempo_minutos}min</span>
-        <span style="color:var(--tx3);font-size:13px">${i.meta_questoes}q</span>
-        <button class="btn-acao btn-excluir" onclick="excluirItemTemplate('${i.id}','${template_id}','${nome}')">X</button>
-      </div>`).join('')}
-    </div>`
-  })
-  const hSemana = Math.floor(totalMinSemana/60)
-  const mSemana = totalMinSemana%60
-  div.innerHTML += `<div style="background:var(--card2);border-radius:8px;padding:10px;text-align:center;color:var(--ouro);font-size:13px">
-    Total semanal: ${hSemana>0?hSemana+'h ':''}${mSemana>0?mSemana+'min':''} · ${itens.length} disciplinas
-  </div>`
-}
 
-async function excluirItemTemplate(id, template_id, nome) {
-  if (!confirm('Remover este item?')) return
-  await _supabase.from('template_itens').delete().eq('id', id)
-  verItensTemplate(template_id, nome)
-}
 
-async function excluirTemplate(id) {
-  if (!confirm('Excluir este template e todos os seus itens?')) return
-  await _supabase.from('template_itens').delete().eq('template_id', id)
-  await _supabase.from('templates_cronograma').delete().eq('id', id)
-  const concurso_id = document.getElementById('filtro-template-concurso').value
-  carregarListaTemplates(concurso_id)
-  document.getElementById('card-itens-template').style.display = 'none'
-}
 
 // ========== APLICAR TEMPLATE (individual) ==========
-function abrirAplicarTemplate(aluno_id, nome) {
-  window._alunoAplicarTemplate = aluno_id
-  document.getElementById('card-aplicar-template').style.display = 'block'
-  document.getElementById('titulo-aplicar-template').textContent = 'Aplicar template — '+nome
-  document.getElementById('preview-template').innerHTML = ''
-  document.getElementById('btn-confirmar-aplicar').style.display = 'none'
-  // Preenche o select de concurso
-  const sel = document.getElementById('aplicar-template-concurso')
-  sel.innerHTML = '<option value="">Selecione o concurso</option>'
-  window._concursos.forEach(c => { sel.innerHTML += `<option value="${c.id}">${c.nome}</option>` })
-  document.getElementById('aplicar-template-select').innerHTML = '<option value="">Selecione o template</option>'
-  document.getElementById('card-aplicar-template').scrollIntoView({ behavior:'smooth' })
-}
 
-async function carregarTemplatesParaAplicar() {
-  const concurso_id = document.getElementById('aplicar-template-concurso').value
-  const sel = document.getElementById('aplicar-template-select')
-  sel.innerHTML = '<option value="">Selecione o template</option>'
-  document.getElementById('preview-template').innerHTML = ''
-  document.getElementById('btn-confirmar-aplicar').style.display = 'none'
-  if (!concurso_id) return
-  const { data: templates } = await _supabase.from('templates_cronograma').select('*').eq('concurso_id', concurso_id)
-  if (!templates||templates.length===0) { sel.innerHTML='<option value="">Nenhum template para este concurso</option>'; return }
-  templates.forEach(t => { sel.innerHTML += `<option value="${t.id}">${t.nome}</option>` })
-}
 
-async function preVisualizarTemplate() {
-  const template_id = document.getElementById('aplicar-template-select').value
-  const concurso_id = document.getElementById('aplicar-template-concurso').value
-  if (!template_id) { alert('Selecione um template.'); return }
-  if (!concurso_id) { alert('Selecione um concurso.'); return }
-  const { data: itens } = await _supabase.from('template_itens').select('*').eq('template_id', template_id)
-  const div = document.getElementById('preview-template')
-  div.innerHTML = ''
-  if (!itens||itens.length===0) { div.innerHTML='<p style="color:var(--tx3)">Template sem itens.</p>'; return }
-  itens.sort((a,b)=>diasOrdem[a.dia_semana]-diasOrdem[b.dia_semana])
-  const porDia = {}
-  itens.forEach(i=>{ if (!porDia[i.dia_semana]) porDia[i.dia_semana]=[]; porDia[i.dia_semana].push(i) })
-  div.innerHTML = '<p style="color:var(--ouro);font-size:13px;margin-bottom:10px">Ajuste a carga horaria se necessario (opcional):</p>'
-  Object.keys(porDia).sort((a,b)=>diasOrdem[a]-diasOrdem[b]).forEach(dia => {
-    div.innerHTML += `<div style="margin-bottom:12px">
-      <strong style="color:var(--tx3);font-size:13px">${nomeDias[dia]}</strong>
-      ${porDia[dia].map(i=>`<div style="display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap">
-        <span style="flex:1;font-size:13px">${i.disciplina}</span>
-        <input type="number" id="adj-${i.id}" value="${i.tempo_minutos}" min="15" step="15"
-          style="width:80px;padding:6px;border-radius:6px;border:1px solid var(--bd2);background:var(--card2);color:#fff;font-size:13px">
-        <span style="color:var(--tx3);font-size:12px">min</span>
-        <input type="number" id="adjq-${i.id}" value="${i.meta_questoes}" min="0"
-          style="width:70px;padding:6px;border-radius:6px;border:1px solid var(--bd2);background:var(--card2);color:#fff;font-size:13px">
-        <span style="color:var(--tx3);font-size:12px">q</span>
-      </div>`).join('')}
-    </div>`
-  })
-  window._templateItensPreview = itens
-  document.getElementById('btn-confirmar-aplicar').style.display = 'block'
-}
 
-async function confirmarAplicarTemplate() {
-  const aluno_id = window._alunoAplicarTemplate
-  const template_id = document.getElementById('aplicar-template-select').value
-  const concurso_id = document.getElementById('aplicar-template-concurso').value
-  const itens = window._templateItensPreview
-  if (!aluno_id||!template_id||!concurso_id||!itens) { alert('Selecione template e concurso.'); return }
-  const novosItens = itens.map(i => ({
-    aluno_id, concurso_id, template_id,
-    disciplina: i.disciplina, dia_semana: i.dia_semana,
-    tempo_minutos: parseInt(document.getElementById('adj-'+i.id)?.value)||i.tempo_minutos,
-    meta_questoes: parseInt(document.getElementById('adjq-'+i.id)?.value)||i.meta_questoes,
-    ordem: i.ordem||1, tempo_personalizado: false
-  }))
-  const { error } = await _supabase.from('plano_aluno').insert(novosItens)
-  if (error) { alert('Erro: '+error.message); return }
-  alert('Template aplicado! '+novosItens.length+' itens adicionados.')
-  document.getElementById('card-aplicar-template').style.display = 'none'
-  document.getElementById('preview-template').innerHTML = ''
-  document.getElementById('btn-confirmar-aplicar').style.display = 'none'
-}
 
 // ========== APLICAR EM MASSA ==========
-async function carregarAlunosParaMassa() {
-  const concurso_id = document.getElementById('massa-concurso-select').value
-  const divAlunos = document.getElementById('lista-massa-alunos')
-  const selTemplate = document.getElementById('massa-template-select')
-  divAlunos.innerHTML = ''
-  selTemplate.innerHTML = '<option value="">Selecione o template</option>'
-  if (!concurso_id) return
-  const { data: vinculos } = await _supabase.from('aluno_concursos')
-    .select('aluno_id, alunos(id,nome)').eq('concurso_id', concurso_id)
-  const { data: templates } = await _supabase.from('templates_cronograma')
-    .select('*').eq('concurso_id', concurso_id)
-  if (templates) templates.forEach(t => { selTemplate.innerHTML += `<option value="${t.id}">${t.nome}</option>` })
-  if (!vinculos||vinculos.length===0) { divAlunos.innerHTML='<p style="color:var(--tx3)">Nenhum aluno neste concurso.</p>'; return }
-  divAlunos.innerHTML = `<div style="display:flex;gap:8px;margin-bottom:10px">
-    <button class="btn-acao btn-editar" onclick="selecionarTodosAlunos(true)">Selecionar todos</button>
-    <button class="btn-acao" onclick="selecionarTodosAlunos(false)" style="background:var(--btn);color:var(--tx3);border:1px solid var(--bd2)">Desmarcar todos</button>
-  </div>`
-  vinculos.forEach(v => {
-    if (!v.alunos) return
-    divAlunos.innerHTML += `<label style="display:flex;align-items:center;gap:10px;padding:8px;background:var(--card2);border-radius:6px;margin-bottom:4px;cursor:pointer">
-      <input type="checkbox" class="massa-aluno-check" value="${v.alunos.id}">
-      <span>${v.alunos.nome}</span>
-    </label>`
-  })
-}
 
-function selecionarTodosAlunos(valor) {
-  document.querySelectorAll('.massa-aluno-check').forEach(cb => { cb.checked = valor })
-}
 
-async function aplicarTemplateEmMassa() {
-  const template_id = document.getElementById('massa-template-select').value
-  const concurso_id = document.getElementById('massa-concurso-select').value
-  if (!template_id||!concurso_id) { alert('Selecione o concurso e o template.'); return }
-  const checkboxes = document.querySelectorAll('.massa-aluno-check:checked')
-  if (checkboxes.length===0) { alert('Selecione pelo menos um aluno.'); return }
-  if (!confirm('Aplicar template a '+checkboxes.length+' aluno(s)?')) return
-  const { data: itens } = await _supabase.from('template_itens').select('*').eq('template_id', template_id)
-  if (!itens||itens.length===0) { alert('Template sem itens cadastrados.'); return }
-  let erros = 0, sucesso = 0
-  for (const cb of checkboxes) {
-    const aluno_id = cb.value
-    const novosItens = itens.map(i => ({
-      aluno_id, concurso_id, template_id,
-      disciplina: i.disciplina, dia_semana: i.dia_semana,
-      tempo_minutos: i.tempo_minutos, meta_questoes: i.meta_questoes,
-      ordem: i.ordem||1, tempo_personalizado: false
-    }))
-    const { error } = await _supabase.from('plano_aluno').insert(novosItens)
-    if (error) erros++; else sucesso++
-  }
-  alert('Concluido! '+sucesso+' aluno(s) receberam o template.'+(erros>0?' '+erros+' erro(s).':''))
-  document.getElementById('card-massa').style.display = 'none'
-}
 
 // ========== CRONOGRAMA INDIVIDUAL ==========
 function carregarSelectsCronograma() {
@@ -1064,7 +821,7 @@ async function renderizarPlano(aluno_id, concurso_id) {
     .eq('aluno_id', aluno_id).eq('concurso_id', concurso_id)
   const div = document.getElementById('lista-plano-aluno')
   div.innerHTML = ''
-  if (!itens||itens.length===0) { div.innerHTML='<p style="color:var(--tx3)">Nenhuma disciplina no plano. Adicione manualmente ou aplique um template pela aba Alunos.</p>'; return }
+  if (!itens||itens.length===0) { div.innerHTML='<p style="color:var(--tx3)">Nenhuma disciplina no plano. Use o Gerador para montar o cronograma deste aluno.</p>'; return }
 
   // Botao para remover o plano inteiro
   div.innerHTML += `<div style="display:flex;justify-content:flex-end;margin-bottom:12px">
