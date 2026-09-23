@@ -50,7 +50,9 @@ const TITULOS = {
   'aba-concursos':['Concursos','Cadastro, data da prova e edicao'],
   'aba-avisos':['Avisos','Recados para a turma'],
   'aba-cronograma':['Planos de estudo','Visualize e edite o plano de cada aluno'],
-  'aba-desempenho':['Desempenho','Inatividade e evolucao da turma']
+  'aba-desempenho':['Desempenho','Inatividade e evolucao da turma'],
+  'aba-evolucao':['Evolucao','Suas anotacoes sobre cada aluno'],
+  'aba-ciclos':['Relatorio 21 dias','Avaliacao periodica de cada aluno']
 }
 
 function mostrarAba(id) {
@@ -74,6 +76,8 @@ function mostrarAba(id) {
   if (id === 'aba-cronograma') carregarSelectsCronograma()
   if (id === 'aba-desempenho') carregarSelectDesempenho()
   if (id === 'aba-avisos') carregarSelectsAvisos()
+  if (id === 'aba-evolucao') carregarSelectAnotacoes()
+  if (id === 'aba-ciclos') carregarCiclos()
 }
 
 // ========== CONCURSOS ==========
@@ -223,24 +227,59 @@ async function criarAluno() {
   // Usa signUp mas imediatamente restaura a sessao do admin
   const { data: adminSession } = await _supabase.auth.getSession()
 
+  const restaurarAdmin = async function() {
+    if (adminSession?.session?.access_token) {
+      await _supabase.auth.setSession({
+        access_token: adminSession.session.access_token,
+        refresh_token: adminSession.session.refresh_token
+      })
+    }
+  }
+
+  let novoId = null
+  let reaproveitado = false
   const { data, error } = await _supabase.auth.signUp({ email, password: senha })
-  if (error) { msg.style.color='var(--erro)'; msg.textContent='Erro: '+error.message; return }
 
-  const novoId = data.user.id
+  if (error) {
+    // E-mail ja tem login: normalmente e um cadastro que falhou no meio do caminho.
+    // Tentamos entrar com a senha digitada para recuperar o ID e completar o cadastro.
+    if (/already|existe|registered/i.test(error.message)) {
+      msg.textContent = 'Este e-mail ja tem login. Tentando recuperar o cadastro...'
+      const rec = await _supabase.auth.signInWithPassword({ email, password: senha })
+      await restaurarAdmin()
+      if (rec.error || !rec.data || !rec.data.user) {
+        msg.style.color='var(--erro)'
+        msg.innerHTML = 'Este e-mail <strong>ja tem login criado</strong> e a senha digitada nao confere.<br>'
+          + '• Se foi um cadastro que falhou antes, digite a MESMA senha usada naquela vez e clique de novo.<br>'
+          + '• Se o aluno ja existe, procure o nome na lista abaixo.<br>'
+          + '• Se quiser recomecar do zero, apague o usuario em Supabase > Authentication > Users e cadastre de novo.'
+        return
+      }
+      novoId = rec.data.user.id
+      reaproveitado = true
+    } else {
+      msg.style.color='var(--erro)'; msg.textContent='Erro: '+error.message; return
+    }
+  } else {
+    novoId = data.user.id
+    await restaurarAdmin()
+  }
 
-  // Restaura sessao do admin imediatamente
-  if (adminSession?.session?.access_token) {
-    await _supabase.auth.setSession({
-      access_token: adminSession.session.access_token,
-      refresh_token: adminSession.session.refresh_token
-    })
+  // Ja existe ficha deste aluno?
+  const { data: jaTem } = await _supabase.from('alunos').select('id,nome').eq('id', novoId).maybeSingle()
+  if (jaTem) {
+    msg.style.color='var(--alerta)'
+    msg.textContent = 'Este aluno ja estava cadastrado como "'+jaTem.nome+'". Nada foi duplicado.'
+    await carregarAlunos()
+    return
   }
 
   // Salva dados do aluno
   const { error: erroAluno } = await _supabase.from('alunos').insert({ id: novoId, nome, email, concurso_id, data_expiracao })
   if (erroAluno) { msg.style.color='var(--erro)'; msg.textContent='Login criado, erro ao salvar dados: '+erroAluno.message; return }
+  if (reaproveitado) msg.textContent = 'Cadastro recuperado e concluido.'
 
-  await _supabase.from('aluno_concursos').insert({ aluno_id: novoId, concurso_id }).catch(()=>{})
+  try { await _supabase.from('aluno_concursos').insert({ aluno_id: novoId, concurso_id }) } catch(e) {}
 
   msg.style.color='var(--ok)'
   const acessoTexto = data_expiracao ? ' Acesso ate ' + new Date(data_expiracao+'T00:00:00').toLocaleDateString('pt-BR') + '.' : ' Sem prazo de expiracao definido.'
@@ -284,6 +323,7 @@ async function carregarAlunos() {
     window._diasBloqueio = (mc && mc.dias_bloqueio) ? mc.dias_bloqueio : 20
   } catch(e) { window._diasBloqueio = 20 }
   await carregarAlertas()
+  await calcularCiclos()
   filtrarAlunos()
 }
 
@@ -378,6 +418,7 @@ function renderizarListaAlunos(alunos) {
     const plano  = tempoRelativo(al.plano)
 
     const bloq = alunoBloqueado(a)
+    const ci = (window._ciclos||{})[a.id]
     const corEstudo = !al.estudo ? 'var(--erro)'
       : (Math.floor((Date.now()-new Date(al.estudo+'T12:00:00').getTime())/86400000) > 3 ? 'var(--alerta)' : 'var(--ok)')
 
@@ -387,6 +428,8 @@ function renderizarListaAlunos(alunos) {
         <div style="color:var(--tx3);font-size:12px">${a.email}</div>
         <div style="color:var(--tx3);font-size:12px">${a.concursos?.nome||'Sem concurso'}</div>
         <div style="color:${status.cor};font-size:11px;margin-top:2px;font-weight:bold">${status.texto}</div>
+        ${(ci&&ci.vencido) ? `<div style="margin-top:6px;padding:7px 10px;border-radius:8px;background:rgba(232,176,75,.10);border:1px solid var(--alerta);color:var(--alerta);font-size:11.5px;font-weight:700">
+          🗓️ Relatorio de 21 dias (ciclo ${ci.ciclo}) ${ci.atraso>0?('vencido ha '+ci.atraso+' dia(s)'):'fecha hoje'} — periodo ${ci.iniBR} a ${ci.fimBR}</div>` : ''}
         ${bloq ? `<div style="margin-top:6px;padding:7px 10px;border-radius:8px;background:rgba(240,113,113,.10);border:1px solid var(--erro);color:var(--erro);font-size:11.5px;font-weight:700">
           🔒 Bloqueado por inatividade (${bloq} dias sem acessar). Aguardando taxa de reabilitacao.</div>` : ''}
 
@@ -410,6 +453,8 @@ function renderizarListaAlunos(alunos) {
         <button class="btn-acao btn-editar" onclick="abrirEditarAluno('${a.id}','${a.nome}','${a.email}','${a.concurso_id||''}')"><span class="ic">✏️</span><span class="lb">Editar</span></button>
         <button class="btn-acao btn-editar" onclick="gerenciarConcursosAluno('${a.id}','${a.nome}')"><span class="ic">🏆</span><span class="lb">Concursos</span></button>
         <button class="btn-acao btn-editar" onclick="irParaCronogramaAluno('${a.id}','${a.nome}')" style="background:var(--hov);color:var(--info);border:1px solid var(--info)"><span class="ic">📅</span><span class="lb">Cronograma</span></button>
+        <button class="btn-acao" onclick="abrirRelatorioCiclo('${a.id}')" style="background:${(ci&&ci.vencido)?'var(--alerta)':'var(--card2)'};color:${(ci&&ci.vencido)?'#0a1420':'var(--alerta)'};border:1px solid var(--alerta);font-weight:700"><span class="ic">🗓️</span><span class="lb">Relatorio 21d</span></button>
+        <button class="btn-acao btn-editar" onclick="anotarAluno('${a.id}','${String(a.nome).replace(/'/g,"\\'")}')"><span class="ic">📝</span><span class="lb">Anotar</span></button>
         <button class="btn-acao btn-info" onclick="avisoParaAluno('${a.id}','${String(a.nome).replace(/'/g,"\\'")}')"><span class="ic">🔔</span><span class="lb">Aviso</span></button>
         <button class="btn-acao btn-excluir" onclick="confirmarExcluirAluno('${a.id}','${a.nome}')"><span class="ic">🗑️</span><span class="lb">Excluir</span></button>
       </div>
@@ -1196,6 +1241,336 @@ async function excluirRegistro(id, aluno_id, nome) {
 }
 
 // ========== AVISOS ==========
+// ========== ANOTACOES DE EVOLUCAO ==========
+const TIPO_ANOT = {
+  evolucao:['Evolucao','var(--info)'], ponto_forte:['Ponto forte','var(--ok)'],
+  ponto_fraco:['Ponto fraco','var(--erro)'], combinado:['Combinado / meta','var(--ouro)'],
+  conversa:['Conversa','var(--roxo)']
+}
+
+async function carregarSelectAnotacoes() {
+  const s = document.getElementById('anot-aluno')
+  if (!s) return
+  const atual = s.value
+  const { data: alunos } = await _supabase.from('alunos').select('id,nome').order('nome')
+  s.innerHTML = '<option value="">Selecione o aluno</option>'
+  ;(alunos||[]).forEach(function(a){ s.innerHTML += '<option value="'+a.id+'">'+a.nome+'</option>' })
+  if (atual) s.value = atual
+  if (s.value) carregarAnotacoes()
+}
+
+function anotarAluno(aluno_id, nome) {
+  mostrarAba('aba-evolucao')
+  setTimeout(function(){
+    const s = document.getElementById('anot-aluno')
+    if (s) { s.value = aluno_id; carregarAnotacoes() }
+    document.getElementById('anot-texto').focus()
+  }, 250)
+}
+
+async function salvarAnotacao() {
+  const aluno_id = document.getElementById('anot-aluno').value
+  const texto = document.getElementById('anot-texto').value.trim()
+  const tipo = document.getElementById('anot-tipo').value
+  const m = document.getElementById('msg-anot')
+  m.style.display='block'
+  if (!aluno_id) { m.style.color='var(--erro)'; m.textContent='Selecione o aluno.'; return }
+  if (!texto) { m.style.color='var(--erro)'; m.textContent='Escreva a anotacao.'; return }
+  m.style.color='var(--tx3)'; m.textContent='Salvando...'
+  const { error } = await _supabase.from('anotacoes_aluno').insert({ aluno_id: aluno_id, texto: texto, tipo: tipo })
+  if (error) { m.style.color='var(--erro)'; m.textContent='Erro: '+error.message+' (ja rodou o SQL desta atualizacao?)'; return }
+  m.style.color='var(--ok)'; m.textContent='Anotacao salva.'
+  document.getElementById('anot-texto').value=''
+  carregarAnotacoes()
+}
+
+async function carregarAnotacoes() {
+  const aluno_id = document.getElementById('anot-aluno').value
+  const div = document.getElementById('lista-anot')
+  const tit = document.getElementById('titulo-anot')
+  if (!div) return
+  if (!aluno_id) { div.innerHTML='<p style="color:var(--tx3);font-size:13px">Selecione um aluno para ver o historico.</p>'; return }
+  div.innerHTML='<p style="color:var(--tx3);font-size:13px">Carregando...</p>'
+  const { data: notas, error } = await _supabase.from('anotacoes_aluno')
+    .select('*').eq('aluno_id',aluno_id).order('criado_em',{ascending:false}).limit(200)
+  if (error) { div.innerHTML='<p style="color:var(--erro);font-size:13px">Erro: '+error.message+' (rode o SQL desta atualizacao no Supabase)</p>'; return }
+  const nome = document.getElementById('anot-aluno').options[document.getElementById('anot-aluno').selectedIndex].text
+  if (tit) tit.textContent = 'Historico de anotacoes — '+nome
+  if (!notas || !notas.length) { div.innerHTML='<p style="color:var(--tx3);font-size:13px">Nenhuma anotacao ainda.</p>'; return }
+  div.innerHTML = notas.map(function(n){
+    const t = TIPO_ANOT[n.tipo] || ['Anotacao','var(--tx3)']
+    const d = new Date(n.criado_em).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'})
+    return '<div class="item-lista" style="flex-direction:column;align-items:flex-start;gap:6px;border-left:3px solid '+t[1]+'">'
+      +'<div style="display:flex;gap:8px;align-items:center;width:100%;flex-wrap:wrap">'
+      +'<span class="tag" style="background:var(--card2);color:'+t[1]+';border:1px solid '+t[1]+'">'+t[0]+'</span>'
+      +'<span style="color:var(--tx4);font-size:11.5px">'+d+'</span>'
+      +'<button class="btn-acao btn-excluir" style="margin-left:auto" onclick="excluirAnotacao(\''+n.id+'\')">Excluir</button></div>'
+      +'<p style="color:var(--tx2);font-size:13.5px;margin:0;line-height:1.6;white-space:pre-wrap">'+String(n.texto).replace(/</g,'&lt;')+'</p></div>'
+  }).join('')
+}
+
+async function excluirAnotacao(id) {
+  if (!confirm('Excluir esta anotacao?')) return
+  await _supabase.from('anotacoes_aluno').delete().eq('id',id)
+  carregarAnotacoes()
+}
+
+// ========== CICLO DE 21 DIAS ==========
+const CICLO_DIAS = 21
+function diaBR(d){ return new Date(d).toLocaleDateString('pt-BR') }
+function somaDias(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x }
+
+// calcula, para cada aluno, em que ciclo esta e se o relatorio venceu
+async function calcularCiclos() {
+  const alunos = window._todosAlunos || []
+  const ciclos = {}
+  let rel = []
+  const r = await _supabase.from('relatorios_aluno').select('aluno_id,ciclo,periodo_fim,enviado_em').order('enviado_em',{ascending:false})
+  if (!r.error) rel = r.data || []
+  const ultimo = {}, quantos = {}
+  rel.forEach(function(x){
+    quantos[x.aluno_id] = (quantos[x.aluno_id]||0)+1
+    if (!ultimo[x.aluno_id]) ultimo[x.aluno_id] = x
+  })
+  const hoje = new Date(); hoje.setHours(0,0,0,0)
+  alunos.forEach(function(a){
+    const entrada = a.criado_em ? new Date(a.criado_em) : null
+    if (!entrada) return
+    const u = ultimo[a.id]
+    const ini = u && u.periodo_fim ? new Date(u.periodo_fim+'T12:00:00') : entrada
+    const fim = somaDias(ini, CICLO_DIAS)
+    const atraso = Math.floor((hoje - fim)/86400000)
+    ciclos[a.id] = {
+      ciclo: (quantos[a.id]||0)+1,
+      ini: ini, fim: fim,
+      iniBR: diaBR(ini), fimBR: diaBR(fim),
+      atraso: atraso,
+      vencido: atraso >= 0,
+      faltam: -atraso
+    }
+  })
+  window._ciclos = ciclos
+  const pend = Object.keys(ciclos).filter(function(k){ return ciclos[k].vencido }).length
+  const bd = document.getElementById('bd-ciclos')
+  if (bd) { bd.textContent = pend; bd.style.display = pend ? 'inline-block' : 'none' }
+  const av = document.getElementById('aviso-ciclos')
+  if (av) {
+    if (pend) {
+      av.style.display='block'
+      av.innerHTML = '<div class="card" style="border:1px solid var(--alerta);background:rgba(232,176,75,.07);display:flex;gap:12px;align-items:center;flex-wrap:wrap">'
+        +'<div style="font-size:26px">🗓️</div>'
+        +'<div style="flex:1;min-width:200px"><strong style="color:var(--alerta)">'+pend+' aluno(s) com relatorio de 21 dias para enviar</strong>'
+        +'<div style="color:var(--tx3);font-size:12.5px;margin-top:3px">Avalie o estudo do periodo e mande o retorno para cada um.</div></div>'
+        +'<button onclick="mostrarAba(\'aba-ciclos\')" style="width:auto;padding:10px 16px">Ver relatorios</button></div>'
+    } else av.style.display='none'
+  }
+  return ciclos
+}
+
+async function carregarCiclos() {
+  const div = document.getElementById('lista-ciclos')
+  if (!div) return
+  div.innerHTML = '<p style="color:var(--tx3);font-size:13px">Carregando...</p>'
+  if (!window._todosAlunos) {
+    const { data: alunos } = await _supabase.from('alunos').select('*, concursos(nome)').order('nome')
+    window._todosAlunos = alunos || []
+  }
+  const ciclos = await calcularCiclos()
+  const lista = (window._todosAlunos||[]).filter(function(a){ return ciclos[a.id] })
+    .sort(function(a,b){ return ciclos[b.id].atraso - ciclos[a.id].atraso })
+  if (!lista.length) { div.innerHTML='<p style="color:var(--tx3);font-size:13px">Nenhum aluno cadastrado ainda.</p>'; return }
+  div.innerHTML = lista.map(function(a){
+    const c = ciclos[a.id]
+    const cor = c.vencido ? 'var(--alerta)' : 'var(--bd2)'
+    const txt = c.vencido
+      ? (c.atraso>0 ? 'Vencido ha '+c.atraso+' dia(s)' : 'Fecha hoje')
+      : 'Faltam '+c.faltam+' dia(s)'
+    return '<div class="item-lista" style="border-left:4px solid '+cor+'">'
+      +'<div style="flex:1;min-width:170px"><strong>'+a.nome+'</strong>'
+      +'<div style="color:var(--tx3);font-size:12px">'+(a.concursos?a.concursos.nome:'sem concurso')+'</div>'
+      +'<div style="color:var(--tx4);font-size:11.5px;margin-top:3px">Ciclo '+c.ciclo+' · '+c.iniBR+' a '+c.fimBR+'</div></div>'
+      +'<span style="color:'+(c.vencido?'var(--alerta)':'var(--tx3)')+';font-size:12.5px;font-weight:700">'+txt+'</span>'
+      +'<button class="btn-acao btn-editar" onclick="abrirRelatorioCiclo(\''+a.id+'\')">Montar relatorio</button></div>'
+  }).join('')
+}
+
+function fecharRelatorioCiclo(){ document.getElementById('card-relatorio-ciclo').style.display='none' }
+
+// monta o relatorio do ciclo com os numeros reais do periodo
+async function abrirRelatorioCiclo(aluno_id) {
+  mostrarAba('aba-ciclos')
+  const card = document.getElementById('card-relatorio-ciclo')
+  const corpo = document.getElementById('corpo-ciclo')
+  card.style.display='block'
+  corpo.innerHTML='<p style="color:var(--tx3);font-size:13px">Montando relatorio...</p>'
+  card.scrollIntoView({behavior:'smooth'})
+
+  if (!window._ciclos || !window._ciclos[aluno_id]) await carregarCiclos()
+  const c = (window._ciclos||{})[aluno_id]
+  const aluno = (window._todosAlunos||[]).find(function(x){ return x.id===aluno_id }) || {nome:'Aluno'}
+  if (!c) { corpo.innerHTML='<p style="color:var(--erro)">Nao foi possivel calcular o ciclo deste aluno.</p>'; return }
+
+  const ini = ymdLocal(c.ini), fim = ymdLocal(new Date(Math.min(c.fim.getTime(), Date.now())))
+  document.getElementById('titulo-ciclo').textContent='Relatorio do ciclo '+c.ciclo+' — '+aluno.nome
+
+  const [rs, rq, rn, rl] = await Promise.all([
+    _supabase.from('sessoes_estudo').select('*').eq('aluno_id',aluno_id).gte('data',ini).lte('data',fim),
+    _supabase.from('questao_respostas').select('correta,respondido_em').eq('aluno_id',aluno_id).gte('respondido_em',ini+'T00:00:00'),
+    _supabase.from('anotacoes_aluno').select('*').eq('aluno_id',aluno_id).gte('criado_em',ini+'T00:00:00').order('criado_em'),
+    _supabase.from('cronograma_log').select('*').eq('aluno_id',aluno_id).gte('criado_em',ini+'T00:00:00').order('criado_em',{ascending:false})
+  ])
+
+  const sess = rs.data||[]
+  const feitas = sess.filter(function(s){ return s.concluida })
+  const pct = sess.length ? Math.round(feitas.length/sess.length*100) : 0
+  const min = feitas.reduce(function(a,s){ return a+(s.tempo_minutos||0) },0)
+  const qS = sess.reduce(function(a,s){ return a+(s.questoes_feitas||0) },0)
+  const cS = sess.reduce(function(a,s){ return a+(s.questoes_certas||0) },0)
+  const banco = rq.data||[]
+  const qTot = qS + banco.length
+  const cTot = cS + banco.filter(function(r){ return r.correta }).length
+  const pctAc = qTot ? Math.round(cTot/qTot*100) : null
+  const dias = {}; feitas.forEach(function(s){ dias[s.data]=1 })
+  const nDias = Object.keys(dias).length
+  const atrasadas = sess.filter(function(s){ return !s.concluida && s.data < ymdLocal(new Date()) }).length
+  const parciais = sess.filter(function(s){ return s.parcial }).length
+
+  const disc = {}
+  sess.forEach(function(s){
+    if(!disc[s.disciplina]) disc[s.disciplina]={tot:0,ok:0,q:0,c:0}
+    const d=disc[s.disciplina]; d.tot++; if(s.concluida)d.ok++
+    d.q+=s.questoes_feitas||0; d.c+=s.questoes_certas||0
+  })
+  const linhasDisc = Object.keys(disc).sort().map(function(k){
+    const d=disc[k], p=d.tot?Math.round(d.ok/d.tot*100):0, pa=d.q?Math.round(d.c/d.q*100):null
+    return {nome:k, cump:p, ac:pa, q:d.q, ok:d.ok, tot:d.tot}
+  })
+  const fracas = linhasDisc.filter(function(d){ return d.ac!==null && d.ac<60 && d.q>=10 }).sort(function(a,b){return a.ac-b.ac})
+  const fortes = linhasDisc.filter(function(d){ return d.ac!==null && d.ac>=75 && d.q>=10 }).sort(function(a,b){return b.ac-a.ac})
+  const notas = rn.data||[]
+  const logs = (rl.data||[]).filter(function(l){ return !l.por_mentor && String(l.detalhe||'').indexOf('[Mentor]')!==0 })
+
+  const cor = pct>=70?'var(--ok)':pct>=40?'var(--alerta)':'var(--erro)'
+  const texto = montarTextoRelatorio(aluno.nome, c, {pct:pct,feitas:feitas.length,total:sess.length,min:min,qTot:qTot,pctAc:pctAc,nDias:nDias,atrasadas:atrasadas,parciais:parciais,fracas:fracas,fortes:fortes})
+  window._relatorioAtual = { aluno_id:aluno_id, nome:aluno.nome, ciclo:c.ciclo, ini:ini, fim:fim,
+    resumo:{pct:pct,feitas:feitas.length,total:sess.length,minutos:min,questoes:qTot,acerto:pctAc,dias:nDias,atrasadas:atrasadas} }
+
+  corpo.innerHTML =
+    '<p style="color:var(--tx3);font-size:13px;margin-bottom:14px">Periodo avaliado: <strong style="color:var(--tx2)">'+diaBR(c.ini)+' a '+diaBR(c.fim)+'</strong></p>'
+   +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:16px">'
+   +bloco('Cumprimento', pct+'%', feitas.length+' de '+sess.length+' sessoes', cor)
+   +bloco('Horas de estudo', Math.floor(min/60)+'h'+(min%60?' '+(min%60)+'min':''), nDias+' dia(s) com estudo', 'var(--info)')
+   +bloco('Questoes', String(qTot), pctAc===null?'sem registro':pctAc+'% de acerto', pctAc===null?'var(--tx3)':(pctAc>=70?'var(--ok)':pctAc>=50?'var(--alerta)':'var(--erro)'))
+   +bloco('Atrasadas', String(atrasadas), parciais+' tema(s) nao finalizados', atrasadas?'var(--erro)':'var(--ok)')
+   +'</div>'
+
+   +(linhasDisc.length?'<h3 style="font-size:15px;margin-bottom:8px">Por disciplina</h3><div style="margin-bottom:16px">'
+     +linhasDisc.map(function(d){
+        return '<div class="item-lista" style="padding:9px 12px"><strong style="flex:1;min-width:130px">'+d.nome+'</strong>'
+          +'<span style="color:var(--tx3);font-size:12.5px">'+d.ok+'/'+d.tot+' sessoes ('+d.cump+'%)</span>'
+          +'<span style="color:'+(d.ac===null?'var(--tx4)':(d.ac>=70?'var(--ok)':d.ac>=50?'var(--alerta)':'var(--erro)'))+';font-size:12.5px;font-weight:700">'
+          +(d.ac===null?'sem questoes':d.ac+'% em '+d.q+'q')+'</span></div>'
+     }).join('')+'</div>':'')
+
+   +'<h3 style="font-size:15px;margin-bottom:8px">Suas anotacoes no periodo</h3>'
+   +(notas.length
+      ? '<div style="margin-bottom:8px">'+notas.map(function(n){
+          const t=TIPO_ANOT[n.tipo]||['Anotacao','var(--tx3)']
+          return '<div class="item-lista" style="flex-direction:column;align-items:flex-start;gap:5px;border-left:3px solid '+t[1]+'">'
+            +'<div style="display:flex;gap:8px;align-items:center"><span class="tag" style="background:var(--card2);color:'+t[1]+';border:1px solid '+t[1]+'">'+t[0]+'</span>'
+            +'<span style="color:var(--tx4);font-size:11.5px">'+new Date(n.criado_em).toLocaleDateString('pt-BR')+'</span></div>'
+            +'<p style="color:var(--tx2);font-size:13px;margin:0;line-height:1.55;white-space:pre-wrap">'+String(n.texto).replace(/</g,'&lt;')+'</p></div>'
+        }).join('')+'</div>'
+      : '<p style="color:var(--tx3);font-size:13px;margin-bottom:8px">Nenhuma anotacao neste ciclo.</p>')
+   +'<button class="btn-acao btn-editar" onclick="anotarAluno(\''+aluno_id+'\',\''+String(aluno.nome).replace(/'/g,"\\'")+'\')" style="margin-bottom:16px">📝 Nova anotacao</button>'
+
+   +(logs.length?'<h3 style="font-size:15px;margin:10px 0 8px">O que o aluno mexeu no cronograma</h3><div style="margin-bottom:16px">'
+     +logs.slice(0,8).map(function(l){
+        return '<div class="item-lista" style="padding:8px 12px"><span style="flex:1;min-width:150px;color:var(--tx2);font-size:12.5px">'+(l.detalhe||l.acao)+'</span>'
+          +'<span style="color:var(--tx4);font-size:11.5px">'+new Date(l.criado_em).toLocaleDateString('pt-BR')+'</span></div>'
+     }).join('')+'</div>':'')
+
+   +'<h3 style="font-size:15px;margin-bottom:6px">Sua analise para o aluno</h3>'
+   +'<p style="color:var(--tx3);font-size:12.5px;margin-bottom:8px">O texto abaixo ja vem com os numeros do ciclo. Complete com a sua leitura e as orientacoes do proximo ciclo.</p>'
+   +'<textarea id="ciclo-analise" rows="14" style="font-size:13.5px;line-height:1.6"></textarea>'
+   +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">'
+   +'<button onclick="copiarRelatorio()" style="width:auto;padding:10px 16px">📋 Copiar para o WhatsApp</button>'
+   +'<button onclick="enviarRelatorioAviso()" style="width:auto;padding:10px 16px;background:var(--card2);color:var(--info);border:1px solid var(--info)">🔔 Enviar como aviso na plataforma</button>'
+   +'<button onclick="marcarRelatorioEnviado()" style="width:auto;padding:10px 16px;background:var(--card2);color:var(--ok);border:1px solid var(--ok)">✅ Marcar como enviado</button>'
+   +'</div>'
+   +'<p id="msg-ciclo" style="display:none;margin-top:10px;font-size:13px"></p>'
+
+  document.getElementById('ciclo-analise').value = texto
+}
+
+function bloco(titulo, valor, sub, cor) {
+  return '<div style="background:var(--card2);border:1px solid var(--bd);border-radius:12px;padding:12px;text-align:center">'
+    +'<div style="color:'+cor+';font-size:22px;font-weight:800">'+valor+'</div>'
+    +'<div style="color:var(--tx2);font-size:12px;font-weight:600;margin-top:2px">'+titulo+'</div>'
+    +'<div style="color:var(--tx4);font-size:11px;margin-top:2px">'+sub+'</div></div>'
+}
+
+function ymdLocal(d){ const x=new Date(d); return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0') }
+
+function montarTextoRelatorio(nome, c, r) {
+  const h = Math.floor(r.min/60), m = r.min%60
+  let t = 'RELATORIO DE 21 DIAS — '+nome.split(' ')[0]+'\n'
+    + 'Periodo: '+diaBR(c.ini)+' a '+diaBR(c.fim)+' (ciclo '+c.ciclo+')\n\n'
+    + 'COMO FOI O SEU CICLO\n'
+    + '• Sessoes concluidas: '+r.feitas+' de '+r.total+' ('+r.pct+'%)\n'
+    + '• Tempo de estudo: '+h+'h'+(m?' '+m+'min':'')+' em '+r.nDias+' dia(s)\n'
+    + '• Questoes: '+r.qTot+(r.pctAc===null?'':' · '+r.pctAc+'% de acerto')+'\n'
+    + (r.atrasadas?'• Sessoes atrasadas no fim do ciclo: '+r.atrasadas+'\n':'• Nenhuma sessao atrasada. Parabens pela constancia.\n')
+    + (r.parciais?'• Temas que voce comecou e nao terminou: '+r.parciais+'\n':'')
+    + '\n'
+  if (r.fortes.length) t += 'PONTOS FORTES\n' + r.fortes.slice(0,3).map(function(d){ return '• '+d.nome+': '+d.ac+'% de acerto em '+d.q+' questoes' }).join('\n') + '\n\n'
+  if (r.fracas.length) t += 'O QUE PRECISA DE ATENCAO\n' + r.fracas.slice(0,3).map(function(d){ return '• '+d.nome+': '+d.ac+'% de acerto em '+d.q+' questoes' }).join('\n') + '\n\n'
+  t += 'MINHA ANALISE\n(escreva aqui)\n\nMETAS PARA OS PROXIMOS 21 DIAS\n1) \n2) \n3) \n\nSiga firme, patrulheiro. Disciplina vence talento.\nCabo Jota'
+  return t
+}
+
+function copiarRelatorio() {
+  const t = document.getElementById('ciclo-analise').value
+  const m = document.getElementById('msg-ciclo')
+  m.style.display='block'
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(t).then(function(){ m.style.color='var(--ok)'; m.textContent='Texto copiado! Cole no WhatsApp do aluno.' })
+      .catch(function(){ m.style.color='var(--alerta)'; m.textContent='Nao consegui copiar. Selecione o texto e copie manualmente.' })
+  } else { m.style.color='var(--alerta)'; m.textContent='Selecione o texto e copie manualmente.' }
+}
+
+async function enviarRelatorioAviso() {
+  const r = window._relatorioAtual
+  const m = document.getElementById('msg-ciclo')
+  m.style.display='block'
+  if (!r) { m.style.color='var(--erro)'; m.textContent='Abra o relatorio de novo.'; return }
+  const texto = document.getElementById('ciclo-analise').value
+  m.style.color='var(--tx3)'; m.textContent='Enviando...'
+  const { error } = await _supabase.from('avisos').insert({
+    aluno_id: r.aluno_id, titulo: 'Seu relatorio de 21 dias (ciclo '+r.ciclo+')', mensagem: texto, prioridade: 'alta'
+  })
+  if (error) { m.style.color='var(--erro)'; m.textContent='Erro: '+error.message; return }
+  m.style.color='var(--ok)'; m.textContent='Aviso enviado. O aluno ve na aba Avisos da plataforma.'
+}
+
+async function marcarRelatorioEnviado() {
+  const r = window._relatorioAtual
+  const m = document.getElementById('msg-ciclo')
+  m.style.display='block'
+  if (!r) { m.style.color='var(--erro)'; m.textContent='Abra o relatorio de novo.'; return }
+  if (!confirm('Marcar o relatorio do ciclo '+r.ciclo+' de '+r.nome+' como enviado?\n\nO proximo ciclo de 21 dias comeca a contar a partir de hoje.')) return
+  m.style.color='var(--tx3)'; m.textContent='Salvando...'
+  const hoje = ymdLocal(new Date())
+  const { error } = await _supabase.from('relatorios_aluno').insert({
+    aluno_id: r.aluno_id, ciclo: r.ciclo, periodo_inicio: r.ini, periodo_fim: hoje,
+    resumo: r.resumo, analise: document.getElementById('ciclo-analise').value
+  })
+  if (error) { m.style.color='var(--erro)'; m.textContent='Erro: '+error.message+' (ja rodou o SQL desta atualizacao?)'; return }
+  m.style.color='var(--ok)'; m.textContent='Relatorio registrado. Proximo ciclo fecha em '+diaBR(somaDias(new Date(),CICLO_DIAS))+'.'
+  await carregarCiclos()
+  if (window._todosAlunos) filtrarAlunos()
+}
+
 function carregarSelectsAvisos() {
   const sc = document.getElementById('aviso-concurso')
   if (sc) {
