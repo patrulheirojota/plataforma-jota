@@ -70,7 +70,7 @@
 </head>
 <body>
 <div class="shell">
-  <aside class="side">
+  <aside class="side" id="side">
     <div class="logo"><div class="logo-i">🛡️</div><div class="logo-t">Patrulheiros<span>de Elite</span></div></div>
     <div class="nav-i" onclick="location.href='cronograma.html'"><span class="nav-ic">📅</span>Meu Cronograma</div>
     <div class="nav-i" onclick="location.href='questoes.html'"><span class="nav-ic">❓</span>Questoes</div>
@@ -116,7 +116,7 @@ function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'
 function ymd(d){const x=new Date(d);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')}
 function addDays(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x}
 function iniciais(n){const p=String(n||'').trim().split(/\s+/);return ((p[0]||'?')[0]+(p.length>1?p[p.length-1][0]:'')).toUpperCase()}
-function nomeCurto(n){const p=String(n||'').trim().split(/\s+/);return p.length>1?p[0]+' '+p[p.length-1][0]+'.':p[0]}
+function nomeCurto(n){if(_admin)return String(n||'');const p=String(n||'').trim().split(/\s+/);return p.length>1?p[0]+' '+p[p.length-1][0]+'.':p[0]}
 function cor(id){let h=0;for(let i=0;i<String(id).length;i++)h=(h*31+String(id).charCodeAt(i))>>>0;return CORES[h%CORES.length]}
 function dur(m){const h=Math.floor(m/60);return h>0?(h+'h'+(m%60?' '+(m%60)+'min':'')):(m+'min')}
 
@@ -128,18 +128,46 @@ function inicioPeriodo(){
   return '2000-01-01'
 }
 
+async function ehAdmin(uid){
+  try{
+    const r=await _supabase.rpc('eh_admin')
+    if(!r.error)return !!r.data
+  }catch(e){}
+  const { data:al }=await _supabase.from('alunos').select('id').eq('id',uid).maybeSingle()
+  return !al
+}
+
 async function init(){
   const { data:{user} }=await _supabase.auth.getUser()
   if(!user){location.href='index.html';return}
   _alunoId=user.id
+  _admin=await ehAdmin(user.id)
+  if(_admin)modoAdmin()
+  else{
+    const { data:eu }=await _supabase.from('alunos').select('*').eq('id',user.id).maybeSingle()
+    if(eu&&eu.bloqueado_inatividade){location.href='cronograma.html';return}
+  }
   carregarMarca()
   carregar()
 }
 
+// mentor: menu do painel admin, nomes completos e atalho para ver o aluno
+function modoAdmin(){
+  document.getElementById('side').innerHTML=
+    '<div class="logo"><div class="logo-i">🛡️</div><div class="logo-t">Patrulheiros<span>Painel do Mentor</span></div></div>'
+   +'<div class="nav-i" onclick="location.href=\'admin.html\'"><span class="nav-ic">←</span>Voltar ao painel</div>'
+   +'<div class="nav-i" onclick="location.href=\'overview.html\'"><span class="nav-ic">📊</span>Visao Geral</div>'
+   +'<div class="side-sep"></div>'
+   +'<div class="nav-i on"><span class="nav-ic">🏆</span>Ranking</div>'
+   +'<div class="side-b"><div class="nav-i" onclick="sair()"><span class="nav-ic">🚪</span>Sair</div></div>'
+  document.title='Ranking — Painel do Mentor'
+}
+function verAluno(id){location.href='cronograma.html?aluno='+id}
+
 async function carregarMarca(){
   const { data:m }=await _supabase.from('config_marca').select('*').eq('id',1).maybeSingle()
   if(!m)return
-  if(m.cor_primaria)document.documentElement.style.setProperty('--ouro',m.cor_primaria)
+  if(m.cor_primaria&&String(m.cor_primaria).charAt(0)==='#')document.documentElement.style.setProperty('--ouro',m.cor_primaria)
   const nome=m.nome_marca||'Patrulheiros de Elite',p=nome.split(' ')
   const lt=document.querySelector('.logo-t')
   if(lt)lt.innerHTML=esc(p[0])+'<span>'+esc(p.length>1?p.slice(1).join(' '):(m.slogan||''))+'</span>'
@@ -224,7 +252,7 @@ function render(){
   const lbl=_tipo==='horas'?'estudadas':'questoes'
 
   // meu card
-  const eu=lista.find(function(x){return x.id===_alunoId})
+  const eu=_admin?null:lista.find(function(x){return x.id===_alunoId})
   const pos=eu?lista.indexOf(eu)+1:null
   const box=document.getElementById('meu')
   if(eu){
@@ -237,6 +265,13 @@ function render(){
         +'<div style="color:var(--tx3);font-size:11px">para subir uma posicao</div></div>'
         :'<div style="text-align:right;color:var(--ouro);font-size:13px;font-weight:700">🥇 Lider!</div>')
     box.className='meu'
+  }else if(_admin){
+    const sem=_dados.filter(function(x){return !(x[campo]>0)})
+    box.className=''
+    box.innerHTML='<div class="painel" style="margin-bottom:16px;font-size:13px;color:var(--tx2);line-height:1.6">'
+      +'<strong style="color:var(--ouro)">Visao do mentor</strong> — os alunos veem apenas o primeiro nome e a inicial do sobrenome. Toque em 👁️ para abrir a area do aluno.'
+      +(sem.length?'<div style="margin-top:8px;color:var(--erro)"><strong>'+sem.length+' aluno(s) sem registro '+per+':</strong> <span style="color:var(--tx3)">'+sem.map(function(x){return esc(x.nome)}).join(', ')+'</span></div>':'')
+      +'</div>'
   }else{
     box.className=''
     box.innerHTML='<div class="painel" style="margin-bottom:16px;text-align:center;color:var(--tx3);font-size:13px">Voce ainda nao pontuou '+per+'. Registre seu estudo para entrar no ranking!</div>'
@@ -251,7 +286,8 @@ function render(){
     return '<div class="pod p'+(i+1)+'"><div class="pod-m">'+['🥇','🥈','🥉'][i]+'</div>'
       +'<div class="pod-av" style="background:'+c+'">'+iniciais(x.nome)+'</div>'
       +'<div class="pod-n">'+esc(nomeCurto(x.nome))+'</div>'
-      +'<div class="pod-v">'+val(x)+'</div><div class="pod-l">'+lbl+'</div></div>'
+      +'<div class="pod-v">'+val(x)+'</div><div class="pod-l">'+lbl+'</div>'
+      +(_admin?'<div style="margin-top:8px"><span style="cursor:pointer;font-size:12px;color:var(--ouro)" onclick="verAluno(\''+x.id+'\')">👁️ ver</span></div>':'')+'</div>'
   }).join(''):''
 
   // lista
@@ -265,7 +301,8 @@ function render(){
       +'<div class="av" style="background:'+c+'">'+iniciais(x.nome)+'</div>'
       +'<div class="nm"><div class="nm-t">'+esc(nomeCurto(x.nome))+(x.id===_alunoId?' <span style="color:var(--ouro);font-size:11px">(voce)</span>':'')+'</div>'
       +'<div class="nm-s">'+x.ndias+' dia(s) ativo(s)'+(x.q>0?' · '+x.pct+'% acerto':'')+'</div></div>'
-      +'<div class="vl"><div class="vl-n">'+val(x)+'</div><div class="vl-l">'+lbl+'</div></div></div>'
+      +'<div class="vl"><div class="vl-n">'+val(x)+'</div><div class="vl-l">'+lbl+'</div></div>'
+      +(_admin?'<button class="btn" style="padding:7px 10px" title="Ver como aluno" onclick="verAluno(\''+x.id+'\')">👁️</button>':'')+'</div>'
   }).join('')
 
   const totMin=lista.reduce(function(s,x){return s+x.min},0)
@@ -273,7 +310,7 @@ function render(){
   document.getElementById('rodape').textContent=lista.length+' aluno(s) no ranking · a turma somou '+dur(totMin)+' e '+totQ+' questoes '+per
 }
 
-async function sair(){await _supabase.auth.signOut();location.href='index.html'}
+async function sair(){await _supabase.auth.signOut();location.href=_admin?'admin.html':'index.html'}
 init()
 </script>
 </body>
