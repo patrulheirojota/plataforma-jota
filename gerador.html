@@ -127,6 +127,11 @@
         <input type="checkbox" id="g-pular" style="width:18px;height:18px;accent-color:var(--ouro)">
         Pular temas cuja teoria o aluno ja concluiu
       </label>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;cursor:pointer">
+        <input type="checkbox" id="g-encaixe" checked style="width:18px;height:18px;accent-color:var(--ouro)">
+        Encaixe automatico quando o prazo for curto
+      </label>
+      <p style="color:var(--tx4);font-size:11px;margin-top:4px">Se o tempo ate a prova nao for suficiente, o gerador NAO deixa temas de fora: ele encurta as sessoes de revisao e as dos temas de prioridade baixa (metade do tempo, minimo 15 min) ate tudo caber.</p>
       <p style="color:var(--tx4);font-size:11px;margin-top:4px">Use junto com "Teoria" desmarcada para replanejar so o que falta.</p>
     </div>
 
@@ -307,11 +312,13 @@ function atualizarCapacidade(){
   const necessarios = nNormais * nEtapas + nRev
   const cabe = nNormais>0 ? Math.floor(Math.max(0,(slots - nRev)) / nEtapas) + nRev : Math.min(nRev, slots)
   const sobra = nTemas - cabe
+  const encaixe = document.getElementById('g-encaixe') ? document.getElementById('g-encaixe').checked : true
 
   let cor, texto
   if (nTemas === 0) { box.innerHTML = ''; return }
   if (sobra <= 0) { cor = 'var(--ok)'; texto = 'Todos os '+nTemas+' temas cabem no periodo, com folga de '+(cabe-nTemas)+' tema(s).' }
-  else { cor = 'var(--erro)'; texto = 'Faltam vagas para '+sobra+' tema(s). Aumente as sessoes por dia, adicione dias da semana ou desmarque temas.' }
+  else if (encaixe) { cor = 'var(--alerta)'; texto = 'No tempo cheio faltariam vagas para '+sobra+' tema(s). Com o encaixe automatico ligado, o gerador reduz o tempo das revisoes e dos temas de baixa prioridade para tentar encaixar todos. Gere a previa para ver o resultado.' }
+  else { cor = 'var(--erro)'; texto = 'Faltam vagas para '+sobra+' tema(s). Ligue o encaixe automatico, aumente as sessoes por dia, adicione dias da semana ou desmarque temas.' }
 
   box.innerHTML =
     '<div style="background:var(--card2);border:1px solid '+cor+';border-radius:8px;padding:12px">'
@@ -329,9 +336,9 @@ function atualizarCapacidade(){
 }
 
 function ligarListeners(){
-  ['g-inicio','g-prova','g-sessoes','g-tempo','g-dq','g-dr','g-mq'].forEach(function(id){
+  ['g-inicio','g-prova','g-sessoes','g-tempo','g-dq','g-dr','g-mq','g-encaixe'].forEach(function(id){
     const el = document.getElementById(id)
-    if (el) el.addEventListener('input', atualizarCapacidade)
+    if (el) { el.addEventListener('input', atualizarCapacidade); el.addEventListener('change', atualizarCapacidade) }
   })
   document.querySelectorAll('.dia-chip').forEach(function(el){
     el.addEventListener('click', function(){ setTimeout(atualizarCapacidade, 10) })
@@ -500,9 +507,26 @@ function intercalar(temas){
   return out
 }
 
+// Quanto tempo cada sessao ocupa, conforme o nivel de encaixe.
+// nivel 0 = tudo no tempo cheio. Quanto maior o nivel, mais coisa entra com meio tempo.
+function minutosDaSessao(tipo, prioridade, tempo, nivel){
+  const meio = Math.max(15, Math.round((tempo/2)/5)*5)
+  if (nivel <= 0) return tempo
+  const p = prioridade || 'media'
+  if (nivel >= 1 && tipo === 'revisao') return meio
+  if (nivel >= 2 && p === 'baixa') return meio
+  if (nivel >= 3 && p === 'media' && tipo === 'questoes') return meio
+  if (nivel >= 4 && !(p === 'alta' && tipo === 'teoria')) return meio
+  if (nivel >= 5) return meio
+  return tempo
+}
+
 function montarPlano(temas, cfg){
   const fila = intercalar(temas)
   const dias = cfg.dias
+  const nivel = cfg.nivel || 0
+  const tempo = cfg.tempo || 60
+  const orcamento = cfg.porDia * tempo   // minutos disponiveis por dia
   const datas = []
   let d = parseD(cfg.inicio)
   const fim = parseD(cfg.prova)
@@ -514,37 +538,74 @@ function montarPlano(temas, cfg){
   const calendario = []
   let pendentes = []
   let idx = 0, seq = 0
+  let encurtadas = 0
 
   for (let i=0;i<datas.length;i++){
     const dia = datas[i]
     const sessoes = []
+    let usado = 0
 
-    const reserva = (idx < fila.length && cfg.porDia > 1) ? 1 : 0
-    const limitePend = cfg.porDia - reserva
+    // guarda espaco para pelo menos 1 tema novo, se ainda houver fila
+    let reserva = 0
+    if (idx < fila.length && cfg.porDia > 1) {
+      const prox = fila[idx]
+      const tipoProx = (prox.status==='so_revisao') ? 'revisao' : cfg.etapas[0].tipo
+      reserva = minutosDaSessao(tipoProx, prox.prioridade, tempo, nivel)
+    }
+
     const due = pendentes.filter(function(p){ return p.due <= dia }).sort(function(a,b){ return a.due-b.due })
     for (let j=0;j<due.length;j++){
-      if (sessoes.length >= limitePend) break
       const p = due[j]
-      sessoes.push({ tipo:p.tipo, key:'s'+(seq++), origem:p.origem, disciplina:p.tema.disciplina, topico:p.tema.topico, topico_id:p.tema.topico_id })
+      const min = minutosDaSessao(p.tipo, p.tema.prioridade, tempo, nivel)
+      if (usado + min > orcamento - reserva) continue
+      if (min < tempo) encurtadas++
+      sessoes.push({ tipo:p.tipo, key:'s'+(seq++), origem:p.origem, disciplina:p.tema.disciplina, topico:p.tema.topico, topico_id:p.tema.topico_id, min:min })
+      usado += min
       pendentes.splice(pendentes.indexOf(p),1)
     }
 
-    while (sessoes.length < cfg.porDia && idx < fila.length){
-      const tema = fila[idx++]
+    while (idx < fila.length){
+      const tema = fila[idx]
+      const et = (tema.status==='so_revisao') ? [{tipo:'revisao',off:0}] : cfg.etapas
+      const min = minutosDaSessao(et[0].tipo, tema.prioridade, tempo, nivel)
+      if (usado + min > orcamento) break
+      if (min < tempo) encurtadas++
+      idx++
       const key = 's'+(seq++)
-      const et = (tema.status==='so_revisao')
-        ? [{tipo:'revisao',off:0}]
-        : cfg.etapas
-      sessoes.push({ tipo:et[0].tipo, key:key, origem:null, disciplina:tema.disciplina, topico:tema.topico, topico_id:tema.topico_id })
+      sessoes.push({ tipo:et[0].tipo, key:key, origem:null, disciplina:tema.disciplina, topico:tema.topico, topico_id:tema.topico_id, min:min })
+      usado += min
       for (let k=1;k<et.length;k++){
         pendentes.push({ tipo:et[k].tipo, due:addDays(dia,et[k].off), tema:tema, origem:key })
       }
     }
 
-    if (sessoes.length) calendario.push({ data:ymd(dia), sessoes:sessoes })
+    if (sessoes.length) calendario.push({ data:ymd(dia), sessoes:sessoes, minutos:usado })
   }
 
-  return { calendario:calendario, naoAlocados: fila.length-idx, pendentes: pendentes.length, totalDatas: datas.length }
+  // Questoes/revisao que cairiam depois da prova: em vez de sumir,
+  // entram na reta final (ultimos dias), sempre com o tempo reduzido.
+  let retaFinal = 0, descartadas = 0
+  if (pendentes.length && calendario.length){
+    const meio = Math.max(15, Math.round((tempo/2)/5)*5)
+    const limite = Math.round(orcamento * 1.35)   // no maximo 35% a mais num dia
+    pendentes.sort(function(a,b){ return a.due-b.due })
+    for (let i=0;i<pendentes.length;i++){
+      const p = pendentes[i]
+      const dueStr = ymd(p.due)
+      let cands = calendario.filter(function(x){ return x.data >= dueStr })
+      if (!cands.length) cands = calendario.slice(-Math.min(10, calendario.length))
+      cands.sort(function(a,b){ return (a.minutos||0)-(b.minutos||0) })
+      const alvo = cands[0]
+      if ((alvo.minutos||0) + meio > limite) { descartadas++; continue }
+      alvo.sessoes.push({ tipo:p.tipo, key:'s'+(seq++), origem:p.origem, disciplina:p.tema.disciplina, topico:p.tema.topico, topico_id:p.tema.topico_id, min:meio, reta:true })
+      alvo.minutos = (alvo.minutos||0) + meio
+      retaFinal++
+    }
+    pendentes = []
+  }
+
+  return { calendario:calendario, naoAlocados: fila.length-idx, pendentes: descartadas, retaFinal: retaFinal,
+           encurtadas: encurtadas, nivel: nivel, totalDatas: datas.length }
 }
 
 function gerarPreview(){
@@ -573,8 +634,21 @@ function gerarPreview(){
 
   msg.style.display='none'
   const etapasPadrao = montarEtapas()
+  const tempo = parseInt(document.getElementById('g-tempo').value)||60
+  const encaixe = document.getElementById('g-encaixe') ? document.getElementById('g-encaixe').checked : true
   _soRevisao = selecionados.filter(function(t){ return t.status==='so_revisao' }).length
-  _plano = montarPlano(selecionados, { inicio:inicio, prova:prova, dias:dias, porDia:porDia, dq:dq, dr:dr, etapas:etapasPadrao })
+
+  const base = { inicio:inicio, prova:prova, dias:dias, porDia:porDia, dq:dq, dr:dr, etapas:etapasPadrao, tempo:tempo }
+  let plano = montarPlano(selecionados, Object.assign({nivel:0}, base))
+  if (encaixe) {
+    // sobe o nivel de encaixe so ate todos os temas caberem
+    for (let n=1; n<=5 && plano.naoAlocados>0; n++){
+      const tentativa = montarPlano(selecionados, Object.assign({nivel:n}, base))
+      if (tentativa.naoAlocados < plano.naoAlocados) plano = tentativa
+      if (plano.naoAlocados === 0) break
+    }
+  }
+  _plano = plano
   renderPreview(_plano)
   document.getElementById('card-preview').style.display='block'
   document.getElementById('card-preview').scrollIntoView({behavior:'smooth'})
@@ -603,13 +677,23 @@ function renderPreview(plano){
     al.innerHTML += '<div style="background:var(--card2);border:1px solid var(--ok);border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px;color:var(--ok)">'
       + _pulados+' tema(s) foram pulados porque o aluno ja concluiu a teoria deles.</div>'
   }
-  if (plano.naoAlocados > 0) {
-    al.innerHTML += '<div style="background:var(--card2);border:1px solid var(--erro);border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px;color:var(--erro)">'
-      + '<strong>'+plano.naoAlocados+' temas ficaram de fora.</strong> Lembre que cada tema ocupa 3 vagas (teoria + questoes + revisao). Aumente as sessoes por dia, adicione dias da semana, antecipe a data de inicio ou desmarque os temas de baixa prioridade.</div>'
+  if (plano.nivel > 0 && plano.encurtadas > 0) {
+    const nomes = ['','as revisoes','as revisoes e os temas de prioridade baixa','as revisoes, a prioridade baixa e as questoes de prioridade media','quase todas as sessoes (a teoria de prioridade alta segue no tempo cheio)','todas as sessoes']
+    al.innerHTML += '<div style="background:var(--card2);border:1px solid var(--info);border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px;color:var(--info)">'
+      + '<strong>Encaixe automatico ligado.</strong> O prazo ate a prova era curto, entao '+nomes[plano.nivel]+' entraram com metade do tempo ('+plano.encurtadas+' sessoes) para que <strong>nenhum tema ficasse de fora</strong>. '
+      + 'A carga de minutos por dia do aluno continua a mesma.</div>'
+  }
+  if (plano.retaFinal > 0) {
+    al.innerHTML += '<div style="background:var(--card2);border:1px solid var(--ok);border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px;color:var(--ok)">'
+      + plano.retaFinal+' sessoes de questoes/revisao dos ultimos temas cairiam depois da prova e foram <strong>remanejadas para a reta final</strong>, com tempo reduzido. Antes elas eram descartadas.</div>'
   }
   if (plano.pendentes > 0) {
     al.innerHTML += '<div style="background:var(--card2);border:1px solid var(--alerta);border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px;color:var(--alerta)">'
-      + plano.pendentes+' sessoes de questoes/revisao dos ultimos temas cairiam depois da prova e foram descartadas.</div>'
+      + plano.pendentes+' sessoes de questoes/revisao nao couberam nem na reta final (os ultimos dias ja estao cheios). Os temas entraram no plano, mas sem essa revisao final.</div>'
+  }
+  if (plano.naoAlocados > 0) {
+    al.innerHTML += '<div style="background:var(--card2);border:1px solid var(--erro);border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px;color:var(--erro)">'
+      + '<strong>'+plano.naoAlocados+' temas ainda ficaram de fora,</strong> mesmo reduzindo o tempo das revisoes e dos temas de baixa prioridade. O prazo esta realmente curto: aumente as sessoes por dia, acrescente dias da semana, antecipe o inicio ou marque parte dos temas como "so revisao" no Controle de Temas.</div>'
   }
 
   const div = document.getElementById('preview-dias')
@@ -625,8 +709,9 @@ function renderPreview(plano){
       html += '<div class="sessao s-'+s.tipo+'">'
         + '<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap">'
         + '<span style="font-size:12px;color:var(--tx3)">'+s.disciplina+'</span>'
-        + '<span class="tag t-'+s.tipo+'">'+lbl+'</span></div>'
-        + '<div style="font-size:13px;margin-top:2px">'+s.topico+'</div></div>'
+        + '<span style="display:flex;gap:5px;align-items:center"><span style="font-size:11px;color:var(--tx4)">'+(s.min||'')+'min</span>'
+        + '<span class="tag t-'+s.tipo+'">'+lbl+'</span></span></div>'
+        + '<div style="font-size:13px;margin-top:2px">'+s.topico+(s.reta?' <span style="color:var(--ok);font-size:11px">(reta final)</span>':'')+'</div></div>'
     })
     html += '</div>'
     div.innerHTML += html
@@ -668,7 +753,7 @@ async function salvarCronograma(){
         disciplina: s.disciplina,
         topico: s.topico,
         topico_id: s.topico_id || null,
-        tempo_minutos: tempo,
+        tempo_minutos: s.min || tempo,
         meta_questoes: s.tipo === 'questoes' ? metaQ : 0,
         ordem: i+1
       })
