@@ -341,6 +341,7 @@ function render(){
     if(x.semDias!==null&&x.semDias>7)flags.push('<span class="fl" style="background:rgba(240,113,113,.15);color:var(--erro);border:1px solid var(--erro)">SUMIDO '+x.semDias+'D</span>')
     if(x.semDias===null)flags.push('<span class="fl" style="background:rgba(240,113,113,.15);color:var(--erro);border:1px solid var(--erro)">NUNCA ESTUDOU</span>')
     if(expDias!==null&&expDias<=15)flags.push('<span class="fl" style="background:rgba(232,176,75,.15);color:var(--alerta);border:1px solid var(--alerta)">'+(expDias<0?'EXPIRADO':'EXPIRA EM '+expDias+'D')+'</span>')
+    if(x.acesso&&Math.floor((Date.now()-new Date(x.acesso).getTime())/86400000)>=20)flags.push('<span class="fl" style="background:rgba(240,113,113,.15);color:var(--erro);border:1px solid var(--erro)">🔒 BLOQUEADO</span>')
     if(st>=7)flags.push('<span class="fl" style="background:rgba(201,168,60,.15);color:var(--ouro);border:1px solid var(--ouro)">🔥 '+st+' DIAS</span>')
     if(x.pctAc!==null&&x.pctAc<50&&x.q>=15)flags.push('<span class="fl" style="background:rgba(240,113,113,.15);color:var(--erro);border:1px solid var(--erro)">'+x.pctAc+'% ACERTO</span>')
 
@@ -372,6 +373,7 @@ function render(){
       +'</div>'
       +(ajuste?'<div style="font-size:10.5px;color:'+(x.ajusteNovo?'var(--info)':'var(--tx4)')+';margin-top:6px;line-height:1.4">'
         +'<strong>Ajustou o plano '+ajuste+':</strong> '+esc(String(x.ajusteTxt||'').substring(0,72))+'</div>':'')
+      +'<button onclick="event.stopPropagation();location.href=\'cronograma.html?aluno='+x.id+'\'" style="width:100%;margin-top:10px;padding:8px;border-radius:9px;border:1px solid var(--ouro);background:rgba(201,168,60,.10);color:var(--ouro);font-size:12px;font-weight:700;cursor:pointer">👁️ Ver como aluno</button>'
       +'</div>'
   }).join('')
 
