@@ -182,6 +182,54 @@
   textarea.cd-inp{min-height:180px;resize:vertical;line-height:1.6}
   .cd-ro{background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:14px;color:var(--tx2);font-size:13.5px;line-height:1.7;white-space:pre-wrap}
 
+  /* MODO MENTOR */
+  .mentor-bar{position:sticky;top:0;z-index:35;background:linear-gradient(90deg,#3a2c08,#1d1a10);border:1px solid var(--ouro);border-radius:12px;padding:11px 14px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;box-shadow:0 6px 20px rgba(0,0,0,.35)}
+  .mentor-bar .mb-t{flex:1;min-width:200px;color:#f3e2a8;font-size:13px;line-height:1.45}
+  .mentor-bar .mb-t b{color:var(--ouro)}
+  [data-tema="claro"] .mentor-bar{background:linear-gradient(90deg,#fff4d1,#fffaf0)}
+  [data-tema="claro"] .mentor-bar .mb-t{color:#5a4510}
+
+  /* MISSAO DE HOJE */
+  .hoje-p{background:var(--card);border:1px solid var(--bd2);border-radius:16px;padding:18px;margin-bottom:18px}
+  .hoje-p.feito{border-color:#6ddba0;background:linear-gradient(135deg,rgba(109,219,160,.08),var(--card))}
+  .hoje-h{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+  .hoje-t{font-size:17px;font-weight:800}
+  .hoje-s{color:var(--tx3);font-size:12.5px;margin-top:2px}
+  .hoje-n{margin-left:auto;font-size:24px;font-weight:800;color:var(--ouro)}
+  .hoje-n small{font-size:13px;color:var(--tx3);font-weight:600}
+  .hoje-bar{height:9px;border-radius:6px;background:var(--bg);overflow:hidden;margin-bottom:14px;border:1px solid var(--bd)}
+  .hoje-bar div{height:100%;background:linear-gradient(90deg,var(--ouro),#6ddba0);transition:width .4s}
+  .hi{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:12px;background:var(--card2);border:1px solid var(--bd);border-left:4px solid var(--c);margin-bottom:8px}
+  .hi.ok{opacity:.62}
+  .hi.ok .hi-tp{text-decoration:line-through}
+  .hi-ck{width:40px;height:40px;border-radius:50%;border:2px solid var(--c);background:transparent;color:var(--c);font-size:19px;font-weight:800;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:.15s}
+  .hi-ck:hover{background:var(--c);color:var(--bg)}
+  .hi.ok .hi-ck{background:#6ddba0;border-color:#6ddba0;color:#0a1420}
+  .hi-tx{flex:1;min-width:0;cursor:pointer}
+  .hi-d{font-size:11.5px;font-weight:700;color:var(--c)}
+  .hi-tp{font-size:14px;font-weight:600;line-height:1.3;margin-top:1px}
+  .hi-m{color:var(--tx4);font-size:11px;margin-top:3px}
+  .hi-b{padding:10px 16px;border-radius:10px;border:none;background:var(--ouro);color:#0a1420;font-weight:800;font-size:13px;cursor:pointer;white-space:nowrap}
+  .hi-b:hover{filter:brightness(1.08)}
+  .hi-ok{color:#6ddba0;font-weight:800;font-size:12.5px;white-space:nowrap}
+  .hoje-f{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .hoje-f .btn{flex:1;min-width:150px;padding:11px}
+
+  /* FECHAR O DIA */
+  .fd-i{background:var(--bg);border:1px solid var(--bd2);border-left:4px solid var(--c);border-radius:11px;padding:12px;margin-bottom:9px}
+  .fd-a{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  .fd-a button{flex:1;min-width:92px;padding:10px 8px;border-radius:9px;font-size:12.5px;font-weight:700;cursor:pointer;border:1px solid var(--bd2);background:var(--card);color:var(--tx2)}
+  .fd-a .fa-ok{background:#6ddba0;border-color:#6ddba0;color:#0a1420}
+  .fd-a .fa-nf{border-color:#7d5fa8;color:#c9a9e8}
+  .fd-a .fa-ad{border-color:#e8b04b;color:#e8b04b}
+
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(30px);background:#12321f;border:1px solid #6ddba0;color:#c9f5dc;padding:12px 20px;border-radius:12px;font-size:14px;font-weight:700;z-index:90;opacity:0;transition:.25s;pointer-events:none;max-width:90vw;text-align:center}
+  .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+  [data-tema="claro"] .toast{background:#e6f9ee;color:#12532f}
+
+  body.travado .side .nav-i:not(.sair-i){display:none}
+  body.travado .cd-fab{display:none}
+
   @media(max-width:1080px){ .layout{grid-template-columns:1fr} }
   @media(max-width:860px){
     .side{position:static;width:100%;flex-direction:row;overflow-x:auto;padding:10px;border-right:none;border-bottom:1px solid var(--bd);gap:5px;align-items:center}
@@ -194,6 +242,10 @@
     .ola{font-size:22px}
     .hero-n{font-size:40px}
     .board{grid-template-columns:repeat(7,152px)}
+    .hi{flex-wrap:wrap}
+    .hi-tx{min-width:calc(100% - 60px)}
+    .hi-b{width:100%;padding:12px}
+    body.travado .side-b{display:block}
   }
 </style>
 <link rel="manifest" href="/manifest.json">
@@ -213,23 +265,25 @@
       <div class="logo-t">Patrulheiros<span>de Elite</span></div>
     </div>
     <div class="nav-i on" data-s="cronograma" onclick="irSecao('cronograma')"><span class="nav-ic">📅</span>Meu Cronograma</div>
-    <div class="nav-i" onclick="location.href='questoes.html'"><span class="nav-ic">❓</span>Questoes</div>
-    <div class="nav-i" onclick="location.href='questoes.html#simulados'"><span class="nav-ic">🎯</span>Simulados</div>
-    <div class="nav-i" onclick="location.href='questoes.html#materiais'"><span class="nav-ic">📁</span>Materiais</div>
-    <div class="nav-i" onclick="location.href='ranking.html'"><span class="nav-ic">🏆</span>Ranking</div>
-    <div class="nav-i" onclick="location.href='edital.html'"><span class="nav-ic">📖</span>Edital</div>
+    <div class="nav-i" onclick="ir('questoes.html')"><span class="nav-ic">❓</span>Questoes</div>
+    <div class="nav-i" onclick="ir('questoes.html#simulados')"><span class="nav-ic">🎯</span>Simulados</div>
+    <div class="nav-i" onclick="ir('questoes.html#materiais')"><span class="nav-ic">📁</span>Materiais</div>
+    <div class="nav-i" onclick="ir('ranking.html')"><span class="nav-ic">🏆</span>Ranking</div>
+    <div class="nav-i" onclick="ir('edital.html')"><span class="nav-ic">📖</span>Edital</div>
     <div class="side-sep"></div>
     <div class="nav-i" data-s="sequencia" onclick="irSecao('sequencia')"><span class="nav-ic">🔥</span>Sequencia</div>
     <div class="nav-i" data-s="desempenho" onclick="irSecao('desempenho')"><span class="nav-ic">📊</span>Desempenho</div>
     <div class="nav-i" data-s="avisos" onclick="irSecao('avisos')"><span class="nav-ic">🔔</span>Avisos<span class="nav-bd" id="bd-av" style="display:none"></span></div>
     <div class="side-sep"></div>
-    <div class="nav-i" data-s="perfil" onclick="irSecao('perfil')"><span class="nav-ic">⚙️</span>Perfil</div>
+    <div class="nav-i" data-s="perfil" id="nav-perfil" onclick="irSecao('perfil')"><span class="nav-ic">⚙️</span>Perfil</div>
     <div class="side-b">
-      <div class="nav-i" onclick="sair()"><span class="nav-ic">🚪</span>Sair</div>
+      <div class="nav-i sair-i" id="nav-sair" onclick="sair()"><span class="nav-ic">🚪</span>Sair</div>
     </div>
   </aside>
 
   <main class="main">
+
+    <div id="mentor-bar" class="mentor-bar" style="display:none"></div>
 
     <div class="topbar">
       <div>
@@ -253,6 +307,7 @@
       <!-- CRONOGRAMA -->
       <section class="sec on" id="sec-cronograma">
         <div id="diretrizes"></div>
+        <div id="hoje-box"></div>
         <div class="strip" id="strip"></div>
         <div class="hero" id="hero"></div>
         <div id="aviso-atraso"></div>
@@ -351,6 +406,8 @@
   <div class="cd-body" id="cd-body"></div>
 </aside>
 
+<div class="toast" id="toast"></div>
+
 <div class="modal" id="modal" onclick="if(event.target===this)fecharModal()">
   <div class="modal-c" id="modal-c"></div>
 </div>
@@ -365,6 +422,7 @@ const LABEL={teoria:'Teoria',questoes:'Questoes',revisao:'Revisao'}
 
 let _alunoId=null,_nome='',_email='',_diretrizes=null,_diretrizesEm=null,_concursoId=null,_concursoNome='',_dataProva=null,_cfg=null
 let _sessoes=[],_porData={},_refSem=null,_refMes=null,_corDisc={},_graf=null,_secAtual='cronograma'
+let _mentor=false,_limiteBloq=20,_wpp=null,_fd=null,_saindo=false
 
 function ymd(d){const x=new Date(d);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')}
 function parseD(s){return new Date(s+'T12:00:00')}
@@ -415,24 +473,57 @@ function iniciarTema(){
   if(b)b.textContent=t==='claro'?'☀️':'🌙'
 }
 
+// verifica se o usuario logado e o mentor (admin)
+async function ehAdmin(uid){
+  try{
+    const r=await _supabase.rpc('eh_admin')
+    if(!r.error)return !!r.data
+  }catch(e){}
+  // plano B (antes de rodar o SQL): quem nao tem cadastro de aluno e o mentor
+  const { data:al }=await _supabase.from('alunos').select('id').eq('id',uid).maybeSingle()
+  return !al
+}
+
 async function init(){
   iniciarTema()
-  carregarMarca()
+  await carregarMarca()
   const { data:{user} }=await _supabase.auth.getUser()
   if(!user){location.href='index.html';return}
   _alunoId=user.id; _email=user.email
 
-  const { data:aluno }=await _supabase.from('alunos').select('nome, data_expiracao, concurso_id, diretrizes, diretrizes_em').eq('id',user.id).single()
-  if(!aluno){alert('Aluno nao encontrado. Contate o mentor.');return}
+  // MODO MENTOR: cronograma.html?aluno=ID
+  const alvo=new URLSearchParams(location.search).get('aluno')
+  if(alvo&&alvo!==user.id){
+    if(!(await ehAdmin(user.id))){location.href='cronograma.html';return}
+    _mentor=true; _alunoId=alvo; _email=''
+  }
+
+  const { data:aluno }=await _supabase.from('alunos').select('*').eq('id',_alunoId).maybeSingle()
+  if(!aluno){
+    if(!_mentor&&(await ehAdmin(user.id))){location.href='admin.html';return}
+    alert('Aluno nao encontrado. Contate o mentor.');return
+  }
   _nome=aluno.nome
+  if(_mentor)_email=aluno.email||''
   _diretrizes=aluno.diretrizes||null
-  registrarAcesso()
   _diretrizesEm=aluno.diretrizes_em||null
   document.getElementById('nome').textContent=_nome.split(' ')[0]
 
-  if(aluno.data_expiracao){
-    const h=new Date();h.setHours(0,0,0,0)
-    if(h>new Date(aluno.data_expiracao+'T00:00:00')){mostrarExpirado(aluno.data_expiracao);return}
+  if(_mentor){
+    ativarModoMentor(aluno)
+  }else{
+    // bloqueio por inatividade (confere ANTES de registrar o acesso de hoje)
+    const diasSem=aluno.ultimo_acesso?Math.floor((Date.now()-new Date(aluno.ultimo_acesso).getTime())/86400000):0
+    if(aluno.bloqueado_inatividade||diasSem>=_limiteBloq){
+      if(!aluno.bloqueado_inatividade){try{await _supabase.from('alunos').update({bloqueado_inatividade:true}).eq('id',_alunoId)}catch(e){}}
+      mostrarBloqueado(Math.max(diasSem,_limiteBloq))
+      return
+    }
+    if(aluno.data_expiracao){
+      const h=new Date();h.setHours(0,0,0,0)
+      if(h>new Date(aluno.data_expiracao+'T00:00:00')){mostrarExpirado(aluno.data_expiracao);return}
+    }
+    registrarAcesso()
   }
 
   const { data:sess }=await _supabase.from('sessoes_estudo').select('*')
@@ -458,13 +549,77 @@ async function init(){
   document.getElementById('app').style.display='block'
 
   indexar()
-  const hj=hojeStr(), alvo=_porData[hj]?hj:proxima(hj)
-  _refSem=parseD(alvo); _refMes=parseD(alvo)
+  const hj=hojeStr(), dRef=_porData[hj]?hj:proxima(hj)
+  _refSem=parseD(dRef); _refMes=parseD(dRef)
   desenhar()
   checarAvisos()
+  if(!_mentor)setTimeout(checarDiaAnterior,700)
+}
+
+/* ---------- MODO MENTOR ---------- */
+function ativarModoMentor(aluno){
+  document.title='Mentor: '+aluno.nome
+  const bar=document.getElementById('mentor-bar')
+  const dias=aluno.ultimo_acesso?Math.floor((Date.now()-new Date(aluno.ultimo_acesso).getTime())/86400000):null
+  let extra=''
+  if(aluno.bloqueado_inatividade||(dias!==null&&dias>=_limiteBloq))extra+='<br><span style="color:#f07171;font-weight:700">🔒 Este aluno esta bloqueado por inatividade ('+(dias===null?'--':dias)+' dias sem acessar).</span>'
+  if(aluno.data_expiracao){
+    const h=new Date();h.setHours(0,0,0,0)
+    if(h>new Date(aluno.data_expiracao+'T00:00:00'))extra+='<br><span style="color:#f07171;font-weight:700">⏳ Acesso expirado em '+parseD(aluno.data_expiracao).toLocaleDateString('pt-BR')+'.</span>'
+  }
+  bar.innerHTML='<div style="font-size:22px">👁️</div>'
+    +'<div class="mb-t"><b>MODO MENTOR</b> — voce esta na area de <b>'+esc(aluno.nome)+'</b>. '
+    +'Tudo o que voce marcar ou replanejar aqui vale para o aluno e fica registrado como feito por voce.'+extra+'</div>'
+    +'<button class="btn btn-ouro" onclick="voltarPainel()">← Voltar ao painel</button>'
+  bar.style.display='flex'
+  const np=document.getElementById('nav-perfil'); if(np)np.style.display='none'
+  const ns=document.getElementById('nav-sair'); if(ns)ns.innerHTML='<span class="nav-ic">↩️</span>Voltar ao painel'
+}
+function voltarPainel(){
+  _saindo=true
+  sessionStorage.setItem('alunoFoco',_alunoId)
+  location.href='admin.html'
+}
+// navegacao entre paginas (leva o aluno junto no modo mentor)
+function ir(url){
+  _saindo=true
+  if(_mentor){
+    if(url.indexOf('ranking.html')===0){location.href='ranking.html?admin=1';return}
+    const p=url.split('#')
+    location.href=p[0]+'?aluno='+_alunoId+(p[1]?'#'+p[1]:'')
+    return
+  }
+  location.href=url
+}
+
+/* ---------- BLOQUEIO POR INATIVIDADE ---------- */
+function linkWpp(msg){
+  if(!_wpp)return null
+  let n=String(_wpp).replace(/\D/g,'')
+  if(n.length<=11)n='55'+n
+  return 'https://wa.me/'+n+'?text='+encodeURIComponent(msg)
+}
+function mostrarBloqueado(dias){
+  document.body.classList.add('travado')
+  document.getElementById('loading').style.display='none'
+  document.getElementById('btn-hoje').style.display='none'
+  const box=document.getElementById('expirado')
+  box.style.display='block'
+  const w=linkWpp('Ola, mentor! Sou '+_nome+'. Minha plataforma foi bloqueada por inatividade e quero regularizar a taxa de reabilitacao para voltar a estudar.')
+  box.innerHTML='<div class="estado" style="max-width:520px;margin:0 auto">'
+   +'<div style="font-size:56px;margin-bottom:12px">🔒</div>'
+   +'<div style="color:#f07171;font-weight:800;font-size:21px">Plataforma inativa por falta de acesso</div>'
+   +'<p style="color:var(--tx2);font-size:14.5px;margin-top:12px;line-height:1.7">Voce ficou <strong>'+dias+' dias</strong> sem acessar a plataforma e, por isso, seu acesso foi <strong>desativado</strong>.</p>'
+   +'<div style="background:rgba(240,113,113,.08);border:1px solid #d9566a;border-radius:12px;padding:14px 16px;margin-top:16px;color:var(--tx);font-size:14px;line-height:1.65;text-align:left">'
+   +'Para reativar, regularize o pagamento da <strong>taxa de reabilitacao da plataforma</strong> diretamente com o seu mentor. Assim que o pagamento for confirmado, seu acesso e seu cronograma voltam exatamente de onde pararam.</div>'
+   +'<p style="color:var(--tx4);font-size:12px;margin-top:12px">Nenhum dado seu foi perdido.</p>'
+   +'<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:18px">'
+   +(w?'<a href="'+w+'" target="_blank" class="btn btn-ouro" style="text-decoration:none;padding:12px 18px">💬 Falar com o mentor no WhatsApp</a>':'')
+   +'<button class="btn" style="padding:12px 18px" onclick="sairDireto()">Sair</button></div></div>'
 }
 
 function mostrarExpirado(d){
+  document.body.classList.add('travado')
   document.getElementById('loading').style.display='none'
   document.getElementById('btn-hoje').style.display='none'
   document.getElementById('expirado').style.display='block'
@@ -472,7 +627,7 @@ function mostrarExpirado(d){
     '<div class="estado"><div style="font-size:52px;margin-bottom:14px">🔒</div>'
    +'<div style="color:var(--ouro);font-weight:800;font-size:20px">Acesso expirado</div>'
    +'<p style="color:var(--tx2);font-size:14px;margin-top:10px;line-height:1.6">Seu acesso terminou em <strong>'+parseD(d).toLocaleDateString('pt-BR')+'</strong>.<br>Fale com seu mentor para renovar e retomar seus estudos.</p>'
-   +'<button class="btn" style="margin-top:18px" onclick="sair()">Sair</button></div>'
+   +'<button class="btn" style="margin-top:18px" onclick="sairDireto()">Sair</button></div>'
 }
 
 function indexar(){
@@ -487,7 +642,7 @@ function proxima(a){
   for(let i=0;i<ds.length;i++)if(ds[i]>=a)return ds[i]
   return ds.length?ds[ds.length-1]:a
 }
-function desenhar(){renderDiretrizes();renderStrip();renderHero();renderAtraso();renderBoard();renderCal();renderLegenda()}
+function desenhar(){renderDiretrizes();renderHoje();renderStrip();renderHero();renderAtraso();renderBoard();renderCal();renderLegenda()}
 
 function renderDiretrizes(){
   const box=document.getElementById('diretrizes')
@@ -521,7 +676,10 @@ function toggleDiretrizes(){
 // registra no painel do mentor o que o aluno mexeu
 async function logar(acao,detalhe){
   try{
-    await _supabase.from('cronograma_log').insert({aluno_id:_alunoId,acao:acao,detalhe:detalhe})
+    const reg={aluno_id:_alunoId,acao:acao,detalhe:(_mentor?'[Mentor] ':'')+detalhe}
+    if(_mentor){reg.por_mentor=true;reg.visto=true}
+    let r=await _supabase.from('cronograma_log').insert(reg)
+    if(r.error&&_mentor){delete reg.por_mentor;r=await _supabase.from('cronograma_log').insert(reg)}
   }catch(e){}
 }
 
@@ -816,7 +974,7 @@ async function exportarPDF(){
 
 /* ---------- AVISOS ---------- */
 async function checarAvisos(){
-  const filtros=[]
+  const filtros=['and(aluno_id.is.null,concurso_id.is.null)']
   if(_concursoId)filtros.push('and(aluno_id.is.null,concurso_id.eq.'+_concursoId+')')
   filtros.push('aluno_id.eq.'+_alunoId)
   const { data:av }=await _supabase.from('avisos').select('id,aluno_id,lido_em').or(filtros.join(','))
@@ -834,7 +992,7 @@ async function renderAvisos(){
   const box=document.getElementById('lista-avisos')
   box.innerHTML='<div style="color:var(--tx3);font-size:13px">Carregando...</div>'
 
-  const filtros=[]
+  const filtros=['and(aluno_id.is.null,concurso_id.is.null)']
   if(_concursoId)filtros.push('and(aluno_id.is.null,concurso_id.eq.'+_concursoId+')')
   filtros.push('aluno_id.eq.'+_alunoId)
   const { data:av }=await _supabase.from('avisos').select('*').or(filtros.join(',')).order('criado_em',{ascending:false})
@@ -845,7 +1003,7 @@ async function renderAvisos(){
 
   // marca os individuais como lidos
   const naoLidos=(av||[]).filter(function(a){return a.aluno_id&&!a.lido_em})
-  if(naoLidos.length){
+  if(naoLidos.length&&!_mentor){
     const agora=new Date().toISOString()
     for(let i=0;i<naoLidos.length;i++){
       await _supabase.from('avisos').update({lido_em:agora}).eq('id',naoLidos[i].id)
@@ -864,9 +1022,15 @@ async function renderAvisos(){
     html+='<div style="color:var(--tx3);font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px">Para voce</div>'
       +meus.map(function(a){return cardAviso(a,true)}).join('')
   }
-  if(daTurma.length){
-    html+='<div style="color:var(--tx3);font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin:'+(meus.length?'22px':'0')+' 0 10px">Para a turma</div>'
-      +daTurma.map(function(a){return cardAviso(a,false)}).join('')
+  const gerais=daTurma.filter(function(a){return !a.concurso_id})
+  const turma=daTurma.filter(function(a){return a.concurso_id})
+  if(gerais.length){
+    html+='<div style="color:var(--tx3);font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin:'+(meus.length?'22px':'0')+' 0 10px">Para todos os alunos</div>'
+      +gerais.map(function(a){return cardAviso(a,false)}).join('')
+  }
+  if(turma.length){
+    html+='<div style="color:var(--tx3);font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin:'+((meus.length||gerais.length)?'22px':'0')+' 0 10px">Para a turma</div>'
+      +turma.map(function(a){return cardAviso(a,false)}).join('')
   }
   box.innerHTML=html
 }
@@ -898,6 +1062,7 @@ function renderPerfil(){
 }
 
 async function trocarSenha(){
+  if(_mentor){alert('No modo mentor nao e possivel trocar a senha do aluno por aqui. Use Editar no painel.');return}
   const a=document.getElementById('p-s1').value, b=document.getElementById('p-s2').value
   const m=document.getElementById('p-msg')
   if(a.length<6){m.style.color='#f07171';m.textContent='A senha precisa ter pelo menos 6 caracteres.';return}
@@ -913,9 +1078,17 @@ async function trocarSenha(){
 async function toggleSessao(id){
   const s=_sessoes.find(function(x){return x.id===id}); if(!s)return
   s.concluida=!s.concluida
-  await _supabase.from('sessoes_estudo').update({concluida:s.concluida}).eq('id',id)
-  if(s.tipo==='teoria'&&s.topico_id&&!s.parcial)await marcarEdital(s.topico_id,s.concluida)
   desenhar()
+  const r=await _supabase.from('sessoes_estudo').update({concluida:s.concluida}).eq('id',id)
+  if(r.error){s.concluida=!s.concluida;desenhar();alert('Nao foi possivel salvar: '+r.error.message);return}
+  if(s.tipo==='teoria'&&s.topico_id&&!s.parcial)await marcarEdital(s.topico_id,s.concluida)
+  if(_mentor)logar(s.concluida?'concluiu':'desmarcou',(s.concluida?'Marcou como concluida: ':'Desmarcou: ')+s.topico+' ('+s.disciplina+')')
+  if(s.concluida){
+    const dia=_porData[s.data]||[]
+    const falta=dia.filter(function(x){return !x.concluida}).length
+    if(!falta&&s.data===hojeStr())toast('🏆 Missao de hoje cumprida! Excelente, patrulheiro!')
+    else toast('✅ Sessao concluida!'+(falta?' Faltam '+falta+' hoje.':''))
+  }
 }
 
 async function marcarCaderno(data,val){
@@ -961,7 +1134,7 @@ function abrirSessao(id){
      +'<div id="mq-msg" style="font-size:12px;margin-top:8px;text-align:center"></div></div>':'')
   document.getElementById('modal').classList.add('on')
 }
-function fecharModal(){document.getElementById('modal').classList.remove('on')}
+function fecharModal(){document.getElementById('modal').classList.remove('on');_fd=null}
 
 async function salvarTempoSessao(id){
   const v=parseInt(document.getElementById('ms-num').value)||60
@@ -1006,6 +1179,7 @@ function tituloContinuacao(t){
 
 async function naoFinalizei(id){
   const s=_sessoes.find(function(x){return x.id===id}); if(!s)return
+  const volta=_fd
 
   // proxima vaga da mesma disciplina
   const mesma=_sessoes.filter(function(x){
@@ -1064,6 +1238,7 @@ async function naoFinalizei(id){
     }
     await recarregar()
   }
+  if(volta){fecharDia(volta.k,volta.modo);return}
   irData(alvo)
 }
 
@@ -1349,7 +1524,9 @@ async function excluirNota(id){
 async function carregarMarca(){
   const { data:m }=await _supabase.from('config_marca').select('*').eq('id',1).maybeSingle()
   if(!m)return
-  if(m.cor_primaria)document.documentElement.style.setProperty('--ouro',m.cor_primaria)
+  if(m.whatsapp)_wpp=m.whatsapp
+  if(m.dias_bloqueio)_limiteBloq=m.dias_bloqueio
+  if(m.cor_primaria&&String(m.cor_primaria).charAt(0)==='#')document.documentElement.style.setProperty('--ouro',m.cor_primaria)
   const nome=m.nome_marca||'Patrulheiros de Elite'
   const p=nome.split(' ')
   const lt=document.querySelector('.logo-t')
@@ -1362,6 +1539,7 @@ async function carregarMarca(){
 }
 
 async function registrarAcesso(){
+  if(_mentor)return
   try{
     const chave='acesso_'+_alunoId
     const ultimo=localStorage.getItem(chave)
@@ -1373,7 +1551,187 @@ async function registrarAcesso(){
   }catch(e){}
 }
 
-async function sair(){await _supabase.auth.signOut();location.href='index.html'}
+async function sairDireto(){_saindo=true;await _supabase.auth.signOut();location.href='index.html'}
+function sair(){
+  if(_mentor){voltarPainel();return}
+  const pend=pendentesDia(hojeStr())
+  if(!pend.length){sairDireto();return}
+  fecharDia(hojeStr(),'sair')
+}
+
+/* ---------- MISSAO DE HOJE ---------- */
+function pendentesDia(k){return (_porData[k]||[]).filter(function(s){return !s.concluida})}
+
+function toast(t){
+  const el=document.getElementById('toast')
+  el.textContent=t;el.classList.add('on')
+  clearTimeout(window._tt);window._tt=setTimeout(function(){el.classList.remove('on')},2600)
+}
+
+function renderHoje(){
+  const box=document.getElementById('hoje-box'); if(!box)return
+  const hj=hojeStr(), sess=(_porData[hj]||[]).slice().sort(function(a,b){return (a.ordem||0)-(b.ordem||0)})
+  if(!sess.length){
+    const px=proxima(ymd(addDays(new Date(),1)))
+    box.innerHTML='<div class="hoje-p" style="padding:14px 18px"><div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">'
+      +'<div style="font-size:24px">😴</div><div style="flex:1"><div style="font-weight:700">Hoje nao ha sessoes no seu plano</div>'
+      +'<div class="hoje-s">'+(px&&px>hj?'Proximo estudo: '+parseD(px).toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'}):'Aproveite para revisar o caderno de erros.')+'</div></div></div></div>'
+    return
+  }
+  const feitas=sess.filter(function(s){return s.concluida}).length, tot=sess.length
+  const pct=Math.round(feitas/tot*100), tudo=feitas===tot
+  let h='<div class="hoje-p'+(tudo?' feito':'')+'">'
+    +'<div class="hoje-h"><div style="font-size:26px">'+(tudo?'🏆':'🎯')+'</div>'
+    +'<div><div class="hoje-t">'+(tudo?'Missao de hoje cumprida!':'Missao de hoje')+'</div>'
+    +'<div class="hoje-s">'+(tudo?'Tudo marcado. Sua sequencia agradece.':'Terminou uma sessao? Toque em <strong style="color:var(--ouro)">Conclui</strong> na hora.')+'</div></div>'
+    +'<div class="hoje-n">'+feitas+'<small>/'+tot+'</small></div></div>'
+    +'<div class="hoje-bar"><div style="width:'+pct+'%"></div></div>'
+  sess.forEach(function(s){
+    const c=corDe(s.disciplina)
+    h+='<div class="hi'+(s.concluida?' ok':'')+'" style="--c:'+c+'">'
+      +'<button class="hi-ck" title="'+(s.concluida?'Desmarcar':'Marcar como concluida')+'" onclick="toggleSessao(\''+s.id+'\')">'+(s.concluida?'✓':'')+'</button>'
+      +'<div class="hi-tx" onclick="abrirSessao(\''+s.id+'\')"><div class="hi-d">'+esc(s.disciplina)+' · '+LABEL[s.tipo]+'</div>'
+      +'<div class="hi-tp">'+esc(s.topico)+'</div>'
+      +'<div class="hi-m">'+dur(s.tempo_minutos||0)+(s.meta_questoes?' · meta '+s.meta_questoes+' questoes':'')+' · toque para detalhes</div></div>'
+      +(s.concluida?'<span class="hi-ok">✓ Feito</span>':'<button class="hi-b" onclick="toggleSessao(\''+s.id+'\')">✓ Conclui</button>')
+      +'</div>'
+  })
+  if(!tudo){
+    h+='<div class="hoje-f">'
+      +'<button class="btn" onclick="fecharDia(\''+hj+'\',\'hoje\')">🌙 Fechar o dia</button>'
+      +(tot-feitas>1?'<button class="btn" onclick="concluirTudo(\''+hj+'\')">✅ Conclui tudo de hoje</button>':'')
+      +'</div>'
+  }
+  h+='</div>'
+  box.innerHTML=h
+}
+
+async function concluirTudo(k){
+  const pend=pendentesDia(k); if(!pend.length)return
+  if(!confirm('Marcar as '+pend.length+' sessoes pendentes de '+parseD(k).toLocaleDateString('pt-BR')+' como concluidas?'))return
+  const ids=pend.map(function(s){return s.id})
+  const r=await _supabase.from('sessoes_estudo').update({concluida:true}).in('id',ids)
+  if(r.error){alert('Erro: '+r.error.message);return}
+  for(let i=0;i<pend.length;i++){
+    pend[i].concluida=true
+    if(pend[i].tipo==='teoria'&&pend[i].topico_id&&!pend[i].parcial)await marcarEdital(pend[i].topico_id,true)
+  }
+  if(_mentor)logar('concluiu','Marcou '+pend.length+' sessoes de '+parseD(k).toLocaleDateString('pt-BR')+' como concluidas')
+  desenhar()
+  if(_fd){fecharDia(_fd.k,_fd.modo)}
+  else toast('🏆 Dia concluido! Excelente trabalho.')
+}
+
+/* ---------- FECHAR O DIA (checkout) ---------- */
+function fecharDia(k,modo){
+  _fd={k:k,modo:modo}
+  const pend=pendentesDia(k).sort(function(a,b){return (a.ordem||0)-(b.ordem||0)})
+  const dia=parseD(k).toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'})
+  const tit=modo==='sair'?'Antes de sair, feche o seu dia'
+    :modo==='ontem'?'Como foi seu estudo de '+dia+'?'
+    :'Fechar o dia'
+  const sub=modo==='ontem'
+    ?'Voce deixou sessoes sem marcar. Diga o que foi feito para o seu plano continuar certinho.'
+    :'Para cada sessao, marque o que voce fez. O que nao deu tempo vai para os proximos dias — nada vira atraso.'
+  let h='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:6px">'
+    +'<div><div style="color:var(--ouro);font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase">'+(modo==='ontem'?'Pendencias':'Checkout do dia')+' · '+dia+'</div>'
+    +'<div style="font-size:18px;font-weight:800;margin-top:3px;line-height:1.3">'+tit+'</div></div>'
+    +'<button class="btn" onclick="fecharModal()" style="padding:5px 11px">✕</button></div>'
+  if(!pend.length){
+    h+='<div style="text-align:center;padding:26px 6px"><div style="font-size:46px">💪</div>'
+      +'<div style="font-weight:800;font-size:16px;color:#6ddba0;margin-top:8px">Dia fechado!</div>'
+      +'<div style="color:var(--tx3);font-size:13px;margin-top:6px">Tudo marcado. Seu plano esta em dia.</div>'
+      +(modo==='sair'?'<button class="btn btn-ouro" style="width:100%;padding:12px;margin-top:18px" onclick="sairDireto()">Sair agora</button>'
+        :'<button class="btn btn-ouro" style="width:100%;padding:12px;margin-top:18px" onclick="fecharModal()">Fechar</button>')
+      +'</div>'
+    document.getElementById('modal-c').innerHTML=h
+    document.getElementById('modal').classList.add('on')
+    return
+  }
+  h+='<div style="color:var(--tx3);font-size:12.5px;line-height:1.55;margin-bottom:14px">'+sub+'</div>'
+  pend.forEach(function(s){
+    const c=corDe(s.disciplina)
+    h+='<div class="fd-i" style="--c:'+c+'"><div style="color:'+c+';font-size:11.5px;font-weight:700">'+esc(s.disciplina)+' · '+LABEL[s.tipo]+' · '+dur(s.tempo_minutos||0)+'</div>'
+      +'<div style="font-size:14px;font-weight:600;margin-top:2px;line-height:1.35">'+esc(s.topico)+'</div>'
+      +'<div class="fd-a"><button class="fa-ok" onclick="toggleSessao(\''+s.id+'\').then(function(){fecharDia(\''+k+'\',\''+modo+'\')})">✓ Conclui</button>'
+      +(s.tipo==='teoria'?'<button class="fa-nf" onclick="naoFinalizei(\''+s.id+'\')">½ Nao terminei</button>':'')
+      +'<button class="fa-ad" onclick="fdAdiar(\''+s.id+'\')">→ Nao fiz, adiar</button></div></div>'
+  })
+  h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">'
+    +(pend.length>1?'<button class="btn" style="flex:1;min-width:140px;padding:11px;border-color:#6ddba0;color:#6ddba0" onclick="concluirTudo(\''+k+'\')">✓ Fiz tudo</button>':'')
+    +(pend.length>1?'<button class="btn" style="flex:1;min-width:140px;padding:11px;border-color:#e8b04b;color:#e8b04b" onclick="fdAdiarTodas(\''+k+'\')">→ Adiar todas</button>':'')
+    +'</div>'
+    +'<div id="fd-msg" style="font-size:12px;margin-top:10px;text-align:center"></div>'
+  if(modo==='sair')h+='<div style="text-align:center;margin-top:12px"><span style="color:var(--tx4);font-size:12px;text-decoration:underline;cursor:pointer" onclick="sairSemMarcar()">Sair sem marcar (seu mentor sera avisado)</span></div>'
+  else if(modo==='ontem')h+='<div style="text-align:center;margin-top:12px"><span style="color:var(--tx4);font-size:12px;text-decoration:underline;cursor:pointer" onclick="fecharModal()">Resolver depois</span></div>'
+  document.getElementById('modal-c').innerHTML=h
+  document.getElementById('modal').classList.add('on')
+}
+
+function fdMsg(t,cor){const m=document.getElementById('fd-msg');if(m){m.style.color=cor;m.textContent=t}}
+
+function baseAdiar(k){
+  const hj=hojeStr(), amanha=ymd(addDays(parseD(k),1))
+  return amanha<hj?hj:amanha
+}
+
+async function fdAdiar(id){
+  const s=_sessoes.find(function(x){return x.id===id}); if(!s||!_fd)return
+  const f=_fd
+  fdMsg('Reorganizando...','var(--tx3)')
+  const v=vagasFuturas(baseAdiar(s.data),1)
+  const alvo=v[0]||baseAdiar(s.data)
+  const r=await _supabase.from('sessoes_estudo').update({data:alvo,ordem:proximaOrdem(alvo)}).eq('id',id)
+  if(r.error){fdMsg('Erro: '+r.error.message,'#f07171');return}
+  logar('adiou','Adiou "'+s.topico+'" ('+s.disciplina+') de '+parseD(s.data).toLocaleDateString('pt-BR')+' para '+parseD(alvo).toLocaleDateString('pt-BR'))
+  await recarregar()
+  toast('→ Sessao movida para '+parseD(alvo).toLocaleDateString('pt-BR'))
+  fecharDia(f.k,f.modo)
+}
+
+async function fdAdiarTodas(k){
+  const pend=pendentesDia(k).sort(function(a,b){return (a.ordem||0)-(b.ordem||0)}); if(!pend.length)return
+  const f=_fd
+  fdMsg('Reorganizando...','var(--tx3)')
+  const vagas=vagasFuturas(baseAdiar(k),pend.length)
+  const conta={}
+  for(let i=0;i<pend.length;i++){
+    const alvo=vagas[i]||vagas[vagas.length-1]||baseAdiar(k)
+    conta[alvo]=(conta[alvo]||proximaOrdem(alvo))
+    const r=await _supabase.from('sessoes_estudo').update({data:alvo,ordem:conta[alvo]++}).eq('id',pend[i].id)
+    if(r.error){fdMsg('Erro: '+r.error.message,'#f07171');return}
+  }
+  logar('adiou','Adiou '+pend.length+' sessao(oes) de '+parseD(k).toLocaleDateString('pt-BR')+' para os proximos dias')
+  await recarregar()
+  toast('→ '+pend.length+' sessoes redistribuidas nos proximos dias')
+  if(f)fecharDia(f.k,f.modo)
+}
+
+async function sairSemMarcar(){
+  const n=pendentesDia(hojeStr()).length
+  if(n)await logar('saiu_sem_marcar','Saiu da plataforma sem marcar '+n+' sessao(oes) de hoje')
+  sairDireto()
+}
+
+// ao entrar: cobra o ultimo dia de estudo que ficou sem marcar
+function checarDiaAnterior(){
+  const hj=hojeStr(), lim=ymd(addDays(new Date(),-7))
+  const ds=Object.keys(_porData).filter(function(d){return d<hj&&d>=lim}).sort().reverse()
+  for(let i=0;i<ds.length;i++){
+    if(pendentesDia(ds[i]).length){
+      const ch='fd_'+_alunoId+'_'+ds[i]
+      try{if(sessionStorage.getItem(ch))return;sessionStorage.setItem(ch,'1')}catch(e){}
+      fecharDia(ds[i],'ontem')
+      return
+    }
+  }
+}
+
+// aviso do navegador ao fechar a aba com sessoes de hoje sem marcar
+window.addEventListener('beforeunload',function(e){
+  if(_mentor||_saindo||!_sessoes.length)return
+  if(pendentesDia(hojeStr()).length){e.preventDefault();e.returnValue='';return ''}
+})
 document.addEventListener('keydown',function(e){if(e.key==='Escape'){fecharModal();fecharCaderno()}})
 init()
 </script>
