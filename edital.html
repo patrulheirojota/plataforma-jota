@@ -130,10 +130,28 @@ async function init() {
   if (!user) { window.location.href = 'index.html'; return }
   _alunoId = user.id
 
+  // modo mentor: edital.html?aluno=ID
+  const alvo = new URLSearchParams(location.search).get('aluno')
+  let mentor = false
+  if (alvo && alvo !== user.id) {
+    let ok = false
+    try { const r = await _supabase.rpc('eh_admin'); if (!r.error) ok = !!r.data; else throw 0 }
+    catch(e) { const { data: x } = await _supabase.from('alunos').select('id').eq('id', user.id).maybeSingle(); ok = !x }
+    if (!ok) { window.location.href = 'edital.html'; return }
+    mentor = true; _alunoId = alvo
+  }
+
   const { data: aluno } = await _supabase
-    .from('alunos').select('concurso_id, concursos(nome)').eq('id', user.id).single()
+    .from('alunos').select('*, concursos(nome)').eq('id', _alunoId).single()
 
   if (!aluno) return
+  if (!mentor && aluno.bloqueado_inatividade) { window.location.href = 'cronograma.html'; return }
+  if (mentor) {
+    const b = document.createElement('div')
+    b.style.cssText = 'background:#3a2c08;border:1px solid #C9A83C;border-radius:10px;padding:10px 14px;margin-bottom:14px;color:#f3e2a8;font-size:13px;line-height:1.5'
+    b.innerHTML = '👁️ <b style="color:#C9A83C">MODO MENTOR</b> — edital de <b style="color:#C9A83C">' + String(aluno.nome||'').replace(/</g,'&lt;') + '</b>. O que voce marcar aqui vale para o aluno.'
+    document.querySelector('.container').insertBefore(b, document.querySelector('header').nextSibling)
+  }
 
   _concursoId = aluno.concurso_id
   document.getElementById('edital-concurso-nome').textContent = aluno.concursos?.nome || ''
