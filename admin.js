@@ -272,12 +272,17 @@ async function carregarAlunos() {
       <option value="sem-acesso">Sumido ha mais tempo</option>
       <option value="mexeu">Quem mexeu no cronograma</option>
       <option value="expira-breve">Acesso expirando primeiro</option>
+      <option value="bloqueados">Bloqueados por inatividade</option>
     </select>
     <button onclick="exportarAlunosCSV()" class="btn-acao btn-editar" style="padding:10px 16px;white-space:nowrap">Exportar CSV</button>
   </div>
   <div id="lista-alunos-inner"></div>`
 
   window._todosAlunos = alunos
+  try {
+    const { data: mc } = await _supabase.from('config_marca').select('*').eq('id',1).maybeSingle()
+    window._diasBloqueio = (mc && mc.dias_bloqueio) ? mc.dias_bloqueio : 20
+  } catch(e) { window._diasBloqueio = 20 }
   await carregarAlertas()
   filtrarAlunos()
 }
@@ -308,6 +313,11 @@ function filtrarAlunos() {
       const da = (al[a.id]&&al[a.id].ajuste)?new Date(al[a.id].ajuste).getTime():0
       const db = (al[b.id]&&al[b.id].ajuste)?new Date(al[b.id].ajuste).getTime():0
       return db - da
+    }
+    if (ordem === 'bloqueados') {
+      const ba = alunoBloqueado(a), bb = alunoBloqueado(b)
+      if ((ba>0) !== (bb>0)) return ba>0 ? -1 : 1
+      return bb - ba
     }
     if (ordem === 'expira-breve') {
       const da = a.data_expiracao ? new Date(a.data_expiracao) : new Date('2099-12-31')
@@ -367,6 +377,7 @@ function renderizarListaAlunos(alunos) {
     const ajuste = tempoRelativo(al.ajuste)
     const plano  = tempoRelativo(al.plano)
 
+    const bloq = alunoBloqueado(a)
     const corEstudo = !al.estudo ? 'var(--erro)'
       : (Math.floor((Date.now()-new Date(al.estudo+'T12:00:00').getTime())/86400000) > 3 ? 'var(--alerta)' : 'var(--ok)')
 
@@ -376,6 +387,8 @@ function renderizarListaAlunos(alunos) {
         <div style="color:var(--tx3);font-size:12px">${a.email}</div>
         <div style="color:var(--tx3);font-size:12px">${a.concursos?.nome||'Sem concurso'}</div>
         <div style="color:${status.cor};font-size:11px;margin-top:2px;font-weight:bold">${status.texto}</div>
+        ${bloq ? `<div style="margin-top:6px;padding:7px 10px;border-radius:8px;background:rgba(240,113,113,.10);border:1px solid var(--erro);color:var(--erro);font-size:11.5px;font-weight:700">
+          🔒 Bloqueado por inatividade (${bloq} dias sem acessar). Aguardando taxa de reabilitacao.</div>` : ''}
 
         <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:7px;font-size:11.5px">
           <span style="color:var(--tx4)">Ultimo acesso: <strong style="color:${acesso?'var(--tx2)':'var(--tx4)'}">${acesso||'nunca entrou'}</strong></span>
@@ -392,6 +405,8 @@ function renderizarListaAlunos(alunos) {
         </div>
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-content:flex-start">
+        <button class="btn-acao" onclick="verComoAluno('${a.id}')" style="background:var(--ouro);color:#0a1420;border:1px solid var(--ouro);font-weight:700"><span class="ic">👁️</span><span class="lb">Ver como aluno</span></button>
+        ${bloq ? `<button class="btn-acao" onclick="reativarAluno('${a.id}','${String(a.nome).replace(/'/g,"\\'")}')" style="background:var(--ok);color:#0a1420;border:1px solid var(--ok);font-weight:700"><span class="ic">🔓</span><span class="lb">Reativar</span></button>` : ''}
         <button class="btn-acao btn-editar" onclick="abrirEditarAluno('${a.id}','${a.nome}','${a.email}','${a.concurso_id||''}')"><span class="ic">✏️</span><span class="lb">Editar</span></button>
         <button class="btn-acao btn-editar" onclick="gerenciarConcursosAluno('${a.id}','${a.nome}')"><span class="ic">🏆</span><span class="lb">Concursos</span></button>
         <button class="btn-acao btn-editar" onclick="irParaCronogramaAluno('${a.id}','${a.nome}')" style="background:var(--hov);color:var(--info);border:1px solid var(--info)"><span class="ic">📅</span><span class="lb">Cronograma</span></button>
@@ -403,18 +418,46 @@ function renderizarListaAlunos(alunos) {
   div.innerHTML += `<p style="color:var(--tx3);font-size:12px;margin-top:8px">${alunos.length} aluno(s)</p>`
 }
 
+// ========== MODO MENTOR E BLOQUEIO POR INATIVIDADE ==========
+// retorna o numero de dias sem acesso se o aluno esta bloqueado, senao 0
+function alunoBloqueado(a) {
+  const lim = window._diasBloqueio || 20
+  if (!a.ultimo_acesso) return a.bloqueado_inatividade ? lim : 0
+  const dias = Math.floor((Date.now() - new Date(a.ultimo_acesso).getTime()) / 86400000)
+  if (a.bloqueado_inatividade) return Math.max(dias, lim)
+  return dias >= lim ? dias : 0
+}
+
+function verComoAluno(aluno_id) {
+  sessionStorage.setItem('alunoFoco', aluno_id)
+  location.href = 'cronograma.html?aluno=' + aluno_id
+}
+
+async function reativarAluno(aluno_id, nome) {
+  if (!confirm('Reativar o acesso de ' + nome + '?\n\nUse depois que o aluno regularizar a taxa de reabilitacao. O contador de inatividade volta a zero.')) return
+  const agora = new Date().toISOString()
+  let r = await _supabase.from('alunos').update({ bloqueado_inatividade: false, ultimo_acesso: agora }).eq('id', aluno_id)
+  if (r.error) r = await _supabase.from('alunos').update({ ultimo_acesso: agora }).eq('id', aluno_id)
+  if (r.error) { alert('Erro ao reativar: ' + r.error.message); return }
+  const a = (window._todosAlunos || []).find(function(x){ return x.id === aluno_id })
+  if (a) { a.bloqueado_inatividade = false; a.ultimo_acesso = agora }
+  filtrarAlunos()
+  alert(nome + ' foi reativado. Ja pode acessar a plataforma.')
+}
+
 // Alertas: quem mexeu no cronograma e quem esta fraco em alguma disciplina
 async function carregarAlertas() {
   const alertas = {}
 
   const [rl, rs, rr] = await Promise.all([
-    _supabase.from('cronograma_log').select('aluno_id,acao,detalhe,criado_em,visto').order('criado_em',{ascending:false}),
+    _supabase.from('cronograma_log').select('*').order('criado_em',{ascending:false}),
     _supabase.from('sessoes_estudo').select('aluno_id,disciplina,questoes_feitas,questoes_certas,concluida,data'),
     _supabase.from('config_cronograma').select('aluno_id,atualizado_em')
   ])
 
   // ultimo ajuste feito pelo proprio aluno
   ;(rl.data||[]).forEach(function(l){
+    if(l.por_mentor || String(l.detalhe||'').indexOf('[Mentor]')===0) return
     if(!alertas[l.aluno_id])alertas[l.aluno_id]={}
     const a = alertas[l.aluno_id]
     if(!a.ajuste){ a.ajuste = l.criado_em; a.ajusteTxt = l.detalhe||l.acao }
@@ -986,7 +1029,7 @@ async function carregarLog() {
       return '<div class="item-lista" style="border-left:3px solid '+(l.visto?'var(--bd2)':'var(--alerta)')+'">'
         +'<div style="flex:1;min-width:150px">'
         +'<strong>'+(l.alunos?l.alunos.nome:'Aluno')+'</strong>'
-        +(l.visto?'':' <span class="tag tag-alerta">NOVO</span>')
+        +((l.por_mentor||String(l.detalhe||'').indexOf('[Mentor]')===0)?' <span class="tag tag-ouro">FEITO POR VOCE</span>':(l.visto?'':' <span class="tag tag-alerta">NOVO</span>'))
         +'<div style="color:var(--tx2);font-size:12.5px;margin-top:3px">'+(l.detalhe||l.acao)+'</div></div>'
         +'<span style="color:var(--tx4);font-size:11.5px">'+d+'</span>'
         +'<button class="btn-acao btn-editar" onclick="irParaCronogramaAluno(\''+l.aluno_id+'\',\''+String(l.alunos?l.alunos.nome:'').replace(/'/g,"\\'")+'\')">Ver plano</button></div>'
@@ -1162,7 +1205,8 @@ function carregarSelectsAvisos() {
   const sf = document.getElementById('filtro-avisos')
   if (sf) {
     sf.innerHTML='<option value="">Todos os avisos</option>'
-      +'<option value="turma">Somente da turma</option>'
+      +'<option value="geral">Somente gerais (todos os alunos)</option>'
+      +'<option value="turma">Somente de turma</option>'
       +'<option value="individuais">Somente individuais</option>'
     ;(window._concursos||[]).forEach(function(c){ sf.innerHTML+='<option value="c:'+c.id+'">Turma: '+c.nome+'</option>' })
   }
@@ -1173,6 +1217,8 @@ function carregarSelectsAvisos() {
 
 function trocarDestino() {
   const d = document.getElementById('aviso-destino').value
+  const bg = document.getElementById('box-geral')
+  if (bg) bg.style.display = (d==='geral')?'block':'none'
   document.getElementById('box-turma').style.display = (d==='turma')?'block':'none'
   document.getElementById('box-aluno').style.display = (d==='aluno')?'block':'none'
 }
@@ -1212,7 +1258,10 @@ async function criarAviso() {
   const registro = { titulo: titulo, mensagem: mensagem, prioridade: prioridade }
   let quem = ''
 
-  if (destino === 'turma') {
+  if (destino === 'geral') {
+    if (!confirm('Publicar este aviso para TODOS os alunos da plataforma?')) return
+    quem = 'todos os alunos'
+  } else if (destino === 'turma') {
     const cid = document.getElementById('aviso-concurso').value
     if (!cid) { msg.style.display='block'; msg.style.color='var(--erro)'; msg.textContent='Selecione o concurso.'; return }
     registro.concurso_id = cid
@@ -1244,7 +1293,8 @@ async function carregarAvisos() {
 
   let q = _supabase.from('avisos').select('*, concursos(nome), alunos(nome)').order('criado_em',{ascending:false}).limit(80)
   if (filtro === 'individuais') q = q.not('aluno_id','is',null)
-  else if (filtro === 'turma') q = q.is('aluno_id',null)
+  else if (filtro === 'turma') q = q.is('aluno_id',null).not('concurso_id','is',null)
+  else if (filtro === 'geral') q = q.is('aluno_id',null).is('concurso_id',null)
   else if (filtro && filtro.indexOf('c:')===0) q = q.eq('concurso_id', filtro.slice(2))
 
   const { data: avisos, error } = await q
@@ -1254,9 +1304,12 @@ async function carregarAvisos() {
   div.innerHTML = avisos.map(function(a){
     const data = new Date(a.criado_em).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})
     const individual = !!a.aluno_id
+    const geral = !a.aluno_id && !a.concurso_id
     const destino = individual
       ? '<span class="tag tag-info">'+(a.alunos?a.alunos.nome:'aluno')+'</span>'
-      : '<span class="tag tag-ouro">'+(a.concursos?a.concursos.nome:'turma')+'</span>'
+      : geral
+        ? '<span class="tag tag-ok">TODOS OS ALUNOS</span>'
+        : '<span class="tag tag-ouro">'+(a.concursos?a.concursos.nome:'turma')+'</span>'
     const prio = a.prioridade==='alta' ? '<span class="tag tag-erro">URGENTE</span>' : ''
     const lido = individual
       ? (a.lido_em
