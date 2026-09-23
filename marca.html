@@ -87,10 +87,20 @@
 
     <label style="color:var(--tx3);font-size:12px;display:block;margin-top:14px;margin-bottom:4px">Cor principal</label>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-      <input type="color" id="cor" value="var(--ouro)" oninput="document.getElementById('cor-hex').value=this.value;atualizarDemo()" style="width:56px;height:42px;padding:3px;margin:0;cursor:pointer">
-      <input type="text" id="cor-hex" value="var(--ouro)" oninput="document.getElementById('cor').value=this.value;atualizarDemo()" style="width:110px;margin:0;font-family:monospace">
+      <input type="color" id="cor" value="#C9A83C" oninput="document.getElementById('cor-hex').value=this.value;atualizarDemo()" style="width:56px;height:42px;padding:3px;margin:0;cursor:pointer">
+      <input type="text" id="cor-hex" value="#C9A83C" oninput="document.getElementById('cor').value=this.value;atualizarDemo()" style="width:110px;margin:0;font-family:monospace">
     </div>
     <div class="cores" id="paleta"></div>
+  </div>
+
+  <div class="card">
+    <h3>Contato e bloqueio por inatividade</h3>
+    <p style="color:var(--tx3);font-size:13px;margin-bottom:14px">Quando o aluno passa muitos dias sem acessar, a plataforma bloqueia e mostra um aviso pedindo que ele regularize a taxa de reabilitacao com voce.</p>
+    <label style="color:var(--tx3);font-size:12px;display:block;margin-bottom:4px">WhatsApp do mentor (com DDD, so numeros)</label>
+    <input type="text" id="whatsapp" placeholder="Ex: 79999999999" inputmode="numeric">
+    <label style="color:var(--tx3);font-size:12px;display:block;margin-top:10px;margin-bottom:4px">Bloquear apos quantos dias sem acesso</label>
+    <input type="number" id="dias-bloqueio" min="3" max="365" value="20">
+    <p style="color:var(--tx4);font-size:11.5px;margin-top:4px">Padrao: 20 dias. Para reativar, use o botao "Reativar" no card do aluno.</p>
   </div>
 
   <div class="card">
@@ -130,7 +140,7 @@
 
 <script src="config.js"></script>
 <script>
-const PALETA=['var(--ouro)','#e8b04b','var(--info)','#6ddba0','#f07171','#4ecdc4','var(--roxo)','#f0955b','#d4e05b','#e05b8a']
+const PALETA=['#C9A83C','#e8b04b','#5bb3f0','#6ddba0','#f07171','#4ecdc4','#b98ae0','#f0955b','#d4e05b','#e05b8a']
 
 async function init(){
   const { data:{user} }=await _supabase.auth.getUser()
@@ -143,7 +153,9 @@ async function init(){
     document.getElementById('nome-marca').value=m.nome_marca||''
     document.getElementById('slogan').value=m.slogan||''
     document.getElementById('logo-url').value=m.logo_url||''
-    const cor=m.cor_primaria||'var(--ouro)'
+    const cor=(m.cor_primaria&&m.cor_primaria.charAt(0)==='#')?m.cor_primaria:'#C9A83C'
+    document.getElementById('whatsapp').value=m.whatsapp||''
+    document.getElementById('dias-bloqueio').value=m.dias_bloqueio||20
     document.getElementById('cor').value=cor
     document.getElementById('cor-hex').value=cor
   }
@@ -161,7 +173,8 @@ function usarCor(c){
 }
 
 function atualizarDemo(){
-  const cor=document.getElementById('cor-hex').value||'var(--ouro)'
+  let cor=document.getElementById('cor-hex').value||'#C9A83C'
+  if(cor.charAt(0)!=='#')cor='#C9A83C'
   const nome=document.getElementById('nome-marca').value||'Patrulheiros de Elite'
   const slogan=document.getElementById('slogan').value||'Mentoria Policial'
   const url=document.getElementById('logo-url').value
@@ -233,10 +246,14 @@ async function salvar(){
     nome_marca:document.getElementById('nome-marca').value||'Patrulheiros de Elite',
     slogan:document.getElementById('slogan').value||'',
     logo_url:document.getElementById('logo-url').value||null,
-    cor_primaria:document.getElementById('cor-hex').value||'var(--ouro)',
+    cor_primaria:(document.getElementById('cor-hex').value||'').charAt(0)==='#'?document.getElementById('cor-hex').value:'#C9A83C',
     atualizado_em:new Date().toISOString()
   },{onConflict:'id'})
   if(r.error){m.style.color='var(--erro)';m.textContent='Erro: '+r.error.message;return}
+  const wpp=(document.getElementById('whatsapp').value||'').replace(/\D/g,'')
+  const db=parseInt(document.getElementById('dias-bloqueio').value)||20
+  const r2=await _supabase.from('config_marca').update({whatsapp:wpp||null,dias_bloqueio:Math.max(3,db)}).eq('id',1)
+  if(r2.error){m.style.color='var(--alerta)';m.textContent='Marca salva, mas o WhatsApp/prazo nao: rode o SQL desta atualizacao no Supabase. ('+r2.error.message+')';return}
   m.style.color='var(--ok)';m.textContent='Personalizacao salva! Os alunos ja veem as mudancas.'
 }
 
