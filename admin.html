@@ -55,7 +55,7 @@
     <div class="nav-i" onclick="fecharMenu();location.href='edital-admin.html'"><span class="nav-ic">📖</span>Editais</div>
 
     <div class="side-h">Acompanhamento</div>
-    <div class="nav-i" onclick="fecharMenu();location.href='ranking.html'"><span class="nav-ic">🏆</span>Ranking</div>
+    <div class="nav-i" onclick="fecharMenu();location.href='ranking.html?admin=1'"><span class="nav-ic">🏆</span>Ranking</div>
     <div class="nav-i" onclick="fecharMenu();location.href='overview.html'"><span class="nav-ic">📊</span>Visao Geral</div>
     <div class="nav-i" data-a="aba-desempenho" onclick="mostrarAba('aba-desempenho');fecharMenu()"><span class="nav-ic">📈</span>Desempenho</div>
     <div class="nav-i" onclick="fecharMenu();location.href='relatorio.html'"><span class="nav-ic">📑</span>Relatorios</div>
@@ -209,11 +209,14 @@
 
         <label style="color:var(--tx3);font-size:12px;display:block;margin-bottom:4px">Para quem</label>
         <select id="aviso-destino" onchange="trocarDestino()">
+          <option value="geral">Todos os alunos (aviso geral)</option>
           <option value="turma">Turma inteira de um concurso</option>
           <option value="aluno">Um aluno especifico</option>
         </select>
 
-        <div id="box-turma" style="margin-top:10px">
+        <p id="box-geral" style="color:var(--tx4);font-size:11.5px;margin-top:6px">Todos os alunos da plataforma verao este aviso, de qualquer concurso.</p>
+
+        <div id="box-turma" style="display:none;margin-top:10px">
           <label style="color:var(--tx3);font-size:12px;display:block;margin-bottom:4px">Concurso</label>
           <select id="aviso-concurso"></select>
         </div>
