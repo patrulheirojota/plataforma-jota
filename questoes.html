@@ -108,21 +108,22 @@
 <div class="shell">
   <aside class="side">
     <div class="logo"><div class="logo-i">🛡️</div><div class="logo-t">Patrulheiros<span>de Elite</span></div></div>
-    <div class="nav-i" onclick="location.href='cronograma.html'"><span class="nav-ic">📅</span>Meu Cronograma</div>
+    <div class="nav-i" onclick="ir('cronograma.html')"><span class="nav-ic">📅</span>Meu Cronograma</div>
     <div class="nav-i on" data-s="questoes" onclick="irSecao('questoes')"><span class="nav-ic">❓</span>Questoes</div>
     <div class="nav-i" data-s="simulados" onclick="irSecao('simulados')"><span class="nav-ic">🎯</span>Simulados</div>
     <div class="nav-i" data-s="materiais" onclick="irSecao('materiais')"><span class="nav-ic">📁</span>Materiais</div>
-    <div class="nav-i" onclick="location.href='ranking.html'"><span class="nav-ic">🏆</span>Ranking</div>
-    <div class="nav-i" onclick="location.href='edital.html'"><span class="nav-ic">📖</span>Edital</div>
+    <div class="nav-i" onclick="ir('ranking.html')"><span class="nav-ic">🏆</span>Ranking</div>
+    <div class="nav-i" onclick="ir('edital.html')"><span class="nav-ic">📖</span>Edital</div>
     <div class="side-sep"></div>
     <div class="nav-i" data-s="flashcards" onclick="irSecao('flashcards')"><span class="nav-ic">🗂️</span>Flashcards<span class="nav-nv">EM BREVE</span></div>
     <div class="nav-i" data-s="mapas" onclick="irSecao('mapas')"><span class="nav-ic">🧠</span>Mapas<span class="nav-nv">EM BREVE</span></div>
     <div class="side-sep"></div>
-    <div class="nav-i" onclick="location.href='cronograma.html#desempenho'"><span class="nav-ic">📊</span>Desempenho</div>
-    <div class="side-b"><div class="nav-i" onclick="sair()"><span class="nav-ic">🚪</span>Sair</div></div>
+    <div class="nav-i" onclick="ir('cronograma.html#desempenho')"><span class="nav-ic">📊</span>Desempenho</div>
+    <div class="side-b"><div class="nav-i" id="nav-sair" onclick="sair()"><span class="nav-ic">🚪</span>Sair</div></div>
   </aside>
 
   <main class="main">
+    <div id="mentor-bar" style="display:none;position:sticky;top:0;z-index:35;background:linear-gradient(90deg,#3a2c08,#1d1a10);border:1px solid var(--ouro);border-radius:12px;padding:11px 14px;margin-bottom:16px;align-items:center;gap:12px;flex-wrap:wrap"></div>
     <div class="topbar">
       <div><div class="h2" id="tit">Questoes</div><div class="h2s" id="sub">Banco de questoes da mentoria</div></div>
       <div style="display:flex;gap:8px">
@@ -285,18 +286,54 @@ function irSecao(s){
   window.scrollTo({top:0,behavior:'smooth'})
 }
 
+let _mentor=false,_limiteBloq=20
+async function ehAdmin(uid){
+  try{
+    const r=await _supabase.rpc('eh_admin')
+    if(!r.error)return !!r.data
+  }catch(e){}
+  const { data:x }=await _supabase.from('alunos').select('id').eq('id',uid).maybeSingle()
+  return !x
+}
+function ir(url){
+  if(_mentor){
+    if(url.indexOf('ranking.html')===0){location.href='ranking.html?admin=1';return}
+    const p=url.split('#')
+    location.href=p[0]+'?aluno='+_alunoId+(p[1]?'#'+p[1]:'')
+    return
+  }
+  location.href=url
+}
+
 async function init(){
   iniciarTema()
   const { data:{user} }=await _supabase.auth.getUser()
   if(!user){location.href='index.html';return}
   _alunoId=user.id
-  carregarMarca()
-  registrarAcesso()
+  const alvo=new URLSearchParams(location.search).get('aluno')
+  if(alvo&&alvo!==user.id){
+    if(!(await ehAdmin(user.id))){location.href='questoes.html';return}
+    _mentor=true;_alunoId=alvo
+  }
+  await carregarMarca()
 
-  const { data:al }=await _supabase.from('alunos').select('nome,data_expiracao,meta_questoes_dia').eq('id',user.id).single()
-  if(al&&al.data_expiracao){
-    const h=new Date();h.setHours(0,0,0,0)
-    if(h>new Date(al.data_expiracao+'T00:00:00')){location.href='cronograma.html';return}
+  const { data:al }=await _supabase.from('alunos').select('*').eq('id',_alunoId).maybeSingle()
+  if(!al&&!_mentor&&(await ehAdmin(user.id))){location.href='admin.html';return}
+  if(_mentor&&al){
+    const b=document.getElementById('mentor-bar')
+    b.innerHTML='<div style="font-size:22px">👁️</div><div style="flex:1;min-width:200px;color:#f3e2a8;font-size:13px;line-height:1.45"><b style="color:var(--ouro)">MODO MENTOR</b> — questoes de <b style="color:var(--ouro)">'+esc(al.nome)+'</b>. Respostas marcadas aqui contam para o aluno.</div>'
+      +'<button class="btn" style="background:var(--ouro);color:#0a1420;border-color:var(--ouro);font-weight:700" onclick="ir(\'cronograma.html\')">← Voltar ao cronograma</button>'
+    b.style.display='flex'
+    const ns=document.getElementById('nav-sair'); if(ns)ns.innerHTML='<span class="nav-ic">↩️</span>Voltar ao painel'
+  }
+  if(!_mentor&&al){
+    const diasSem=al.ultimo_acesso?Math.floor((Date.now()-new Date(al.ultimo_acesso).getTime())/86400000):0
+    if(al.bloqueado_inatividade||diasSem>=_limiteBloq){location.href='cronograma.html';return}
+    if(al.data_expiracao){
+      const h=new Date();h.setHours(0,0,0,0)
+      if(h>new Date(al.data_expiracao+'T00:00:00')){location.href='cronograma.html';return}
+    }
+    registrarAcesso()
   }
 
   const { data:vin }=await _supabase.from('aluno_concursos').select('concurso_id, concursos(id,nome)').eq('aluno_id',_alunoId)
@@ -328,7 +365,8 @@ async function init(){
 async function carregarMarca(){
   const { data:m }=await _supabase.from('config_marca').select('*').eq('id',1).maybeSingle()
   if(!m)return
-  if(m.cor_primaria)document.documentElement.style.setProperty('--ouro',m.cor_primaria)
+  if(m.dias_bloqueio)_limiteBloq=m.dias_bloqueio
+  if(m.cor_primaria&&String(m.cor_primaria).charAt(0)==='#')document.documentElement.style.setProperty('--ouro',m.cor_primaria)
   const nome=m.nome_marca||'Patrulheiros de Elite',p=nome.split(' ')
   const lt=document.querySelector('.logo-t')
   if(lt)lt.innerHTML=esc(p[0])+'<span>'+esc(p.length>1?p.slice(1).join(' '):(m.slogan||''))+'</span>'
@@ -1071,6 +1109,7 @@ async function carregarHistorico(){
 }
 
 async function registrarAcesso(){
+  if(_mentor)return
   try{
     const chave='acesso_'+_alunoId
     const ultimo=localStorage.getItem(chave)
@@ -1082,7 +1121,10 @@ async function registrarAcesso(){
   }catch(e){}
 }
 
-async function sair(){await _supabase.auth.signOut();location.href='index.html'}
+async function sair(){
+  if(_mentor){sessionStorage.setItem('alunoFoco',_alunoId);location.href='admin.html';return}
+  await _supabase.auth.signOut();location.href='index.html'
+}
 init()
 </script>
 </body>
