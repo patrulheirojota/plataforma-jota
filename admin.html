@@ -42,6 +42,7 @@
     <div class="nav-i on" data-a="aba-alunos" onclick="mostrarAba('aba-alunos');fecharMenu()"><span class="nav-ic">👥</span>Alunos</div>
     <div class="nav-i" data-a="aba-concursos" onclick="mostrarAba('aba-concursos');fecharMenu()"><span class="nav-ic">🏆</span>Concursos</div>
     <div class="nav-i" data-a="aba-avisos" onclick="mostrarAba('aba-avisos');fecharMenu()"><span class="nav-ic">🔔</span>Avisos</div>
+    <div class="nav-i" data-a="aba-evolucao" onclick="mostrarAba('aba-evolucao');fecharMenu()"><span class="nav-ic">📝</span>Evolucao</div>
 
     <div class="side-h">Cronograma</div>
     <div class="nav-i" onclick="fecharMenu();location.href='gerador.html'"><span class="nav-ic">⚡</span>Gerador<span class="nav-tag">NOVO</span></div>
@@ -58,6 +59,7 @@
     <div class="nav-i" onclick="fecharMenu();location.href='ranking.html?admin=1'"><span class="nav-ic">🏆</span>Ranking</div>
     <div class="nav-i" onclick="fecharMenu();location.href='overview.html'"><span class="nav-ic">📊</span>Visao Geral</div>
     <div class="nav-i" data-a="aba-desempenho" onclick="mostrarAba('aba-desempenho');fecharMenu()"><span class="nav-ic">📈</span>Desempenho</div>
+    <div class="nav-i" data-a="aba-ciclos" onclick="mostrarAba('aba-ciclos');fecharMenu()"><span class="nav-ic">🗓️</span>Relatorio 21 dias<span class="nav-tag" id="bd-ciclos" style="display:none;background:var(--erro);color:#fff">0</span></div>
     <div class="nav-i" onclick="fecharMenu();location.href='relatorio.html'"><span class="nav-ic">📑</span>Relatorios</div>
 
     <div class="side-h">Ajustes</div>
@@ -76,6 +78,7 @@
     </div>
 
     <div id="aba-alunos" class="aba-conteudo" style="display:block">
+    <div id="aviso-ciclos" style="display:none"></div>
     <div class="card">
       <h3 onclick="toggleNovo()" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;margin-bottom:0">
         <span>Cadastrar novo aluno</span>
@@ -363,6 +366,48 @@
         <button onclick="fecharRelatorioIndividual()" style="width:auto;padding:6px 14px;background:var(--card);color:var(--tx3);border:1px solid var(--bd2)">Fechar</button>
       </div>
       <div id="conteudo-relatorio-individual"></div>
+      </div>
+    </div>
+
+    <div id="aba-evolucao" class="aba-conteudo" style="display:none">
+      <div class="card">
+        <h3>Anotacoes de evolucao</h3>
+        <p style="color:var(--tx3);font-size:13px;margin-bottom:12px">Registre o que voce observa em cada aluno. Essas anotacoes aparecem depois no relatorio de 21 dias, como base para a sua analise.</p>
+        <select id="anot-aluno" onchange="carregarAnotacoes()"></select>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+          <select id="anot-tipo" style="margin:0;width:auto;min-width:170px">
+            <option value="evolucao">Evolucao geral</option>
+            <option value="ponto_forte">Ponto forte</option>
+            <option value="ponto_fraco">Ponto fraco</option>
+            <option value="combinado">Combinado / meta</option>
+            <option value="conversa">Conversa / atendimento</option>
+          </select>
+        </div>
+        <textarea id="anot-texto" rows="4" placeholder="Ex: melhorou muito em Portugues, mas continua travando em Raciocinio Logico. Combinamos 40 questoes por dia ate o dia 30." style="margin-top:10px"></textarea>
+        <button onclick="salvarAnotacao()" style="margin-top:10px">Salvar anotacao</button>
+        <p id="msg-anot" style="display:none;margin-top:10px;font-size:13px"></p>
+      </div>
+      <div class="card">
+        <h3 id="titulo-anot">Historico de anotacoes</h3>
+        <div id="lista-anot"></div>
+      </div>
+    </div>
+
+    <div id="aba-ciclos" class="aba-conteudo" style="display:none">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+          <h3 style="margin:0">Relatorio de 21 dias</h3>
+          <button onclick="carregarCiclos()" class="btn-acao btn-neutro" style="padding:8px 14px">Atualizar</button>
+        </div>
+        <p style="color:var(--tx3);font-size:13px;margin-top:8px;margin-bottom:12px">O ciclo de cada aluno comeca no dia em que ele entrou na plataforma. Quando fecha 21 dias, o aluno aparece aqui para voce avaliar o estudo dele e enviar o retorno.</p>
+        <div id="lista-ciclos"></div>
+      </div>
+      <div class="card" id="card-relatorio-ciclo" style="display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:10px;flex-wrap:wrap">
+          <h3 id="titulo-ciclo" style="margin:0">Relatorio do ciclo</h3>
+          <button onclick="fecharRelatorioCiclo()" style="width:auto;padding:6px 14px;background:var(--card);color:var(--tx3);border:1px solid var(--bd2)">Fechar</button>
+        </div>
+        <div id="corpo-ciclo"></div>
       </div>
     </div>
 
