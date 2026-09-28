@@ -1,1997 +1,568 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Patrulheiros de Elite</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gerenciar Editais — Patrulheiros de Elite</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .topico-admin { display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--bd2);flex-wrap:wrap; }
+    .topico-admin:last-child { border-bottom:none; }
+    .prioridade-sel { padding:4px 8px;border-radius:6px;border:1px solid var(--bd2);background:var(--card2);color:#fff;font-size:12px;width:auto; }
+    .disc-bloco { background:var(--card);border-radius:12px;padding:16px;margin-bottom:12px; }
+    .disc-titulo { color:var(--ouro);font-size:15px;font-weight:bold;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center; }
+    .loading-ia { text-align:center;padding:30px;color:var(--tx3); }
+    .loading-ia .spinner { width:40px;height:40px;border:3px solid var(--bd2);border-top:3px solid var(--ouro);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 12px; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .progresso-admin-item { display:flex;gap:10px;align-items:center;padding:8px;background:var(--card2);border-radius:8px;margin-bottom:4px; }
+    .barra-prog { flex:1;height:8px;border-radius:4px;background:var(--card);overflow:hidden; }
+    .barra-prog-fill { height:100%;border-radius:4px; }
+  </style>
+<script>document.documentElement.setAttribute("data-tema",localStorage.getItem("tema")||"escuro")</script>
 <style>
-  :root{--ouro:#C9A83C;--bg:#0a1420;--bg2:#0c1826;--card:#101d2c;--card2:#0d1a28;--btn:#132030;--bd:#1b2c40;--bd2:#24384f;--tx:#e8edf4;--tx2:#8fa5bd;--tx3:#63809e;--tx4:#4d6684;--hov:#16283c}
-  [data-tema="claro"]{--bg:#eef1f6;--bg2:#fff;--card:#fff;--card2:#f7f9fc;--btn:#fff;--bd:#dde4ed;--bd2:#c6d2e0;--tx:#0f1b2a;--tx2:#4a5f78;--tx3:#66809b;--tx4:#8fa2b8;--hov:#eaf0f8}
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;transition:background .2s}
-
-  .shell{display:flex;min-height:100vh}
-
-  /* SIDEBAR */
-  .side{width:236px;background:var(--bg2);border-right:1px solid var(--bd);padding:20px 14px;display:flex;flex-direction:column;position:fixed;top:0;bottom:0;left:0;overflow-y:auto;z-index:30}
-  .logo{display:flex;align-items:center;gap:10px;padding:0 8px 22px}
-  .logo-i{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--ouro),#8a6f1e);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
-  .logo-t{font-size:14px;font-weight:800;line-height:1.2}
-  .logo-t span{color:var(--ouro);display:block;font-size:11px;font-weight:600}
-  .nav-i{display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:11px;color:var(--tx2);font-size:14px;cursor:pointer;margin-bottom:3px;transition:.15s;border:1px solid transparent;font-weight:500}
-  .nav-i:hover{background:var(--btn);color:var(--tx)}
-  .nav-i.on{background:var(--hov);color:var(--ouro);border-color:#2e4763;font-weight:600}
-  .nav-ic{width:19px;text-align:center;font-size:15px;flex-shrink:0}
-  .nav-bd{margin-left:auto;background:#d9566a;color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700}
-  .side-sep{height:1px;background:var(--bd);margin:10px 6px}
-  .side-b{margin-top:auto;padding-top:14px}
-
-  /* CONTEUDO */
-  .main{flex:1;margin-left:236px;padding:22px 24px 60px;max-width:100%;min-width:0}
-  .topbar{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:22px}
-  .ola{font-size:27px;font-weight:800;letter-spacing:-.7px}
-  .ola span{color:var(--ouro)}
-  .ola-s{color:var(--tx3);font-size:13px;margin-top:2px}
-
-  .btn{padding:9px 15px;border-radius:9px;border:1px solid var(--bd2);background:var(--btn);color:#9fb2c7;font-size:13px;cursor:pointer;font-weight:500;transition:.15s;white-space:nowrap}
-  .btn:hover{border-color:#3a5675;color:var(--tx)}
-  .btn-ouro{background:var(--ouro);border-color:var(--ouro);color:var(--bg);font-weight:700}
-  .btn-ouro:hover{background:#dbb949}
-
-  .sec{display:none}
-  .sec.on{display:block}
-
-  .strip{display:grid;grid-template-columns:2fr repeat(4,1fr);gap:1px;background:var(--bd);border:1px solid var(--bd);border-radius:14px;overflow:hidden;margin-bottom:16px}
-  .strip-c{background:var(--card);padding:15px 16px}
-  .strip-l{color:var(--tx3);font-size:10px;letter-spacing:1.3px;text-transform:uppercase;font-weight:600}
-  .strip-v{font-size:16px;font-weight:700;margin-top:5px}
-  .strip-v.g{color:var(--ouro)}
-
-  .hero{background:linear-gradient(100deg,var(--hov) 0%,#0e1c2c 60%);border:1px solid var(--ouro);border-radius:16px;padding:22px 24px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;margin-bottom:24px;position:relative;overflow:hidden}
-  .hero::after{content:'';position:absolute;right:-40px;top:-40px;width:180px;height:180px;border-radius:50%;background:radial-gradient(circle,rgba(201,168,60,.14),transparent 70%)}
-  .trofeu{width:60px;height:60px;border-radius:50%;background:var(--ouro);display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0}
-  .hero-l{color:var(--ouro);font-size:10px;letter-spacing:1.4px;text-transform:uppercase;font-weight:700}
-  .hero-t{font-size:22px;font-weight:700;margin-top:3px;letter-spacing:-.4px}
-  .hero-d{color:var(--tx2);font-size:13px;margin-top:3px}
-  .hero-n{font-size:52px;font-weight:800;color:var(--ouro);line-height:.95;text-align:right}
-  .hero-nl{color:var(--tx2);font-size:10px;letter-spacing:1.3px;text-transform:uppercase;text-align:right;margin-top:4px}
-
-  .h2{font-size:25px;font-weight:800;letter-spacing:-.6px}
-  .h2s{color:var(--tx3);font-size:13px;margin-top:2px}
-  .sechead{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:16px}
-
-  .painel{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:18px}
-  .layout{display:grid;grid-template-columns:1fr 268px;gap:16px;align-items:start}
-
-  .nav-r{display:flex;align-items:center;gap:10px;margin-bottom:14px}
-  .nav-b{width:32px;height:32px;border-radius:8px;border:1px solid var(--bd2);background:var(--btn);color:#9fb2c7;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center}
-  .nav-b:hover{border-color:var(--ouro);color:var(--ouro)}
-  .nav-t{flex:1;text-align:center;font-size:14px;font-weight:600;color:var(--ouro)}
-
-  .board{display:grid;grid-template-columns:repeat(7,minmax(124px,1fr));gap:8px;overflow-x:auto;padding-bottom:6px}
-  .col{min-width:124px}
-  .col-h{text-align:center;padding:9px 4px;border-radius:9px;font-size:12px;font-weight:600;color:var(--tx2);background:var(--bg2);margin-bottom:8px;border:1px solid transparent}
-  .col-h.hoje{background:var(--ouro);color:var(--bg);font-weight:700;border-color:var(--ouro)}
-  .col-h .dn{font-size:15px;font-weight:700;color:var(--tx);display:block;margin-top:1px}
-  .col-h.hoje .dn{color:var(--bg)}
-
-  .scard{background:var(--card2);border:1px solid var(--c);border-left:3px solid var(--c);border-radius:9px;padding:9px 10px;margin-bottom:7px;cursor:pointer;transition:.15s}
-  .scard:hover{background:var(--hov);transform:translateY(-1px)}
-  .scard.ok{opacity:.42}
-  .scard.ok .sc-t{text-decoration:line-through}
-  .sc-top{display:flex;align-items:flex-start;gap:7px}
-  .circ{width:15px;height:15px;border-radius:50%;border:2px solid var(--c);flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--bg);font-weight:900}
-  .circ.on{background:var(--c)}
-  .sc-d{color:var(--c);font-size:11px;font-weight:700;line-height:1.25}
-  .sc-t{color:var(--tx2);font-size:11.5px;line-height:1.35;margin-top:4px;margin-left:22px}
-  .sc-f{display:flex;align-items:center;gap:5px;margin-top:7px;margin-left:22px;flex-wrap:wrap}
-  .pill{font-size:9px;padding:2px 7px;border-radius:20px;background:var(--hov);color:var(--tx2);font-weight:600}
-  .pill-t{border:1px solid var(--c);color:var(--c);background:transparent;text-transform:uppercase;letter-spacing:.4px}
-
-  .cad{background:linear-gradient(135deg,#241a38,#14192c);border:1px solid #7d5fa8;border-radius:9px;padding:8px 9px;margin-bottom:7px;cursor:pointer;display:flex;align-items:center;gap:7px}
-  .cad.ok{opacity:.45}
-  .cad-c{width:15px;height:15px;border-radius:4px;border:2px solid #b98ae0;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--bg);font-weight:900}
-  .cad-c.on{background:#b98ae0}
-  .cad-t{color:#c9a9e8;font-size:10px;font-weight:700;line-height:1.3}
-  .vazio{text-align:center;padding:16px 4px;color:var(--tx4);font-size:11px}
-
-  .cal-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
-  .cal-m{font-size:13px;font-weight:700;color:var(--ouro);text-transform:uppercase;letter-spacing:.6px}
-  .cal-g{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
-  .cal-wd{text-align:center;font-size:10px;color:var(--tx4);padding:3px 0;font-weight:600}
-  .cal-d{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:12px;border-radius:7px;color:#7f96ae;cursor:pointer;position:relative}
-  .cal-d:hover{background:var(--hov)}
-  .cal-d.fora{color:var(--bd2);cursor:default}
-  .cal-d.tem{color:var(--tx);font-weight:600}
-  .cal-d.hoje{background:var(--ouro);color:var(--bg);font-weight:800}
-  .cal-d.sel{border:1.5px solid var(--ouro);color:var(--ouro);font-weight:700}
-  .cal-d.tudo::after{content:'';position:absolute;bottom:3px;width:4px;height:4px;border-radius:50%;background:#6ddba0}
-
-  .legenda{display:flex;gap:12px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid var(--bd)}
-  .leg{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--tx3)}
-  .leg-d{width:8px;height:8px;border-radius:2px}
-
-  .aviso{background:#2a1418;border:1px solid #d9566a;border-radius:12px;padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;gap:13px;flex-wrap:wrap}
-
-  .cards4{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px}
-  .kpi{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:18px}
-  .kpi-i{width:34px;height:34px;border-radius:9px;background:var(--hov);display:flex;align-items:center;justify-content:center;font-size:16px;margin-bottom:12px}
-  .kpi-n{font-size:26px;font-weight:800;letter-spacing:-.5px}
-  .kpi-l{color:var(--tx3);font-size:12px;margin-top:3px}
-  .barra{background:var(--bg);border-radius:20px;height:6px;overflow:hidden;margin-top:9px}
-  .barra-f{height:100%;border-radius:20px;transition:.5s}
-
-  /* STREAK */
-  .streak-h{background:linear-gradient(135deg,var(--hov),var(--bg2));border:1px solid var(--bd);border-radius:16px;padding:26px;text-align:center;margin-bottom:16px}
-  .streak-n{font-size:58px;font-weight:800;color:var(--ouro);line-height:1}
-  .nivel{display:inline-block;padding:4px 13px;border-radius:20px;font-size:11px;font-weight:800;letter-spacing:1px;margin-top:10px}
-  .sem7{display:flex;justify-content:center;gap:9px;margin:20px 0 6px;flex-wrap:wrap}
-  .s7{display:flex;flex-direction:column;align-items:center;gap:6px}
-  .s7-c{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800}
-  .s7-c.ok{background:rgba(201,168,60,.16);border:2px solid var(--ouro);color:var(--ouro)}
-  .s7-c.hj{background:var(--hov);border:2px solid #5bb3f0;color:#5bb3f0}
-  .s7-c.fut{border:2px solid var(--bd2);color:var(--bd2)}
-  .s7-c.no{background:var(--card2);border:2px solid var(--bd2);color:var(--tx4)}
-  .s7-l{font-size:11px;color:var(--tx3)}
-
-  /* AVISOS */
-  .av{background:var(--card);border:1px solid var(--bd);border-left:3px solid var(--ouro);border-radius:12px;padding:16px;margin-bottom:11px}
-
-  .inp{width:100%;padding:11px;border-radius:9px;border:1px solid var(--bd2);background:var(--bg);color:var(--tx);font-size:14px;margin-top:5px}
-  .lbl{color:var(--tx2);font-size:12px}
-
-  .modal{position:fixed;inset:0;background:rgba(5,10,18,.82);display:none;align-items:center;justify-content:center;padding:16px;z-index:60}
-  .modal.on{display:flex}
-  .modal-c{background:var(--card);border:1px solid var(--bd2);border-radius:16px;padding:22px;max-width:430px;width:100%;max-height:90vh;overflow-y:auto}
-  .estado{text-align:center;padding:60px 20px}
-  .col-h{position:relative}
-  .col-cfg{position:absolute;top:5px;right:5px;width:19px;height:19px;border-radius:5px;background:rgba(255,255,255,.07);color:var(--tx2);font-size:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;line-height:1}
-  .col-cfg:hover{background:var(--ouro);color:var(--bg)}
-  .col-h.hoje .col-cfg{background:rgba(0,0,0,.18);color:var(--bg)}
-  .bloco{background:var(--bg);border:1px solid var(--bd2);border-radius:11px;padding:14px;margin-top:12px}
-  .bloco-t{font-size:12px;font-weight:700;color:var(--ouro);margin-bottom:4px}
-  .bloco-d{color:var(--tx3);font-size:11.5px;line-height:1.5;margin-bottom:10px}
-  .lin{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-  .num{width:76px;padding:9px;border-radius:8px;border:1px solid var(--bd2);background:var(--card);color:var(--tx);font-size:14px;text-align:center}
-  .rng{flex:1;min-width:110px;accent-color:var(--ouro)}
-
-  /* CADERNO LATERAL */
-  .cd-fab{position:fixed;right:20px;bottom:20px;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#b98ae0,#7d5fa8);border:none;color:#fff;font-size:24px;cursor:pointer;box-shadow:0 6px 22px rgba(125,95,168,.45);z-index:40;display:flex;align-items:center;justify-content:center}
-  .cd-fab:hover{transform:scale(1.06)}
-  .cd-ov{position:fixed;inset:0;background:rgba(5,10,18,.6);opacity:0;pointer-events:none;transition:.2s;z-index:44}
-  .cd-ov.on{opacity:1;pointer-events:auto}
-  .cd{position:fixed;top:0;right:-460px;width:440px;max-width:92vw;height:100%;background:var(--bg2);border-left:1px solid var(--bd2);z-index:45;transition:right .25s ease;display:flex;flex-direction:column}
-  .cd.on{right:0}
-  .cd-h{padding:16px 18px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:10px}
-  .cd-t{flex:1;font-size:16px;font-weight:800}
-  .cd-t span{color:#b98ae0;display:block;font-size:11px;font-weight:600;letter-spacing:.5px}
-  .cd-tabs{display:flex;gap:5px;padding:12px 18px 0}
-  .cd-tab{flex:1;padding:8px;border-radius:8px;border:1px solid var(--bd2);background:var(--card);color:var(--tx2);font-size:12px;cursor:pointer;font-weight:600;text-align:center}
-  .cd-tab.on{background:#241a38;border-color:#b98ae0;color:#c9a9e8}
-  .cd-body{flex:1;overflow-y:auto;padding:14px 18px 18px}
-  .cd-item{background:var(--card);border:1px solid var(--bd);border-left:3px solid #b98ae0;border-radius:10px;padding:12px;margin-bottom:9px;cursor:pointer}
-  .cd-item:hover{background:#132234}
-  .cd-it{font-size:13.5px;font-weight:700;line-height:1.3}
-  .cd-id{color:var(--tx2);font-size:11px;margin-top:3px}
-  .cd-ic{color:#8095ab;font-size:12px;line-height:1.5;margin-top:7px;white-space:pre-wrap;max-height:70px;overflow:hidden;position:relative}
-  .cd-ic.full{max-height:none}
-  .cd-inp{width:100%;padding:10px;border-radius:9px;border:1px solid var(--bd2);background:var(--bg);color:var(--tx);font-size:14px;margin-bottom:9px;font-family:inherit}
-  textarea.cd-inp{min-height:180px;resize:vertical;line-height:1.6}
-  .cd-ro{background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:14px;color:var(--tx2);font-size:13.5px;line-height:1.7;white-space:pre-wrap}
-
-  /* MODO MENTOR */
-  .mentor-bar{position:sticky;top:0;z-index:35;background:linear-gradient(90deg,#3a2c08,#1d1a10);border:1px solid var(--ouro);border-radius:12px;padding:11px 14px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;box-shadow:0 6px 20px rgba(0,0,0,.35)}
-  .mentor-bar .mb-t{flex:1;min-width:200px;color:#f3e2a8;font-size:13px;line-height:1.45}
-  .mentor-bar .mb-t b{color:var(--ouro)}
-  [data-tema="claro"] .mentor-bar{background:linear-gradient(90deg,#fff4d1,#fffaf0)}
-  [data-tema="claro"] .mentor-bar .mb-t{color:#5a4510}
-
-  /* MISSAO DE HOJE */
-  .hoje-p{background:var(--card);border:1px solid var(--bd2);border-radius:16px;padding:18px;margin-bottom:18px}
-  .hoje-p.feito{border-color:#6ddba0;background:linear-gradient(135deg,rgba(109,219,160,.08),var(--card))}
-  .hoje-h{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
-  .hoje-t{font-size:17px;font-weight:800}
-  .hoje-s{color:var(--tx3);font-size:12.5px;margin-top:2px}
-  .hoje-n{margin-left:auto;font-size:24px;font-weight:800;color:var(--ouro)}
-  .hoje-n small{font-size:13px;color:var(--tx3);font-weight:600}
-  .hoje-bar{height:9px;border-radius:6px;background:var(--bg);overflow:hidden;margin-bottom:14px;border:1px solid var(--bd)}
-  .hoje-bar div{height:100%;background:linear-gradient(90deg,var(--ouro),#6ddba0);transition:width .4s}
-  .hi{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:12px;background:var(--card2);border:1px solid var(--bd);border-left:4px solid var(--c);margin-bottom:8px}
-  .hi.ok{opacity:.62}
-  .hi.ok .hi-tp{text-decoration:line-through}
-  .hi-ck{width:40px;height:40px;border-radius:50%;border:2px solid var(--c);background:transparent;color:var(--c);font-size:19px;font-weight:800;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:.15s}
-  .hi-ck:hover{background:var(--c);color:var(--bg)}
-  .hi.ok .hi-ck{background:#6ddba0;border-color:#6ddba0;color:#0a1420}
-  .hi-tx{flex:1;min-width:0;cursor:pointer}
-  .hi-d{font-size:11.5px;font-weight:700;color:var(--c)}
-  .hi-tp{font-size:14px;font-weight:600;line-height:1.3;margin-top:1px}
-  .hi-m{color:var(--tx4);font-size:11px;margin-top:3px}
-  .hi-b{padding:10px 16px;border-radius:10px;border:none;background:var(--ouro);color:#0a1420;font-weight:800;font-size:13px;cursor:pointer;white-space:nowrap}
-  .hi-b:hover{filter:brightness(1.08)}
-  .hi-ok{color:#6ddba0;font-weight:800;font-size:12.5px;white-space:nowrap}
-  .hoje-f{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
-  .hoje-f .btn{flex:1;min-width:150px;padding:11px}
-
-  /* FECHAR O DIA */
-  .fd-i{background:var(--bg);border:1px solid var(--bd2);border-left:4px solid var(--c);border-radius:11px;padding:12px;margin-bottom:9px}
-  .fd-a{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
-  .fd-a button{flex:1;min-width:92px;padding:10px 8px;border-radius:9px;font-size:12.5px;font-weight:700;cursor:pointer;border:1px solid var(--bd2);background:var(--card);color:var(--tx2)}
-  .fd-a .fa-ok{background:#6ddba0;border-color:#6ddba0;color:#0a1420}
-  .fd-a .fa-nf{border-color:#7d5fa8;color:#c9a9e8}
-  .fd-a .fa-ad{border-color:#e8b04b;color:#e8b04b}
-
-  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(30px);background:#12321f;border:1px solid #6ddba0;color:#c9f5dc;padding:12px 20px;border-radius:12px;font-size:14px;font-weight:700;z-index:90;opacity:0;transition:.25s;pointer-events:none;max-width:90vw;text-align:center}
-  .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
-  [data-tema="claro"] .toast{background:#e6f9ee;color:#12532f}
-
-  body.travado .side .nav-i:not(.sair-i){display:none}
-  body.travado .cd-fab{display:none}
-
-  @media(max-width:1080px){ .layout{grid-template-columns:1fr} }
-  @media(max-width:860px){
-    .side{position:static;width:100%;flex-direction:row;overflow-x:auto;padding:10px;border-right:none;border-bottom:1px solid var(--bd);gap:5px;align-items:center}
-    .logo{display:none}
-    .side-sep,.side-b{display:none}
-    .nav-i{margin-bottom:0;white-space:nowrap;padding:9px 13px;font-size:13px}
-    .shell{flex-direction:column}
-    .main{margin-left:0;padding:16px 12px 50px}
-    .strip{grid-template-columns:1fr 1fr}
-    .ola{font-size:22px}
-    .hero-n{font-size:40px}
-    .board{grid-template-columns:repeat(7,152px)}
-    .hi{flex-wrap:wrap}
-    .hi-tx{min-width:calc(100% - 60px)}
-    .hi-b{width:100%;padding:12px}
-    body.travado .side-b{display:block}
+.voltar-mob{display:none}
+@media(max-width:860px){
+  header{display:none}
+  .voltar-mob{
+    display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:40;
+    background:var(--bg2);border-bottom:1px solid var(--bd);
+    padding:11px 14px;margin:-16px -12px 16px
   }
+  .voltar-mob button{
+    width:42px;height:42px;border-radius:11px;flex-shrink:0;margin:0;padding:0;
+    background:var(--card);border:1px solid var(--bd2);color:var(--tx);
+    font-size:19px;display:flex;align-items:center;justify-content:center;min-height:42px
+  }
+  .voltar-mob .t1{font-size:16px;font-weight:800;line-height:1.2}
+  .voltar-mob .t2{color:var(--tx3);font-size:11.5px}
+}
 </style>
-<link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#0a1420">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Patrulheiros">
-<link rel="apple-touch-icon" href="/icone-192.png">
-<script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){})})}</script>
 </head>
 <body>
-<div class="shell">
-
-  <aside class="side">
-    <div class="logo">
-      <div class="logo-i">🛡️</div>
-      <div class="logo-t">Patrulheiros<span>de Elite</span></div>
+<div class="container">
+  <div class="voltar-mob"><button onclick="location.href='admin.html'" aria-label="Voltar">&#8249;</button><div><div class="t1">Editais</div><div class="t2">Cadastro e prioridades</div></div></div>
+  <header>
+    <div>
+      <h2>Gerenciar Editais</h2>
+      <div style="color:var(--tx3);font-size:13px">Importe e gerencie os editais dos concursos</div>
     </div>
-    <div class="nav-i on" data-s="cronograma" onclick="irSecao('cronograma')"><span class="nav-ic">📅</span>Meu Cronograma</div>
-    <div class="nav-i" onclick="ir('questoes.html')"><span class="nav-ic">❓</span>Questoes</div>
-    <div class="nav-i" onclick="ir('questoes.html#simulados')"><span class="nav-ic">🎯</span>Simulados</div>
-    <div class="nav-i" onclick="ir('questoes.html#materiais')"><span class="nav-ic">📁</span>Materiais</div>
-    <div class="nav-i" onclick="ir('ranking.html')"><span class="nav-ic">🏆</span>Ranking</div>
-    <div class="nav-i" onclick="ir('edital.html')"><span class="nav-ic">📖</span>Edital</div>
-    <div class="side-sep"></div>
-    <div class="nav-i" data-s="sequencia" onclick="irSecao('sequencia')"><span class="nav-ic">🔥</span>Sequencia</div>
-    <div class="nav-i" data-s="desempenho" onclick="irSecao('desempenho')"><span class="nav-ic">📊</span>Desempenho</div>
-    <div class="nav-i" data-s="avisos" onclick="irSecao('avisos')"><span class="nav-ic">🔔</span>Avisos<span class="nav-bd" id="bd-av" style="display:none"></span></div>
-    <div class="side-sep"></div>
-    <div class="nav-i" data-s="perfil" id="nav-perfil" onclick="irSecao('perfil')"><span class="nav-ic">⚙️</span>Perfil</div>
-    <div class="side-b">
-      <div class="nav-i sair-i" id="nav-sair" onclick="sair()"><span class="nav-ic">🚪</span>Sair</div>
+    <div style="display:flex;gap:8px">
+      <button onclick="window.location.href='admin.html'" style="width:auto;padding:8px 16px">Painel Admin</button>
     </div>
-  </aside>
+  </header>
 
-  <main class="main">
+  <!-- Abas -->
+  <div class="abas">
+    <button class="aba-btn ativa" onclick="mostrarAba('aba-importar')">Importar Edital</button>
+    <button class="aba-btn" onclick="mostrarAba('aba-gerenciar')">Gerenciar Editais</button>
+    <button class="aba-btn" onclick="mostrarAba('aba-progresso')">Progresso dos Alunos</button>
+  </div>
 
-    <div id="mentor-bar" class="mentor-bar" style="display:none"></div>
+  <!-- ABA: IMPORTAR -->
+  <div id="aba-importar" class="aba-conteudo">
+    <div class="card">
+      <h3>Importar edital via IA</h3>
+      <p style="color:var(--tx3);font-size:13px;margin-bottom:16px">Cole o texto do edital abaixo. A IA vai extrair as disciplinas e topicos automaticamente, ja com indicacao de prioridade baseada em historico de provas policiais.</p>
 
-    <div class="topbar">
-      <div>
-        <div class="ola">Ola, <span id="nome">—</span></div>
-        <div class="ola-s" id="sub"></div>
+      <select id="imp-concurso" style="margin-bottom:12px">
+        <option value="">Selecione o concurso</option>
+      </select>
+
+      <label style="color:var(--tx3);font-size:12px;display:block;margin-bottom:6px">Texto do edital (cole aqui)</label>
+      <textarea id="texto-edital" rows="10" placeholder="Exemplo:
+CONTEUDO PROGRAMATICO
+PORTUGUES
+1. Interpretacao de texto
+2. Ortografia oficial
+3. Acentuacao grafica
+...
+MATEMATICA
+1. Operacoes basicas
+..." style="width:100%;padding:12px;border-radius:8px;border:1px solid var(--bd2);background:var(--card2);color:#fff;font-size:13px;resize:vertical;line-height:1.5"></textarea>
+
+      <button onclick="processarComIA()" style="margin-top:12px" id="btn-processar">Processar com IA</button>
+      <p id="msg-importar" style="display:none;margin-top:8px;font-size:13px"></p>
+    </div>
+
+    <!-- Preview da IA -->
+    <div id="preview-ia" style="display:none">
+      <div id="loading-ia-div" class="card loading-ia" style="display:none">
+        <div class="spinner"></div>
+        <p>Analisando o edital com IA...</p>
+        <p style="font-size:12px;color:var(--tx4);margin-top:4px">Isso pode levar alguns segundos</p>
       </div>
-      <div style="display:flex;gap:8px"><button class="btn" onclick="trocarTema()" id="btn-tema" title="Alternar tema">🌙</button><button class="btn btn-ouro" id="btn-hoje" onclick="irHoje()">Hoje</button></div>
-    </div>
 
-    <div id="loading" class="estado" style="color:var(--tx3)">Carregando...</div>
-    <div id="expirado" style="display:none"></div>
-
-    <div id="vazio" class="estado" style="display:none">
-      <div style="font-size:46px;margin-bottom:12px">🗓️</div>
-      <div style="color:var(--ouro);font-weight:700;font-size:17px">Cronograma ainda nao gerado</div>
-      <p style="color:var(--tx3);font-size:13px;margin-top:6px">Seu mentor ainda nao montou seu plano por tema.</p>
-    </div>
-
-    <div id="app" style="display:none">
-
-      <!-- CRONOGRAMA -->
-      <section class="sec on" id="sec-cronograma">
-        <div id="diretrizes"></div>
-        <div id="hoje-box"></div>
-        <div class="strip" id="strip"></div>
-        <div class="hero" id="hero"></div>
-        <div id="aviso-atraso"></div>
-        <div class="sechead">
-          <div><div class="h2">Planejamento</div><div class="h2s" id="sec-sub"></div></div>
-          <button class="btn btn-ouro" onclick="replanejarAtrasadas(true)" title="Coloca atrasadas em dia, arruma a ordem dos temas e encaixa tudo ate a prova">🔄 Replanejar plano</button>
-        </div>
-        <div class="layout">
-          <div class="painel">
-            <div class="nav-r">
-              <button class="nav-b" onclick="mudarSemana(-1)">&#8249;</button>
-              <div class="nav-t" id="label-sem"></div>
-              <button class="nav-b" onclick="mudarSemana(1)">&#8250;</button>
-            </div>
-            <div class="board" id="board"></div>
-            <div class="legenda" id="legenda"></div>
-          </div>
-          <div class="painel">
-            <div class="cal-h">
-              <button class="nav-b" onclick="mudarMes(-1)">&#8249;</button>
-              <div class="cal-m" id="cal-mes"></div>
-              <button class="nav-b" onclick="mudarMes(1)">&#8250;</button>
-            </div>
-            <div class="cal-g" id="cal-wd"></div>
-            <div class="cal-g" id="cal-grid" style="margin-top:3px"></div>
-            <div id="cal-resumo" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--bd)"></div>
+      <div id="resultado-ia" style="display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+          <h3 style="color:var(--ouro);margin:0">Edital processado — revise antes de salvar</h3>
+          <div style="display:flex;gap:8px">
+            <button onclick="salvarEdital()" style="width:auto;padding:10px 20px;background:var(--card2);color:var(--ok);border:1px solid var(--ok)">Salvar edital</button>
+            <button onclick="document.getElementById('preview-ia').style.display='none'" style="width:auto;padding:10px 16px;background:var(--card);color:var(--tx3);border:1px solid var(--bd2)">Cancelar</button>
           </div>
         </div>
-      </section>
-
-      <!-- SEQUENCIA -->
-      <section class="sec" id="sec-sequencia">
-        <div class="sechead"><div><div class="h2">Sequencia</div><div class="h2s">Sua constancia constroi a aprovacao</div></div></div>
-        <div id="streak-box"></div>
-        <div class="painel" style="margin-top:16px">
-          <div style="font-size:14px;font-weight:700;color:var(--ouro);margin-bottom:14px">Ultimas 4 semanas</div>
-          <div id="heat"></div>
+        <p style="color:var(--tx3);font-size:13px;margin-bottom:16px">Voce pode alterar as prioridades antes de salvar. Vermelho = Alta, Laranja = Media, Azul = Baixa.</p>
+        <div id="lista-preview-ia"></div>
+        <div style="margin-top:16px;display:flex;gap:8px">
+          <button onclick="salvarEdital()" style="background:var(--card2);color:var(--ok);border:1px solid var(--ok)">Salvar edital completo</button>
         </div>
-      </section>
-
-      <!-- DESEMPENHO -->
-      <section class="sec" id="sec-desempenho">
-        <div class="sechead">
-          <div><div class="h2">Desempenho</div><div class="h2s">Seus numeros ate aqui</div></div>
-          <button class="btn" onclick="exportarPDF()">Exportar PDF</button>
-        </div>
-        <div class="cards4" id="kpis"></div>
-        <div class="painel">
-          <div style="font-size:14px;font-weight:700;color:var(--ouro);margin-bottom:6px">Acerto por disciplina</div>
-          <div style="color:var(--tx3);font-size:12px;margin-bottom:16px">Baseado nas questoes registradas nas sessoes</div>
-          <canvas id="graf" height="260"></canvas>
-          <div id="sem-graf" style="display:none;text-align:center;color:var(--tx4);padding:26px;font-size:13px">Nenhuma questao registrada ainda.</div>
-        </div>
-        <div class="painel" style="margin-top:16px">
-          <div style="font-size:14px;font-weight:700;color:var(--ouro);margin-bottom:14px">Progresso por disciplina</div>
-          <div id="prog-disc"></div>
-        </div>
-      </section>
-
-      <!-- AVISOS -->
-      <section class="sec" id="sec-avisos">
-        <div class="sechead"><div><div class="h2">Avisos</div><div class="h2s">Recados do seu mentor</div></div></div>
-        <div id="lista-avisos"></div>
-      </section>
-
-      <!-- PERFIL -->
-      <section class="sec" id="sec-perfil">
-        <div class="sechead"><div><div class="h2">Perfil</div><div class="h2s">Seus dados de acesso</div></div></div>
-        <div class="painel" style="max-width:460px">
-          <div id="perfil-info" style="margin-bottom:20px"></div>
-          <div style="font-size:14px;font-weight:700;color:var(--ouro);margin-bottom:10px">Alterar senha</div>
-          <label class="lbl">Nova senha</label>
-          <input class="inp" type="password" id="p-s1" placeholder="Minimo 6 caracteres">
-          <label class="lbl" style="display:block;margin-top:11px">Confirmar nova senha</label>
-          <input class="inp" type="password" id="p-s2" placeholder="Repita a senha">
-          <button class="btn btn-ouro" style="width:100%;margin-top:14px;padding:12px" onclick="trocarSenha()">Salvar nova senha</button>
-          <div id="p-msg" style="font-size:13px;margin-top:10px;text-align:center"></div>
-        </div>
-      </section>
-
+      </div>
     </div>
-  </main>
-</div>
-
-<button class="cd-fab" onclick="abrirCaderno()" title="Caderno de erros">📓</button>
-<div class="cd-ov" id="cd-ov" onclick="fecharCaderno()"></div>
-<aside class="cd" id="cd">
-  <div class="cd-h">
-    <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#b98ae0,#7d5fa8);display:flex;align-items:center;justify-content:center;font-size:17px">📓</div>
-    <div class="cd-t">Caderno de erros<span>SEU ARSENAL DE APRENDIZADO</span></div>
-    <button class="btn" style="padding:6px 11px" onclick="fecharCaderno()">✕</button>
   </div>
-  <div class="cd-tabs">
-    <div class="cd-tab on" id="tab-ler" onclick="modoCaderno('ler')">Leitura</div>
-    <div class="cd-tab" id="tab-edit" onclick="modoCaderno('edit')">Editar</div>
+
+  <!-- ABA: GERENCIAR -->
+  <div id="aba-gerenciar" class="aba-conteudo" style="display:none">
+    <div class="card">
+      <h3>Editais cadastrados</h3>
+      <select id="ger-concurso" onchange="carregarEditalAdmin()" style="margin-bottom:12px">
+        <option value="">Selecione o concurso</option>
+      </select>
+      <div id="edital-admin-container"></div>
+    </div>
+
+    <div class="card" id="card-add-topico" style="display:none">
+      <h3>Adicionar topico manualmente</h3>
+      <input type="text" id="add-disc" placeholder="Disciplina">
+      <input type="text" id="add-topico" placeholder="Topico">
+      <select id="add-prio" style="margin:8px 0">
+        <option value="alta">Alta prioridade</option>
+        <option value="media" selected>Media prioridade</option>
+        <option value="baixa">Baixa prioridade</option>
+      </select>
+      <button onclick="adicionarTopico()">Adicionar topico</button>
+    </div>
   </div>
-  <div class="cd-body" id="cd-body"></div>
-</aside>
 
-<div class="toast" id="toast"></div>
+  <!-- ABA: PROGRESSO -->
+  <div id="aba-progresso" class="aba-conteudo" style="display:none">
+    <div class="card">
+      <h3>Progresso dos alunos no edital</h3>
+      <select id="prog-concurso" onchange="carregarProgressoAlunos()" style="margin-bottom:12px">
+        <option value="">Selecione o concurso</option>
+      </select>
+      <div id="progresso-alunos-container"></div>
+    </div>
+  </div>
 
-<div class="modal" id="modal" onclick="if(event.target===this)fecharModal()">
-  <div class="modal-c" id="modal-c"></div>
 </div>
 
 <script src="config.js"></script>
 <script>
-const WD=['Seg','Ter','Qua','Qui','Sex','Sab','Dom']
-const CURTO=['Dom','Seg','Ter','Qua','Qui','Sex','Sab']
-const MES=['Janeiro','Fevereiro','Marco','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
-const PALETA=['#e8b04b','#5bb3f0','#6ddba0','#f07171','#4ecdc4','#b98ae0','#f0955b','#8ab4f0','#d4e05b','#f08ab4','#7fd1ae','#e0916b']
-const LABEL={teoria:'Teoria',questoes:'Questoes',revisao:'Revisao'}
+let _editaisSalvos = [] // topicos gerados pela IA para salvar
+let _concursoAtual = null
 
-let _alunoId=null,_nome='',_email='',_diretrizes=null,_diretrizesEm=null,_concursoId=null,_concursoNome='',_dataProva=null,_cfg=null
-let _sessoes=[],_porData={},_refSem=null,_refMes=null,_corDisc={},_graf=null,_secAtual='cronograma'
-let _mentor=false,_limiteBloq=20,_wpp=null,_fd=null,_saindo=false,_editalFeito={}
-
-function ymd(d){const x=new Date(d);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')}
-function parseD(s){return new Date(s+'T12:00:00')}
-function addDays(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x}
-function hojeStr(){return ymd(new Date())}
-function inicioSemana(d){const b=new Date(d);return addDays(b,-((b.getDay()+6)%7))}
-function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
-function dur(m){const h=Math.floor(m/60),r=m%60;return h>0?(h+'h'+(r?r+'min':'')):(r+'min')}
-function corPct(p){return p>=70?'#6ddba0':p>=40?'#e8b04b':'#f07171'}
-
-function corDe(d){
-  if(_corDisc[d])return _corDisc[d]
-  let h=0
-  for(let i=0;i<d.length;i++)h=(h*31+d.charCodeAt(i))>>>0
-  const u=Object.keys(_corDisc).map(function(k){return _corDisc[k]})
-  let c=PALETA[h%PALETA.length],t=0
-  while(u.indexOf(c)>=0&&t<PALETA.length){c=PALETA[(h+(++t))%PALETA.length]}
-  _corDisc[d]=c
-  return c
+async function init() {
+  const { data: { user } } = await _supabase.auth.getUser()
+  if (!user) { window.location.href = 'index.html'; return }
+  await carregarConcursos()
 }
 
-function irSecao(s){
-  _secAtual=s
-  document.querySelectorAll('.sec').forEach(function(e){e.classList.remove('on')})
-  const el=document.getElementById('sec-'+s)
-  if(el)el.classList.add('on')
-  document.querySelectorAll('.nav-i').forEach(function(e){
-    if(e.dataset.s)e.classList.toggle('on',e.dataset.s===s)
+function mostrarAba(id) {
+  document.querySelectorAll('.aba-conteudo').forEach(el => el.style.display = 'none')
+  document.querySelectorAll('.aba-btn').forEach(el => el.classList.remove('ativa'))
+  document.getElementById(id).style.display = 'block'
+  event.target.classList.add('ativa')
+}
+
+async function carregarConcursos() {
+  const { data: concursos } = await _supabase.from('concursos').select('*').order('nome')
+  const selects = ['imp-concurso','ger-concurso','prog-concurso']
+  selects.forEach(sid => {
+    const s = document.getElementById(sid)
+    if (!s) return
+    s.innerHTML = '<option value="">Selecione o concurso</option>'
+    concursos?.forEach(c => { s.innerHTML += `<option value="${c.id}">${c.nome}</option>` })
   })
-  document.getElementById('btn-hoje').style.display=(s==='cronograma')?'block':'none'
-  if(s==='sequencia')renderStreak()
-  if(s==='desempenho')renderDesempenho()
-  if(s==='avisos')renderAvisos()
-  if(s==='perfil')renderPerfil()
-  window.scrollTo({top:0,behavior:'smooth'})
+  window._concursos = concursos
 }
 
-function trocarTema(){
-  const cl=document.documentElement.getAttribute('data-tema')==='claro'
-  document.documentElement.setAttribute('data-tema',cl?'escuro':'claro')
-  localStorage.setItem('tema',cl?'escuro':'claro')
-  document.getElementById('btn-tema').textContent=cl?'🌙':'☀️'
-}
-function iniciarTema(){
-  const t=localStorage.getItem('tema')||'escuro'
-  document.documentElement.setAttribute('data-tema',t)
-  const b=document.getElementById('btn-tema')
-  if(b)b.textContent=t==='claro'?'☀️':'🌙'
-}
+// ========== IMPORTAR COM IA ==========
+// Base de prioridades por palavras-chave (provas policiais brasileiras)
+const PRIORIDADES_ALTA = [
+  'interpretacao','leitura','compreensao','texto','ortografia','acentuacao','pontuacao','concordancia','regencia','crase',
+  'constituicao federal','direitos fundamentais','administracao publica','poder','ato administrativo','licitacao','servidor',
+  'codigo penal','crime','pena','tipicidade','ilicitude','culpabilidade','punicao','prescricao',
+  'processo penal','inquerito','acao penal','prisao','prova','sentenca','recurso',
+  'direitos humanos','dignidade','liberdade','igualdade','tratado',
+  'estatuto','lei organica','regulamento','disciplina',
+  'raciocinio logico','logica','proposicao','silogismo','conjuntos',
+  'probabilidade','porcentagem','regra de tres','juros','razao proporcao',
+  'informatica','windows','word','excel','internet','seguranca',
+  'atualidades','noticias','brasil','mundo','geopolitica',
+  'codigo penal militar','cppm','estatuto policiais','lei da pm'
+]
+const PRIORIDADES_MEDIA = [
+  'sintaxe','morfologia','fonetica','semantica','estilistica','redacao',
+  'direito civil','contrato','responsabilidade','familia','sucessao',
+  'direito constitucional','organizacao','tribunal','poder judiciario',
+  'direito administrativo','improbidade','concessao','permissao',
+  'geometria','algebra','equacao','funcao','trigonometria',
+  'historia','geografia','sociologia','filosofia',
+  'estatistica','media','moda','mediana','desvio'
+]
 
-// verifica se o usuario logado e o mentor (admin)
-async function ehAdmin(uid){
-  try{
-    const r=await _supabase.rpc('eh_admin')
-    if(!r.error)return !!r.data
-  }catch(e){}
-  // plano B (antes de rodar o SQL): quem nao tem cadastro de aluno e o mentor
-  const { data:al }=await _supabase.from('alunos').select('id').eq('id',uid).maybeSingle()
-  return !al
-}
-
-async function init(){
-  iniciarTema()
-  await carregarMarca()
-  const { data:{user} }=await _supabase.auth.getUser()
-  if(!user){location.href='index.html';return}
-  _alunoId=user.id; _email=user.email
-
-  // MODO MENTOR: cronograma.html?aluno=ID
-  const alvo=new URLSearchParams(location.search).get('aluno')
-  if(alvo&&alvo!==user.id){
-    if(!(await ehAdmin(user.id))){location.href='cronograma.html';return}
-    _mentor=true; _alunoId=alvo; _email=''
-  }
-
-  const { data:aluno }=await _supabase.from('alunos').select('*').eq('id',_alunoId).maybeSingle()
-  if(!aluno){
-    if(!_mentor&&(await ehAdmin(user.id))){location.href='admin.html';return}
-    alert('Aluno nao encontrado. Contate o mentor.');return
-  }
-  _nome=aluno.nome
-  if(_mentor)_email=aluno.email||''
-  _diretrizes=aluno.diretrizes||null
-  _diretrizesEm=aluno.diretrizes_em||null
-  document.getElementById('nome').textContent=_nome.split(' ')[0]
-
-  if(_mentor){
-    ativarModoMentor(aluno)
-  }else{
-    // bloqueio por inatividade (confere ANTES de registrar o acesso de hoje)
-    const diasSem=aluno.ultimo_acesso?Math.floor((Date.now()-new Date(aluno.ultimo_acesso).getTime())/86400000):0
-    if(aluno.bloqueado_inatividade||diasSem>=_limiteBloq){
-      if(!aluno.bloqueado_inatividade){try{await _supabase.from('alunos').update({bloqueado_inatividade:true}).eq('id',_alunoId)}catch(e){}}
-      mostrarBloqueado(Math.max(diasSem,_limiteBloq))
-      return
-    }
-    if(aluno.data_expiracao){
-      const h=new Date();h.setHours(0,0,0,0)
-      if(h>new Date(aluno.data_expiracao+'T00:00:00')){mostrarExpirado(aluno.data_expiracao);return}
-    }
-    registrarAcesso()
-  }
-
-  const { data:sess }=await _supabase.from('sessoes_estudo').select('*')
-    .eq('aluno_id',_alunoId).order('data').order('ordem')
-
-  document.getElementById('loading').style.display='none'
-  if(!sess||!sess.length){
-    document.getElementById('vazio').style.display='block'
-    _concursoId=aluno.concurso_id
-    checarAvisos()
-    return
-  }
-
-  _sessoes=sess; _concursoId=sess[0].concurso_id
-  const { data:conc }=await _supabase.from('concursos').select('nome, data_prova').eq('id',_concursoId).single()
-  _concursoNome=conc?conc.nome:''
-  const { data:cfg }=await _supabase.from('config_cronograma').select('*')
-    .eq('aluno_id',_alunoId).eq('concurso_id',_concursoId).maybeSingle()
-  _cfg=cfg
-  try{
-    const { data:ep }=await _supabase.from('edital_progresso').select('topico_id,concluido').eq('aluno_id',_alunoId).eq('concluido',true)
-    _editalFeito={};(ep||[]).forEach(function(x){_editalFeito[x.topico_id]=1})
-  }catch(e){_editalFeito={}}
-  _dataProva=(cfg&&cfg.data_prova)?cfg.data_prova:(conc?conc.data_prova:null)
-
-  document.getElementById('sub').textContent=_concursoNome
-  document.getElementById('app').style.display='block'
-
-  indexar()
-  const hj=hojeStr(), dRef=_porData[hj]?hj:proxima(hj)
-  _refSem=parseD(dRef); _refMes=parseD(dRef)
-  desenhar()
-  checarAvisos()
-  if(!_mentor)setTimeout(checarDiaAnterior,700)
+function definirPrioridade(topico) {
+  const t = topico.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+  for (const kw of PRIORIDADES_ALTA) { if (t.includes(kw)) return 'alta' }
+  for (const kw of PRIORIDADES_MEDIA) { if (t.includes(kw)) return 'media' }
+  return 'baixa'
 }
 
-/* ---------- MODO MENTOR ---------- */
-function ativarModoMentor(aluno){
-  document.title='Mentor: '+aluno.nome
-  const bar=document.getElementById('mentor-bar')
-  const dias=aluno.ultimo_acesso?Math.floor((Date.now()-new Date(aluno.ultimo_acesso).getTime())/86400000):null
-  let extra=''
-  if(aluno.bloqueado_inatividade||(dias!==null&&dias>=_limiteBloq))extra+='<br><span style="color:#f07171;font-weight:700">🔒 Este aluno esta bloqueado por inatividade ('+(dias===null?'--':dias)+' dias sem acessar).</span>'
-  if(aluno.data_expiracao){
-    const h=new Date();h.setHours(0,0,0,0)
-    if(h>new Date(aluno.data_expiracao+'T00:00:00'))extra+='<br><span style="color:#f07171;font-weight:700">⏳ Acesso expirado em '+parseD(aluno.data_expiracao).toLocaleDateString('pt-BR')+'.</span>'
-  }
-  bar.innerHTML='<div style="font-size:22px">👁️</div>'
-    +'<div class="mb-t"><b>MODO MENTOR</b> — voce esta na area de <b>'+esc(aluno.nome)+'</b>. '
-    +'Tudo o que voce marcar ou replanejar aqui vale para o aluno e fica registrado como feito por voce.'+extra+'</div>'
-    +'<button class="btn btn-ouro" onclick="voltarPainel()">← Voltar ao painel</button>'
-  bar.style.display='flex'
-  const np=document.getElementById('nav-perfil'); if(np)np.style.display='none'
-  const ns=document.getElementById('nav-sair'); if(ns)ns.innerHTML='<span class="nav-ic">↩️</span>Voltar ao painel'
-}
-function voltarPainel(){
-  _saindo=true
-  sessionStorage.setItem('alunoFoco',_alunoId)
-  location.href='admin.html'
-}
-// navegacao entre paginas (leva o aluno junto no modo mentor)
-function ir(url){
-  _saindo=true
-  if(_mentor){
-    if(url.indexOf('ranking.html')===0){location.href='ranking.html?admin=1';return}
-    const p=url.split('#')
-    location.href=p[0]+'?aluno='+_alunoId+(p[1]?'#'+p[1]:'')
-    return
-  }
-  location.href=url
-}
-
-/* ---------- BLOQUEIO POR INATIVIDADE ---------- */
-function linkWpp(msg){
-  if(!_wpp)return null
-  let n=String(_wpp).replace(/\D/g,'')
-  if(n.length<=11)n='55'+n
-  return 'https://wa.me/'+n+'?text='+encodeURIComponent(msg)
-}
-function mostrarBloqueado(dias){
-  document.body.classList.add('travado')
-  document.getElementById('loading').style.display='none'
-  document.getElementById('btn-hoje').style.display='none'
-  const box=document.getElementById('expirado')
-  box.style.display='block'
-  const w=linkWpp('Ola, mentor! Sou '+_nome+'. Minha plataforma foi bloqueada por inatividade e quero regularizar a taxa de reabilitacao para voltar a estudar.')
-  box.innerHTML='<div class="estado" style="max-width:520px;margin:0 auto">'
-   +'<div style="font-size:56px;margin-bottom:12px">🔒</div>'
-   +'<div style="color:#f07171;font-weight:800;font-size:21px">Plataforma inativa por falta de acesso</div>'
-   +'<p style="color:var(--tx2);font-size:14.5px;margin-top:12px;line-height:1.7">Voce ficou <strong>'+dias+' dias</strong> sem acessar a plataforma e, por isso, seu acesso foi <strong>desativado</strong>.</p>'
-   +'<div style="background:rgba(240,113,113,.08);border:1px solid #d9566a;border-radius:12px;padding:14px 16px;margin-top:16px;color:var(--tx);font-size:14px;line-height:1.65;text-align:left">'
-   +'Para reativar, regularize o pagamento da <strong>taxa de reabilitacao da plataforma</strong> diretamente com o seu mentor. Assim que o pagamento for confirmado, seu acesso e seu cronograma voltam exatamente de onde pararam.</div>'
-   +'<p style="color:var(--tx4);font-size:12px;margin-top:12px">Nenhum dado seu foi perdido.</p>'
-   +'<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:18px">'
-   +(w?'<a href="'+w+'" target="_blank" class="btn btn-ouro" style="text-decoration:none;padding:12px 18px">💬 Falar com o mentor no WhatsApp</a>':'')
-   +'<button class="btn" style="padding:12px 18px" onclick="sairDireto()">Sair</button></div></div>'
-}
-
-function mostrarExpirado(d){
-  document.body.classList.add('travado')
-  document.getElementById('loading').style.display='none'
-  document.getElementById('btn-hoje').style.display='none'
-  document.getElementById('expirado').style.display='block'
-  document.getElementById('expirado').innerHTML=
-    '<div class="estado"><div style="font-size:52px;margin-bottom:14px">🔒</div>'
-   +'<div style="color:var(--ouro);font-weight:800;font-size:20px">Acesso expirado</div>'
-   +'<p style="color:var(--tx2);font-size:14px;margin-top:10px;line-height:1.6">Seu acesso terminou em <strong>'+parseD(d).toLocaleDateString('pt-BR')+'</strong>.<br>Fale com seu mentor para renovar e retomar seus estudos.</p>'
-   +'<button class="btn" style="margin-top:18px" onclick="sairDireto()">Sair</button></div>'
-}
-
-function indexar(){
-  _porData={}
-  _sessoes.forEach(function(s){if(!_porData[s.data])_porData[s.data]=[];_porData[s.data].push(s)})
-  const ds=[]
-  _sessoes.forEach(function(s){if(ds.indexOf(s.disciplina)<0)ds.push(s.disciplina)})
-  ds.sort().forEach(function(d){corDe(d)})
-}
-function proxima(a){
-  const ds=Object.keys(_porData).sort()
-  for(let i=0;i<ds.length;i++)if(ds[i]>=a)return ds[i]
-  return ds.length?ds[ds.length-1]:a
-}
-function desenhar(){renderDiretrizes();renderHoje();renderStrip();renderHero();renderAtraso();renderBoard();renderCal();renderLegenda()}
-
-function renderDiretrizes(){
-  const box=document.getElementById('diretrizes')
-  if(!box)return
-  if(!_diretrizes){box.innerHTML='';return}
-  const chave='dir_'+_alunoId
-  const visto=localStorage.getItem(chave)
-  const novo=_diretrizesEm && visto!==_diretrizesEm
-  const aberto=novo||localStorage.getItem(chave+'_open')==='1'
-  box.innerHTML='<div style="background:linear-gradient(135deg,rgba(201,168,60,.10),var(--card));border:1px solid var(--ouro);border-radius:14px;padding:16px;margin-bottom:16px">'
-    +'<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;cursor:pointer" onclick="toggleDiretrizes()">'
-    +'<div style="font-size:22px">🎖️</div>'
-    +'<div style="flex:1;min-width:160px"><div style="font-size:14px;font-weight:800;color:var(--ouro)">Diretrizes do seu mentor'
-    +(novo?' <span style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(109,219,160,.15);color:#6ddba0;border:1px solid #6ddba0;font-weight:700;margin-left:6px">ATUALIZADO</span>':'')
-    +'</div>'
-    +'<div style="color:var(--tx3);font-size:12px;margin-top:2px">'+(aberto?'Toque para recolher':'Toque para ler')+'</div></div>'
-    +'<div style="color:var(--tx3);font-size:18px">'+(aberto?'▾':'▸')+'</div></div>'
-    +(aberto?'<div style="margin-top:13px;padding-top:13px;border-top:1px solid var(--bd);font-size:13.5px;line-height:1.75;color:var(--tx2);white-space:pre-wrap">'+esc(_diretrizes)+'</div>':'')
-    +'</div>'
-  if(novo&&aberto&&_diretrizesEm)localStorage.setItem(chave,_diretrizesEm)
-}
-
-function toggleDiretrizes(){
-  const chave='dir_'+_alunoId
-  const aberto=localStorage.getItem(chave+'_open')==='1'
-  localStorage.setItem(chave+'_open',aberto?'0':'1')
-  if(!aberto&&_diretrizesEm)localStorage.setItem(chave,_diretrizesEm)
-  renderDiretrizes()
-}
-
-// registra no painel do mentor o que o aluno mexeu
-async function logar(acao,detalhe){
-  try{
-    const reg={aluno_id:_alunoId,acao:acao,detalhe:(_mentor?'[Mentor] ':'')+detalhe}
-    if(_mentor){reg.por_mentor=true;reg.visto=true}
-    let r=await _supabase.from('cronograma_log').insert(reg)
-    if(r.error&&_mentor){delete reg.por_mentor;r=await _supabase.from('cronograma_log').insert(reg)}
-  }catch(e){}
-}
-
-function renderStrip(){
-  const total=_sessoes.length, feitas=_sessoes.filter(function(s){return s.concluida}).length
-  const datas=Object.keys(_porData).sort(), hj=hojeStr()
-  let dia=datas.filter(function(d){return d<=hj}).length; if(dia<1)dia=1
-  const tT=_sessoes.filter(function(s){return s.tipo==='teoria'}).length
-  const tF=_sessoes.filter(function(s){return s.tipo==='teoria'&&s.concluida}).length
-  const pct=tT?Math.round(tF/tT*100):Math.round(feitas/total*100)
-  const pd=_cfg?_cfg.sessoes_por_dia:Math.round(total/Math.max(datas.length,1))
-  const fim=datas.length?parseD(datas[datas.length-1]).toLocaleDateString('pt-BR'):'--'
-  document.getElementById('strip').innerHTML=
-    '<div class="strip-c"><div class="strip-l">Turma</div><div class="strip-v">'+esc(_concursoNome||'Meu plano')+'</div></div>'
-   +'<div class="strip-c"><div class="strip-l">Dia</div><div class="strip-v">'+dia+' de '+datas.length+'</div></div>'
-   +'<div class="strip-c"><div class="strip-l">Plano</div><div class="strip-v">'+pd+' sessoes/dia</div></div>'
-   +'<div class="strip-c"><div class="strip-l">Conclusao prevista</div><div class="strip-v">'+fim+'</div></div>'
-   +'<div class="strip-c"><div class="strip-l">Progresso do edital</div><div class="strip-v g">'+pct+'%</div></div>'
-}
-
-function renderHero(){
-  let dias=null
-  if(_dataProva){const h=new Date();h.setHours(0,0,0,0);dias=Math.ceil((parseD(_dataProva)-h)/86400000)}
-  document.getElementById('hero').innerHTML=
-    '<div class="trofeu">🏆</div><div style="flex:1;min-width:180px;position:relative;z-index:1">'
-   +'<div class="hero-l">Dia da prova</div><div class="hero-t">'+esc(_concursoNome||'Seu concurso')+'</div>'
-   +'<div class="hero-d">'+(_dataProva?parseD(_dataProva).toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'}):'Data nao definida')+'</div></div>'
-   +(dias!==null?'<div style="position:relative;z-index:1"><div class="hero-n">'+(dias>0?dias:0)+'</div><div class="hero-nl">dias restantes</div></div>':'')
-}
-
-function renderAtraso(){
-  const hj=hojeStr(), at=_sessoes.filter(function(s){return !s.concluida&&s.data<hj})
-  const box=document.getElementById('aviso-atraso')
-  if(!at.length){
-    const fo=contarForaDeOrdem()+teoriasPerdidas().length
-    if(!fo){box.innerHTML='';return}
-    box.innerHTML='<div class="aviso" style="background:rgba(91,179,240,.08);border-color:#5bb3f0"><span style="font-size:22px">🔀</span>'
-     +'<div style="flex:1;min-width:180px"><div style="color:#5bb3f0;font-weight:700;font-size:14px">'+fo+' tema(s) com questoes/revisao antes da teoria</div>'
-     +'<div style="color:#a8b8c8;font-size:12px;margin-top:2px">Alguns temas estao com as questoes marcadas antes da teoria. Reorganize para estudar na ordem certa.</div></div>'
-     +'<button class="btn btn-ouro" onclick="replanejarAtrasadas()">Reorganizar</button></div>'
-    return
-  }
-  box.innerHTML='<div class="aviso"><span style="font-size:22px">⏰</span>'
-   +'<div style="flex:1;min-width:180px"><div style="color:#f07171;font-weight:700;font-size:14px">'+at.length+' sessoes atrasadas</div>'
-   +'<div style="color:#a8b8c8;font-size:12px;margin-top:2px">A mais antiga e de '+parseD(at[0].data).toLocaleDateString('pt-BR')+'. Coloque em dia ou peca replanejamento ao mentor.</div></div>'
-   +'<div style="display:flex;gap:7px;flex-wrap:wrap">'
-   +'<button class="btn" style="border-color:#d9566a;color:#f07171" onclick="irData(\''+at[0].data+'\')">Ver</button>'
-   +'<button class="btn btn-ouro" onclick="replanejarAtrasadas()">Replanejar</button></div></div>'
-}
-
-function renderBoard(){
-  const ini=inicioSemana(_refSem), hj=hojeStr()
-  let html=''
-  for(let i=0;i<7;i++){
-    const d=addDays(ini,i), key=ymd(d), sess=_porData[key]||[]
-    html+='<div class="col"><div class="col-h'+(key===hj?' hoje':'')+'">'+CURTO[d.getDay()]+'<span class="dn">'+d.getDate()+'</span>'
-      +'<span class="col-cfg" title="Ajustes do dia" onclick="event.stopPropagation();ajustesDoDia(\''+key+'\')">⋯</span></div>'
-    if(!sess.length){html+='<div class="vazio">—</div></div>';continue}
-    const co=sess.some(function(s){return s.caderno_erros_lido})
-    html+='<div class="cad'+(co?' ok':'')+'" onclick="marcarCaderno(\''+key+'\','+(!co)+')"><div class="cad-c'+(co?' on':'')+'">'+(co?'✓':'')+'</div><div class="cad-t">Caderno de erros</div></div>'
-    sess.forEach(function(s){
-      const c=corDe(s.disciplina)
-      html+='<div class="scard'+(s.concluida?' ok':'')+'" style="--c:'+c+'" onclick="abrirSessao(\''+s.id+'\')">'
-        +'<div class="sc-top"><div class="circ'+(s.concluida?' on':'')+'" onclick="event.stopPropagation();toggleSessao(\''+s.id+'\')">'+(s.concluida?'✓':'')+'</div>'
-        +'<div class="sc-d">'+esc(s.disciplina)+'</div></div><div class="sc-t">'+esc(s.topico)+'</div>'
-        +'<div class="sc-f"><span class="pill pill-t">'+LABEL[s.tipo]+'</span><span class="pill">'+dur(s.tempo_minutos)+'</span>'
-        +(s.continuacao_de?'<span class="pill" style="background:#2a2410;color:#e8b04b">continuacao</span>':'')
-        +(s.parcial?'<span class="pill" style="background:#2a2410;color:#e8b04b">parcial</span>':'')
-        +(s.questoes_feitas?'<span class="pill">'+s.questoes_feitas+'q</span>':'')+'</div></div>'
-    })
-    html+='</div>'
-  }
-  document.getElementById('board').innerHTML=html
-  const fim=addDays(ini,6)
-  document.getElementById('label-sem').textContent=ini.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})+' — '+fim.toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric'})
-  document.getElementById('sec-sub').textContent=MES[ini.getMonth()]+' de '+ini.getFullYear()
-}
-
-function renderLegenda(){
-  document.getElementById('legenda').innerHTML=Object.keys(_corDisc).sort().map(function(d){
-    return '<span class="leg"><span class="leg-d" style="background:'+_corDisc[d]+'"></span>'+esc(d)+'</span>'
-  }).join('')
-}
-
-function renderCal(){
-  document.getElementById('cal-wd').innerHTML=WD.map(function(w){return '<div class="cal-wd">'+w[0]+'</div>'}).join('')
-  const y=_refMes.getFullYear(), m=_refMes.getMonth()
-  document.getElementById('cal-mes').textContent=MES[m]+' '+y
-  const ini=inicioSemana(new Date(y,m,1))
-  const hj=hojeStr(), sel=ymd(inicioSemana(_refSem))
-  let html='',dias=0,fm=0,tm=0
-  for(let i=0;i<42;i++){
-    const d=addDays(ini,i), key=ymd(d), fora=d.getMonth()!==m, sess=_porData[key]||[]
-    if(!fora&&sess.length){dias++;tm+=sess.length;fm+=sess.filter(function(s){return s.concluida}).length}
-    let cls='cal-d'
-    if(fora)cls+=' fora'
-    else{
-      if(sess.length)cls+=' tem'
-      if(sess.length&&sess.every(function(s){return s.concluida}))cls+=' tudo'
-      if(key===hj)cls+=' hoje'
-      else if(ymd(inicioSemana(d))===sel)cls+=' sel'
-    }
-    html+='<div class="'+cls+'"'+(fora?'':' onclick="irData(\''+key+'\')"')+'>'+d.getDate()+'</div>'
-    if(i>=34&&addDays(ini,i+1).getMonth()!==m)break
-  }
-  document.getElementById('cal-grid').innerHTML=html
-  const pct=tm?Math.round(fm/tm*100):0
-  document.getElementById('cal-resumo').innerHTML=
-    '<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--tx3);margin-bottom:6px"><span>'+MES[m]+'</span><span style="color:var(--ouro);font-weight:700">'+pct+'%</span></div>'
-   +'<div class="barra"><div class="barra-f" style="width:'+pct+'%;background:var(--ouro)"></div></div>'
-   +'<div style="color:var(--tx4);font-size:11px;margin-top:6px">'+fm+' de '+tm+' sessoes em '+dias+' dias</div>'
-}
-
-function mudarSemana(n){_refSem=addDays(_refSem,n*7);_refMes=new Date(_refSem);renderBoard();renderCal()}
-function mudarMes(n){_refMes=new Date(_refMes.getFullYear(),_refMes.getMonth()+n,1);renderCal()}
-function irHoje(){const h=new Date();_refSem=h;_refMes=new Date(h);renderBoard();renderCal()}
-function irData(k){irSecao('cronograma');_refSem=parseD(k);_refMes=parseD(k);renderBoard();renderCal()}
-
-/* ---------- STREAK ---------- */
-function calcStreak(){
-  const dias={}
-  _sessoes.forEach(function(s){if(s.concluida)dias[s.data]=true})
-  const ds=Object.keys(dias).sort()
-  let atual=0,ref=new Date();ref.setHours(0,0,0,0)
-  const desc=ds.slice().reverse()
-  for(let i=0;i<desc.length;i++){
-    const d=parseD(desc[i]), diff=Math.round((ref-d)/86400000)
-    if(diff<=1){atual++;ref=d}else break
-  }
-  let melhor=0,seq=ds.length?1:0
-  for(let i=1;i<ds.length;i++){
-    const diff=Math.round((parseD(ds[i])-parseD(ds[i-1]))/86400000)
-    if(diff===1){seq++;melhor=Math.max(melhor,seq)}else seq=1
-  }
-  melhor=Math.max(melhor,atual,seq)
-  return {atual:atual,melhor:melhor,total:ds.length,dias:dias}
-}
-
-function renderStreak(){
-  const st=calcStreak(), s=st.atual
-  let nv,cor,meta
-  if(s>=30){nv='LENDA';cor='#b98ae0';meta=null}
-  else if(s>=14){nv='ELITE';cor='var(--ouro)';meta=30}
-  else if(s>=7){nv='VETERANO';cor='#5bb3f0';meta=14}
-  else if(s>=3){nv='DEDICADO';cor='#6ddba0';meta=7}
-  else{nv='RECRUTA';cor='var(--tx2)';meta=3}
-  const pct=meta?Math.round(s/meta*100):100
-  const ic=s>=30?'🔥🔥🔥':s>=14?'🔥🔥':s>=3?'🔥':'💤'
-
-  const hj=new Date(), ini=inicioSemana(hj)
-  let sem='',okSem=0
-  for(let i=0;i<7;i++){
-    const d=addDays(ini,i), key=ymd(d)
-    const ok=st.dias[key], eh=key===ymd(hj), fut=d>hj&&!eh
-    if(ok)okSem++
-    const cls=ok?'ok':eh?'hj':fut?'fut':'no'
-    const ico=ok?'✓':eh?'•':fut?'○':'✕'
-    sem+='<div class="s7"><div class="s7-c '+cls+'">'+ico+'</div><div class="s7-l">'+WD[i][0]+'</div></div>'
-  }
-
-  document.getElementById('streak-box').innerHTML=
-    '<div class="streak-h"><div style="font-size:44px">'+ic+'</div>'
-   +'<div class="streak-n">'+s+'</div>'
-   +'<div style="font-size:16px;font-weight:700;margin-top:4px">'+(s===1?'dia de sequencia':'dias de sequencia')+'</div>'
-   +'<div><span class="nivel" style="background:'+cor+'22;color:'+cor+';border:1px solid '+cor+'">'+nv+'</span></div>'
-   +(meta?'<div style="max-width:280px;margin:14px auto 0"><div style="color:var(--tx3);font-size:12px;margin-bottom:6px">'+s+' de '+meta+' dias para o proximo nivel</div>'
-        +'<div class="barra"><div class="barra-f" style="width:'+pct+'%;background:'+cor+'"></div></div></div>'
-      :'<div style="color:var(--ouro);font-size:13px;margin-top:12px">Voce atingiu o nivel maximo!</div>')
-   +'<div class="sem7">'+sem+'</div></div>'
-   +'<div class="cards4" style="margin-bottom:0">'
-   +'<div class="kpi"><div class="kpi-i">🔥</div><div class="kpi-n" style="color:var(--ouro)">'+s+'</div><div class="kpi-l">Sequencia atual</div></div>'
-   +'<div class="kpi"><div class="kpi-i">🏅</div><div class="kpi-n" style="color:#6ddba0">'+st.melhor+'</div><div class="kpi-l">Melhor sequencia</div></div>'
-   +'<div class="kpi"><div class="kpi-i">📆</div><div class="kpi-n" style="color:#5bb3f0">'+Math.round(okSem/7*100)+'%</div><div class="kpi-l">Taxa desta semana</div></div>'
-   +'<div class="kpi"><div class="kpi-i">✅</div><div class="kpi-n">'+st.total+'</div><div class="kpi-l">Total de dias estudados</div></div>'
-   +'</div>'
-
-  let heat='<div class="cal-g" style="margin-bottom:5px">'+WD.map(function(w){return '<div class="cal-wd">'+w[0]+'</div>'}).join('')+'</div>'
-  for(let sm=3;sm>=0;sm--){
-    heat+='<div class="cal-g" style="margin-bottom:4px">'
-    const base=addDays(inicioSemana(hj),-sm*7)
-    for(let i=0;i<7;i++){
-      const d=addDays(base,i), key=ymd(d)
-      const ok=st.dias[key], fut=d>hj, eh=key===ymd(hj)
-      let bg='var(--card2)',bd='var(--bd2)',cl='var(--tx4)'
-      if(fut){bg='transparent';bd='var(--bd)';cl='var(--bd2)'}
-      else if(ok){bg='var(--ouro)';bd='var(--ouro)';cl='var(--bg)'}
-      else if(eh){bg='var(--hov)';bd='#5bb3f0';cl='#5bb3f0'}
-      heat+='<div style="aspect-ratio:1;border-radius:7px;background:'+bg+';border:1px solid '+bd+';display:flex;align-items:center;justify-content:center;font-size:11px;color:'+cl+';font-weight:'+(ok?'800':'400')+'" title="'+key+'">'+d.getDate()+'</div>'
-    }
-    heat+='</div>'
-  }
-  heat+='<div class="legenda" style="margin-top:12px">'
-    +'<span class="leg"><span class="leg-d" style="background:var(--ouro)"></span>Estudou</span>'
-    +'<span class="leg"><span class="leg-d" style="background:var(--card2);border:1px solid var(--bd2)"></span>Nao estudou</span>'
-    +'<span class="leg"><span class="leg-d" style="background:var(--hov);border:1px solid #5bb3f0"></span>Hoje</span></div>'
-  document.getElementById('heat').innerHTML=heat
-}
-
-/* ---------- DESEMPENHO ---------- */
-function statsDisc(){
-  const p={}
-  _sessoes.forEach(function(s){
-    if(!p[s.disciplina])p[s.disciplina]={f:0,c:0,tot:0,ok:0,min:0}
-    p[s.disciplina].f+=s.questoes_feitas||0
-    p[s.disciplina].c+=s.questoes_certas||0
-    p[s.disciplina].tot++
-    if(s.concluida){p[s.disciplina].ok++;p[s.disciplina].min+=s.tempo_minutos||0}
-  })
-  return p
-}
-
-function renderDesempenho(){
-  const st=calcStreak()
-  const total=_sessoes.length, feitas=_sessoes.filter(function(s){return s.concluida}).length
-  const q=_sessoes.reduce(function(a,s){return a+(s.questoes_feitas||0)},0)
-  const c=_sessoes.reduce(function(a,s){return a+(s.questoes_certas||0)},0)
-  const pctQ=q?Math.round(c/q*100):0
-  const min=_sessoes.filter(function(s){return s.concluida}).reduce(function(a,s){return a+(s.tempo_minutos||0)},0)
-  const pctP=total?Math.round(feitas/total*100):0
-  const diasCad={}, diasEst={}
-  _sessoes.forEach(function(s){ if(s.concluida)diasEst[s.data]=true; if(s.caderno_erros_lido)diasCad[s.data]=true })
-  const nEst=Object.keys(diasEst).length, nCad=Object.keys(diasCad).length
-  const pctCad=nEst?Math.round(nCad/nEst*100):0
-
-  document.getElementById('kpis').innerHTML=
-    '<div class="kpi"><div class="kpi-i">📅</div><div class="kpi-n" style="color:'+corPct(pctP)+'">'+pctP+'%</div><div class="kpi-l">'+feitas+' de '+total+' sessoes</div><div class="barra"><div class="barra-f" style="width:'+pctP+'%;background:'+corPct(pctP)+'"></div></div></div>'
-   +'<div class="kpi"><div class="kpi-i">🎯</div><div class="kpi-n" style="color:'+(q?corPct(pctQ):'var(--tx3)')+'">'+(q?pctQ+'%':'--')+'</div><div class="kpi-l">'+q+' questoes feitas</div>'+(q?'<div class="barra"><div class="barra-f" style="width:'+pctQ+'%;background:'+corPct(pctQ)+'"></div></div>':'')+'</div>'
-   +'<div class="kpi"><div class="kpi-i">⏱️</div><div class="kpi-n">'+Math.floor(min/60)+'<span style="font-size:15px;color:var(--tx3)">h</span> '+(min%60)+'<span style="font-size:15px;color:var(--tx3)">min</span></div><div class="kpi-l">Horas estudadas</div></div>'
-   +'<div class="kpi"><div class="kpi-i">📓</div><div class="kpi-n" style="color:'+(nEst?corPct(pctCad):'var(--tx3)')+'">'+(nEst?pctCad+'%':'--')+'</div><div class="kpi-l">Dias com caderno de erros</div>'+(nEst?'<div class="barra"><div class="barra-f" style="width:'+pctCad+'%;background:'+corPct(pctCad)+'"></div></div>':'')+'</div>'
-
-  const p=statsDisc()
-  const labels=Object.keys(p).filter(function(d){return p[d].f>0})
-  const cv=document.getElementById('graf'), sg=document.getElementById('sem-graf')
-  if(!labels.length){cv.style.display='none';sg.style.display='block'}
-  else{
-    cv.style.display='block';sg.style.display='none'
-    const vals=labels.map(function(d){return Math.round(p[d].c/p[d].f*100)})
-    if(_graf)_graf.destroy()
-    _graf=new Chart(cv,{type:'bar',data:{labels:labels,datasets:[{data:vals,backgroundColor:labels.map(function(d){return corDe(d)}),borderRadius:8}]},
-      options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(x){return x.raw+'% de acerto ('+p[labels[x.dataIndex]].f+' questoes)'}}}},
-      scales:{y:{min:0,max:100,ticks:{color:'var(--tx3)',callback:function(v){return v+'%'}},grid:{color:'var(--bd)'}},x:{ticks:{color:'var(--tx3)'},grid:{display:false}}}}})
-  }
-
-  document.getElementById('prog-disc').innerHTML=Object.keys(p).sort().map(function(d){
-    const x=p[d], pc=x.tot?Math.round(x.ok/x.tot*100):0, cor=corDe(d)
-    return '<div style="margin-bottom:13px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;gap:8px;flex-wrap:wrap">'
-      +'<span style="font-size:13px;color:'+cor+';font-weight:600">'+esc(d)+'</span>'
-      +'<span style="font-size:12px;color:var(--tx3)">'+x.ok+'/'+x.tot+' sessoes'+(x.f?' · '+Math.round(x.c/x.f*100)+'% acerto':'')+'</span></div>'
-      +'<div class="barra"><div class="barra-f" style="width:'+pc+'%;background:'+cor+'"></div></div></div>'
-  }).join('')
-}
-
-async function exportarPDF(){
-  const {jsPDF}=window.jspdf, doc=new jsPDF()
-  const total=_sessoes.length, feitas=_sessoes.filter(function(s){return s.concluida}).length
-  const q=_sessoes.reduce(function(a,s){return a+(s.questoes_feitas||0)},0)
-  const c=_sessoes.reduce(function(a,s){return a+(s.questoes_certas||0)},0)
-  const pctQ=q?Math.round(c/q*100):0, pctP=total?Math.round(feitas/total*100):0
-  const min=_sessoes.filter(function(s){return s.concluida}).reduce(function(a,s){return a+(s.tempo_minutos||0)},0)
-  const st=calcStreak()
-
-  doc.setFillColor(16,40,64);doc.rect(0,0,210,38,'F')
-  doc.setFillColor(201,168,60);doc.rect(0,38,210,2,'F')
-  doc.setTextColor(201,168,60);doc.setFontSize(17);doc.setFont('helvetica','bold')
-  doc.text('Patrulheiros de Elite',14,16)
-  doc.setTextColor(255,255,255);doc.setFontSize(12)
-  doc.text(_nome,14,26)
-  doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(180,190,200)
-  doc.text((_concursoNome||'')+'  |  Gerado em '+new Date().toLocaleDateString('pt-BR'),14,33)
-
-  let y=52
-  doc.setTextColor(16,40,64);doc.setFontSize(12);doc.setFont('helvetica','bold')
-  doc.text('Resumo geral',14,y);y+=8
-  doc.setFont('helvetica','normal');doc.setFontSize(10);doc.setTextColor(60,60,60)
-  doc.text('Sessoes concluidas: '+feitas+' de '+total+' ('+pctP+'%)',14,y);y+=6
-  doc.text('Questoes: '+q+'  |  Acertos: '+c+'  |  Aproveitamento: '+pctQ+'%',14,y);y+=6
-  doc.text('Horas estudadas: '+Math.floor(min/60)+'h '+(min%60)+'min',14,y);y+=6
-  doc.text('Sequencia atual: '+st.atual+' dias  |  Melhor: '+st.melhor+' dias',14,y);y+=12
-
-  doc.setTextColor(16,40,64);doc.setFontSize(12);doc.setFont('helvetica','bold')
-  doc.text('Desempenho por disciplina',14,y);y+=8
-  const p=statsDisc()
-  doc.setFont('helvetica','normal');doc.setFontSize(9)
-  Object.keys(p).sort().forEach(function(d){
-    if(y>272){doc.addPage();y=20}
-    const x=p[d], pc=x.f?Math.round(x.c/x.f*100):0
-    const cor=pc>=70?[109,219,160]:pc>=40?[232,176,75]:[240,113,113]
-    doc.setFillColor(cor[0],cor[1],cor[2]);doc.rect(14,y-3.4,3,5,'F')
-    doc.setTextColor(50,50,50)
-    doc.text(String(d).substring(0,42),20,y)
-    doc.text(x.ok+'/'+x.tot+' sessoes',120,y)
-    doc.text(x.f?(x.f+'q · '+pc+'%'):'--',165,y)
-    y+=7
-  })
-  doc.setFillColor(16,40,64);doc.rect(0,283,210,14,'F')
-  doc.setTextColor(180,190,200);doc.setFontSize(8)
-  doc.text('Patrulheiros de Elite  |  Cabo Jota  |  patrulheirojota.com.br',105,291,{align:'center'})
-  doc.save('desempenho-'+_nome.replace(/[^a-zA-Z0-9]/g,'-')+'.pdf')
-}
-
-/* ---------- AVISOS ---------- */
-async function checarAvisos(){
-  const filtros=['and(aluno_id.is.null,concurso_id.is.null)']
-  if(_concursoId)filtros.push('and(aluno_id.is.null,concurso_id.eq.'+_concursoId+')')
-  filtros.push('aluno_id.eq.'+_alunoId)
-  const { data:av }=await _supabase.from('avisos').select('id,aluno_id,lido_em').or(filtros.join(','))
-  const bd=document.getElementById('bd-av')
-  if(!av||!av.length){bd.style.display='none';return}
-  const naoLidos=av.filter(function(a){return a.aluno_id&&!a.lido_em}).length
-  const vistos=parseInt(localStorage.getItem('av_'+_alunoId)||'0')
-  const novosTurma=Math.max(0,av.filter(function(a){return !a.aluno_id}).length-vistos)
-  const total=naoLidos+novosTurma
-  if(total>0){bd.style.display='inline-block';bd.textContent=total}
-  else bd.style.display='none'
-}
-
-async function renderAvisos(){
-  const box=document.getElementById('lista-avisos')
-  box.innerHTML='<div style="color:var(--tx3);font-size:13px">Carregando...</div>'
-
-  const filtros=['and(aluno_id.is.null,concurso_id.is.null)']
-  if(_concursoId)filtros.push('and(aluno_id.is.null,concurso_id.eq.'+_concursoId+')')
-  filtros.push('aluno_id.eq.'+_alunoId)
-  const { data:av }=await _supabase.from('avisos').select('*').or(filtros.join(',')).order('criado_em',{ascending:false})
-
-  document.getElementById('bd-av').style.display='none'
-  const daTurma=(av||[]).filter(function(a){return !a.aluno_id})
-  localStorage.setItem('av_'+_alunoId,String(daTurma.length))
-
-  // marca os individuais como lidos
-  const naoLidos=(av||[]).filter(function(a){return a.aluno_id&&!a.lido_em})
-  if(naoLidos.length&&!_mentor){
-    const agora=new Date().toISOString()
-    for(let i=0;i<naoLidos.length;i++){
-      await _supabase.from('avisos').update({lido_em:agora}).eq('id',naoLidos[i].id)
-    }
-  }
-
-  if(!av||!av.length){
-    box.innerHTML='<div class="painel" style="text-align:center;padding:44px 20px"><div style="font-size:40px;margin-bottom:10px">🔔</div>'
-      +'<div style="color:var(--tx3);font-size:14px">Nenhum aviso no momento.</div></div>'
-    return
-  }
-
-  const meus=(av||[]).filter(function(a){return a.aluno_id})
-  let html=''
-  if(meus.length){
-    html+='<div style="color:var(--tx3);font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px">Para voce</div>'
-      +meus.map(function(a){return cardAviso(a,true)}).join('')
-  }
-  const gerais=daTurma.filter(function(a){return !a.concurso_id})
-  const turma=daTurma.filter(function(a){return a.concurso_id})
-  if(gerais.length){
-    html+='<div style="color:var(--tx3);font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin:'+(meus.length?'22px':'0')+' 0 10px">Para todos os alunos</div>'
-      +gerais.map(function(a){return cardAviso(a,false)}).join('')
-  }
-  if(turma.length){
-    html+='<div style="color:var(--tx3);font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin:'+((meus.length||gerais.length)?'22px':'0')+' 0 10px">Para a turma</div>'
-      +turma.map(function(a){return cardAviso(a,false)}).join('')
-  }
-  box.innerHTML=html
-}
-
-function cardAviso(a,individual){
-  const data=new Date(a.criado_em).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'})
-  const urgente=a.prioridade==='alta'
-  const cor=urgente?'#f07171':(individual?'#5bb3f0':'var(--ouro)')
-  const novo=individual&&!a.lido_em
-  return '<div class="av" style="border-left-color:'+cor+(urgente?';background:rgba(240,113,113,.06)':'')+'">'
-    +'<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:7px">'
-    +'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'
-    +(urgente?'<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(240,113,113,.15);color:#f07171;border:1px solid #f07171;font-weight:700">URGENTE</span>':'')
-    +(individual?'<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(91,179,240,.15);color:#5bb3f0;border:1px solid #5bb3f0;font-weight:700">SO PARA VOCE</span>':'')
-    +(novo?'<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(109,219,160,.15);color:#6ddba0;border:1px solid #6ddba0;font-weight:700">NOVO</span>':'')
-    +'<strong style="color:'+cor+';font-size:15px">'+esc(a.titulo)+'</strong></div>'
-    +'<span style="color:var(--tx4);font-size:12px">'+data+'</span></div>'
-    +'<div style="color:var(--tx2);font-size:13.5px;line-height:1.6;white-space:pre-wrap">'+esc(a.mensagem)+'</div></div>'
-}
-
-/* ---------- PERFIL ---------- */
-function renderPerfil(){
-  document.getElementById('perfil-info').innerHTML=
-    '<div style="display:flex;align-items:center;gap:13px;margin-bottom:6px">'
-   +'<div style="width:46px;height:46px;border-radius:50%;background:var(--ouro);color:var(--bg);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800">'+esc(_nome.substring(0,1).toUpperCase())+'</div>'
-   +'<div><div style="font-size:16px;font-weight:700">'+esc(_nome)+'</div>'
-   +'<div style="color:var(--tx3);font-size:13px">'+esc(_email)+'</div></div></div>'
-   +(_concursoNome?'<div style="color:var(--tx3);font-size:13px;margin-top:8px">Concurso: <span style="color:var(--tx2)">'+esc(_concursoNome)+'</span></div>':'')
-}
-
-async function trocarSenha(){
-  if(_mentor){alert('No modo mentor nao e possivel trocar a senha do aluno por aqui. Use Editar no painel.');return}
-  const a=document.getElementById('p-s1').value, b=document.getElementById('p-s2').value
-  const m=document.getElementById('p-msg')
-  if(a.length<6){m.style.color='#f07171';m.textContent='A senha precisa ter pelo menos 6 caracteres.';return}
-  if(a!==b){m.style.color='#f07171';m.textContent='As senhas nao coincidem.';return}
-  m.style.color='var(--tx3)';m.textContent='Salvando...'
-  const { error }=await _supabase.auth.updateUser({password:a})
-  if(error){m.style.color='#f07171';m.textContent='Erro: '+error.message;return}
-  m.style.color='#6ddba0';m.textContent='Senha alterada com sucesso!'
-  document.getElementById('p-s1').value='';document.getElementById('p-s2').value=''
-}
-
-/* ---------- SESSOES ---------- */
-async function toggleSessao(id){
-  const s=_sessoes.find(function(x){return x.id===id}); if(!s)return
-  s.concluida=!s.concluida
-  desenhar()
-  const r=await _supabase.from('sessoes_estudo').update({concluida:s.concluida}).eq('id',id)
-  if(r.error){s.concluida=!s.concluida;desenhar();alert('Nao foi possivel salvar: '+r.error.message);return}
-  if(s.tipo==='teoria'&&s.topico_id&&!s.parcial)await marcarEdital(s.topico_id,s.concluida)
-  if(_mentor)logar(s.concluida?'concluiu':'desmarcou',(s.concluida?'Marcou como concluida: ':'Desmarcou: ')+s.topico+' ('+s.disciplina+')')
-  if(s.concluida){
-    const dia=_porData[s.data]||[]
-    const falta=dia.filter(function(x){return !x.concluida}).length
-    if(!falta&&s.data===hojeStr())toast('🏆 Missao de hoje cumprida! Excelente, patrulheiro!')
-    else toast('✅ Sessao concluida!'+(falta?' Faltam '+falta+' hoje.':''))
-  }
-}
-
-async function marcarCaderno(data,val){
-  const sess=_porData[data]||[]
-  sess.forEach(function(s){s.caderno_erros_lido=val})
-  await _supabase.from('sessoes_estudo').update({caderno_erros_lido:val}).eq('aluno_id',_alunoId).eq('data',data)
-  renderBoard()
-}
-
-function abrirSessao(id){
-  const s=_sessoes.find(function(x){return x.id===id}); if(!s)return
-  const c=corDe(s.disciplina)
-  document.getElementById('modal-c').innerHTML=
-    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:14px">'
-   +'<div><div style="color:'+c+';font-size:12px;font-weight:700">'+esc(s.disciplina)+'</div>'
-   +'<div style="font-size:17px;font-weight:700;margin-top:3px;line-height:1.3">'+esc(s.topico)+'</div></div>'
-   +'<button class="btn" onclick="fecharModal()" style="padding:5px 11px">✕</button></div>'
-   +'<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:16px">'
-   +'<span class="pill pill-t" style="--c:'+c+'">'+LABEL[s.tipo]+'</span>'
-   +'<span class="pill">'+dur(s.tempo_minutos)+'</span>'
-   +'<span class="pill">'+parseD(s.data).toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit'})+'</span>'
-   +(s.meta_questoes?'<span class="pill">meta '+s.meta_questoes+'q</span>':'')+'</div>'
-   +'<button class="btn '+(s.concluida?'':'btn-ouro')+'" style="width:100%;padding:12px" onclick="toggleSessao(\''+id+'\');fecharModal()">'
-   +(s.concluida?'Desmarcar conclusao':'Marcar como concluida')+'</button>'
-   +((!s.concluida&&s.tipo==='teoria')?
-      '<button class="btn" style="width:100%;padding:12px;margin-top:8px;border-color:#7d5fa8;color:#c9a9e8" onclick="naoFinalizei(\''+id+'\')">'
-     +'Estudei, mas nao finalizei o assunto</button>'
-     +'<div style="color:var(--tx4);font-size:11px;margin-top:6px;text-align:center;line-height:1.5">O dia conta como estudado e o tema volta na proxima vaga desta disciplina.</div>':'')
-   +'<div class="bloco">'
-   +'<div class="bloco-t">Tempo desta sessao</div>'
-   +'<div class="bloco-d">Ajuste conforme o tempo que voce tem hoje.</div>'
-   +'<div class="lin"><input type="range" class="rng" id="ms-rng" min="15" max="240" step="15" value="'+(s.tempo_minutos||60)+'" oninput="document.getElementById(\'ms-num\').value=this.value">'
-   +'<input type="number" class="num" id="ms-num" min="5" max="480" step="5" value="'+(s.tempo_minutos||60)+'" oninput="document.getElementById(\'ms-rng\').value=this.value">'
-   +'<span style="color:var(--tx3);font-size:12px">min</span></div>'
-   +'<button class="btn" style="width:100%;margin-top:10px;padding:10px" onclick="salvarTempoSessao(\''+id+'\')">Salvar tempo</button>'
-   +'<div id="ms-msg" style="font-size:12px;margin-top:8px;text-align:center"></div></div>'
-   +((s.tipo==='questoes'||s.questoes_feitas)?
-      '<div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--bd2)">'
-     +'<div style="color:var(--tx3);font-size:11px;letter-spacing:1px;text-transform:uppercase;font-weight:600;margin-bottom:8px">Registro de questoes</div>'
-     +'<div style="display:flex;gap:10px"><div style="flex:1"><label class="lbl">Feitas</label><input class="inp" type="number" id="mqf" min="0" value="'+(s.questoes_feitas||'')+'"></div>'
-     +'<div style="flex:1"><label class="lbl">Acertos</label><input class="inp" type="number" id="mqc" min="0" value="'+(s.questoes_certas||'')+'"></div></div>'
-     +'<button class="btn" style="width:100%;margin-top:10px;padding:11px" onclick="salvarQ(\''+id+'\')">Salvar questoes</button>'
-     +'<div id="mq-msg" style="font-size:12px;margin-top:8px;text-align:center"></div></div>':'')
-  document.getElementById('modal').classList.add('on')
-}
-function fecharModal(){document.getElementById('modal').classList.remove('on');_fd=null}
-
-async function salvarTempoSessao(id){
-  const v=parseInt(document.getElementById('ms-num').value)||60
-  const m=document.getElementById('ms-msg')
-  if(v<5){m.style.color='#f07171';m.textContent='Tempo minimo de 5 minutos.';return}
-  m.style.color='var(--tx3)';m.textContent='Salvando...'
-  const r=await _supabase.from('sessoes_estudo').update({tempo_minutos:v}).eq('id',id)
-  if(r.error){m.style.color='#f07171';m.textContent='Erro ao salvar.';return}
-  const s=_sessoes.find(function(x){return x.id===id})
-  if(s)s.tempo_minutos=v
-  m.style.color='#6ddba0';m.textContent='Tempo atualizado para '+dur(v)+'.'
-  desenhar()
-}
-
-async function salvarQ(id){
-  const f=parseInt(document.getElementById('mqf').value)||0
-  const c=parseInt(document.getElementById('mqc').value)||0
-  const m=document.getElementById('mq-msg')
-  if(c>f){m.style.color='#f07171';m.textContent='Acertos nao podem passar do total.';return}
-  const r=await _supabase.from('sessoes_estudo').update({questoes_feitas:f,questoes_certas:c}).eq('id',id)
-  if(r.error){m.style.color='#f07171';m.textContent='Erro ao salvar.';return}
-  const s=_sessoes.find(function(x){return x.id===id})
-  if(s){s.questoes_feitas=f;s.questoes_certas=c}
-  m.style.color='#6ddba0';m.textContent=f>0?Math.round(c/f*100)+'% de acerto':'Salvo'
-  renderBoard()
-}
-
-/* ---------- CONTINUACAO DE TEMA ---------- */
-async function marcarEdital(topico_id,valor){
-  const { data:ex }=await _supabase.from('edital_progresso').select('id')
-    .eq('aluno_id',_alunoId).eq('topico_id',topico_id).maybeSingle()
-  if(ex)await _supabase.from('edital_progresso').update({concluido:valor,atualizado_em:new Date().toISOString()}).eq('id',ex.id)
-  else await _supabase.from('edital_progresso').insert({aluno_id:_alunoId,topico_id:topico_id,concluido:valor})
-}
-
-function tituloContinuacao(t){
-  const m=String(t).match(/^(.*?)\s*\(continuacao(?:\s+(\d+))?\)\s*$/i)
-  if(!m)return t+' (continuacao)'
-  const n=m[2]?parseInt(m[2])+1:2
-  return m[1]+' (continuacao '+n+')'
-}
-
-async function naoFinalizei(id){
-  const s=_sessoes.find(function(x){return x.id===id}); if(!s)return
-  const volta=_fd
-
-  // proxima vaga da mesma disciplina
-  const mesma=_sessoes.filter(function(x){
-    return !x.concluida && x.id!==id && x.disciplina===s.disciplina && x.data>s.data
-  }).sort(function(a,b){return a.data.localeCompare(b.data)||(a.ordem||0)-(b.ordem||0)})
-
-  let alvo,ordemAlvo,ondeTxt
-  if(mesma.length){
-    alvo=mesma[0].data; ordemAlvo=mesma[0].ordem||1
-    ondeTxt='na proxima vaga de '+s.disciplina+' ('+parseD(alvo).toLocaleDateString('pt-BR')+')'
-  }else{
-    const v=vagasFuturas(ymd(addDays(parseD(s.data),1)),1)
-    alvo=v[0]||ymd(addDays(parseD(s.data),1)); ordemAlvo=proximaOrdem(alvo)
-    ondeTxt='no proximo dia de estudo ('+parseD(alvo).toLocaleDateString('pt-BR')+')'
-  }
-
-  if(!confirm('O dia de hoje conta como estudado, mas o tema continua em aberto.\n\n"'+s.topico+'" volta '+ondeTxt+'.\n\nConfirmar?'))return
-
-  // abre espaco no dia de destino
-  const noDia=(_porData[alvo]||[]).filter(function(x){return (x.ordem||0)>=ordemAlvo})
-  for(let i=0;i<noDia.length;i++){
-    await _supabase.from('sessoes_estudo').update({ordem:(noDia[i].ordem||0)+1}).eq('id',noDia[i].id)
-  }
-
-  const nova={
-    aluno_id:_alunoId, concurso_id:s.concurso_id, data:alvo, tipo:s.tipo,
-    disciplina:s.disciplina, topico:tituloContinuacao(s.topico), topico_id:s.topico_id||null,
-    tempo_minutos:s.tempo_minutos, meta_questoes:s.meta_questoes||0,
-    ordem:ordemAlvo, continuacao_de:id
-  }
-  const r1=await _supabase.from('sessoes_estudo').insert(nova)
-  if(r1.error){alert('Erro ao criar a continuacao: '+r1.error.message);return}
-
-  const r2=await _supabase.from('sessoes_estudo').update({concluida:true,parcial:true}).eq('id',id)
-  if(r2.error){alert('Erro ao marcar a sessao: '+r2.error.message);return}
-
-  // tema segue em aberto no edital ate a continuacao ser concluida
-  if(s.topico_id)await marcarEdital(s.topico_id,false)
-
-  fecharModal()
-  logar('nao_finalizou','Nao terminou "'+s.topico+'" ('+s.disciplina+'). O tema voltou para '+parseD(alvo).toLocaleDateString('pt-BR'))
-  await recarregar()
-
-  // o plano anda para frente a partir do dia da continuacao (nada se perde)
-  try{await aplicarReplan(simularReplan(alvo,[]))}catch(e){}
-  if(volta){fecharDia(volta.k,volta.modo);return}
-  irData(alvo)
-}
-
-/* ---------- AJUSTES DE CARGA E REPLANEJAMENTO ---------- */
-function diasEstudo(){
-  if(_cfg&&_cfg.dias_semana){
-    const d=String(_cfg.dias_semana).split(',').map(function(n){return parseInt(n)}).filter(function(n){return !isNaN(n)})
-    if(d.length)return d
-  }
-  const s={}
-  Object.keys(_porData).forEach(function(k){s[parseD(k).getDay()]=true})
-  const r=Object.keys(s).map(function(n){return parseInt(n)})
-  return r.length?r:[1,2,3,4,5,6]
-}
-function capacidadeDia(){
-  if(_cfg&&_cfg.sessoes_por_dia)return _cfg.sessoes_por_dia
-  let m=0
-  Object.keys(_porData).forEach(function(k){m=Math.max(m,_porData[k].length)})
-  return m||3
-}
-function ocupacao(k){ return (_porData[k]||[]).length }
-function vagasFuturas(apartir,quantas){
-  const dias=diasEstudo(), cap=capacidadeDia(), out=[]
-  let d=parseD(apartir), guarda=0
-  while(out.length<quantas&&guarda<800){
-    const k=ymd(d)
-    if(dias.indexOf(d.getDay())>=0){
-      const livres=Math.max(0,cap-ocupacao(k))
-      for(let i=0;i<livres&&out.length<quantas;i++)out.push(k)
-    }
-    d=addDays(d,1);guarda++
-  }
-  return out
-}
-async function recarregar(){
-  const { data }=await _supabase.from('sessoes_estudo').select('*')
-    .eq('aluno_id',_alunoId).order('data').order('ordem')
-  _sessoes=data||[]
-  indexar();desenhar()
-}
-function proximaOrdem(k){
-  const s=_porData[k]||[]
-  let m=0
-  s.forEach(function(x){m=Math.max(m,x.ordem||0)})
-  return m+1
-}
-
-function ajustesDoDia(k){
-  const sess=(_porData[k]||[]).slice()
-  const d=parseD(k), hj=hojeStr()
-  const pend=sess.filter(function(s){return !s.concluida})
-  const min=sess.reduce(function(a,s){return a+(s.tempo_minutos||0)},0)
-  const minPend=pend.reduce(function(a,s){return a+(s.tempo_minutos||0)},0)
-  const futuras=_sessoes.filter(function(s){return !s.concluida&&s.data>k}).length
-
-  document.getElementById('modal-c').innerHTML=
-    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:6px">'
-   +'<div><div style="color:var(--ouro);font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase">Ajustes do dia</div>'
-   +'<div style="font-size:18px;font-weight:800;margin-top:2px">'+d.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'})+'</div></div>'
-   +'<button class="btn" onclick="fecharModal()" style="padding:5px 11px">✕</button></div>'
-   +'<div style="color:var(--tx3);font-size:12.5px;margin-bottom:4px">'+sess.length+' sessoes · '+dur(min)+' no total'
-   +(pend.length?' · '+pend.length+' pendente(s) ('+dur(minPend)+')':' · tudo concluido')+'</div>'
-
-   +(sess.length?'<div class="bloco">'
-     +'<div class="bloco-t">Tempo de cada sessao</div>'
-     +'<div class="bloco-d">Vale para todas as sessoes deste dia. Use quando tiver mais ou menos tempo que o previsto.</div>'
-     +'<div class="lin"><input type="range" class="rng" id="aj-rng" min="15" max="240" step="15" value="'+(sess[0].tempo_minutos||60)+'" oninput="document.getElementById(\'aj-num\').value=this.value">'
-     +'<input type="number" class="num" id="aj-num" min="15" max="480" step="5" value="'+(sess[0].tempo_minutos||60)+'" oninput="document.getElementById(\'aj-rng\').value=this.value">'
-     +'<span style="color:var(--tx3);font-size:12px">min</span></div>'
-     +'<button class="btn" style="width:100%;margin-top:10px;padding:10px" onclick="aplicarTempoDia(\''+k+'\')">Aplicar a este dia</button></div>':'')
-
-   +(futuras>0?'<div class="bloco">'
-     +'<div class="bloco-t">Adiantar conteudo</div>'
-     +'<div class="bloco-d">Sobrou tempo hoje? Traga as proximas sessoes dos dias seguintes para ca.</div>'
-     +'<div class="lin"><input type="number" class="num" id="aj-qtd" min="1" max="'+Math.min(futuras,10)+'" value="1">'
-     +'<span style="color:var(--tx3);font-size:12px;flex:1">sessao(oes) dos proximos dias</span></div>'
-     +'<button class="btn btn-ouro" style="width:100%;margin-top:10px;padding:10px" onclick="adiantar(\''+k+'\')">Trazer para este dia</button></div>':'')
-
-   +(pend.length?'<div class="bloco">'
-     +'<div class="bloco-t">Adiar o que nao deu tempo</div>'
-     +'<div class="bloco-d">Empurra as '+pend.length+' sessoes pendentes para os proximos dias, respeitando o limite de '+capacidadeDia()+' por dia. Nada vira atraso.</div>'
-     +'<button class="btn" style="width:100%;padding:10px;border-color:#7d5fa8;color:#c9a9e8" onclick="adiarDia(\''+k+'\')">Empurrar pendentes para frente</button></div>':'')
-
-   +'<div id="aj-msg" style="font-size:12px;margin-top:12px;text-align:center"></div>'
-  document.getElementById('modal').classList.add('on')
-}
-
-function ajMsg(t,cor){
-  const m=document.getElementById('aj-msg')
-  if(m){m.style.color=cor;m.textContent=t}
-}
-
-async function aplicarTempoDia(k){
-  const v=parseInt(document.getElementById('aj-num').value)||60
-  if(v<5){ajMsg('Tempo minimo de 5 minutos.','#f07171');return}
-  ajMsg('Salvando...','var(--tx3)')
-  const r=await _supabase.from('sessoes_estudo').update({tempo_minutos:v}).eq('aluno_id',_alunoId).eq('data',k)
-  if(r.error){ajMsg('Erro: '+r.error.message,'#f07171');return}
-  ;(_porData[k]||[]).forEach(function(s){s.tempo_minutos=v})
-  logar('ajustou_tempo','Mudou o tempo das sessoes de '+parseD(k).toLocaleDateString('pt-BR')+' para '+dur(v))
-  desenhar()
-  ajMsg('Todas as sessoes do dia agora tem '+dur(v)+'.','#6ddba0')
-}
-
-async function adiantar(k){
-  const qtd=parseInt(document.getElementById('aj-qtd').value)||1
-  const cand=_sessoes.filter(function(s){return !s.concluida&&s.data>k})
-    .sort(function(a,b){return a.data.localeCompare(b.data)||(a.ordem||0)-(b.ordem||0)}).slice(0,qtd)
-  if(!cand.length){ajMsg('Nao ha sessoes futuras para adiantar.','#e8b04b');return}
-  ajMsg('Movendo '+cand.length+' sessao(oes)...','var(--tx3)')
-  let ord=proximaOrdem(k)
-  for(let i=0;i<cand.length;i++){
-    const r=await _supabase.from('sessoes_estudo').update({data:k,ordem:ord++}).eq('id',cand[i].id)
-    if(r.error){ajMsg('Erro: '+r.error.message,'#f07171');return}
-  }
-  await recarregar()
-  logar('adiantou','Adiantou '+cand.length+' sessao(oes) para '+parseD(k).toLocaleDateString('pt-BR'))
-  ajustesDoDia(k)
-  ajMsg(cand.length+' sessao(oes) trazida(s) para este dia.','#6ddba0')
-}
-
-async function adiarDia(k){
-  const pend=(_porData[k]||[]).filter(function(s){return !s.concluida})
-  if(!pend.length)return
-  ajMsg('Reorganizando...','var(--tx3)')
-  const p=simularReplan(baseAdiar(k),pend)
-  try{await aplicarReplan(p)}catch(e){ajMsg('Erro: '+e.message,'#f07171');return}
-  logar('adiou','Empurrou '+pend.length+' sessao(oes) de '+parseD(k).toLocaleDateString('pt-BR')+' para os dias seguintes: '+textoReplan(p))
-  fecharModal()
-  toast('→ '+pend.length+' sessao(oes) empurrada(s). '+(p.encurtadas?'Algumas revisoes ficaram mais curtas para caber ate a prova.':'Plano ajustado.'))
-}
-
-let _replanPrevia=null
-function replanejarAtrasadas(){
-  const hj=hojeStr()
-  const at=_sessoes.filter(function(s){return !s.concluida&&s.data<hj}).sort(ordenarSess)
-  const p=simularReplan(hj,at,{recriar:true})
-  _replanPrevia={p:p,n:at.length}
-  const br=function(k){return parseD(k).toLocaleDateString('pt-BR')}
-  const teor=at.filter(function(x){return x.tipo==='teoria'}).length
-  const cor=p.sobrecarga?'#f07171':p.encurtadas?'#e8b04b':'#6ddba0'
-  document.getElementById('modal-c').innerHTML=
-    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px">'
-   +'<div><div style="color:var(--ouro);font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase">Replanejar</div>'
-   +'<div style="font-size:18px;font-weight:800;margin-top:2px">Colocar o plano em dia</div></div>'
-   +'<button class="btn" onclick="fecharModal()" style="padding:5px 11px">✕</button></div>'
-   +'<div style="color:var(--tx2);font-size:13px;line-height:1.6;margin-bottom:12px">'
-   +(at.length?'As <strong>'+at.length+' sessoes atrasadas</strong>'+(teor?' ('+teor+' de teoria)':'')+' entram a partir de <strong>hoje</strong>. '
-     :'Nao ha sessoes atrasadas. O plano sera conferido e reorganizado a partir de <strong>hoje</strong>. ')
-   +'Todo o resto do plano anda para frente e cada tema segue a ordem <strong>teoria → questoes → revisao</strong>. <strong>Nenhuma sessao e apagada.</strong></div>'
-   +'<div class="bloco" style="margin-top:0">'
-   +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;text-align:center">'
-   +'<div><div style="color:var(--tx3);font-size:11px">Plano terminava</div><div style="font-weight:800;font-size:16px">'+br(p.fimAntes)+'</div></div>'
-   +'<div><div style="color:var(--tx3);font-size:11px">Passa a terminar</div><div style="font-weight:800;font-size:16px;color:'+cor+'">'+br(p.fimDepois)+'</div></div>'
-   +'</div>'
-   +(p.lim?'<div style="color:var(--tx4);font-size:11.5px;text-align:center;margin-top:8px">Data da prova: '+br(p.lim)+'</div>':'')
-   +'</div>'
-   +((!p.mudancas.length)?'<div style="background:rgba(109,219,160,.08);border:1px solid #6ddba0;border-radius:10px;padding:11px 13px;margin-top:10px;color:#6ddba0;font-size:12.5px;line-height:1.55">'
-      +'<strong>Seu plano ja esta em ordem.</strong> Nada precisa mudar.</div>':'')
-   +(p.recriadas?'<div style="background:rgba(185,138,224,.08);border:1px solid #b98ae0;border-radius:10px;padding:11px 13px;margin-top:10px;color:#c9a9e8;font-size:12.5px;line-height:1.55">'
-      +'<strong>'+p.recriadas+' tema(s)</strong> tinham questoes no plano mas a <strong>teoria tinha sumido</strong>. A teoria sera recriada e vem antes das questoes.</div>':'')
-   +(p.puxadas?'<div style="background:rgba(91,179,240,.08);border:1px solid #5bb3f0;border-radius:10px;padding:11px 13px;margin-top:10px;color:#5bb3f0;font-size:12.5px;line-height:1.55">'
-      +'<strong>'+p.puxadas+' tema(s)</strong> tinham questoes ou revisao marcadas antes da teoria. A teoria foi trazida para antes, e as questoes/revisao desses temas vem depois dela.</div>':'')
-   +(p.encurtadas?'<div style="background:rgba(232,176,75,.08);border:1px solid #e8b04b;border-radius:10px;padding:11px 13px;margin-top:10px;color:#e8b04b;font-size:12.5px;line-height:1.55">'
-      +'Para terminar ate a prova, <strong>'+p.encurtadas+' sessoes de '+(p.nivel===1?'revisao':'questoes e revisao')+'</strong> ficam mais curtas'+(p.nivel>=3?' (um terco do tempo)':' (metade do tempo)')+'. A teoria continua com o tempo cheio.</div>':'')
-   +(p.sobrecarga?'<div style="background:rgba(240,113,113,.08);border:1px solid #d9566a;border-radius:10px;padding:11px 13px;margin-top:10px;color:#f07171;font-size:12.5px;line-height:1.55">'
-      +'Mesmo encurtando questoes e revisoes, o tempo ate a prova e curto. Para nada ser apagado e a ordem dos temas ser mantida, o tempo de estudo sobe de <strong>'+dur(p.orc)+'</strong> para ate <strong>'+dur(p.orcUsado)+'</strong> por dia em <strong>'+p.sobrecarga+' dia(s)</strong>. Converse com seu mentor se nao conseguir esse tempo.</div>':'')
-   +(p.mudancas.length?'<button class="btn btn-ouro" style="width:100%;padding:12px;margin-top:14px" onclick="confirmarReplan()">Confirmar replanejamento</button>'
-      :'<button class="btn" style="width:100%;padding:12px;margin-top:14px" onclick="fecharModal()">Fechar</button>')
-   +'<div id="rp-msg" style="font-size:12px;margin-top:10px;text-align:center"></div>'
-  document.getElementById('modal').classList.add('on')
-}
-
-async function confirmarReplan(){
-  if(!_replanPrevia)return
-  const p=_replanPrevia.p, n=_replanPrevia.n
-  const m=document.getElementById('rp-msg')
-  m.style.color='var(--tx3)';m.textContent='Reorganizando o plano...'
-  try{
-    await aplicarReplan(p,function(a,b){m.textContent='Reorganizando o plano... '+a+'/'+b})
-  }catch(e){m.style.color='#f07171';m.textContent='Erro ao replanejar: '+e.message;return}
-  _replanPrevia=null
-  logar('replanejou','Replanejou '+(n?n+' sessoes atrasadas':'o plano')+' a partir de '+parseD(hojeStr()).toLocaleDateString('pt-BR')+': '+textoReplan(p))
-  fecharModal()
-  irData(hojeStr())
-  toast(n?'✅ Plano em dia! '+n+' sessoes atrasadas entraram a partir de hoje.':'✅ Plano reorganizado: cada tema na ordem teoria → questoes → revisao.')
-}
-
-/* ---------- MOTOR DE REPLANEJAMENTO ----------
-   Regra: nenhuma sessao pendente e perdida. As sessoes empurradas entram
-   primeiro e todo o resto do plano anda para frente, na mesma ordem.
-   1) Se ha dias livres ate a prova, o plano simplesmente se alonga.
-   2) Se nao cabe ate a prova, encurta revisao e depois questoes
-      (metade do tempo, depois um terco, minimo 15 min). Teoria nunca encurta.
-   3) Se ainda assim nao couber, distribui o que sobrou nos dias mais leves
-      ate a prova (dia mais carregado), sem apagar nada. */
-function ordenarSess(a,b){return a.data.localeCompare(b.data)||(a.ordem||0)-(b.ordem||0)}
-
-function tempoBase(){
-  if(_cfg&&_cfg.tempo_sessao)return _cfg.tempo_sessao
-  const cont={}
-  _sessoes.forEach(function(x){const t=x.tempo_minutos||60;cont[t]=(cont[t]||0)+1})
-  let m=60,n=0
-  Object.keys(cont).forEach(function(t){if(cont[t]>n){n=cont[t];m=parseInt(t)}})
-  return m
-}
-
-function minNoNivel(sx,nivel){
-  const t=sx.tempo_minutos||tempoBase()
-  if(nivel<=0||sx.tipo==='teoria')return t
-  const meio=Math.max(15,Math.round(t/2/5)*5)
-  const terco=Math.max(15,Math.round(t/3/5)*5)
-  if(nivel===1)return sx.tipo==='revisao'?meio:t
-  if(nivel===2)return meio
-  return terco
-}
-
-function limitePlano(inicio){
-  if(!_dataProva)return null
-  let lim=_dataProva
-  // a prova em si nao e dia de estudo do plano se houver dias antes dela
-  if(lim<inicio)return null   // prova ja passou: sem limite
-  return lim
-}
-
-function alocarReplan(fila,inicio,nivel,orc,dias,lim,fixo){
-  const itens=[],carga={}
-  let d=parseD(inicio),i=0,guarda=0
-  while(i<fila.length&&guarda<2000){
-    const k=ymd(d)
-    if(lim&&k>lim)break
-    if(dias.indexOf(d.getDay())>=0){
-      let usado=fixo[k]||0,colocou=0
-      while(i<fila.length){
-        const m=minNoNivel(fila[i],nivel)
-        if(usado+m>orc&&!(colocou===0&&usado===0))break
-        itens.push({s:fila[i],data:k,min:m,idx:i});usado+=m;i++;colocou++
+function extrairEdital(texto) {
+  const linhas = texto.split('\n').map(l => l.trim()).filter(l => l.length > 0)
+  const disciplinas = []
+  let discAtual = null
+  let ordemTopico = 1
+
+  // Detecta formato: tem pipes | ALTA / | MEDIA / | BAIXA
+  const formatoComPrioridade = linhas.some(l => /\|\s*(ALTA|MEDIA|BAIXA)/i.test(l))
+
+  if (formatoComPrioridade) {
+    // FORMATO 1: gerado pelo prompt do ChatGPT/Claude
+    // DISCIPLINA EM MAIUSCULO
+    // 1. Topico | ALTA
+    for (const linha of linhas) {
+      if (!linha || linha.length < 3) continue
+
+      const temPipe = /\|\s*(ALTA|MEDIA|BAIXA)/i.test(linha)
+
+      if (!temPipe) {
+        // Pode ser cabecalho de disciplina
+        const semNum = linha.replace(/^\d+[\.)\s]+/, '').trim()
+        if (semNum.length >= 3) {
+          discAtual = { nome: semNum.replace(/:$/, '').trim(), topicos: [] }
+          disciplinas.push(discAtual)
+          ordemTopico = 1
+        }
+      } else if (discAtual) {
+        // Linha de topico com prioridade
+        const partes = linha.split('|')
+        const textoTopico = partes[0]
+          .replace(/^\d+[\.)\s]+/, '')
+          .replace(/^[a-z][\.)\s]+/i, '')
+          .trim()
+        const prioRaw = (partes[1] || '').trim().toUpperCase()
+        const prioridade = prioRaw === 'ALTA' ? 'alta' : prioRaw === 'BAIXA' ? 'baixa' : 'media'
+        if (textoTopico.length >= 3) {
+          discAtual.topicos.push({ texto: textoTopico, prioridade, ordem: ordemTopico++ })
+        }
       }
-      carga[k]=usado
     }
-    d=addDays(d,1);guarda++
-  }
-  return {itens:itens,faltam:fila.slice(i),iniFalta:i,nivel:nivel,carga:carga}
-}
-
-/* Sequencia obrigatoria de cada tema: teoria -> questoes -> revisao.
-   Se uma sessao de questoes/revisao aparece antes da teoria (ou das questoes)
-   pendente do mesmo tema, a etapa anterior e puxada para frente e a sessao
-   dependente vai para o "dia seguinte" (cap sessoes depois). */
-const RANK_TIPO={teoria:0,questoes:1,revisao:2}
-function normTxt(v){
-  return String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()
-    .replace(/\((continua[cç]ao|cont\.?)(\s*\d+)?\)/g,'')
-    .replace(/\((teoria|questoes|revisao)\)/g,'')
-    .replace(/[^a-z0-9]+/g,' ').trim()
-}
-function chaveTema(x){ return normTxt(x.disciplina)+'|'+normTxt(x.topico) }
-function rankTipo(x){return RANK_TIPO[x.tipo]===undefined?0:RANK_TIPO[x.tipo]}
-
-function ordenarDependencias(fila,cap){
-  const out=fila.slice()
-  let puxadas=0, guarda=0
-  for(let i=0;i<out.length&&guarda<20000;i++,guarda++){
-    const x=out[i], k=chaveTema(x), r=rankTipo(x)
-    if(r===0)continue
-    // etapa anterior pendente do mesmo tema que esta mais adiante?
-    let j=-1
-    for(let t=i+1;t<out.length;t++){
-      if(chaveTema(out[t])===k&&rankTipo(out[t])<r&&(j<0||rankTipo(out[t])<rankTipo(out[j])))j=t
+  } else {
+    // FORMATO 2: texto bruto do edital
+    // Tenta identificar disciplinas por MAIUSCULO e topicos por numeracao
+    const ehDisciplina = (linha) => {
+      const semNum = linha.replace(/^\d+[\.)\s]+/, '').replace(/^[a-z][\.)\s]+/i, '')
+      const maiusculo = semNum === semNum.toUpperCase() && semNum.length >= 4 && /[A-Z]{3}/.test(semNum)
+      const comSufixo = /^[A-Z][A-Za-z\s]{3,}:/.test(semNum)
+      const poucasPalavras = semNum.split(' ').length <= 8
+      const naoTemPonto = !/^\d+\./.test(linha)
+      return (maiusculo || comSufixo) && poucasPalavras && naoTemPonto
     }
-    if(j<0)continue
-    const pre=out.splice(j,1)[0]
-    out.splice(i,0,pre)
-    puxadas++
-    // as etapas seguintes do tema que ficaram coladas vao para o proximo dia
-    const lim=Math.min(out.length,i+1+cap), dep=[]
-    for(let t=lim-1;t>i;t--){
-      if(chaveTema(out[t])===k&&rankTipo(out[t])>rankTipo(pre))dep.unshift(out.splice(t,1)[0])
+
+    const ehTopico = (linha) => {
+      return linha.length >= 5 && (
+        /^\d+[\.)\s]/.test(linha) ||
+        /^[a-z][\.)\s]/i.test(linha) ||
+        /^[-\u2013\u2022]\s/.test(linha) ||
+        (discAtual && !ehDisciplina(linha) && linha.length > 8)
+      )
     }
-    if(dep.length){
-      const pos=Math.min(out.length,i+cap)
-      Array.prototype.splice.apply(out,[pos,0].concat(dep))
-    }
-    i-- // reavalia a posicao i (agora a etapa puxada)
-  }
-  return {fila:out,puxadas:puxadas}
-}
 
-// temas com questoes pendentes cuja teoria nao existe mais no plano (nem feita, nem pendente)
-function teoriasPerdidas(){
-  if(_cfg&&_cfg.modo_teoria===false)return []
-  const temTeoria={}, algumaTeoria=_sessoes.some(function(x){return x.tipo==='teoria'})
-  if(!algumaTeoria)return []   // plano montado sem teoria de proposito
-  const temTeoriaId={}
-  _sessoes.forEach(function(x){if(x.tipo==='teoria'){temTeoria[chaveTema(x)]=1;if(x.topico_id)temTeoriaId[x.topico_id]=1}})
-  const vistos={}, out=[], temasQ={}
-  _sessoes.filter(function(x){return x.tipo==='questoes'}).forEach(function(x){temasQ[chaveTema(x)]=1})
-  _sessoes.filter(function(x){return !x.concluida&&x.tipo==='questoes'}).sort(ordenarSess).forEach(function(x){
-    const k=chaveTema(x)
-    if(temTeoria[k]||vistos[k])return
-    if(x.topico_id&&(temTeoriaId[x.topico_id]||_editalFeito[x.topico_id]))return   // teoria existe (outro nome) ou ja feita no edital
-    vistos[k]=1; out.push(x)
-  })
-  // trava de seguranca: se metade ou mais dos temas estao "sem teoria", o plano foi montado assim de proposito
-  const nTemas=Object.keys(temasQ).length
-  if(out.length>3&&out.length>=nTemas*0.5)return []
-  return out
-}
+    const limparTexto = (t) => t
+      .replace(/^\d+[\.)\s]+/, '')
+      .replace(/^[a-z][\.)\s]+/i, '')
+      .replace(/^[-\u2013\u2022]\s*/, '')
+      .trim()
 
-// quantas sessoes de questoes/revisao estao antes da teoria/questoes pendente do mesmo tema
-function contarForaDeOrdem(){
-  const pend=_sessoes.filter(function(x){return !x.concluida}).sort(ordenarSess)
-  const menorRestante={}  // menor rank pendente visto DEPOIS (varrendo de tras para frente)
-  let n=0
-  for(let i=pend.length-1;i>=0;i--){
-    const k=chaveTema(pend[i]), r=rankTipo(pend[i])
-    if(menorRestante[k]!==undefined&&menorRestante[k]<r)n++
-    if(menorRestante[k]===undefined||r<menorRestante[k])menorRestante[k]=r
-  }
-  return n
-}
+    for (const linha of linhas) {
+      if (linha.length < 3) continue
+      if (/^(pagina|pg\.|p\.|conteudo programatico|programa de|anexo|obs:|observ)/i.test(linha)) continue
 
-function simularReplan(inicio,primeiro,opts){
-  opts=opts||{}
-  const ids={}
-  primeiro.forEach(function(x){ids[x.id]=1})
-  const resto=_sessoes.filter(function(x){return !x.concluida&&x.data>=inicio&&!ids[x.id]}).sort(ordenarSess)
-  let base=primeiro.slice().sort(ordenarSess).concat(resto)
-  // recria a teoria que sumiu, logo antes das primeiras questoes do tema
-  let recriadas=0
-  if(opts.recriar){
-    teoriasPerdidas().forEach(function(q){
-      const pos=base.findIndex(function(x){return x.id===q.id})
-      if(pos<0)return
-      base.splice(pos,0,{id:null,_novo:true,aluno_id:q.aluno_id,concurso_id:q.concurso_id,data:q.data,ordem:(q.ordem||1),
-        tipo:'teoria',disciplina:q.disciplina,topico:q.topico,topico_id:q.topico_id||null,
-        tempo_minutos:Math.max(tempoBase(),q.tempo_minutos||0),meta_questoes:0,concluida:false})
-      recriadas++
-    })
-  }
-  const dep=ordenarDependencias(base,capacidadeDia())
-  const fila=dep.fila
-  let dias=diasEstudo(); if(!dias.length)dias=[0,1,2,3,4,5,6]
-  const orc=capacidadeDia()*tempoBase()
-  const lim=limitePlano(inicio)
-  const fixo={}
-  _sessoes.forEach(function(x){if(x.concluida&&x.data>=inicio)fixo[x.data]=(fixo[x.data]||0)+(x.tempo_minutos||0)})
-
-  const fimAntes=_sessoes.filter(function(x){return !x.concluida}).map(function(x){return x.data}).sort().pop()||inicio
-  let r=alocarReplan(fila,inicio,0,orc,dias,lim,fixo)
-  for(let n=1;n<=3&&r.faltam.length;n++)r=alocarReplan(fila,inicio,n,orc,dias,lim,fixo)
-
-  // ultimo recurso: nada se perde e a ordem teoria -> questoes -> revisao se mantem.
-  // Aumenta a carga de TODOS os dias por igual (de 15 em 15 min) ate tudo caber antes da prova.
-  let sobrecarga=0, orcUsado=orc
-  if(r.faltam.length){
-    for(let B=orc+15;B<=orc*4&&r.faltam.length;B+=15){
-      r=alocarReplan(fila,inicio,3,B,dias,lim,fixo); orcUsado=B
-    }
-    if(r.faltam.length){
-      // periodo realmente impossivel: coloca o restante no ultimo dia util, em ordem
-      const diasOk=Object.keys(r.carga).sort()
-      const k=diasOk.length?diasOk[diasOk.length-1]:inicio
-      r.faltam.forEach(function(x,j){r.itens.push({s:x,data:k,min:minNoNivel(x,r.nivel),idx:r.iniFalta+j})})
-      r.faltam=[]
-    }
-    Object.keys(r.carga).forEach(function(k){if(r.carga[k]>orc)sobrecarga++})
-  }
-
-  // ordem dentro de cada dia: primeiro as ja concluidas, depois a fila
-  const ordemBase={}
-  _sessoes.forEach(function(x){if(x.concluida&&x.data>=inicio)ordemBase[x.data]=Math.max(ordemBase[x.data]||0,x.ordem||0)})
-  const porDia={}
-  r.itens.forEach(function(it){(porDia[it.data]=porDia[it.data]||[]).push(it)})
-  Object.keys(porDia).forEach(function(k){
-    // mantem a ordem original do conteudo dentro do dia
-    porDia[k].sort(function(a,b){return a.idx-b.idx})
-    let o=ordemBase[k]||0
-    porDia[k].forEach(function(it){it.ordem=++o})
-  })
-
-  const mudancas=r.itens.filter(function(it){
-    return it.s._novo||it.data!==it.s.data||it.ordem!==(it.s.ordem||0)||it.min!==(it.s.tempo_minutos||0)
-  })
-  const encurtadas=r.itens.filter(function(it){return !it.s._novo&&it.min<(it.s.tempo_minutos||0)}).length
-  const fimDepois=r.itens.map(function(it){return it.data}).concat(_sessoes.filter(function(x){return !x.concluida&&x.data<inicio&&!ids[x.id]}).map(function(x){return x.data})).sort().pop()||inicio
-  let maxDia=0
-  Object.keys(porDia).forEach(function(k){
-    const t=(fixo[k]||0)+porDia[k].reduce(function(a,it){return a+it.min},0)
-    if(t>maxDia)maxDia=t
-  })
-  return {itens:r.itens,mudancas:mudancas,nivel:r.nivel,encurtadas:encurtadas,sobrecarga:sobrecarga,puxadas:dep.puxadas,orcUsado:orcUsado,recriadas:recriadas,
-    fimAntes:fimAntes,fimDepois:fimDepois,lim:lim,orc:orc,maxDia:maxDia,total:fila.length}
-}
-
-async function aplicarReplan(plano,onProg){
-  const lista=plano.mudancas
-  const LOTE=20
-  for(let i=0;i<lista.length;i+=LOTE){
-    const parte=lista.slice(i,i+LOTE)
-    const rs=await Promise.all(parte.map(function(it){
-      if(it.s._novo){
-        return _supabase.from('sessoes_estudo').insert({aluno_id:it.s.aluno_id||_alunoId,concurso_id:it.s.concurso_id||_concursoId,
-          data:it.data,ordem:it.ordem,tipo:'teoria',disciplina:it.s.disciplina,topico:it.s.topico,topico_id:it.s.topico_id,
-          tempo_minutos:it.min,meta_questoes:0,concluida:false})
+      if (ehDisciplina(linha)) {
+        const nomeDisciplina = linha.replace(/^\d+[\.)\s]+/, '').replace(/:$/, '').trim()
+        if (nomeDisciplina.length >= 4) {
+          discAtual = { nome: nomeDisciplina, topicos: [] }
+          disciplinas.push(discAtual)
+          ordemTopico = 1
+        }
+      } else if (discAtual && ehTopico(linha)) {
+        const textoTopico = limparTexto(linha)
+        if (textoTopico.length >= 5) {
+          discAtual.topicos.push({ texto: textoTopico, prioridade: definirPrioridade(textoTopico), ordem: ordemTopico++ })
+        }
       }
-      return _supabase.from('sessoes_estudo').update({data:it.data,ordem:it.ordem,tempo_minutos:it.min}).eq('id',it.s.id)
-    }))
-    const erro=rs.find(function(x){return x&&x.error})
-    if(erro)throw new Error(erro.error.message)
-    if(onProg)onProg(Math.min(i+LOTE,lista.length),lista.length)
-  }
-  await recarregar()
-}
-
-function textoReplan(p){
-  const br=function(k){return parseD(k).toLocaleDateString('pt-BR')}
-  const partes=[]
-  if(p.fimDepois>p.fimAntes)partes.push('o plano foi alongado ate '+br(p.fimDepois))
-  else partes.push('o plano continua terminando em '+br(p.fimDepois))
-  if(p.encurtadas)partes.push(p.encurtadas+' sessoes de '+(p.nivel===1?'revisao':'questoes/revisao')+' ficaram mais curtas para caber ate a prova')
-  if(p.recriadas)partes.push(p.recriadas+' teoria(s) que tinham sumido do plano foram recriadas')
-  if(p.puxadas)partes.push(p.puxadas+' tema(s) reordenados para a teoria vir antes das questoes/revisao')
-  if(p.sobrecarga)partes.push('tempo diario subiu para ate '+dur(p.orcUsado)+' em '+p.sobrecarga+' dia(s) para caber tudo ate a prova (nenhuma sessao perdida)')
-  return partes.join('; ')
-}
-
-/* ---------- CADERNO DE ERROS ---------- */
-let _notas=[],_modoCd='ler',_editando=null,_cdCarregado=false
-
-function abrirCaderno(){
-  document.getElementById('cd').classList.add('on')
-  document.getElementById('cd-ov').classList.add('on')
-  if(!_cdCarregado)carregarNotas(); else renderCaderno()
-}
-function fecharCaderno(){
-  document.getElementById('cd').classList.remove('on')
-  document.getElementById('cd-ov').classList.remove('on')
-  _editando=null
-}
-function modoCaderno(m){
-  _modoCd=m;_editando=null
-  document.getElementById('tab-ler').classList.toggle('on',m==='ler')
-  document.getElementById('tab-edit').classList.toggle('on',m==='edit')
-  renderCaderno()
-}
-
-async function carregarNotas(){
-  document.getElementById('cd-body').innerHTML='<div style="color:var(--tx3);font-size:13px;text-align:center;padding:24px">Carregando...</div>'
-  const { data }=await _supabase.from('caderno_erros').select('*')
-    .eq('aluno_id',_alunoId).order('atualizado_em',{ascending:false})
-  _notas=data||[]
-  _cdCarregado=true
-  renderCaderno()
-}
-
-function discsDisponiveis(){
-  const d=Object.keys(_corDisc)
-  _notas.forEach(function(n){ if(n.disciplina&&d.indexOf(n.disciplina)<0)d.push(n.disciplina) })
-  return d.sort()
-}
-
-function renderCaderno(){
-  const box=document.getElementById('cd-body')
-  if(_modoCd==='ler'){
-    if(!_notas.length){
-      box.innerHTML='<div style="text-align:center;padding:40px 10px">'
-        +'<div style="font-size:40px;margin-bottom:12px">📓</div>'
-        +'<div style="color:#c9a9e8;font-weight:700;font-size:15px">Seu caderno esta vazio</div>'
-        +'<p style="color:var(--tx3);font-size:13px;margin-top:8px;line-height:1.6">Toda vez que errar uma questao, anote aqui o que aprendeu. Reler esses erros antes de estudar e o que mais acelera a aprovacao.</p>'
-        +'<button class="btn btn-ouro" style="margin-top:16px" onclick="modoCaderno(\'edit\')">Criar primeira anotacao</button></div>'
-      return
-    }
-    box.innerHTML='<div style="color:var(--tx3);font-size:12px;margin-bottom:12px">'+_notas.length+' anotacao(oes) · modo leitura</div>'
-      +_notas.map(function(n){
-        return '<div class="cd-item" onclick="this.querySelector(\'.cd-ic\').classList.toggle(\'full\')">'
-          +'<div class="cd-it">'+esc(n.titulo)+'</div>'
-          +'<div class="cd-id">'+(n.disciplina?esc(n.disciplina)+' · ':'')+new Date(n.atualizado_em).toLocaleDateString('pt-BR')+'</div>'
-          +(n.conteudo?'<div class="cd-ic">'+esc(n.conteudo)+'</div>':'')
-          +'</div>'
-      }).join('')
-    return
-  }
-
-  if(_editando!==null){
-    const n=_editando==='novo'?{titulo:'',conteudo:'',disciplina:''}:_notas.find(function(x){return x.id===_editando})
-    if(!n){_editando=null;renderCaderno();return}
-    const ds=discsDisponiveis()
-    box.innerHTML='<button class="btn" style="margin-bottom:14px;padding:7px 12px" onclick="_editando=null;renderCaderno()">&#8249; Voltar</button>'
-      +'<label class="lbl">Titulo</label>'
-      +'<input class="cd-inp" id="n-tit" placeholder="Ex: Crase antes de palavra masculina" value="'+esc(n.titulo)+'">'
-      +'<label class="lbl">Disciplina</label>'
-      +'<select class="cd-inp" id="n-disc"><option value="">Sem disciplina</option>'
-      +ds.map(function(d){return '<option value="'+esc(d)+'"'+(n.disciplina===d?' selected':'')+'>'+esc(d)+'</option>'}).join('')
-      +'</select>'
-      +'<label class="lbl">O que voce errou e o que aprendeu</label>'
-      +'<textarea class="cd-inp" id="n-cont" placeholder="Escreva a questao, o erro que cometeu e a explicacao correta...">'+esc(n.conteudo||'')+'</textarea>'
-      +'<button class="btn btn-ouro" style="width:100%;padding:12px" onclick="salvarNota()">Salvar anotacao</button>'
-      +(_editando!=='novo'?'<button class="btn" style="width:100%;margin-top:8px;padding:11px;border-color:#d9566a;color:#f07171" onclick="excluirNota(\''+_editando+'\')">Excluir anotacao</button>':'')
-      +'<div id="n-msg" style="font-size:12px;margin-top:10px;text-align:center"></div>'
-    return
-  }
-
-  box.innerHTML='<button class="btn btn-ouro" style="width:100%;padding:12px;margin-bottom:14px" onclick="_editando=\'novo\';renderCaderno()">+ Nova anotacao</button>'
-    +(!_notas.length?'<div style="color:var(--tx3);font-size:13px;text-align:center;padding:20px">Nenhuma anotacao ainda.</div>'
-      :_notas.map(function(n){
-        return '<div class="cd-item" onclick="_editando=\''+n.id+'\';renderCaderno()">'
-          +'<div class="cd-it">'+esc(n.titulo)+'</div>'
-          +'<div class="cd-id">'+(n.disciplina?esc(n.disciplina)+' · ':'')+new Date(n.atualizado_em).toLocaleDateString('pt-BR')+' · toque para editar</div>'
-          +'</div>'
-      }).join(''))
-}
-
-async function salvarNota(){
-  const tit=document.getElementById('n-tit').value.trim()
-  const cont=document.getElementById('n-cont').value
-  const disc=document.getElementById('n-disc').value
-  const m=document.getElementById('n-msg')
-  if(!tit){m.style.color='#f07171';m.textContent='Escreva um titulo para a anotacao.';return}
-  m.style.color='var(--tx3)';m.textContent='Salvando...'
-  const agora=new Date().toISOString()
-  if(_editando==='novo'){
-    const { data,error }=await _supabase.from('caderno_erros')
-      .insert({aluno_id:_alunoId,titulo:tit,conteudo:cont,disciplina:disc||null,atualizado_em:agora}).select().single()
-    if(error){m.style.color='#f07171';m.textContent='Erro: '+error.message;return}
-    if(data)_notas.unshift(data)
-  }else{
-    const { error }=await _supabase.from('caderno_erros')
-      .update({titulo:tit,conteudo:cont,disciplina:disc||null,atualizado_em:agora}).eq('id',_editando)
-    if(error){m.style.color='#f07171';m.textContent='Erro: '+error.message;return}
-    const n=_notas.find(function(x){return x.id===_editando})
-    if(n){n.titulo=tit;n.conteudo=cont;n.disciplina=disc||null;n.atualizado_em=agora}
-    _notas.sort(function(a,b){return new Date(b.atualizado_em)-new Date(a.atualizado_em)})
-  }
-  _editando=null
-  renderCaderno()
-}
-
-async function excluirNota(id){
-  if(!confirm('Excluir esta anotacao? Nao da para desfazer.'))return
-  const { error }=await _supabase.from('caderno_erros').delete().eq('id',id)
-  if(error){alert('Erro: '+error.message);return}
-  _notas=_notas.filter(function(x){return x.id!==id})
-  _editando=null
-  renderCaderno()
-}
-
-/* ---------- MARCA ---------- */
-async function carregarMarca(){
-  const { data:m }=await _supabase.from('config_marca').select('*').eq('id',1).maybeSingle()
-  if(!m)return
-  if(m.whatsapp)_wpp=m.whatsapp
-  if(m.dias_bloqueio)_limiteBloq=m.dias_bloqueio
-  if(m.cor_primaria&&String(m.cor_primaria).charAt(0)==='#')document.documentElement.style.setProperty('--ouro',m.cor_primaria)
-  const nome=m.nome_marca||'Patrulheiros de Elite'
-  const p=nome.split(' ')
-  const lt=document.querySelector('.logo-t')
-  if(lt)lt.innerHTML=esc(p[0])+'<span>'+esc(p.length>1?p.slice(1).join(' '):(m.slogan||''))+'</span>'
-  if(m.logo_url){
-    const li=document.querySelector('.logo-i')
-    if(li){li.innerHTML='<img src="'+esc(m.logo_url)+'" style="width:100%;height:100%;object-fit:cover;border-radius:10px" onerror="this.parentElement.textContent=\'🛡️\'">';li.style.background='transparent';li.style.padding='0'}
-  }
-  document.title=nome
-}
-
-async function registrarAcesso(){
-  if(_mentor)return
-  try{
-    const chave='acesso_'+_alunoId
-    const ultimo=localStorage.getItem(chave)
-    const agora=Date.now()
-    // grava no maximo uma vez a cada 30 min
-    if(ultimo && (agora-parseInt(ultimo))<1800000) return
-    localStorage.setItem(chave,String(agora))
-    await _supabase.from('alunos').update({ultimo_acesso:new Date().toISOString()}).eq('id',_alunoId)
-  }catch(e){}
-}
-
-async function sairDireto(){_saindo=true;await _supabase.auth.signOut();location.href='index.html'}
-function sair(){
-  if(_mentor){voltarPainel();return}
-  const pend=pendentesDia(hojeStr())
-  if(!pend.length){sairDireto();return}
-  fecharDia(hojeStr(),'sair')
-}
-
-/* ---------- MISSAO DE HOJE ---------- */
-function pendentesDia(k){return (_porData[k]||[]).filter(function(s){return !s.concluida})}
-
-function toast(t){
-  const el=document.getElementById('toast')
-  el.textContent=t;el.classList.add('on')
-  clearTimeout(window._tt);window._tt=setTimeout(function(){el.classList.remove('on')},2600)
-}
-
-function renderHoje(){
-  const box=document.getElementById('hoje-box'); if(!box)return
-  const hj=hojeStr(), sess=(_porData[hj]||[]).slice().sort(function(a,b){return (a.ordem||0)-(b.ordem||0)})
-  if(!sess.length){
-    const px=proxima(ymd(addDays(new Date(),1)))
-    box.innerHTML='<div class="hoje-p" style="padding:14px 18px"><div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">'
-      +'<div style="font-size:24px">😴</div><div style="flex:1"><div style="font-weight:700">Hoje nao ha sessoes no seu plano</div>'
-      +'<div class="hoje-s">'+(px&&px>hj?'Proximo estudo: '+parseD(px).toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'}):'Aproveite para revisar o caderno de erros.')+'</div></div></div></div>'
-    return
-  }
-  const feitas=sess.filter(function(s){return s.concluida}).length, tot=sess.length
-  const pct=Math.round(feitas/tot*100), tudo=feitas===tot
-  let h='<div class="hoje-p'+(tudo?' feito':'')+'">'
-    +'<div class="hoje-h"><div style="font-size:26px">'+(tudo?'🏆':'🎯')+'</div>'
-    +'<div><div class="hoje-t">'+(tudo?'Missao de hoje cumprida!':'Missao de hoje')+'</div>'
-    +'<div class="hoje-s">'+(tudo?'Tudo marcado. Sua sequencia agradece.':'Terminou uma sessao? Toque em <strong style="color:var(--ouro)">Conclui</strong> na hora.')+'</div></div>'
-    +'<div class="hoje-n">'+feitas+'<small>/'+tot+'</small></div></div>'
-    +'<div class="hoje-bar"><div style="width:'+pct+'%"></div></div>'
-  sess.forEach(function(s){
-    const c=corDe(s.disciplina)
-    h+='<div class="hi'+(s.concluida?' ok':'')+'" style="--c:'+c+'">'
-      +'<button class="hi-ck" title="'+(s.concluida?'Desmarcar':'Marcar como concluida')+'" onclick="toggleSessao(\''+s.id+'\')">'+(s.concluida?'✓':'')+'</button>'
-      +'<div class="hi-tx" onclick="abrirSessao(\''+s.id+'\')"><div class="hi-d">'+esc(s.disciplina)+' · '+LABEL[s.tipo]+'</div>'
-      +'<div class="hi-tp">'+esc(s.topico)+'</div>'
-      +'<div class="hi-m">'+dur(s.tempo_minutos||0)+(s.meta_questoes?' · meta '+s.meta_questoes+' questoes':'')+' · toque para detalhes</div></div>'
-      +(s.concluida?'<span class="hi-ok">✓ Feito</span>':'<button class="hi-b" onclick="toggleSessao(\''+s.id+'\')">✓ Conclui</button>')
-      +'</div>'
-  })
-  if(!tudo){
-    h+='<div class="hoje-f">'
-      +'<button class="btn" onclick="fecharDia(\''+hj+'\',\'hoje\')">🌙 Fechar o dia</button>'
-      +(tot-feitas>1?'<button class="btn" onclick="concluirTudo(\''+hj+'\')">✅ Conclui tudo de hoje</button>':'')
-      +'</div>'
-  }
-  h+='</div>'
-  box.innerHTML=h
-}
-
-async function concluirTudo(k){
-  const pend=pendentesDia(k); if(!pend.length)return
-  if(!confirm('Marcar as '+pend.length+' sessoes pendentes de '+parseD(k).toLocaleDateString('pt-BR')+' como concluidas?'))return
-  const ids=pend.map(function(s){return s.id})
-  const r=await _supabase.from('sessoes_estudo').update({concluida:true}).in('id',ids)
-  if(r.error){alert('Erro: '+r.error.message);return}
-  for(let i=0;i<pend.length;i++){
-    pend[i].concluida=true
-    if(pend[i].tipo==='teoria'&&pend[i].topico_id&&!pend[i].parcial)await marcarEdital(pend[i].topico_id,true)
-  }
-  if(_mentor)logar('concluiu','Marcou '+pend.length+' sessoes de '+parseD(k).toLocaleDateString('pt-BR')+' como concluidas')
-  desenhar()
-  if(_fd){fecharDia(_fd.k,_fd.modo)}
-  else toast('🏆 Dia concluido! Excelente trabalho.')
-}
-
-/* ---------- FECHAR O DIA (checkout) ---------- */
-function fecharDia(k,modo){
-  _fd={k:k,modo:modo}
-  const pend=pendentesDia(k).sort(function(a,b){return (a.ordem||0)-(b.ordem||0)})
-  const dia=parseD(k).toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'})
-  const tit=modo==='sair'?'Antes de sair, feche o seu dia'
-    :modo==='ontem'?'Como foi seu estudo de '+dia+'?'
-    :'Fechar o dia'
-  const sub=modo==='ontem'
-    ?'Voce deixou sessoes sem marcar. Diga o que foi feito para o seu plano continuar certinho.'
-    :'Para cada sessao, marque o que voce fez. O que nao deu tempo vai para os proximos dias — nada vira atraso.'
-  let h='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:6px">'
-    +'<div><div style="color:var(--ouro);font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase">'+(modo==='ontem'?'Pendencias':'Checkout do dia')+' · '+dia+'</div>'
-    +'<div style="font-size:18px;font-weight:800;margin-top:3px;line-height:1.3">'+tit+'</div></div>'
-    +'<button class="btn" onclick="fecharModal()" style="padding:5px 11px">✕</button></div>'
-  if(!pend.length){
-    h+='<div style="text-align:center;padding:26px 6px"><div style="font-size:46px">💪</div>'
-      +'<div style="font-weight:800;font-size:16px;color:#6ddba0;margin-top:8px">Dia fechado!</div>'
-      +'<div style="color:var(--tx3);font-size:13px;margin-top:6px">Tudo marcado. Seu plano esta em dia.</div>'
-      +(modo==='sair'?'<button class="btn btn-ouro" style="width:100%;padding:12px;margin-top:18px" onclick="sairDireto()">Sair agora</button>'
-        :'<button class="btn btn-ouro" style="width:100%;padding:12px;margin-top:18px" onclick="fecharModal()">Fechar</button>')
-      +'</div>'
-    document.getElementById('modal-c').innerHTML=h
-    document.getElementById('modal').classList.add('on')
-    return
-  }
-  h+='<div style="color:var(--tx3);font-size:12.5px;line-height:1.55;margin-bottom:14px">'+sub+'</div>'
-  pend.forEach(function(s){
-    const c=corDe(s.disciplina)
-    h+='<div class="fd-i" style="--c:'+c+'"><div style="color:'+c+';font-size:11.5px;font-weight:700">'+esc(s.disciplina)+' · '+LABEL[s.tipo]+' · '+dur(s.tempo_minutos||0)+'</div>'
-      +'<div style="font-size:14px;font-weight:600;margin-top:2px;line-height:1.35">'+esc(s.topico)+'</div>'
-      +'<div class="fd-a"><button class="fa-ok" onclick="toggleSessao(\''+s.id+'\').then(function(){fecharDia(\''+k+'\',\''+modo+'\')})">✓ Conclui</button>'
-      +(s.tipo==='teoria'?'<button class="fa-nf" onclick="naoFinalizei(\''+s.id+'\')">½ Nao terminei</button>':'')
-      +'<button class="fa-ad" onclick="fdAdiar(\''+s.id+'\')">→ Nao fiz, adiar</button></div></div>'
-  })
-  h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">'
-    +(pend.length>1?'<button class="btn" style="flex:1;min-width:140px;padding:11px;border-color:#6ddba0;color:#6ddba0" onclick="concluirTudo(\''+k+'\')">✓ Fiz tudo</button>':'')
-    +(pend.length>1?'<button class="btn" style="flex:1;min-width:140px;padding:11px;border-color:#e8b04b;color:#e8b04b" onclick="fdAdiarTodas(\''+k+'\')">→ Adiar todas</button>':'')
-    +'</div>'
-    +'<div id="fd-msg" style="font-size:12px;margin-top:10px;text-align:center"></div>'
-  if(modo==='sair')h+='<div style="text-align:center;margin-top:12px"><span style="color:var(--tx4);font-size:12px;text-decoration:underline;cursor:pointer" onclick="sairSemMarcar()">Sair sem marcar (seu mentor sera avisado)</span></div>'
-  else if(modo==='ontem')h+='<div style="text-align:center;margin-top:12px"><span style="color:var(--tx4);font-size:12px;text-decoration:underline;cursor:pointer" onclick="fecharModal()">Resolver depois</span></div>'
-  document.getElementById('modal-c').innerHTML=h
-  document.getElementById('modal').classList.add('on')
-}
-
-function fdMsg(t,cor){const m=document.getElementById('fd-msg');if(m){m.style.color=cor;m.textContent=t}}
-
-function baseAdiar(k){
-  const hj=hojeStr(), amanha=ymd(addDays(parseD(k),1))
-  return amanha<hj?hj:amanha
-}
-
-async function fdAdiar(id){
-  const s=_sessoes.find(function(x){return x.id===id}); if(!s||!_fd)return
-  const f=_fd
-  fdMsg('Reorganizando...','var(--tx3)')
-  const de=s.data
-  const p=simularReplan(baseAdiar(s.data),[s])
-  const it=p.itens.find(function(x){return x.s.id===id})
-  const alvo=it?it.data:baseAdiar(de)
-  try{await aplicarReplan(p)}catch(e){fdMsg('Erro: '+e.message,'#f07171');return}
-  logar('adiou','Adiou "'+s.topico+'" ('+s.disciplina+') de '+parseD(de).toLocaleDateString('pt-BR')+' para '+parseD(alvo).toLocaleDateString('pt-BR')+': '+textoReplan(p))
-  toast('→ Sessao movida para '+parseD(alvo).toLocaleDateString('pt-BR')+' e o plano andou junto')
-  fecharDia(f.k,f.modo)
-}
-
-async function fdAdiarTodas(k){
-  const pend=pendentesDia(k).sort(function(a,b){return (a.ordem||0)-(b.ordem||0)}); if(!pend.length)return
-  const f=_fd
-  fdMsg('Reorganizando...','var(--tx3)')
-  const p=simularReplan(baseAdiar(k),pend)
-  try{await aplicarReplan(p)}catch(e){fdMsg('Erro: '+e.message,'#f07171');return}
-  logar('adiou','Adiou '+pend.length+' sessao(oes) de '+parseD(k).toLocaleDateString('pt-BR')+' para os proximos dias: '+textoReplan(p))
-  toast('→ '+pend.length+' sessoes entraram nos proximos dias e o plano andou junto')
-  if(f)fecharDia(f.k,f.modo)
-}
-
-async function sairSemMarcar(){
-  const n=pendentesDia(hojeStr()).length
-  if(n)await logar('saiu_sem_marcar','Saiu da plataforma sem marcar '+n+' sessao(oes) de hoje')
-  sairDireto()
-}
-
-// ao entrar: cobra o ultimo dia de estudo que ficou sem marcar
-function checarDiaAnterior(){
-  const hj=hojeStr(), lim=ymd(addDays(new Date(),-7))
-  const ds=Object.keys(_porData).filter(function(d){return d<hj&&d>=lim}).sort().reverse()
-  for(let i=0;i<ds.length;i++){
-    if(pendentesDia(ds[i]).length){
-      const ch='fd_'+_alunoId+'_'+ds[i]
-      try{if(sessionStorage.getItem(ch))return;sessionStorage.setItem(ch,'1')}catch(e){}
-      fecharDia(ds[i],'ontem')
-      return
     }
   }
+
+  // Remove disciplinas sem topicos
+  const validas = disciplinas.filter(d => d.topicos.length > 0)
+
+  if (validas.length === 0) {
+    throw new Error('Nao foi possivel identificar disciplinas e topicos. Use o prompt fornecido para formatar o edital primeiro, ou verifique se o texto esta no formato correto.')
+  }
+
+  return { disciplinas: validas }
 }
 
-// aviso do navegador ao fechar a aba com sessoes de hoje sem marcar
-window.addEventListener('beforeunload',function(e){
-  if(_mentor||_saindo||!_sessoes.length)return
-  if(pendentesDia(hojeStr()).length){e.preventDefault();e.returnValue='';return ''}
-})
-document.addEventListener('keydown',function(e){if(e.key==='Escape'){fecharModal();fecharCaderno()}})
+async function processarComIA() {
+  const concurso_id = document.getElementById('imp-concurso').value
+  const texto = document.getElementById('texto-edital').value.trim()
+  const msg = document.getElementById('msg-importar')
+  if (!concurso_id) { msg.style.display='block'; msg.style.color='var(--erro)'; msg.textContent='Selecione o concurso.'; return }
+  if (!texto || texto.length < 50) { msg.style.display='block'; msg.style.color='var(--erro)'; msg.textContent='Cole o texto do edital.'; return }
+  msg.style.display = 'none'
+  _concursoAtual = concurso_id
+  document.getElementById('preview-ia').style.display = 'block'
+  document.getElementById('loading-ia-div').style.display = 'block'
+  document.getElementById('resultado-ia').style.display = 'none'
+  document.getElementById('btn-processar').disabled = true
+  await new Promise(r => setTimeout(r, 600))
+  try {
+    const resultado = extrairEdital(texto)
+    document.getElementById('loading-ia-div').style.display = 'none'
+    document.getElementById('resultado-ia').style.display = 'block'
+    renderizarPreviewIA(resultado)
+    _editaisSalvos = resultado
+  } catch(err) {
+    document.getElementById('loading-ia-div').style.display = 'none'
+    document.getElementById('btn-processar').disabled = false
+    msg.style.display='block'; msg.style.color='var(--erro)'
+    msg.textContent = 'Erro: ' + err.message
+  }
+}
+
+
+
+function renderizarPreviewIA(dados) {
+  const div = document.getElementById('lista-preview-ia')
+  div.innerHTML = ''
+  let totalTopicos = 0
+
+  dados.disciplinas?.forEach((disc, di) => {
+    totalTopicos += disc.topicos?.length || 0
+    div.innerHTML += `
+      <div class="disc-bloco">
+        <div class="disc-titulo">
+          <span>${disc.nome}</span>
+          <span style="color:var(--tx3);font-size:12px;font-weight:normal">${disc.topicos?.length || 0} topicos</span>
+        </div>
+        ${disc.topicos?.map((t, ti) => `
+          <div class="topico-admin">
+            <span style="color:var(--tx3);font-size:12px;min-width:20px">${ti+1}.</span>
+            <input type="text" value="${t.texto}" id="tp-${di}-${ti}"
+              style="flex:1;padding:6px;border-radius:6px;border:1px solid var(--bd2);background:var(--card2);color:#fff;font-size:13px;margin:0">
+            <select class="prioridade-sel" id="pr-${di}-${ti}"
+              style="color:${t.prioridade==='alta'?'var(--erro)':t.prioridade==='media'?'var(--alerta)':'var(--info)'}">
+              <option value="alta" ${t.prioridade==='alta'?'selected':''}>Alta</option>
+              <option value="media" ${t.prioridade==='media'?'selected':''}>Media</option>
+              <option value="baixa" ${t.prioridade==='baixa'?'selected':''}>Baixa</option>
+            </select>
+            <button onclick="this.closest('.topico-admin').remove()" class="btn-acao btn-excluir" style="font-size:11px;padding:4px 8px">X</button>
+          </div>`).join('')}
+      </div>`
+  })
+
+  div.innerHTML += `<p style="color:var(--tx3);font-size:13px;text-align:center;margin-top:8px">${totalTopicos} topicos extraidos em ${dados.disciplinas?.length || 0} disciplinas</p>`
+}
+
+async function salvarEdital() {
+  if (!_concursoAtual || !_editaisSalvos?.disciplinas) { alert('Nenhum edital processado.'); return }
+
+  // Coleta os dados editados nos campos
+  const disciplinas = document.querySelectorAll('.disc-bloco')
+  const topicosParaSalvar = []
+  let ordem = 1
+
+  document.querySelectorAll('.disc-bloco').forEach((discEl, di) => {
+    const nomeDisc = discEl.querySelector('.disc-titulo span')?.textContent || ''
+    discEl.querySelectorAll('.topico-admin').forEach((topicoEl, ti) => {
+      const texto = document.getElementById('tp-'+di+'-'+ti)?.value || ''
+      const prioridade = document.getElementById('pr-'+di+'-'+ti)?.value || 'media'
+      if (texto.trim()) {
+        topicosParaSalvar.push({ concurso_id: _concursoAtual, disciplina: nomeDisc, topico: texto.trim(), prioridade, ordem: ordem++ })
+      }
+    })
+  })
+
+  if (topicosParaSalvar.length === 0) { alert('Nenhum topico para salvar.'); return }
+
+  // Remove edital anterior do mesmo concurso
+  const confirmar = confirm('Isso vai substituir o edital atual deste concurso por este novo. Confirmar?')
+  if (!confirmar) return
+
+  await _supabase.from('edital_topicos').delete().eq('concurso_id', _concursoAtual)
+
+  const { error } = await _supabase.from('edital_topicos').insert(topicosParaSalvar)
+
+  if (error) { alert('Erro ao salvar: ' + error.message); return }
+
+  alert('Edital salvo com sucesso! ' + topicosParaSalvar.length + ' topicos em ' + new Set(topicosParaSalvar.map(t=>t.disciplina)).size + ' disciplinas.')
+  document.getElementById('preview-ia').style.display = 'none'
+  document.getElementById('texto-edital').value = ''
+  document.getElementById('btn-processar').disabled = false
+}
+
+// ========== GERENCIAR ==========
+async function carregarEditalAdmin() {
+  const concurso_id = document.getElementById('ger-concurso').value
+  const div = document.getElementById('edital-admin-container')
+  div.innerHTML = ''
+  document.getElementById('card-add-topico').style.display = 'none'
+  if (!concurso_id) return
+
+  const { data: topicos } = await _supabase.from('edital_topicos').select('*')
+    .eq('concurso_id', concurso_id).order('disciplina').order('ordem')
+
+  if (!topicos || topicos.length === 0) {
+    div.innerHTML = '<p style="color:var(--tx3)">Nenhum edital cadastrado para este concurso. Use a aba "Importar Edital" para adicionar.</p>'
+    document.getElementById('card-add-topico').style.display = 'block'
+    window._concursoAtual = concurso_id
+    return
+  }
+
+  document.getElementById('card-add-topico').style.display = 'block'
+  window._concursoAtual = concurso_id
+
+  const porDisc = {}
+  topicos.forEach(t => { if (!porDisc[t.disciplina]) porDisc[t.disciplina]=[]; porDisc[t.disciplina].push(t) })
+
+  const altaCount = topicos.filter(t=>t.prioridade==='alta').length
+  const mediaCount = topicos.filter(t=>t.prioridade==='media').length
+  const baixaCount = topicos.filter(t=>t.prioridade==='baixa').length
+
+  div.innerHTML = `
+    <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+      <div style="background:rgba(240,113,113,.13);border:1px solid var(--erro);border-radius:8px;padding:8px 14px;text-align:center">
+        <div style="color:var(--erro);font-size:18px;font-weight:bold">${altaCount}</div>
+        <div style="color:var(--tx3);font-size:11px">Alta prioridade</div>
+      </div>
+      <div style="background:rgba(232,176,75,.13);border:1px solid var(--alerta);border-radius:8px;padding:8px 14px;text-align:center">
+        <div style="color:var(--alerta);font-size:18px;font-weight:bold">${mediaCount}</div>
+        <div style="color:var(--tx3);font-size:11px">Media prioridade</div>
+      </div>
+      <div style="background:rgba(91,179,240,.13);border:1px solid var(--info);border-radius:8px;padding:8px 14px;text-align:center">
+        <div style="color:var(--info);font-size:18px;font-weight:bold">${baixaCount}</div>
+        <div style="color:var(--tx3);font-size:11px">Baixa prioridade</div>
+      </div>
+      <div style="background:var(--card);border-radius:8px;padding:8px 14px;text-align:center">
+        <div style="color:#fff;font-size:18px;font-weight:bold">${topicos.length}</div>
+        <div style="color:var(--tx3);font-size:11px">Total de topicos</div>
+      </div>
+    </div>`
+
+  Object.entries(porDisc).forEach(([disc, ts]) => {
+    div.innerHTML += `
+      <div class="disc-bloco">
+        <div class="disc-titulo">
+          <span>${disc}</span>
+          <div style="display:flex;gap:6px;align-items:center">
+            <span style="color:var(--tx3);font-size:12px;font-weight:normal">${ts.length} topicos</span>
+            <button onclick="excluirDisciplina('${disc}','${concurso_id}')" class="btn-acao btn-excluir" style="font-size:11px;padding:3px 8px">Excluir disc.</button>
+          </div>
+        </div>
+        ${ts.map(t => `
+          <div class="topico-admin">
+            <span style="color:${t.prioridade==='alta'?'var(--erro)':t.prioridade==='media'?'var(--alerta)':'var(--info)'};font-size:16px">●</span>
+            <span style="flex:1;font-size:13px">${t.topico}</span>
+            <select class="prioridade-sel" onchange="alterarPrioridade('${t.id}',this.value)"
+              style="color:${t.prioridade==='alta'?'var(--erro)':t.prioridade==='media'?'var(--alerta)':'var(--info)'}">
+              <option value="alta" ${t.prioridade==='alta'?'selected':''}>Alta</option>
+              <option value="media" ${t.prioridade==='media'?'selected':''}>Media</option>
+              <option value="baixa" ${t.prioridade==='baixa'?'selected':''}>Baixa</option>
+            </select>
+            <button onclick="excluirTopico('${t.id}')" class="btn-acao btn-excluir" style="font-size:11px;padding:3px 8px">X</button>
+          </div>`).join('')}
+      </div>`
+  })
+}
+
+async function alterarPrioridade(id, prioridade) {
+  await _supabase.from('edital_topicos').update({ prioridade }).eq('id', id)
+}
+
+async function excluirTopico(id) {
+  if (!confirm('Excluir este topico?')) return
+  await _supabase.from('edital_topicos').delete().eq('id', id)
+  carregarEditalAdmin()
+}
+
+async function excluirDisciplina(disc, concurso_id) {
+  if (!confirm('Excluir todos os topicos de "'+disc+'"?')) return
+  await _supabase.from('edital_topicos').delete().eq('disciplina', disc).eq('concurso_id', concurso_id)
+  carregarEditalAdmin()
+}
+
+async function adicionarTopico() {
+  const disc = document.getElementById('add-disc').value.trim()
+  const topico = document.getElementById('add-topico').value.trim()
+  const prioridade = document.getElementById('add-prio').value
+  const concurso_id = window._concursoAtual
+  if (!disc||!topico||!concurso_id) { alert('Preencha todos os campos.'); return }
+  const { error } = await _supabase.from('edital_topicos').insert({ concurso_id, disciplina:disc, topico, prioridade })
+  if (error) { alert('Erro: '+error.message); return }
+  document.getElementById('add-topico').value = ''
+  alert('Topico adicionado!')
+  carregarEditalAdmin()
+}
+
+// ========== PROGRESSO ==========
+async function carregarProgressoAlunos() {
+  const concurso_id = document.getElementById('prog-concurso').value
+  const div = document.getElementById('progresso-alunos-container')
+  div.innerHTML = '<p style="color:var(--tx3)">Carregando...</p>'
+  if (!concurso_id) { div.innerHTML=''; return }
+
+  const { data: topicos } = await _supabase.from('edital_topicos').select('id,disciplina').eq('concurso_id', concurso_id)
+  const { data: vinculos } = await _supabase.from('aluno_concursos').select('aluno_id, alunos(id,nome)').eq('concurso_id', concurso_id)
+
+  if (!topicos||topicos.length===0) { div.innerHTML='<p style="color:var(--tx3)">Nenhum edital cadastrado para este concurso.</p>'; return }
+  if (!vinculos||vinculos.length===0) { div.innerHTML='<p style="color:var(--tx3)">Nenhum aluno neste concurso.</p>'; return }
+
+  div.innerHTML = ''
+
+  // Por disciplina
+  const porDisc = {}
+  topicos.forEach(t => { if (!porDisc[t.disciplina]) porDisc[t.disciplina]=[]; porDisc[t.disciplina].push(t.id) })
+
+  for (const v of vinculos) {
+    const aluno = v.alunos; if (!aluno) continue
+    const { data: prog } = await _supabase.from('edital_progresso')
+      .select('topico_id, concluido').eq('aluno_id', aluno.id).eq('concluido', true)
+
+    const concluidos = new Set(prog?.map(p => p.topico_id) || [])
+    const pctGeral = Math.round((concluidos.size / topicos.length) * 100)
+    const corGeral = pctGeral>=70?'var(--ok)':pctGeral>=40?'var(--alerta)':'var(--erro)'
+
+    div.innerHTML += `
+      <div style="background:var(--card);border-radius:10px;padding:14px;margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:6px">
+          <strong>${aluno.nome}</strong>
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="color:${corGeral};font-size:18px;font-weight:bold">${pctGeral}%</span>
+            <span style="color:var(--tx3);font-size:12px">${concluidos.size}/${topicos.length} topicos</span>
+          </div>
+        </div>
+        <div style="background:var(--card2);border-radius:20px;height:8px;overflow:hidden;margin-bottom:10px">
+          <div style="width:${pctGeral}%;height:100%;background:${corGeral};border-radius:20px;transition:width 0.5s"></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          ${Object.entries(porDisc).map(([disc, ids]) => {
+            const concl = ids.filter(id => concluidos.has(id)).length
+            const pct = Math.round((concl/ids.length)*100)
+            const cor = pct>=70?'var(--ok)':pct>=40?'var(--alerta)':'var(--erro)'
+            return `<div class="progresso-admin-item">
+              <span style="flex:1;font-size:12px">${disc}</span>
+              <div class="barra-prog"><div class="barra-prog-fill" style="width:${pct}%;background:${cor}"></div></div>
+              <span style="color:${cor};font-size:12px;min-width:35px;text-align:right">${pct}%</span>
+              <span style="color:var(--tx3);font-size:11px;min-width:50px;text-align:right">${concl}/${ids.length}</span>
+            </div>`
+          }).join('')}
+        </div>
+      </div>`
+  }
+}
+
 init()
 </script>
 </body>
