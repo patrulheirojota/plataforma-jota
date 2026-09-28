@@ -313,6 +313,7 @@
         <div id="aviso-atraso"></div>
         <div class="sechead">
           <div><div class="h2">Planejamento</div><div class="h2s" id="sec-sub"></div></div>
+          <button class="btn btn-ouro" onclick="replanejarAtrasadas(true)" title="Coloca atrasadas em dia, arruma a ordem dos temas e encaixa tudo ate a prova">🔄 Replanejar plano</button>
         </div>
         <div class="layout">
           <div class="painel">
@@ -422,7 +423,7 @@ const LABEL={teoria:'Teoria',questoes:'Questoes',revisao:'Revisao'}
 
 let _alunoId=null,_nome='',_email='',_diretrizes=null,_diretrizesEm=null,_concursoId=null,_concursoNome='',_dataProva=null,_cfg=null
 let _sessoes=[],_porData={},_refSem=null,_refMes=null,_corDisc={},_graf=null,_secAtual='cronograma'
-let _mentor=false,_limiteBloq=20,_wpp=null,_fd=null,_saindo=false
+let _mentor=false,_limiteBloq=20,_wpp=null,_fd=null,_saindo=false,_editalFeito={}
 
 function ymd(d){const x=new Date(d);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')}
 function parseD(s){return new Date(s+'T12:00:00')}
@@ -543,6 +544,10 @@ async function init(){
   const { data:cfg }=await _supabase.from('config_cronograma').select('*')
     .eq('aluno_id',_alunoId).eq('concurso_id',_concursoId).maybeSingle()
   _cfg=cfg
+  try{
+    const { data:ep }=await _supabase.from('edital_progresso').select('topico_id,concluido').eq('aluno_id',_alunoId).eq('concluido',true)
+    _editalFeito={};(ep||[]).forEach(function(x){_editalFeito[x.topico_id]=1})
+  }catch(e){_editalFeito={}}
   _dataProva=(cfg&&cfg.data_prova)?cfg.data_prova:(conc?conc.data_prova:null)
 
   document.getElementById('sub').textContent=_concursoNome
@@ -713,7 +718,15 @@ function renderHero(){
 function renderAtraso(){
   const hj=hojeStr(), at=_sessoes.filter(function(s){return !s.concluida&&s.data<hj})
   const box=document.getElementById('aviso-atraso')
-  if(!at.length){box.innerHTML='';return}
+  if(!at.length){
+    const fo=contarForaDeOrdem()+teoriasPerdidas().length
+    if(!fo){box.innerHTML='';return}
+    box.innerHTML='<div class="aviso" style="background:rgba(91,179,240,.08);border-color:#5bb3f0"><span style="font-size:22px">🔀</span>'
+     +'<div style="flex:1;min-width:180px"><div style="color:#5bb3f0;font-weight:700;font-size:14px">'+fo+' tema(s) com questoes/revisao antes da teoria</div>'
+     +'<div style="color:#a8b8c8;font-size:12px;margin-top:2px">Alguns temas estao com as questoes marcadas antes da teoria. Reorganize para estudar na ordem certa.</div></div>'
+     +'<button class="btn btn-ouro" onclick="replanejarAtrasadas()">Reorganizar</button></div>'
+    return
+  }
   box.innerHTML='<div class="aviso"><span style="font-size:22px">⏰</span>'
    +'<div style="flex:1;min-width:180px"><div style="color:#f07171;font-weight:700;font-size:14px">'+at.length+' sessoes atrasadas</div>'
    +'<div style="color:#a8b8c8;font-size:12px;margin-top:2px">A mais antiga e de '+parseD(at[0].data).toLocaleDateString('pt-BR')+'. Coloque em dia ou peca replanejamento ao mentor.</div></div>'
@@ -1223,21 +1236,8 @@ async function naoFinalizei(id){
   logar('nao_finalizou','Nao terminou "'+s.topico+'" ('+s.disciplina+'). O tema voltou para '+parseD(alvo).toLocaleDateString('pt-BR'))
   await recarregar()
 
-  // se o dia de destino estourou a capacidade, empurra o excedente
-  const cap=capacidadeDia()
-  if((_porData[alvo]||[]).length>cap){
-    const sobra=(_porData[alvo]||[]).filter(function(x){return !x.concluida})
-      .sort(function(a,b){return (b.ordem||0)-(a.ordem||0)})
-      .slice(0,(_porData[alvo]||[]).length-cap)
-    const vagas=vagasFuturas(ymd(addDays(parseD(alvo),1)),sobra.length)
-    const conta={}
-    for(let i=0;i<sobra.length;i++){
-      const dest=vagas[i]||ymd(addDays(parseD(alvo),1))
-      conta[dest]=(conta[dest]||proximaOrdem(dest))
-      await _supabase.from('sessoes_estudo').update({data:dest,ordem:conta[dest]++}).eq('id',sobra[i].id)
-    }
-    await recarregar()
-  }
+  // o plano anda para frente a partir do dia da continuacao (nada se perde)
+  try{await aplicarReplan(simularReplan(alvo,[]))}catch(e){}
   if(volta){fecharDia(volta.k,volta.modo);return}
   irData(alvo)
 }
@@ -1363,41 +1363,307 @@ async function adiantar(k){
 async function adiarDia(k){
   const pend=(_porData[k]||[]).filter(function(s){return !s.concluida})
   if(!pend.length)return
-  const vagas=vagasFuturas(ymd(addDays(parseD(k),1)),pend.length)
-  if(vagas.length<pend.length){
-    if(!confirm('Nao ha vagas suficientes ate o fim do plano. As sessoes que sobrarem vao para os ultimos dias disponiveis. Continuar?'))return
-  }
   ajMsg('Reorganizando...','var(--tx3)')
-  const conta={}
-  for(let i=0;i<pend.length;i++){
-    const alvo=vagas[i]||vagas[vagas.length-1]||ymd(addDays(parseD(k),1))
-    conta[alvo]=(conta[alvo]||proximaOrdem(alvo))
-    const r=await _supabase.from('sessoes_estudo').update({data:alvo,ordem:conta[alvo]++}).eq('id',pend[i].id)
-    if(r.error){ajMsg('Erro: '+r.error.message,'#f07171');return}
-  }
-  await recarregar()
-  logar('adiou','Empurrou '+pend.length+' sessao(oes) de '+parseD(k).toLocaleDateString('pt-BR')+' para os dias seguintes')
+  const p=simularReplan(baseAdiar(k),pend)
+  try{await aplicarReplan(p)}catch(e){ajMsg('Erro: '+e.message,'#f07171');return}
+  logar('adiou','Empurrou '+pend.length+' sessao(oes) de '+parseD(k).toLocaleDateString('pt-BR')+' para os dias seguintes: '+textoReplan(p))
   fecharModal()
+  toast('→ '+pend.length+' sessao(oes) empurrada(s). '+(p.encurtadas?'Algumas revisoes ficaram mais curtas para caber ate a prova.':'Plano ajustado.'))
 }
 
-async function replanejarAtrasadas(){
+let _replanPrevia=null
+function replanejarAtrasadas(){
   const hj=hojeStr()
-  const at=_sessoes.filter(function(s){return !s.concluida&&s.data<hj})
-    .sort(function(a,b){return a.data.localeCompare(b.data)||(a.ordem||0)-(b.ordem||0)})
-  if(!at.length)return
-  if(!confirm('Redistribuir as '+at.length+' sessoes atrasadas a partir de hoje, respeitando o limite de '+capacidadeDia()+' sessoes por dia?\n\nSeu historico de sessoes concluidas nao muda.'))return
-  const vagas=vagasFuturas(hj,at.length)
-  const conta={}
-  for(let i=0;i<at.length;i++){
-    const alvo=vagas[i]||vagas[vagas.length-1]||hj
-    conta[alvo]=(conta[alvo]||proximaOrdem(alvo))
-    const r=await _supabase.from('sessoes_estudo').update({data:alvo,ordem:conta[alvo]++}).eq('id',at[i].id)
-    if(r.error){alert('Erro ao replanejar: '+r.error.message);return}
+  const at=_sessoes.filter(function(s){return !s.concluida&&s.data<hj}).sort(ordenarSess)
+  const p=simularReplan(hj,at,{recriar:true})
+  _replanPrevia={p:p,n:at.length}
+  const br=function(k){return parseD(k).toLocaleDateString('pt-BR')}
+  const teor=at.filter(function(x){return x.tipo==='teoria'}).length
+  const cor=p.sobrecarga?'#f07171':p.encurtadas?'#e8b04b':'#6ddba0'
+  document.getElementById('modal-c').innerHTML=
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px">'
+   +'<div><div style="color:var(--ouro);font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase">Replanejar</div>'
+   +'<div style="font-size:18px;font-weight:800;margin-top:2px">Colocar o plano em dia</div></div>'
+   +'<button class="btn" onclick="fecharModal()" style="padding:5px 11px">✕</button></div>'
+   +'<div style="color:var(--tx2);font-size:13px;line-height:1.6;margin-bottom:12px">'
+   +(at.length?'As <strong>'+at.length+' sessoes atrasadas</strong>'+(teor?' ('+teor+' de teoria)':'')+' entram a partir de <strong>hoje</strong>. '
+     :'Nao ha sessoes atrasadas. O plano sera conferido e reorganizado a partir de <strong>hoje</strong>. ')
+   +'Todo o resto do plano anda para frente e cada tema segue a ordem <strong>teoria → questoes → revisao</strong>. <strong>Nenhuma sessao e apagada.</strong></div>'
+   +'<div class="bloco" style="margin-top:0">'
+   +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;text-align:center">'
+   +'<div><div style="color:var(--tx3);font-size:11px">Plano terminava</div><div style="font-weight:800;font-size:16px">'+br(p.fimAntes)+'</div></div>'
+   +'<div><div style="color:var(--tx3);font-size:11px">Passa a terminar</div><div style="font-weight:800;font-size:16px;color:'+cor+'">'+br(p.fimDepois)+'</div></div>'
+   +'</div>'
+   +(p.lim?'<div style="color:var(--tx4);font-size:11.5px;text-align:center;margin-top:8px">Data da prova: '+br(p.lim)+'</div>':'')
+   +'</div>'
+   +((!p.mudancas.length)?'<div style="background:rgba(109,219,160,.08);border:1px solid #6ddba0;border-radius:10px;padding:11px 13px;margin-top:10px;color:#6ddba0;font-size:12.5px;line-height:1.55">'
+      +'<strong>Seu plano ja esta em ordem.</strong> Nada precisa mudar.</div>':'')
+   +(p.recriadas?'<div style="background:rgba(185,138,224,.08);border:1px solid #b98ae0;border-radius:10px;padding:11px 13px;margin-top:10px;color:#c9a9e8;font-size:12.5px;line-height:1.55">'
+      +'<strong>'+p.recriadas+' tema(s)</strong> tinham questoes no plano mas a <strong>teoria tinha sumido</strong>. A teoria sera recriada e vem antes das questoes.</div>':'')
+   +(p.puxadas?'<div style="background:rgba(91,179,240,.08);border:1px solid #5bb3f0;border-radius:10px;padding:11px 13px;margin-top:10px;color:#5bb3f0;font-size:12.5px;line-height:1.55">'
+      +'<strong>'+p.puxadas+' tema(s)</strong> tinham questoes ou revisao marcadas antes da teoria. A teoria foi trazida para antes, e as questoes/revisao desses temas vem depois dela.</div>':'')
+   +(p.encurtadas?'<div style="background:rgba(232,176,75,.08);border:1px solid #e8b04b;border-radius:10px;padding:11px 13px;margin-top:10px;color:#e8b04b;font-size:12.5px;line-height:1.55">'
+      +'Para terminar ate a prova, <strong>'+p.encurtadas+' sessoes de '+(p.nivel===1?'revisao':'questoes e revisao')+'</strong> ficam mais curtas'+(p.nivel>=3?' (um terco do tempo)':' (metade do tempo)')+'. A teoria continua com o tempo cheio.</div>':'')
+   +(p.sobrecarga?'<div style="background:rgba(240,113,113,.08);border:1px solid #d9566a;border-radius:10px;padding:11px 13px;margin-top:10px;color:#f07171;font-size:12.5px;line-height:1.55">'
+      +'Mesmo encurtando questoes e revisoes, o tempo ate a prova e curto. Para nada ser apagado e a ordem dos temas ser mantida, o tempo de estudo sobe de <strong>'+dur(p.orc)+'</strong> para ate <strong>'+dur(p.orcUsado)+'</strong> por dia em <strong>'+p.sobrecarga+' dia(s)</strong>. Converse com seu mentor se nao conseguir esse tempo.</div>':'')
+   +(p.mudancas.length?'<button class="btn btn-ouro" style="width:100%;padding:12px;margin-top:14px" onclick="confirmarReplan()">Confirmar replanejamento</button>'
+      :'<button class="btn" style="width:100%;padding:12px;margin-top:14px" onclick="fecharModal()">Fechar</button>')
+   +'<div id="rp-msg" style="font-size:12px;margin-top:10px;text-align:center"></div>'
+  document.getElementById('modal').classList.add('on')
+}
+
+async function confirmarReplan(){
+  if(!_replanPrevia)return
+  const p=_replanPrevia.p, n=_replanPrevia.n
+  const m=document.getElementById('rp-msg')
+  m.style.color='var(--tx3)';m.textContent='Reorganizando o plano...'
+  try{
+    await aplicarReplan(p,function(a,b){m.textContent='Reorganizando o plano... '+a+'/'+b})
+  }catch(e){m.style.color='#f07171';m.textContent='Erro ao replanejar: '+e.message;return}
+  _replanPrevia=null
+  logar('replanejou','Replanejou '+(n?n+' sessoes atrasadas':'o plano')+' a partir de '+parseD(hojeStr()).toLocaleDateString('pt-BR')+': '+textoReplan(p))
+  fecharModal()
+  irData(hojeStr())
+  toast(n?'✅ Plano em dia! '+n+' sessoes atrasadas entraram a partir de hoje.':'✅ Plano reorganizado: cada tema na ordem teoria → questoes → revisao.')
+}
+
+/* ---------- MOTOR DE REPLANEJAMENTO ----------
+   Regra: nenhuma sessao pendente e perdida. As sessoes empurradas entram
+   primeiro e todo o resto do plano anda para frente, na mesma ordem.
+   1) Se ha dias livres ate a prova, o plano simplesmente se alonga.
+   2) Se nao cabe ate a prova, encurta revisao e depois questoes
+      (metade do tempo, depois um terco, minimo 15 min). Teoria nunca encurta.
+   3) Se ainda assim nao couber, distribui o que sobrou nos dias mais leves
+      ate a prova (dia mais carregado), sem apagar nada. */
+function ordenarSess(a,b){return a.data.localeCompare(b.data)||(a.ordem||0)-(b.ordem||0)}
+
+function tempoBase(){
+  if(_cfg&&_cfg.tempo_sessao)return _cfg.tempo_sessao
+  const cont={}
+  _sessoes.forEach(function(x){const t=x.tempo_minutos||60;cont[t]=(cont[t]||0)+1})
+  let m=60,n=0
+  Object.keys(cont).forEach(function(t){if(cont[t]>n){n=cont[t];m=parseInt(t)}})
+  return m
+}
+
+function minNoNivel(sx,nivel){
+  const t=sx.tempo_minutos||tempoBase()
+  if(nivel<=0||sx.tipo==='teoria')return t
+  const meio=Math.max(15,Math.round(t/2/5)*5)
+  const terco=Math.max(15,Math.round(t/3/5)*5)
+  if(nivel===1)return sx.tipo==='revisao'?meio:t
+  if(nivel===2)return meio
+  return terco
+}
+
+function limitePlano(inicio){
+  if(!_dataProva)return null
+  let lim=_dataProva
+  // a prova em si nao e dia de estudo do plano se houver dias antes dela
+  if(lim<inicio)return null   // prova ja passou: sem limite
+  return lim
+}
+
+function alocarReplan(fila,inicio,nivel,orc,dias,lim,fixo){
+  const itens=[],carga={}
+  let d=parseD(inicio),i=0,guarda=0
+  while(i<fila.length&&guarda<2000){
+    const k=ymd(d)
+    if(lim&&k>lim)break
+    if(dias.indexOf(d.getDay())>=0){
+      let usado=fixo[k]||0,colocou=0
+      while(i<fila.length){
+        const m=minNoNivel(fila[i],nivel)
+        if(usado+m>orc&&!(colocou===0&&usado===0))break
+        itens.push({s:fila[i],data:k,min:m,idx:i});usado+=m;i++;colocou++
+      }
+      carga[k]=usado
+    }
+    d=addDays(d,1);guarda++
+  }
+  return {itens:itens,faltam:fila.slice(i),iniFalta:i,nivel:nivel,carga:carga}
+}
+
+/* Sequencia obrigatoria de cada tema: teoria -> questoes -> revisao.
+   Se uma sessao de questoes/revisao aparece antes da teoria (ou das questoes)
+   pendente do mesmo tema, a etapa anterior e puxada para frente e a sessao
+   dependente vai para o "dia seguinte" (cap sessoes depois). */
+const RANK_TIPO={teoria:0,questoes:1,revisao:2}
+function normTxt(v){
+  return String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()
+    .replace(/\((continua[cç]ao|cont\.?)(\s*\d+)?\)/g,'')
+    .replace(/\((teoria|questoes|revisao)\)/g,'')
+    .replace(/[^a-z0-9]+/g,' ').trim()
+}
+function chaveTema(x){ return normTxt(x.disciplina)+'|'+normTxt(x.topico) }
+function rankTipo(x){return RANK_TIPO[x.tipo]===undefined?0:RANK_TIPO[x.tipo]}
+
+function ordenarDependencias(fila,cap){
+  const out=fila.slice()
+  let puxadas=0, guarda=0
+  for(let i=0;i<out.length&&guarda<20000;i++,guarda++){
+    const x=out[i], k=chaveTema(x), r=rankTipo(x)
+    if(r===0)continue
+    // etapa anterior pendente do mesmo tema que esta mais adiante?
+    let j=-1
+    for(let t=i+1;t<out.length;t++){
+      if(chaveTema(out[t])===k&&rankTipo(out[t])<r&&(j<0||rankTipo(out[t])<rankTipo(out[j])))j=t
+    }
+    if(j<0)continue
+    const pre=out.splice(j,1)[0]
+    out.splice(i,0,pre)
+    puxadas++
+    // as etapas seguintes do tema que ficaram coladas vao para o proximo dia
+    const lim=Math.min(out.length,i+1+cap), dep=[]
+    for(let t=lim-1;t>i;t--){
+      if(chaveTema(out[t])===k&&rankTipo(out[t])>rankTipo(pre))dep.unshift(out.splice(t,1)[0])
+    }
+    if(dep.length){
+      const pos=Math.min(out.length,i+cap)
+      Array.prototype.splice.apply(out,[pos,0].concat(dep))
+    }
+    i-- // reavalia a posicao i (agora a etapa puxada)
+  }
+  return {fila:out,puxadas:puxadas}
+}
+
+// temas com questoes pendentes cuja teoria nao existe mais no plano (nem feita, nem pendente)
+function teoriasPerdidas(){
+  if(_cfg&&_cfg.modo_teoria===false)return []
+  const temTeoria={}, algumaTeoria=_sessoes.some(function(x){return x.tipo==='teoria'})
+  if(!algumaTeoria)return []   // plano montado sem teoria de proposito
+  const temTeoriaId={}
+  _sessoes.forEach(function(x){if(x.tipo==='teoria'){temTeoria[chaveTema(x)]=1;if(x.topico_id)temTeoriaId[x.topico_id]=1}})
+  const vistos={}, out=[], temasQ={}
+  _sessoes.filter(function(x){return x.tipo==='questoes'}).forEach(function(x){temasQ[chaveTema(x)]=1})
+  _sessoes.filter(function(x){return !x.concluida&&x.tipo==='questoes'}).sort(ordenarSess).forEach(function(x){
+    const k=chaveTema(x)
+    if(temTeoria[k]||vistos[k])return
+    if(x.topico_id&&(temTeoriaId[x.topico_id]||_editalFeito[x.topico_id]))return   // teoria existe (outro nome) ou ja feita no edital
+    vistos[k]=1; out.push(x)
+  })
+  // trava de seguranca: se metade ou mais dos temas estao "sem teoria", o plano foi montado assim de proposito
+  const nTemas=Object.keys(temasQ).length
+  if(out.length>3&&out.length>=nTemas*0.5)return []
+  return out
+}
+
+// quantas sessoes de questoes/revisao estao antes da teoria/questoes pendente do mesmo tema
+function contarForaDeOrdem(){
+  const pend=_sessoes.filter(function(x){return !x.concluida}).sort(ordenarSess)
+  const menorRestante={}  // menor rank pendente visto DEPOIS (varrendo de tras para frente)
+  let n=0
+  for(let i=pend.length-1;i>=0;i--){
+    const k=chaveTema(pend[i]), r=rankTipo(pend[i])
+    if(menorRestante[k]!==undefined&&menorRestante[k]<r)n++
+    if(menorRestante[k]===undefined||r<menorRestante[k])menorRestante[k]=r
+  }
+  return n
+}
+
+function simularReplan(inicio,primeiro,opts){
+  opts=opts||{}
+  const ids={}
+  primeiro.forEach(function(x){ids[x.id]=1})
+  const resto=_sessoes.filter(function(x){return !x.concluida&&x.data>=inicio&&!ids[x.id]}).sort(ordenarSess)
+  let base=primeiro.slice().sort(ordenarSess).concat(resto)
+  // recria a teoria que sumiu, logo antes das primeiras questoes do tema
+  let recriadas=0
+  if(opts.recriar){
+    teoriasPerdidas().forEach(function(q){
+      const pos=base.findIndex(function(x){return x.id===q.id})
+      if(pos<0)return
+      base.splice(pos,0,{id:null,_novo:true,aluno_id:q.aluno_id,concurso_id:q.concurso_id,data:q.data,ordem:(q.ordem||1),
+        tipo:'teoria',disciplina:q.disciplina,topico:q.topico,topico_id:q.topico_id||null,
+        tempo_minutos:Math.max(tempoBase(),q.tempo_minutos||0),meta_questoes:0,concluida:false})
+      recriadas++
+    })
+  }
+  const dep=ordenarDependencias(base,capacidadeDia())
+  const fila=dep.fila
+  let dias=diasEstudo(); if(!dias.length)dias=[0,1,2,3,4,5,6]
+  const orc=capacidadeDia()*tempoBase()
+  const lim=limitePlano(inicio)
+  const fixo={}
+  _sessoes.forEach(function(x){if(x.concluida&&x.data>=inicio)fixo[x.data]=(fixo[x.data]||0)+(x.tempo_minutos||0)})
+
+  const fimAntes=_sessoes.filter(function(x){return !x.concluida}).map(function(x){return x.data}).sort().pop()||inicio
+  let r=alocarReplan(fila,inicio,0,orc,dias,lim,fixo)
+  for(let n=1;n<=3&&r.faltam.length;n++)r=alocarReplan(fila,inicio,n,orc,dias,lim,fixo)
+
+  // ultimo recurso: nada se perde e a ordem teoria -> questoes -> revisao se mantem.
+  // Aumenta a carga de TODOS os dias por igual (de 15 em 15 min) ate tudo caber antes da prova.
+  let sobrecarga=0, orcUsado=orc
+  if(r.faltam.length){
+    for(let B=orc+15;B<=orc*4&&r.faltam.length;B+=15){
+      r=alocarReplan(fila,inicio,3,B,dias,lim,fixo); orcUsado=B
+    }
+    if(r.faltam.length){
+      // periodo realmente impossivel: coloca o restante no ultimo dia util, em ordem
+      const diasOk=Object.keys(r.carga).sort()
+      const k=diasOk.length?diasOk[diasOk.length-1]:inicio
+      r.faltam.forEach(function(x,j){r.itens.push({s:x,data:k,min:minNoNivel(x,r.nivel),idx:r.iniFalta+j})})
+      r.faltam=[]
+    }
+    Object.keys(r.carga).forEach(function(k){if(r.carga[k]>orc)sobrecarga++})
+  }
+
+  // ordem dentro de cada dia: primeiro as ja concluidas, depois a fila
+  const ordemBase={}
+  _sessoes.forEach(function(x){if(x.concluida&&x.data>=inicio)ordemBase[x.data]=Math.max(ordemBase[x.data]||0,x.ordem||0)})
+  const porDia={}
+  r.itens.forEach(function(it){(porDia[it.data]=porDia[it.data]||[]).push(it)})
+  Object.keys(porDia).forEach(function(k){
+    // mantem a ordem original do conteudo dentro do dia
+    porDia[k].sort(function(a,b){return a.idx-b.idx})
+    let o=ordemBase[k]||0
+    porDia[k].forEach(function(it){it.ordem=++o})
+  })
+
+  const mudancas=r.itens.filter(function(it){
+    return it.s._novo||it.data!==it.s.data||it.ordem!==(it.s.ordem||0)||it.min!==(it.s.tempo_minutos||0)
+  })
+  const encurtadas=r.itens.filter(function(it){return !it.s._novo&&it.min<(it.s.tempo_minutos||0)}).length
+  const fimDepois=r.itens.map(function(it){return it.data}).concat(_sessoes.filter(function(x){return !x.concluida&&x.data<inicio&&!ids[x.id]}).map(function(x){return x.data})).sort().pop()||inicio
+  let maxDia=0
+  Object.keys(porDia).forEach(function(k){
+    const t=(fixo[k]||0)+porDia[k].reduce(function(a,it){return a+it.min},0)
+    if(t>maxDia)maxDia=t
+  })
+  return {itens:r.itens,mudancas:mudancas,nivel:r.nivel,encurtadas:encurtadas,sobrecarga:sobrecarga,puxadas:dep.puxadas,orcUsado:orcUsado,recriadas:recriadas,
+    fimAntes:fimAntes,fimDepois:fimDepois,lim:lim,orc:orc,maxDia:maxDia,total:fila.length}
+}
+
+async function aplicarReplan(plano,onProg){
+  const lista=plano.mudancas
+  const LOTE=20
+  for(let i=0;i<lista.length;i+=LOTE){
+    const parte=lista.slice(i,i+LOTE)
+    const rs=await Promise.all(parte.map(function(it){
+      if(it.s._novo){
+        return _supabase.from('sessoes_estudo').insert({aluno_id:it.s.aluno_id||_alunoId,concurso_id:it.s.concurso_id||_concursoId,
+          data:it.data,ordem:it.ordem,tipo:'teoria',disciplina:it.s.disciplina,topico:it.s.topico,topico_id:it.s.topico_id,
+          tempo_minutos:it.min,meta_questoes:0,concluida:false})
+      }
+      return _supabase.from('sessoes_estudo').update({data:it.data,ordem:it.ordem,tempo_minutos:it.min}).eq('id',it.s.id)
+    }))
+    const erro=rs.find(function(x){return x&&x.error})
+    if(erro)throw new Error(erro.error.message)
+    if(onProg)onProg(Math.min(i+LOTE,lista.length),lista.length)
   }
   await recarregar()
-  logar('replanejou','Replanejou '+at.length+' sessoes atrasadas a partir de '+parseD(hj).toLocaleDateString('pt-BR'))
-  irData(hj)
-  alert(at.length+' sessoes redistribuidas. Bora colocar em dia!')
+}
+
+function textoReplan(p){
+  const br=function(k){return parseD(k).toLocaleDateString('pt-BR')}
+  const partes=[]
+  if(p.fimDepois>p.fimAntes)partes.push('o plano foi alongado ate '+br(p.fimDepois))
+  else partes.push('o plano continua terminando em '+br(p.fimDepois))
+  if(p.encurtadas)partes.push(p.encurtadas+' sessoes de '+(p.nivel===1?'revisao':'questoes/revisao')+' ficaram mais curtas para caber ate a prova')
+  if(p.recriadas)partes.push(p.recriadas+' teoria(s) que tinham sumido do plano foram recriadas')
+  if(p.puxadas)partes.push(p.puxadas+' tema(s) reordenados para a teoria vir antes das questoes/revisao')
+  if(p.sobrecarga)partes.push('tempo diario subiu para ate '+dur(p.orcUsado)+' em '+p.sobrecarga+' dia(s) para caber tudo ate a prova (nenhuma sessao perdida)')
+  return partes.join('; ')
 }
 
 /* ---------- CADERNO DE ERROS ---------- */
@@ -1679,13 +1945,13 @@ async function fdAdiar(id){
   const s=_sessoes.find(function(x){return x.id===id}); if(!s||!_fd)return
   const f=_fd
   fdMsg('Reorganizando...','var(--tx3)')
-  const v=vagasFuturas(baseAdiar(s.data),1)
-  const alvo=v[0]||baseAdiar(s.data)
-  const r=await _supabase.from('sessoes_estudo').update({data:alvo,ordem:proximaOrdem(alvo)}).eq('id',id)
-  if(r.error){fdMsg('Erro: '+r.error.message,'#f07171');return}
-  logar('adiou','Adiou "'+s.topico+'" ('+s.disciplina+') de '+parseD(s.data).toLocaleDateString('pt-BR')+' para '+parseD(alvo).toLocaleDateString('pt-BR'))
-  await recarregar()
-  toast('→ Sessao movida para '+parseD(alvo).toLocaleDateString('pt-BR'))
+  const de=s.data
+  const p=simularReplan(baseAdiar(s.data),[s])
+  const it=p.itens.find(function(x){return x.s.id===id})
+  const alvo=it?it.data:baseAdiar(de)
+  try{await aplicarReplan(p)}catch(e){fdMsg('Erro: '+e.message,'#f07171');return}
+  logar('adiou','Adiou "'+s.topico+'" ('+s.disciplina+') de '+parseD(de).toLocaleDateString('pt-BR')+' para '+parseD(alvo).toLocaleDateString('pt-BR')+': '+textoReplan(p))
+  toast('→ Sessao movida para '+parseD(alvo).toLocaleDateString('pt-BR')+' e o plano andou junto')
   fecharDia(f.k,f.modo)
 }
 
@@ -1693,17 +1959,10 @@ async function fdAdiarTodas(k){
   const pend=pendentesDia(k).sort(function(a,b){return (a.ordem||0)-(b.ordem||0)}); if(!pend.length)return
   const f=_fd
   fdMsg('Reorganizando...','var(--tx3)')
-  const vagas=vagasFuturas(baseAdiar(k),pend.length)
-  const conta={}
-  for(let i=0;i<pend.length;i++){
-    const alvo=vagas[i]||vagas[vagas.length-1]||baseAdiar(k)
-    conta[alvo]=(conta[alvo]||proximaOrdem(alvo))
-    const r=await _supabase.from('sessoes_estudo').update({data:alvo,ordem:conta[alvo]++}).eq('id',pend[i].id)
-    if(r.error){fdMsg('Erro: '+r.error.message,'#f07171');return}
-  }
-  logar('adiou','Adiou '+pend.length+' sessao(oes) de '+parseD(k).toLocaleDateString('pt-BR')+' para os proximos dias')
-  await recarregar()
-  toast('→ '+pend.length+' sessoes redistribuidas nos proximos dias')
+  const p=simularReplan(baseAdiar(k),pend)
+  try{await aplicarReplan(p)}catch(e){fdMsg('Erro: '+e.message,'#f07171');return}
+  logar('adiou','Adiou '+pend.length+' sessao(oes) de '+parseD(k).toLocaleDateString('pt-BR')+' para os proximos dias: '+textoReplan(p))
+  toast('→ '+pend.length+' sessoes entraram nos proximos dias e o plano andou junto')
   if(f)fecharDia(f.k,f.modo)
 }
 
