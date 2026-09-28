@@ -713,7 +713,15 @@ function renderHero(){
 function renderAtraso(){
   const hj=hojeStr(), at=_sessoes.filter(function(s){return !s.concluida&&s.data<hj})
   const box=document.getElementById('aviso-atraso')
-  if(!at.length){box.innerHTML='';return}
+  if(!at.length){
+    const fo=contarForaDeOrdem()
+    if(!fo){box.innerHTML='';return}
+    box.innerHTML='<div class="aviso" style="background:rgba(91,179,240,.08);border-color:#5bb3f0"><span style="font-size:22px">🔀</span>'
+     +'<div style="flex:1;min-width:180px"><div style="color:#5bb3f0;font-weight:700;font-size:14px">'+fo+' sessao(oes) de questoes/revisao antes da teoria</div>'
+     +'<div style="color:#a8b8c8;font-size:12px;margin-top:2px">Alguns temas estao com as questoes marcadas antes da teoria. Reorganize para estudar na ordem certa.</div></div>'
+     +'<button class="btn btn-ouro" onclick="replanejarAtrasadas()">Reorganizar</button></div>'
+    return
+  }
   box.innerHTML='<div class="aviso"><span style="font-size:22px">⏰</span>'
    +'<div style="flex:1;min-width:180px"><div style="color:#f07171;font-weight:700;font-size:14px">'+at.length+' sessoes atrasadas</div>'
    +'<div style="color:#a8b8c8;font-size:12px;margin-top:2px">A mais antiga e de '+parseD(at[0].data).toLocaleDateString('pt-BR')+'. Coloque em dia ou peca replanejamento ao mentor.</div></div>'
@@ -1362,7 +1370,7 @@ let _replanPrevia=null
 function replanejarAtrasadas(){
   const hj=hojeStr()
   const at=_sessoes.filter(function(s){return !s.concluida&&s.data<hj}).sort(ordenarSess)
-  if(!at.length)return
+  if(!at.length&&!contarForaDeOrdem())return
   const p=simularReplan(hj,at)
   _replanPrevia={p:p,n:at.length}
   const br=function(k){return parseD(k).toLocaleDateString('pt-BR')}
@@ -1374,8 +1382,9 @@ function replanejarAtrasadas(){
    +'<div style="font-size:18px;font-weight:800;margin-top:2px">Colocar o plano em dia</div></div>'
    +'<button class="btn" onclick="fecharModal()" style="padding:5px 11px">✕</button></div>'
    +'<div style="color:var(--tx2);font-size:13px;line-height:1.6;margin-bottom:12px">'
-   +'As <strong>'+at.length+' sessoes atrasadas</strong>'+(teor?' ('+teor+' de teoria)':'')+' entram a partir de <strong>hoje</strong>, na ordem em que estavam. '
-   +'Todo o resto do seu plano anda para frente. <strong>Nenhuma sessao e apagada.</strong></div>'
+   +(at.length?'As <strong>'+at.length+' sessoes atrasadas</strong>'+(teor?' ('+teor+' de teoria)':'')+' entram a partir de <strong>hoje</strong>. '
+     :'Seu plano sera reorganizado a partir de <strong>hoje</strong>. ')
+   +'Todo o resto do plano anda para frente e cada tema segue a ordem <strong>teoria → questoes → revisao</strong>. <strong>Nenhuma sessao e apagada.</strong></div>'
    +'<div class="bloco" style="margin-top:0">'
    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;text-align:center">'
    +'<div><div style="color:var(--tx3);font-size:11px">Plano terminava</div><div style="font-weight:800;font-size:16px">'+br(p.fimAntes)+'</div></div>'
@@ -1383,10 +1392,12 @@ function replanejarAtrasadas(){
    +'</div>'
    +(p.lim?'<div style="color:var(--tx4);font-size:11.5px;text-align:center;margin-top:8px">Data da prova: '+br(p.lim)+'</div>':'')
    +'</div>'
+   +(p.puxadas?'<div style="background:rgba(91,179,240,.08);border:1px solid #5bb3f0;border-radius:10px;padding:11px 13px;margin-top:10px;color:#5bb3f0;font-size:12.5px;line-height:1.55">'
+      +'<strong>'+p.puxadas+' tema(s)</strong> tinham questoes ou revisao marcadas antes da teoria. A teoria foi trazida para antes, e as questoes/revisao desses temas vem depois dela.</div>':'')
    +(p.encurtadas?'<div style="background:rgba(232,176,75,.08);border:1px solid #e8b04b;border-radius:10px;padding:11px 13px;margin-top:10px;color:#e8b04b;font-size:12.5px;line-height:1.55">'
       +'Para terminar ate a prova, <strong>'+p.encurtadas+' sessoes de '+(p.nivel===1?'revisao':'questoes e revisao')+'</strong> ficam mais curtas'+(p.nivel>=3?' (um terco do tempo)':' (metade do tempo)')+'. A teoria continua com o tempo cheio.</div>':'')
    +(p.sobrecarga?'<div style="background:rgba(240,113,113,.08);border:1px solid #d9566a;border-radius:10px;padding:11px 13px;margin-top:10px;color:#f07171;font-size:12.5px;line-height:1.55">'
-      +'Mesmo encurtando questoes e revisoes, o tempo ate a prova e curto: <strong>'+p.sobrecarga+' sessoes</strong> entram nos ultimos dias antes da prova, que ficam mais pesados (ate '+dur(p.maxDia)+' no dia). Nada e apagado. Converse com seu mentor sobre aumentar o tempo diario.</div>':'')
+      +'Mesmo encurtando questoes e revisoes, o tempo ate a prova e curto. Para nada ser apagado e a ordem dos temas ser mantida, o tempo de estudo sobe de <strong>'+dur(p.orc)+'</strong> para ate <strong>'+dur(p.orcUsado)+'</strong> por dia em <strong>'+p.sobrecarga+' dia(s)</strong>. Converse com seu mentor se nao conseguir esse tempo.</div>':'')
    +'<button class="btn btn-ouro" style="width:100%;padding:12px;margin-top:14px" onclick="confirmarReplan()">Confirmar replanejamento</button>'
    +'<div id="rp-msg" style="font-size:12px;margin-top:10px;text-align:center"></div>'
   document.getElementById('modal').classList.add('on')
@@ -1401,10 +1412,10 @@ async function confirmarReplan(){
     await aplicarReplan(p,function(a,b){m.textContent='Reorganizando o plano... '+a+'/'+b})
   }catch(e){m.style.color='#f07171';m.textContent='Erro ao replanejar: '+e.message;return}
   _replanPrevia=null
-  logar('replanejou','Replanejou '+n+' sessoes atrasadas a partir de '+parseD(hojeStr()).toLocaleDateString('pt-BR')+': '+textoReplan(p))
+  logar('replanejou','Replanejou '+(n?n+' sessoes atrasadas':'o plano (ordem dos temas)')+' a partir de '+parseD(hojeStr()).toLocaleDateString('pt-BR')+': '+textoReplan(p))
   fecharModal()
   irData(hojeStr())
-  toast('✅ Plano em dia! '+n+' sessoes atrasadas entraram a partir de hoje.')
+  toast(n?'✅ Plano em dia! '+n+' sessoes atrasadas entraram a partir de hoje.':'✅ Plano reorganizado: teoria antes das questoes em todos os temas.')
 }
 
 /* ---------- MOTOR DE REPLANEJAMENTO ----------
@@ -1464,11 +1475,65 @@ function alocarReplan(fila,inicio,nivel,orc,dias,lim,fixo){
   return {itens:itens,faltam:fila.slice(i),iniFalta:i,nivel:nivel,carga:carga}
 }
 
+/* Sequencia obrigatoria de cada tema: teoria -> questoes -> revisao.
+   Se uma sessao de questoes/revisao aparece antes da teoria (ou das questoes)
+   pendente do mesmo tema, a etapa anterior e puxada para frente e a sessao
+   dependente vai para o "dia seguinte" (cap sessoes depois). */
+const RANK_TIPO={teoria:0,questoes:1,revisao:2}
+function chaveTema(x){
+  const t=String(x.topico||'').replace(/\s*\(continuacao(\s+\d+)?\)\s*$/i,'').trim().toLowerCase()
+  return String(x.disciplina||'').trim().toLowerCase()+'|'+t
+}
+function rankTipo(x){return RANK_TIPO[x.tipo]===undefined?0:RANK_TIPO[x.tipo]}
+
+function ordenarDependencias(fila,cap){
+  const out=fila.slice()
+  let puxadas=0, guarda=0
+  for(let i=0;i<out.length&&guarda<20000;i++,guarda++){
+    const x=out[i], k=chaveTema(x), r=rankTipo(x)
+    if(r===0)continue
+    // etapa anterior pendente do mesmo tema que esta mais adiante?
+    let j=-1
+    for(let t=i+1;t<out.length;t++){
+      if(chaveTema(out[t])===k&&rankTipo(out[t])<r&&(j<0||rankTipo(out[t])<rankTipo(out[j])))j=t
+    }
+    if(j<0)continue
+    const pre=out.splice(j,1)[0]
+    out.splice(i,0,pre)
+    puxadas++
+    // as etapas seguintes do tema que ficaram coladas vao para o proximo dia
+    const lim=Math.min(out.length,i+1+cap), dep=[]
+    for(let t=lim-1;t>i;t--){
+      if(chaveTema(out[t])===k&&rankTipo(out[t])>rankTipo(pre))dep.unshift(out.splice(t,1)[0])
+    }
+    if(dep.length){
+      const pos=Math.min(out.length,i+cap)
+      Array.prototype.splice.apply(out,[pos,0].concat(dep))
+    }
+    i-- // reavalia a posicao i (agora a etapa puxada)
+  }
+  return {fila:out,puxadas:puxadas}
+}
+
+// quantas sessoes de questoes/revisao estao antes da teoria/questoes pendente do mesmo tema
+function contarForaDeOrdem(){
+  const pend=_sessoes.filter(function(x){return !x.concluida}).sort(ordenarSess)
+  const menorRestante={}  // menor rank pendente visto DEPOIS (varrendo de tras para frente)
+  let n=0
+  for(let i=pend.length-1;i>=0;i--){
+    const k=chaveTema(pend[i]), r=rankTipo(pend[i])
+    if(menorRestante[k]!==undefined&&menorRestante[k]<r)n++
+    if(menorRestante[k]===undefined||r<menorRestante[k])menorRestante[k]=r
+  }
+  return n
+}
+
 function simularReplan(inicio,primeiro){
   const ids={}
   primeiro.forEach(function(x){ids[x.id]=1})
   const resto=_sessoes.filter(function(x){return !x.concluida&&x.data>=inicio&&!ids[x.id]}).sort(ordenarSess)
-  const fila=primeiro.slice().sort(ordenarSess).concat(resto)
+  const dep=ordenarDependencias(primeiro.slice().sort(ordenarSess).concat(resto),capacidadeDia())
+  const fila=dep.fila
   let dias=diasEstudo(); if(!dias.length)dias=[0,1,2,3,4,5,6]
   const orc=capacidadeDia()*tempoBase()
   const lim=limitePlano(inicio)
@@ -1479,28 +1544,21 @@ function simularReplan(inicio,primeiro){
   let r=alocarReplan(fila,inicio,0,orc,dias,lim,fixo)
   for(let n=1;n<=3&&r.faltam.length;n++)r=alocarReplan(fila,inicio,n,orc,dias,lim,fixo)
 
-  // ultimo recurso: nada se perde, o excedente vai para os dias mais leves ate a prova
-  let sobrecarga=0
+  // ultimo recurso: nada se perde e a ordem teoria -> questoes -> revisao se mantem.
+  // Aumenta a carga de TODOS os dias por igual (de 15 em 15 min) ate tudo caber antes da prova.
+  let sobrecarga=0, orcUsado=orc
   if(r.faltam.length){
-    const diasOk=Object.keys(r.carga).sort()
-    if(!diasOk.length){
-      // nenhum dia util no periodo: coloca no proprio inicio
-      r.faltam.forEach(function(x,j){r.itens.push({s:x,data:inicio,min:minNoNivel(x,r.nivel),idx:r.iniFalta+j})})
-      sobrecarga=r.faltam.length
-    }else{
-      // o que sobrou e o fim do conteudo: entra de tras para frente, a partir do dia
-      // mais perto da prova, ate 50% acima da carga normal por dia. So se todos os dias
-      // lotarem, reparte no dia mais leve. Assim o dia de hoje fica por ultimo.
-      const teto=Math.round(orc*1.5)
-      const desc=diasOk.slice().sort().reverse()
-      for(let j=r.faltam.length-1;j>=0;j--){
-        const x=r.faltam[j], m=minNoNivel(x,r.nivel)
-        let k=desc.find(function(d){return r.carga[d]+m<=teto})
-        if(!k){k=diasOk.slice().sort(function(a,b){return (r.carga[a]-r.carga[b])||b.localeCompare(a)})[0]}
-        r.itens.push({s:x,data:k,min:m,idx:r.iniFalta+j}); r.carga[k]+=m; sobrecarga++
-      }
+    for(let B=orc+15;B<=orc*4&&r.faltam.length;B+=15){
+      r=alocarReplan(fila,inicio,3,B,dias,lim,fixo); orcUsado=B
     }
-    r.faltam=[]
+    if(r.faltam.length){
+      // periodo realmente impossivel: coloca o restante no ultimo dia util, em ordem
+      const diasOk=Object.keys(r.carga).sort()
+      const k=diasOk.length?diasOk[diasOk.length-1]:inicio
+      r.faltam.forEach(function(x,j){r.itens.push({s:x,data:k,min:minNoNivel(x,r.nivel),idx:r.iniFalta+j})})
+      r.faltam=[]
+    }
+    Object.keys(r.carga).forEach(function(k){if(r.carga[k]>orc)sobrecarga++})
   }
 
   // ordem dentro de cada dia: primeiro as ja concluidas, depois a fila
@@ -1525,7 +1583,7 @@ function simularReplan(inicio,primeiro){
     const t=(fixo[k]||0)+porDia[k].reduce(function(a,it){return a+it.min},0)
     if(t>maxDia)maxDia=t
   })
-  return {itens:r.itens,mudancas:mudancas,nivel:r.nivel,encurtadas:encurtadas,sobrecarga:sobrecarga,
+  return {itens:r.itens,mudancas:mudancas,nivel:r.nivel,encurtadas:encurtadas,sobrecarga:sobrecarga,puxadas:dep.puxadas,orcUsado:orcUsado,
     fimAntes:fimAntes,fimDepois:fimDepois,lim:lim,orc:orc,maxDia:maxDia,total:fila.length}
 }
 
@@ -1550,7 +1608,8 @@ function textoReplan(p){
   if(p.fimDepois>p.fimAntes)partes.push('o plano foi alongado ate '+br(p.fimDepois))
   else partes.push('o plano continua terminando em '+br(p.fimDepois))
   if(p.encurtadas)partes.push(p.encurtadas+' sessoes de '+(p.nivel===1?'revisao':'questoes/revisao')+' ficaram mais curtas para caber ate a prova')
-  if(p.sobrecarga)partes.push(p.sobrecarga+' sessoes entraram na reta final com dia mais cheio (nenhuma foi perdida)')
+  if(p.puxadas)partes.push(p.puxadas+' tema(s) reordenados para a teoria vir antes das questoes/revisao')
+  if(p.sobrecarga)partes.push('tempo diario subiu para ate '+dur(p.orcUsado)+' em '+p.sobrecarga+' dia(s) para caber tudo ate a prova (nenhuma sessao perdida)')
   return partes.join('; ')
 }
 
