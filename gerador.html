@@ -85,6 +85,7 @@
       </div>
     </div>
     <p id="msg-existente" style="display:none;margin-top:10px;font-size:13px;color:var(--alerta)"></p>
+    <div id="box-outros" style="display:none;margin-top:12px"></div>
   </div>
 
   <!-- 2. CONFIGURACAO -->
@@ -389,6 +390,8 @@ async function carregarTemas(){
       if (dias.indexOf(parseInt(el.dataset.d)) >= 0) el.classList.add('on'); else el.classList.remove('on')
     })
   }
+
+  checarOutrosConcursos()
 
   // sessoes ja existentes
   const { data: existentes } = await _supabase.from('sessoes_estudo').select('id,concluida').eq('aluno_id',aluno_id).eq('concurso_id',concurso_id)
@@ -721,6 +724,62 @@ function renderPreview(plano){
   }
 }
 
+// ---------- TRAVA: UM CRONOGRAMA ATIVO POR ALUNO ----------
+// sessoes PENDENTES do aluno em outros concursos (as concluidas sao historico e ficam)
+async function pendentesOutrosConcursos(aluno_id, concurso_id){
+  const { data } = await _supabase.from('sessoes_estudo').select('id,concurso_id,concluida,concursos(nome)')
+    .eq('aluno_id',aluno_id).neq('concurso_id',concurso_id).eq('concluida',false)
+  const por = {}
+  ;(data||[]).forEach(function(x){
+    const k = x.concurso_id || 'sem'
+    if(!por[k]) por[k] = { nome: x.concursos ? x.concursos.nome : 'outro concurso', ids: [] }
+    por[k].ids.push(x.id)
+  })
+  return por
+}
+
+async function checarOutrosConcursos(){
+  const box = document.getElementById('box-outros')
+  const aluno_id = document.getElementById('g-aluno').value
+  const concurso_id = document.getElementById('g-concurso').value
+  if (!box || !aluno_id || !concurso_id) { if(box) box.style.display='none'; return }
+  const por = await pendentesOutrosConcursos(aluno_id, concurso_id)
+  const ks = Object.keys(por)
+  if (!ks.length) { box.style.display='none'; box.innerHTML=''; return }
+  const total = ks.reduce(function(a,k){ return a+por[k].ids.length },0)
+  const nomes = ks.map(function(k){ return por[k].nome+' ('+por[k].ids.length+')' }).join(', ')
+  box.style.display='block'
+  box.innerHTML = '<div style="background:rgba(240,113,113,.08);border:1px solid var(--erro);border-radius:10px;padding:12px 14px">'
+    + '<p style="color:var(--erro);font-size:13px;font-weight:bold;margin-bottom:4px">Este aluno ainda tem cronograma de outro concurso</p>'
+    + '<p style="color:var(--tx2);font-size:12.5px;line-height:1.55;margin-bottom:10px">Sessoes pendentes em: <strong>'+nomes+'</strong>. '
+    + 'Se o foco mudou, remova essas sessoes pendentes. As sessoes que o aluno ja concluiu ficam guardadas como historico.</p>'
+    + '<button onclick="removerOutrosConcursos()" style="width:auto;padding:9px 16px;background:var(--card2);color:var(--erro);border:1px solid var(--erro)">Remover '+total+' sessoes pendentes do plano antigo</button>'
+    + '<p id="msg-outros" style="font-size:12.5px;margin-top:8px"></p></div>'
+}
+
+async function apagarIds(ids){
+  for (let i=0;i<ids.length;i+=200){
+    const r = await _supabase.from('sessoes_estudo').delete().in('id', ids.slice(i,i+200))
+    if (r.error) throw new Error(r.error.message)
+  }
+}
+
+async function removerOutrosConcursos(){
+  const aluno_id = document.getElementById('g-aluno').value
+  const concurso_id = document.getElementById('g-concurso').value
+  const m = document.getElementById('msg-outros')
+  const por = await pendentesOutrosConcursos(aluno_id, concurso_id)
+  const ids = [].concat.apply([], Object.keys(por).map(function(k){ return por[k].ids }))
+  if (!ids.length) { checarOutrosConcursos(); return }
+  if (!confirm('Remover '+ids.length+' sessoes PENDENTES do plano antigo?\n\nAs sessoes ja concluidas pelo aluno continuam salvas como historico.')) return
+  if (m) { m.style.color='var(--tx3)'; m.textContent='Removendo...' }
+  try { await apagarIds(ids) } catch(e) { if (m) { m.style.color='var(--erro)'; m.textContent='Erro: '+e.message } ; return }
+  // o foco do aluno passa a ser este concurso
+  await _supabase.from('alunos').update({ concurso_id: concurso_id }).eq('id', aluno_id)
+  if (m) { m.style.color='var(--ok)'; m.textContent='Pronto! Plano antigo removido. O aluno agora ve so este concurso.' }
+  setTimeout(checarOutrosConcursos, 1500)
+}
+
 // ---------- SALVAR ----------
 async function salvarCronograma(){
   if (!_plano) { alert('Gere a previa primeiro.'); return }
@@ -733,7 +792,22 @@ async function salvarCronograma(){
 
   if (!confirm('Isso vai substituir o cronograma atual deste aluno neste concurso.\n\nConfirmar?')) return
 
+  // TRAVA: nao deixa dois cronogramas ativos sobrepostos
+  const outros = await pendentesOutrosConcursos(aluno_id, concurso_id)
+  const ks = Object.keys(outros)
+  let idsOutros = []
+  if (ks.length) {
+    const nomes = ks.map(function(k){ return outros[k].nome+' ('+outros[k].ids.length+' sessoes pendentes)' }).join('\n• ')
+    idsOutros = [].concat.apply([], ks.map(function(k){ return outros[k].ids }))
+    if (!confirm('ATENCAO: este aluno ainda tem cronograma ativo de outro concurso:\n• '+nomes
+      +'\n\nPara nao sobrepor os dois, as sessoes PENDENTES do plano antigo serao removidas e o foco do aluno passa a ser este concurso. '
+      +'As sessoes ja concluidas ficam guardadas como historico.\n\nContinuar?')) return
+  }
+
   msg.style.display='block'; msg.style.color='var(--tx3)'; msg.textContent='Salvando...'
+  if (idsOutros.length) {
+    try { await apagarIds(idsOutros) } catch(e) { msg.style.color='var(--erro)'; msg.textContent='Erro ao remover o plano antigo: '+e.message; return }
+  }
 
   // limpa o plano anterior
   let del = _supabase.from('sessoes_estudo').delete().eq('aluno_id',aluno_id).eq('concurso_id',concurso_id)
@@ -789,8 +863,14 @@ async function salvarCronograma(){
     atualizado_em: new Date().toISOString()
   }, { onConflict: 'aluno_id,concurso_id' })
 
+  // foco do aluno = este concurso (a area do aluno e o edital passam a mostrar este)
+  await _supabase.from('alunos').update({ concurso_id: concurso_id }).eq('id', aluno_id)
+  const { data: vinc } = await _supabase.from('aluno_concursos').select('id').eq('aluno_id',aluno_id).eq('concurso_id',concurso_id).maybeSingle()
+  if (!vinc) { try { await _supabase.from('aluno_concursos').insert({ aluno_id: aluno_id, concurso_id: concurso_id }) } catch(e) {} }
+
   msg.style.color='var(--ok)'
-  msg.textContent='Cronograma salvo! '+inseridos+' sessoes distribuidas em '+_plano.calendario.length+' dias.'
+  msg.textContent='Cronograma salvo! '+inseridos+' sessoes distribuidas em '+_plano.calendario.length+' dias.'+(idsOutros.length?' O plano antigo ('+idsOutros.length+' sessoes pendentes) foi removido.':'')
+  checarOutrosConcursos()
   document.getElementById('msg-existente').style.display='none'
 }
 
