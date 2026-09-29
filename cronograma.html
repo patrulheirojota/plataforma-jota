@@ -423,7 +423,7 @@ const LABEL={teoria:'Teoria',questoes:'Questoes',revisao:'Revisao'}
 
 let _alunoId=null,_nome='',_email='',_diretrizes=null,_diretrizesEm=null,_concursoId=null,_concursoNome='',_dataProva=null,_cfg=null
 let _sessoes=[],_porData={},_refSem=null,_refMes=null,_corDisc={},_graf=null,_secAtual='cronograma'
-let _mentor=false,_limiteBloq=20,_wpp=null,_fd=null,_saindo=false,_editalFeito={}
+let _mentor=false,_limiteBloq=20,_wpp=null,_fd=null,_saindo=false,_editalFeito={},_sessoesOutros=[]
 
 function ymd(d){const x=new Date(d);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')}
 function parseD(s){return new Date(s+'T12:00:00')}
@@ -538,7 +538,28 @@ async function init(){
     return
   }
 
-  _sessoes=sess; _concursoId=sess[0].concurso_id
+  // Um cronograma ativo por vez: o do plano gerado por ultimo (ou o foco do aluno).
+  // Sessoes de outros concursos nao entram no calendario (so contam na sequencia).
+  const porConc={}
+  sess.forEach(function(x){porConc[x.concurso_id]=(porConc[x.concurso_id]||0)+1})
+  let ativo=null
+  try{
+    const { data:cfgs }=await _supabase.from('config_cronograma').select('concurso_id,atualizado_em')
+      .eq('aluno_id',_alunoId).order('atualizado_em',{ascending:false})
+    ;(cfgs||[]).some(function(c){if(porConc[c.concurso_id]){ativo=c.concurso_id;return true}return false})
+  }catch(e){}
+  if(!ativo&&aluno.concurso_id&&porConc[aluno.concurso_id])ativo=aluno.concurso_id
+  if(!ativo)ativo=sess[sess.length-1].concurso_id
+  _sessoes=sess.filter(function(x){return x.concurso_id===ativo})
+  _sessoesOutros=sess.filter(function(x){return x.concurso_id!==ativo})
+  _concursoId=ativo
+  if(_mentor){
+    const pendOutros=_sessoesOutros.filter(function(x){return !x.concluida}).length
+    if(pendOutros){
+      const t=document.querySelector('#mentor-bar .mb-t')
+      if(t)t.innerHTML+='<br><span style="color:#f07171;font-weight:700">⚠️ Este aluno ainda tem '+pendOutros+' sessoes pendentes de outro concurso (plano antigo). Elas nao aparecem aqui. Para remover, abra o Gerador com este aluno.</span>'
+    }
+  }
   const { data:conc }=await _supabase.from('concursos').select('nome, data_prova').eq('id',_concursoId).single()
   _concursoNome=conc?conc.nome:''
   const { data:cfg }=await _supabase.from('config_cronograma').select('*')
@@ -806,7 +827,7 @@ function irData(k){irSecao('cronograma');_refSem=parseD(k);_refMes=parseD(k);ren
 /* ---------- STREAK ---------- */
 function calcStreak(){
   const dias={}
-  _sessoes.forEach(function(s){if(s.concluida)dias[s.data]=true})
+  _sessoes.concat(_sessoesOutros).forEach(function(s){if(s.concluida)dias[s.data]=true})
   const ds=Object.keys(dias).sort()
   let atual=0,ref=new Date();ref.setHours(0,0,0,0)
   const desc=ds.slice().reverse()
@@ -1107,7 +1128,9 @@ async function toggleSessao(id){
 async function marcarCaderno(data,val){
   const sess=_porData[data]||[]
   sess.forEach(function(s){s.caderno_erros_lido=val})
-  await _supabase.from('sessoes_estudo').update({caderno_erros_lido:val}).eq('aluno_id',_alunoId).eq('data',data)
+  let qc=_supabase.from('sessoes_estudo').update({caderno_erros_lido:val}).eq('aluno_id',_alunoId).eq('data',data)
+  if(_concursoId)qc=qc.eq('concurso_id',_concursoId)
+  await qc
   renderBoard()
 }
 
@@ -1274,8 +1297,9 @@ function vagasFuturas(apartir,quantas){
   return out
 }
 async function recarregar(){
-  const { data }=await _supabase.from('sessoes_estudo').select('*')
-    .eq('aluno_id',_alunoId).order('data').order('ordem')
+  let q=_supabase.from('sessoes_estudo').select('*').eq('aluno_id',_alunoId)
+  if(_concursoId)q=q.eq('concurso_id',_concursoId)
+  const { data }=await q.order('data').order('ordem')
   _sessoes=data||[]
   indexar();desenhar()
 }
@@ -1335,7 +1359,9 @@ async function aplicarTempoDia(k){
   const v=parseInt(document.getElementById('aj-num').value)||60
   if(v<5){ajMsg('Tempo minimo de 5 minutos.','#f07171');return}
   ajMsg('Salvando...','var(--tx3)')
-  const r=await _supabase.from('sessoes_estudo').update({tempo_minutos:v}).eq('aluno_id',_alunoId).eq('data',k)
+  let qt=_supabase.from('sessoes_estudo').update({tempo_minutos:v}).eq('aluno_id',_alunoId).eq('data',k)
+  if(_concursoId)qt=qt.eq('concurso_id',_concursoId)
+  const r=await qt
   if(r.error){ajMsg('Erro: '+r.error.message,'#f07171');return}
   ;(_porData[k]||[]).forEach(function(s){s.tempo_minutos=v})
   logar('ajustou_tempo','Mudou o tempo das sessoes de '+parseD(k).toLocaleDateString('pt-BR')+' para '+dur(v))
