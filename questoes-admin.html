@@ -23,6 +23,21 @@
   .modo{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
   .modo button{width:auto;margin:0;padding:9px 15px;font-size:13px;background:var(--card2);color:var(--tx3);border:1px solid var(--bd2);border-radius:9px;font-weight:600}
   .modo button.on{background:var(--hov);color:var(--ouro);border-color:var(--ouro)}
+  .tp-sel{display:flex;gap:8px;margin:4px 0 14px;flex-wrap:wrap}
+  .tp-sel button{flex:1;min-width:150px;margin:0;padding:12px;font-size:14px;font-weight:700;background:var(--card2);color:var(--tx3);border:1px solid var(--bd2);border-radius:10px}
+  .tp-sel button.on{background:var(--hov);color:var(--ouro);border-color:var(--ouro)}
+  .mg{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+  .ml{color:var(--tx3);font-size:12px;display:block;margin:10px 0 4px}
+  .alt-r{display:flex;gap:9px;align-items:center;margin-bottom:8px}
+  .alt-r input[type=radio]{width:22px;height:22px;margin:0;accent-color:#6ddba0;flex-shrink:0;cursor:pointer}
+  .alt-r .lt{width:30px;height:30px;border-radius:50%;background:var(--card2);border:1px solid var(--bd2);display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--tx2);flex-shrink:0}
+  .alt-r.ok .lt{background:#6ddba0;border-color:#6ddba0;color:#0a1420}
+  .alt-r textarea{flex:1;margin:0;min-height:42px;padding:9px 11px;resize:vertical;font-size:13.5px}
+  .alt-r.ok textarea{border-color:#6ddba0}
+  .ce-b{display:flex;gap:8px}
+  .ce-b button{flex:1;margin:0;padding:12px;font-weight:800;background:var(--card2);border:1px solid var(--bd2);color:var(--tx3);border-radius:10px}
+  .ce-b button.on-c{background:rgba(109,219,160,.15);border-color:#6ddba0;color:#6ddba0}
+  .ce-b button.on-e{background:rgba(240,113,113,.15);border-color:#f07171;color:#f07171}
   textarea.big{width:100%;padding:12px;border-radius:8px;border:1px solid var(--bd2);background:var(--card2);color:#fff;font-size:12px;font-family:ui-monospace,Menlo,monospace;min-height:230px;resize:vertical;line-height:1.5}
 </style>
 <script>document.documentElement.setAttribute("data-tema",localStorage.getItem("tema")||"escuro")</script>
@@ -66,6 +81,66 @@
 
   <!-- IMPORTAR -->
   <div id="a-imp" class="aba-conteudo">
+    <div class="card" id="card-man">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+        <h3 id="man-titulo" style="margin:0">✍️ Cadastrar questao</h3>
+        <span id="man-cont" style="color:var(--ok);font-size:12.5px;font-weight:700"></span>
+      </div>
+      <p style="color:var(--tx3);font-size:13px;margin:6px 0 10px">Digite uma questao por vez. Escolha o modelo:</p>
+      <div class="tp-sel">
+        <button id="tp-ce" class="on" onclick="manTipo('certo_errado')">✔✖ Certo / Errado</button>
+        <button id="tp-mu" onclick="manTipo('multipla')">🔠 Multipla escolha</button>
+      </div>
+
+      <div class="mg">
+        <div><label class="ml">Disciplina *</label><input type="text" id="man-disc" list="dl-disc" placeholder="Ex: Lingua Portuguesa" style="margin:0"></div>
+        <div><label class="ml">Assunto</label><input type="text" id="man-ass" list="dl-ass" placeholder="Ex: Crase" style="margin:0"></div>
+      </div>
+      <datalist id="dl-disc"></datalist><datalist id="dl-ass"></datalist>
+
+      <label class="ml">Texto de apoio (opcional — texto base, tabela, trecho de lei)</label>
+      <textarea id="man-apoio" rows="3" style="margin:0"></textarea>
+
+      <label class="ml">Enunciado *</label>
+      <textarea id="man-enun" rows="4" style="margin:0" placeholder="Ex: Assinale a alternativa correta sobre..."></textarea>
+
+      <div id="man-box-ce" style="margin-top:12px">
+        <label class="ml" style="margin-top:0">Gabarito *</label>
+        <div class="ce-b"><button id="ce-C" onclick="manGabCE('C')">CERTO</button><button id="ce-E" onclick="manGabCE('E')">ERRADO</button></div>
+      </div>
+
+      <div id="man-box-mu" style="display:none;margin-top:12px">
+        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:6px">
+          <div><label class="ml" style="margin-top:0">Alternativas</label>
+            <select id="man-nalt" onchange="manRenderAlts()" style="margin:0;width:auto;min-width:150px">
+              <option value="5">5 (A a E)</option><option value="4">4 (A a D)</option>
+            </select></div>
+          <button onclick="manSeparar()" style="width:auto;margin:0;padding:10px 14px;background:var(--card2);color:var(--info);border:1px solid var(--info);font-size:12.5px">✂️ Separar alternativas coladas no enunciado</button>
+        </div>
+        <p style="color:var(--tx4);font-size:11.5px;margin-bottom:8px">Toque na bolinha da alternativa <strong style="color:#6ddba0">correta</strong>. Dica: cole a questao inteira (com A, B, C...) no enunciado e use o botao acima.</p>
+        <div id="man-alts"></div>
+      </div>
+
+      <label class="ml">Comentario (explicacao do gabarito)</label>
+      <textarea id="man-com" rows="3" style="margin:0"></textarea>
+      <label class="ml">Bizu (regra pratica para o caderno de erros)</label>
+      <textarea id="man-bizu" rows="2" style="margin:0"></textarea>
+
+      <div class="mg" style="margin-top:4px">
+        <div><label class="ml">Banca</label><input type="text" id="man-banca" placeholder="Ex: CEBRASPE" style="margin:0"></div>
+        <div><label class="ml">Ano</label><input type="number" id="man-ano" placeholder="Ex: 2024" style="margin:0"></div>
+        <div><label class="ml">Orgao</label><input type="text" id="man-orgao" placeholder="Ex: PMSE" style="margin:0"></div>
+        <div><label class="ml">Origem</label><select id="man-orig" style="margin:0"><option value="autoral">Autoral</option><option value="prova">Prova anterior</option></select></div>
+        <div><label class="ml">Vincular ao concurso</label><select id="man-concurso" style="margin:0"><option value="">Nenhum — questao geral</option></select></div>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+        <button onclick="manSalvar()" id="man-btn" style="flex:2;min-width:180px;background:var(--ouro);color:#0a1420;border:none;font-weight:800">Salvar questao</button>
+        <button onclick="manLimpar(true)" id="man-btn2" style="flex:1;min-width:120px;background:var(--card2);color:var(--tx3);border:1px solid var(--bd2)">Limpar</button>
+      </div>
+      <div id="msg-man" style="display:none;margin-top:10px;font-size:13px"></div>
+    </div>
+
     <div class="card">
       <h3>Importar questoes em lote</h3>
       <p style="color:var(--tx3);font-size:13px;margin-bottom:12px">Cole o JSON gerado no outro chat. Use o prompt padrao para garantir o formato certo.</p>
@@ -102,7 +177,9 @@
       <div id="box-csv" style="display:none">
         <label style="color:var(--tx3);font-size:12px;display:block;margin-bottom:4px">Cole as linhas da planilha (copiadas do Excel)</label>
         <textarea class="big" id="imp-csv" style="min-height:170px" placeholder="disciplina;assunto;tipo;enunciado;gabarito;comentario;bizu;banca;ano;origem
-Lingua Portuguesa;Crase;certo_errado;Julgue o item...;C;Explicacao...;Regra pratica...;CEBRASPE;2026;autoral"></textarea>
+Lingua Portuguesa;Crase;certo_errado;Julgue o item...;C;Explicacao...;Regra pratica...;CEBRASPE;2026;autoral
+
+Para MULTIPLA ESCOLHA, use o botao Baixar planilha modelo: ela tem a coluna alternativas (A|B|C|D|E) e gabarito de A a E."></textarea>
         <button onclick="converterCSV()" style="margin-top:8px;background:var(--card);color:var(--ouro);border:1px solid var(--ouro)">Converter para JSON</button>
       </div>
 
@@ -118,6 +195,15 @@ Lingua Portuguesa;Crase;certo_errado;Julgue o item...;C;Explicacao...;Regra prat
     "bizu": "Regra pratica para o caderno de erros.",
     "banca": "CEBRASPE",
     "ano": 2026,
+    "origem": "autoral"
+  },
+  {
+    "disciplina": "Direito Penal",
+    "assunto": "Tipicidade",
+    "tipo": "multipla",
+    "enunciado": "Assinale a alternativa correta.",
+    "alternativas": ["texto A", "texto B", "texto C", "texto D", "texto E"],
+    "gabarito": "C",
     "origem": "autoral"
   }
 ]'></textarea>
@@ -321,7 +407,9 @@ async function init(){
     d.addEventListener('dragleave',function(){d.classList.remove('dentro')})
     d.addEventListener('drop',function(e){e.preventDefault();d.classList.remove('dentro');if(e.dataTransfer.files[0])lerArquivo(e.dataTransfer.files[0])})
   }
-  ;['imp-concurso','g-conc','m-concurso','m-filtro'].forEach(function(id){
+  manRenderAlts()
+  carregarListasMan()
+  ;['imp-concurso','g-conc','m-concurso','m-filtro','man-concurso'].forEach(function(id){
     const s=document.getElementById(id); if(!s)return
     _concursos.forEach(function(x){s.innerHTML+='<option value="'+x.id+'">'+x.nome+'</option>'})
   })
@@ -567,6 +655,197 @@ async function importar(){
   _lote=null
 }
 
+// ================= CADASTRO MANUAL =================
+let _manTipo='certo_errado', _manGab=null, _manEdit=null, _manCont=0
+const LETRAS='ABCDE'
+
+async function carregarListasMan(){
+  try{
+    const { data }=await _supabase.from('questoes').select('disciplina,assunto').limit(5000)
+    const d={},a={}
+    ;(data||[]).forEach(function(q){ if(q.disciplina)d[q.disciplina]=1; if(q.assunto)a[q.assunto]=1 })
+    document.getElementById('dl-disc').innerHTML=Object.keys(d).sort().map(function(x){return '<option value="'+escA(x)+'">'}).join('')
+    document.getElementById('dl-ass').innerHTML=Object.keys(a).sort().map(function(x){return '<option value="'+escA(x)+'">'}).join('')
+  }catch(e){}
+}
+function escA(t){return String(t==null?'':t).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;')}
+
+function manTipo(t){
+  _manTipo=t
+  document.getElementById('tp-ce').classList.toggle('on',t==='certo_errado')
+  document.getElementById('tp-mu').classList.toggle('on',t==='multipla')
+  document.getElementById('man-box-ce').style.display=t==='certo_errado'?'block':'none'
+  document.getElementById('man-box-mu').style.display=t==='multipla'?'block':'none'
+  _manGab=null
+  manGabCE(null); manMarcarAlt(null)
+}
+
+function manGabCE(v){
+  if(_manTipo==='certo_errado')_manGab=v
+  document.getElementById('ce-C').className=v==='C'?'on-c':''
+  document.getElementById('ce-E').className=v==='E'?'on-e':''
+}
+
+function manLerAlts(){
+  return Array.from(document.querySelectorAll('#man-alts textarea')).map(function(t){return t.value})
+}
+function manRenderAlts(valores){
+  const n=parseInt(document.getElementById('man-nalt').value)||5
+  const atuais=valores||manLerAlts()
+  let h=''
+  for(let i=0;i<n;i++){
+    const L=LETRAS[i]
+    h+='<div class="alt-r" id="ar-'+L+'"><input type="radio" name="man-gab" value="'+L+'" onchange="manMarcarAlt(\''+L+'\')" title="Esta e a correta">'
+      +'<div class="lt">'+L+'</div><textarea rows="1" placeholder="Texto da alternativa '+L+'">'+escA(atuais[i]||'')+'</textarea></div>'
+  }
+  document.getElementById('man-alts').innerHTML=h
+  if(_manTipo==='multipla'&&_manGab&&LETRAS.indexOf(_manGab)<n)manMarcarAlt(_manGab); else if(_manTipo==='multipla')_manGab=null
+}
+function manMarcarAlt(L){
+  if(_manTipo==='multipla')_manGab=L
+  document.querySelectorAll('#man-alts .alt-r').forEach(function(r){
+    const eh=r.id==='ar-'+L
+    r.classList.toggle('ok',eh)
+    r.querySelector('input').checked=eh
+  })
+}
+
+// separa "enunciado + A) ... B) ... C) ..." colado num campo so
+function separarTexto(txt){
+  const re=/(^|\s)\(?([A-Ea-e])\s*[).\-–]\s+/g
+  const pos=[]; let m, esperado=0
+  while((m=re.exec(txt))!==null){
+    const L=m[2].toUpperCase()
+    if(L===LETRAS[esperado]){ pos.push({ini:m.index+m[1].length,fim:re.lastIndex}); esperado++; if(esperado>=5)break }
+  }
+  if(pos.length<2)return null
+  const alts=[]
+  for(let i=0;i<pos.length;i++){
+    const fim=i+1<pos.length?pos[i+1].ini:txt.length
+    alts.push(txt.slice(pos[i].fim,fim).replace(/\s+/g,' ').trim())
+  }
+  let gab=null
+  const ult=alts[alts.length-1]
+  const g=ult.match(/\s*(gabarito|resposta)\s*[:\-]?\s*(letra\s*)?\(?([A-Ea-e])\)?\s*\.?\s*$/i)
+  if(g){ gab=g[3].toUpperCase(); alts[alts.length-1]=ult.slice(0,g.index).trim() }
+  return {enunciado:txt.slice(0,pos[0].ini).trim(), alts:alts, gab:gab}
+}
+
+function manSeparar(){
+  const el=document.getElementById('man-enun')
+  const r=separarTexto(el.value)
+  if(!r){manMsg('Nao encontrei alternativas no enunciado. Cole o texto com as letras assim: A) ... B) ... C) ...','var(--alerta)');return}
+  el.value=r.enunciado
+  document.getElementById('man-nalt').value=r.alts.length>=5?'5':'4'
+  manRenderAlts(r.alts)
+  if(r.gab)manMarcarAlt(r.gab)
+  manMsg(r.alts.length+' alternativas separadas.'+(r.gab?' Gabarito '+r.gab+' encontrado no texto.':' Agora marque a correta.'),'var(--ok)')
+}
+
+function manMsg(t,c){const m=document.getElementById('msg-man');m.style.display='block';m.style.color=c;m.innerHTML=t}
+
+function manDados(){
+  const g=function(id){return document.getElementById(id).value.trim()}
+  const d={
+    disciplina:g('man-disc'), assunto:g('man-ass')||null, tipo:_manTipo,
+    enunciado:g('man-enun'), texto_apoio:g('man-apoio')||null,
+    alternativas:null, gabarito:_manGab,
+    comentario:g('man-com')||null, bizu:g('man-bizu')||null,
+    origem:g('man-orig')==='prova'?'prova':'autoral',
+    banca:g('man-banca')||null, ano:parseInt(g('man-ano'))||null, orgao:g('man-orgao')||null
+  }
+  if(_manTipo==='multipla')d.alternativas=manLerAlts().map(function(x){return x.trim()})
+  return d
+}
+
+function manValidar(d){
+  if(!d.disciplina)return 'Preencha a disciplina.'
+  if(!d.enunciado)return 'Preencha o enunciado.'
+  if(d.tipo==='certo_errado'){ if(d.gabarito!=='C'&&d.gabarito!=='E')return 'Marque o gabarito: CERTO ou ERRADO.' }
+  else{
+    const vazias=d.alternativas.map(function(t,i){return t?null:LETRAS[i]}).filter(Boolean)
+    if(vazias.length)return 'Preencha a(s) alternativa(s) '+vazias.join(', ')+'.'
+    if(!d.gabarito||LETRAS.indexOf(d.gabarito)<0||LETRAS.indexOf(d.gabarito)>=d.alternativas.length)return 'Marque qual alternativa e a correta (toque na bolinha ao lado dela).'
+  }
+  return null
+}
+
+async function manSalvar(){
+  const d=manDados()
+  const erro=manValidar(d)
+  if(erro){manMsg(erro,'var(--erro)');return}
+  const btn=document.getElementById('man-btn'); btn.disabled=true
+  manMsg('Salvando...','var(--tx3)')
+  const conc=document.getElementById('man-concurso').value
+  let id=_manEdit, r
+  if(_manEdit){
+    r=await _supabase.from('questoes').update(d).eq('id',_manEdit)
+  }else{
+    d.dificuldade='media'
+    r=await _supabase.from('questoes').insert(d).select('id').single()
+    if(!r.error&&r.data)id=r.data.id
+  }
+  btn.disabled=false
+  if(r.error){manMsg('Erro ao salvar: '+r.error.message,'var(--erro)');return}
+  if(conc&&id){
+    const { data:ja }=await _supabase.from('questao_concursos').select('questao_id').eq('questao_id',id).eq('concurso_id',conc).maybeSingle()
+    if(!ja){try{await _supabase.from('questao_concursos').insert({questao_id:id,concurso_id:conc})}catch(e){}}
+  }
+  const editou=!!_manEdit
+  _manCont+=editou?0:1
+  if(_manCont)document.getElementById('man-cont').textContent=_manCont+' cadastrada(s) agora'
+  manLimpar(false)
+  manMsg(editou?'<strong>Alteracoes salvas!</strong> <a style="color:var(--ouro);cursor:pointer" onclick="abrirAba(\'a-ger\')">Voltar para Gerenciar</a>'
+    :'<strong>Questao salva!</strong> Pode digitar a proxima — disciplina, assunto, banca e concurso continuam preenchidos.','var(--ok)')
+  carregarListasMan()
+  document.getElementById('man-enun').focus()
+}
+
+// limpa o formulario. completo=false mantem disciplina/assunto/banca/ano/orgao/origem/concurso
+function manLimpar(completo){
+  ['man-apoio','man-enun','man-com','man-bizu'].forEach(function(id){document.getElementById(id).value=''})
+  if(completo)['man-disc','man-ass','man-banca','man-ano','man-orgao'].forEach(function(id){document.getElementById(id).value=''})
+  manRenderAlts([])
+  manTipo(_manTipo)
+  _manEdit=null
+  document.getElementById('man-titulo').textContent='✍️ Cadastrar questao'
+  document.getElementById('man-btn').textContent='Salvar questao'
+  document.getElementById('man-btn2').textContent='Limpar'
+  document.getElementById('man-btn2').onclick=function(){manLimpar(true)}
+  if(completo)document.getElementById('msg-man').style.display='none'
+}
+
+function abrirAba(id){
+  document.querySelectorAll('.aba-conteudo').forEach(function(e){e.style.display='none'})
+  document.querySelectorAll('.aba-btn').forEach(function(e){e.classList.toggle('ativa',(e.getAttribute('onclick')||'').indexOf("'"+id+"'")>=0)})
+  document.getElementById(id).style.display='block'
+  if(id==='a-ger'){stats();listar()}
+}
+
+async function manEditar(id){
+  const { data:q,error }=await _supabase.from('questoes').select('*').eq('id',id).single()
+  if(error||!q){alert('Nao consegui abrir a questao.');return}
+  abrirAba('a-imp')
+  manTipo(q.tipo==='multipla'?'multipla':'certo_errado')
+  const set=function(k,v){document.getElementById(k).value=v==null?'':v}
+  set('man-disc',q.disciplina);set('man-ass',q.assunto);set('man-apoio',q.texto_apoio);set('man-enun',q.enunciado)
+  set('man-com',q.comentario);set('man-bizu',q.bizu);set('man-banca',q.banca);set('man-ano',q.ano);set('man-orgao',q.orgao)
+  set('man-orig',q.origem==='prova'?'prova':'autoral');set('man-concurso','')
+  const g=String(q.gabarito||'').toUpperCase()
+  if(q.tipo==='multipla'){
+    const alts=Array.isArray(q.alternativas)?q.alternativas:[]
+    document.getElementById('man-nalt').value=alts.length===4?'4':'5'
+    manRenderAlts(alts); manMarcarAlt(g)
+  }else manGabCE(g)
+  _manEdit=id
+  document.getElementById('man-titulo').textContent='✏️ Editando questao'
+  document.getElementById('man-btn').textContent='Salvar alteracoes'
+  document.getElementById('man-btn2').textContent='Cancelar edicao'
+  document.getElementById('man-btn2').onclick=function(){manLimpar(true);abrirAba('a-ger')}
+  document.getElementById('msg-man').style.display='none'
+  document.getElementById('card-man').scrollIntoView({behavior:'smooth'})
+}
+
 async function stats(){
   const { data:qs }=await _supabase.from('questoes').select('disciplina,origem,tipo,ativo')
   const box=document.getElementById('stats')
@@ -621,7 +900,8 @@ async function listar(){
       +'<div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap">'
       +'<span style="color:var(--ok);font-size:12px;font-weight:700">Gabarito: '+x.gabarito+'</span>'
       +(x.bizu?'<span style="color:var(--roxo);font-size:11px">tem bizu</span>':'<span style="color:var(--erro);font-size:11px">sem bizu</span>')
-      +'<button class="btn-acao btn-excluir" style="margin-left:auto;font-size:11px;padding:3px 8px" onclick="excluirQ(\''+x.id+'\')">Excluir</button>'
+      +'<button class="btn-acao btn-editar" style="margin-left:auto;font-size:11px;padding:3px 8px" onclick="manEditar(\''+x.id+'\')">Editar</button>'
+      +'<button class="btn-acao btn-excluir" style="font-size:11px;padding:3px 8px" onclick="excluirQ(\''+x.id+'\')">Excluir</button>'
       +'</div></div>'
   }).join('')+(qs.length>=60?'<p style="color:var(--tx3);font-size:12px;text-align:center;margin-top:10px">Mostrando as 60 mais recentes. Use os filtros para refinar.</p>':'')
 }
