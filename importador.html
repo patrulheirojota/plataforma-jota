@@ -152,6 +152,7 @@ const DISCS=Object.keys(MAPA)
 
 let _itens=[],_tipo='',_concursos=[]
 
+let _fonte='texto'
 function norm(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 function msg(id,t,c){const m=document.getElementById(id);m.style.display='block';m.style.color=c;m.innerHTML=t}
@@ -180,6 +181,7 @@ async function processar(file){
   bar(15,'Lendo arquivo...')
 
   const nome=file.name.toLowerCase()
+  _fonte=nome.endsWith('.pdf')?'pdf':'texto'
   let linhas=[]
   try{
     if(nome.endsWith('.docx')){
@@ -215,13 +217,15 @@ async function processar(file){
   }
 
   bar(80,'Identificando questoes...')
+  const multipla=parseMultipla(linhas)
   const comentado=parseComentado(linhas)
-  if(comentado.length>=3){ _itens=comentado; _tipo='comentado' }
+  if(multipla.length>=3&&multipla.length>=comentado.length){ _itens=multipla; _tipo='multipla' }
+  else if(comentado.length>=3){ _itens=comentado; _tipo='comentado' }
   else{
     const prova=parseProva(linhas)
     if(prova.length<3){
       document.getElementById('lendo').style.display='none'
-      msg('msg-arq','Nao encontrei questoes neste arquivo.<br><span style="color:var(--tx3);font-size:12px">O importador reconhece dois formatos: material comentado (com "Gabarito:" e "Comentario") e prova da CEBRASPE (itens numerados de 1 a 120).</span>','var(--erro)')
+      msg('msg-arq','Nao encontrei questoes neste arquivo.<br><span style="color:var(--tx3);font-size:12px">O importador reconhece tres formatos: material comentado de certo/errado (com "Gabarito:" e "Comentario"), prova da CEBRASPE (itens numerados de 1 a 120) e prova de multipla escolha (questoes numeradas com alternativas A) B) C) D) E)).</span>','var(--erro)')
       return
     }
     _itens=prova; _tipo='prova'
@@ -256,6 +260,66 @@ function parseComentado(ls){
   })
   if(a)out.push(a)
   return out.filter(function(q){return q.gab&&q.corpo.length})
+}
+
+// ---------- FORMATO 3: multipla escolha ----------
+// Questoes numeradas ("1.", "01)", "Questao 1") seguidas de alternativas A) B) C) D) [E)].
+// Gabarito pode vir na questao ("Gabarito: C") ou numa chave no fim ("GABARITO" + "1-C 2-A ...").
+function parseMultipla(ls){
+  const RE_Q=/^(?:quest[aã]o\s*)?(\d{1,3})\s*(?:[.)\-–:]\s*|\s+|$)(.*)$/i
+  const RE_ALT=/^\(?([A-Ea-e])\s*[).\-–]\s*(.+)$/
+  const RE_GAB=/^(?:gabarito|resposta(?:\s+correta)?)\s*[:\-]?\s*(?:letra\s*)?\(?([A-Ea-e])\)?\s*[.)]?\s*$/i
+  const RE_CHAVE=/^gabarito(\s+oficial|\s+preliminar|\s+definitivo)?\s*:?\s*$/i
+  const RE_COM=/^coment[aá]rios?\s*:?\s*(.*)$/i
+  const L='ABCDE'
+  const out=[];let a=null,modo=null,chave=''
+  ls.forEach(function(t){
+    if(modo==='chave'){chave+=' '+t;return}
+    if(a&&RE_CHAVE.test(t)&&a.alts.length>=2){out.push(a);a=null;modo='chave';return}
+    const g=t.match(RE_GAB)
+    if(a&&g&&a.alts.length>=2){a.gab=g[1].toUpperCase();modo='pos';return}
+    const c=t.match(RE_COM)
+    if(a&&c&&a.alts.length>=2){modo='com';if(c[1])a.com.push(c[1]);return}
+    const m=t.match(RE_Q)
+    if(m){
+      const n=parseInt(m[1])
+      const podeAbrir=(a===null)?(n<=3||out.length>0&&n===out[out.length-1].n+1):(a.alts.length>=2&&n===a.n+1)
+      if(podeAbrir){
+        if(a)out.push(a)
+        a={n:n,disciplina:null,assunto:null,corpo:[],alts:[],gab:null,com:[]}
+        const resto=(m[2]||'').trim()
+        if(resto&&/\s[-—–]\s/.test(resto)&&resto.length<120&&!/[?:]$/.test(resto)){
+          const p=resto.split(/\s+[-—–]\s+/); a.disciplina=p[0].trim(); a.assunto=p[1]?p[1].trim():null
+        }else if(resto)a.corpo.push(resto)
+        modo='corpo';return
+      }
+    }
+    if(!a)return
+    const al=t.match(RE_ALT)
+    if(al&&(modo==='corpo'||modo==='alts')&&al[1].toUpperCase()===L[a.alts.length]&&a.corpo.length){
+      a.alts.push(al[2].trim());modo='alts';return
+    }
+    if(modo==='alts')a.alts[a.alts.length-1]+=' '+t
+    else if(modo==='corpo')a.corpo.push(t)
+    else if(modo==='com')a.com.push(t)
+  })
+  if(a)out.push(a)
+  // chave de respostas no fim do arquivo
+  if(chave){
+    const re=/(\d{1,3})\s*[-–)ºo.:]?\s*([A-Ea-e])\b/g;let k
+    const mapa={}
+    while((k=re.exec(chave))!==null)mapa[parseInt(k[1])]=k[2].toUpperCase()
+    out.forEach(function(q){if(!q.gab&&mapa[q.n])q.gab=mapa[q.n]})
+  }
+  const ok=out.filter(function(q){return q.alts.length>=3&&q.corpo.length})
+  ok.forEach(function(q){
+    const sep=_fonte==='pdf'?' ':'\n'
+    q.enun=q.corpo.join(sep).replace(/[ \t]+/g,' ').trim()
+    q.alts=q.alts.map(function(x){return x.replace(/\s+/g,' ').trim()})
+    q.txt=q.enun+' '+q.alts.join(' ')
+    q.cmd=''
+  })
+  return ok
 }
 
 // ---------- FORMATO 2: prova CEBRASPE ----------
@@ -333,7 +397,25 @@ function mostrar(){
    +'<div class="st-c"><div class="st-n" style="color:'+(comCom?'var(--ok)':'var(--tx3)')+'">'+comCom+'</div><div class="st-l">Com comentario</div></div>'
    +'<div class="st-c"><div class="st-n">'+_itens[0].n+'–'+_itens[_itens.length-1].n+'</div><div class="st-l">Numeracao</div></div>'
 
-  if(_tipo==='comentado'){
+  if(_tipo==='multipla'){
+    const semGab=_itens.filter(function(q){return !q.gab}).length
+    const semDisc=_itens.filter(function(q){return !q.disciplina}).length
+    document.getElementById('aviso-tipo').innerHTML=
+      '<div style="background:var(--card2);border:1px solid var(--roxo);border-radius:9px;padding:12px;font-size:13px;color:var(--roxo)">'
+      +'<strong>Prova de multipla escolha reconhecida.</strong> '
+      +(semGab?semGab+' questao(oes) sem gabarito: cole o gabarito oficial no passo 3. ':'Todas ja vieram com gabarito. ')
+      +(semDisc?'Confira as disciplinas no passo 4.':'')+'</div>'
+    document.getElementById('c-gab').style.display=semGab?'block':'none'
+    document.getElementById('gab-txt').placeholder='Aceita qualquer um destes formatos:\nACBDEBA...   (sequencia direta, questao 1 em diante)\n1-A 2-C 3-B ...\n1) A  2) C  3) B ...'
+    if(semDisc){
+      _itens.forEach(function(q){q.disc=q.disciplina||classificar(q.txt,'')})
+      _itens=suavizar(_itens)
+      renderFaixas(faixasDe(_itens))
+      document.getElementById('c-disc').style.display='block'
+    }else document.getElementById('c-disc').style.display='none'
+    const mb=document.getElementById('m-banca'); if(mb&&mb.value==='CEBRASPE')mb.value=''
+    montarPrevia()
+  }else if(_tipo==='comentado'){
     document.getElementById('aviso-tipo').innerHTML=
       '<div style="background:var(--card2);border:1px solid var(--ok);border-radius:9px;padding:12px;font-size:13px;color:var(--ok)">'
       +'<strong>Material comentado reconhecido.</strong> Disciplina, assunto, gabarito e comentario vieram prontos do arquivo. Pode ir direto para a previa.</div>'
@@ -397,14 +479,15 @@ function aplicarGabarito(){
   const raw=document.getElementById('gab-txt').value.trim()
   if(!raw){msg('msg-gab','Cole o gabarito primeiro.','var(--erro)');return}
   const mapa={}
-  const pares=raw.match(/(\d{1,3})\s*[-–)ºo.:]?\s*([CEce])\b/g)
+  const LT=_tipo==='multipla'?'A-Ea-e':'CEce'
+  const pares=raw.match(new RegExp('(\\d{1,3})\\s*[-–)ºo.:]?\\s*(['+LT+'])\\b','g'))
   if(pares&&pares.length>=5){
     pares.forEach(function(p){
-      const m=p.match(/(\d{1,3})\s*[-–)ºo.:]?\s*([CEce])/)
+      const m=p.match(new RegExp('(\\d{1,3})\\s*[-–)ºo.:]?\\s*(['+LT+'])'))
       if(m)mapa[parseInt(m[1])]=m[2].toUpperCase()
     })
   }else{
-    const seq=raw.toUpperCase().replace(/[^CE]/g,'')
+    const seq=raw.toUpperCase().replace(_tipo==='multipla'?/[^A-E]/g:/[^CE]/g,'')
     if(seq.length<3){msg('msg-gab','Nao consegui entender o gabarito. Use CEEC... ou 1-C 2-E ...','var(--erro)');return}
     const base=_itens[0].n
     for(let i=0;i<seq.length;i++)mapa[base+i]=seq[i]
@@ -438,8 +521,8 @@ function montarPrevia(){
    +'<div style="color:var(--tx3);font-size:12px;margin-bottom:8px">Amostra das 5 primeiras:</div>'
    +_itens.slice(0,5).map(function(q){
       const d=q.disciplina||q.disc
-      const g=q.gab?('<div class="gb gb-'+(q.gab==='C'?'c':'e')+'">'+q.gab+'</div>'):'<div class="gb gb-x">?</div>'
-      const txt=q.txt||(q.corpo?q.corpo[q.corpo.length-1]:'')
+      const g=q.gab?('<div class="gb gb-'+(_tipo==='multipla'?'c':(q.gab==='C'?'c':'e'))+'">'+q.gab+'</div>'):'<div class="gb gb-x">?</div>'
+      const txt=_tipo==='multipla'?(q.enun+' — '+q.alts.length+' alternativas'):(q.txt||(q.corpo?q.corpo[q.corpo.length-1]:''))
       return '<div class="qp"><div class="qp-h">'+g
         +'<span style="color:var(--ouro);font-size:12px;font-weight:700">'+esc(d||'sem disciplina')+'</span>'
         +'<span style="color:var(--tx4);font-size:11px;margin-left:auto">item '+q.n+'</span></div>'
@@ -461,6 +544,14 @@ async function importar(){
   const orgao=document.getElementById('m-orgao').value.trim()||null
 
   const linhas=prontas.map(function(q){
+    if(_tipo==='multipla'){
+      return {
+        disciplina:q.disciplina||q.disc, assunto:q.assunto||null, tipo:'multipla',
+        enunciado:q.enun, texto_apoio:null, alternativas:q.alts, gabarito:q.gab,
+        comentario:(q.com&&q.com.length)?q.com.join('\n\n'):null, bizu:null,
+        origem:orig, banca:banca, ano:ano, orgao:orgao, dificuldade:'media'
+      }
+    }
     let apoio=null,enun=''
     if(q.corpo&&q.corpo.length){
       enun=q.corpo[q.corpo.length-1]
