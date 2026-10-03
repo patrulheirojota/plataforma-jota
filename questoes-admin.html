@@ -559,6 +559,60 @@ function msg(el,txt,cor){
   m.style.display='block';m.style.color=cor;m.innerHTML=txt
 }
 
+// Aceita varios formatos de JSON (inclusive o do gerador de questoes):
+// alternativas em lista ou em {A:..,B:..}, sem "tipo", gabarito "Certo"/"letra D",
+// topico_edital/subtopico, texto_base, fundamento e distratores.
+function txtLimpo(v){return v==null?'':String(v).trim()}
+function normalizarQ(o){
+  const q=Object.assign({},o)
+  // alternativas
+  let alts=q.alternativas
+  if(alts&&!Array.isArray(alts)&&typeof alts==='object'){
+    alts=LETRAS.split('').filter(function(L){return alts[L]!=null||alts[L.toLowerCase()]!=null})
+      .map(function(L){return txtLimpo(alts[L]!=null?alts[L]:alts[L.toLowerCase()])})
+  }else if(typeof alts==='string'){
+    alts=alts.split('|').map(function(x){return x.trim()}).filter(Boolean)
+  }
+  if(Array.isArray(alts))alts=alts.map(function(x){return txtLimpo(typeof x==='object'&&x?(x.texto||x.text||''):x).replace(/^\(?[A-Ea-e]\s*[).\-–]\s+/,'')}).filter(Boolean)
+  // gabarito
+  let g=txtLimpo(q.gabarito||q.resposta||q.correta).toUpperCase()
+  if(/^CERT/.test(g))g='C'; else if(/^ERRAD/.test(g))g='E'
+  else{const m=g.match(/^(?:LETRA\s*)?\(?([A-E])\)?\.?$/);if(m)g=m[1]}
+  // tipo
+  let tp=txtLimpo(q.tipo).toLowerCase()
+  if(/multipl|objetiva|me$|a-e/.test(tp))tp='multipla'
+  else if(/certo|c\/e|ce$/.test(tp))tp='certo_errado'
+  else tp=(Array.isArray(alts)&&alts.length>=2)?'multipla':'certo_errado'
+  q.tipo=tp
+  q.alternativas=tp==='multipla'?alts:null
+  q.gabarito=g
+  // assunto e textos
+  const semNum=function(t){return txtLimpo(t).replace(/^\d+(\.\d+)*\s*[.)\-–]?\s*/,'')}
+  q.assunto=txtLimpo(q.assunto)||semNum(q.topico_edital||q.topico||q.subtopico)||null
+  let apoio=txtLimpo(q.texto_apoio||q.texto_base)
+  if(apoio&&txtLimpo(q.texto_base_fonte))apoio+='\n\n(Fonte: '+txtLimpo(q.texto_base_fonte)+')'
+  q.texto_apoio=apoio||null
+  // comentario completo: comentario + fundamento + por que as erradas estao erradas
+  let com=txtLimpo(q.comentario)
+  if(txtLimpo(q.fundamento))com+=(com?'\n\n':'')+'Fundamento: '+txtLimpo(q.fundamento)
+  if(q.distratores&&typeof q.distratores==='object'&&tp==='multipla'){
+    const linhas=Object.keys(q.distratores).sort().map(function(L){
+      const d=q.distratores[L]; const t=txtLimpo(d&&typeof d==='object'?d.por_que_atrai:d)
+      return (t&&String(L).toUpperCase()!==g)?L.toUpperCase()+') '+t:null
+    }).filter(Boolean)
+    if(linhas.length)com+=(com?'\n\n':'')+'Por que as outras estao erradas:\n'+linhas.join('\n')
+  }
+  q.comentario=com||null
+  // banca, ano, orgao
+  const cert=txtLimpo(q.certame)
+  if(!q.ano){const a=cert.match(/\b(19|20)\d{2}\b/);if(a)q.ano=parseInt(a[0])}
+  if(!q.orgao&&cert){const og=cert.match(/^([A-Z]{2,}[A-Z0-9\-]*)/);if(og)q.orgao=og[1]}
+  const dif=txtLimpo(q.dificuldade).toLowerCase()
+  q.dificuldade=/^f/.test(dif)?'facil':/^d/.test(dif)?'dificil':'media'
+  q.em_duvida=q.em_divida===true||q.em_duvida===true
+  return q
+}
+
 function validar(){
   const txt=document.getElementById('imp-json').value.trim()
   if(!txt){msg('msg-imp','Cole o JSON primeiro.','var(--erro)');return}
@@ -569,7 +623,10 @@ function validar(){
     msg('msg-imp','JSON invalido: '+e.message+'<br><span style="color:var(--tx3);font-size:12px">Verifique se copiou o array inteiro, comecando com [ e terminando com ]</span>','var(--erro)')
     return
   }
+  if(!Array.isArray(arr)&&arr&&Array.isArray(arr.questoes))arr=arr.questoes
+  if(!Array.isArray(arr)&&arr&&typeof arr==='object'&&arr.enunciado)arr=[arr]
   if(!Array.isArray(arr)){msg('msg-imp','O JSON precisa ser uma lista (array) de questoes.','var(--erro)');return}
+  arr=arr.map(normalizarQ)
 
   const erros=[]
   arr.forEach(function(q,i){
@@ -577,11 +634,12 @@ function validar(){
     if(!q.disciplina)erros.push(n+'falta "disciplina"')
     if(!q.enunciado)erros.push(n+'falta "enunciado"')
     if(!q.gabarito)erros.push(n+'falta "gabarito"')
-    const tp=q.tipo||'certo_errado'
-    if(tp==='certo_errado'&&['C','E'].indexOf(String(q.gabarito).toUpperCase())<0)erros.push(n+'gabarito de certo/errado deve ser C ou E')
+    const tp=q.tipo
+    const id=q.codigo?' ('+q.codigo+')':''
+    if(tp==='certo_errado'&&['C','E'].indexOf(q.gabarito)<0)erros.push(n.replace(': ',id+': ')+'gabarito de certo/errado deve ser C ou E (veio "'+q.gabarito+'"). Se for multipla escolha, falta a lista de alternativas.')
     if(tp==='multipla'){
-      if(!Array.isArray(q.alternativas)||q.alternativas.length<2)erros.push(n+'multipla escolha precisa de "alternativas"')
-      else if('ABCDE'.indexOf(String(q.gabarito).toUpperCase())<0)erros.push(n+'gabarito deve ser A a E')
+      if(!Array.isArray(q.alternativas)||q.alternativas.length<2)erros.push(n.replace(': ',id+': ')+'multipla escolha precisa de "alternativas"')
+      else if(LETRAS.slice(0,q.alternativas.length).indexOf(q.gabarito)<0||!q.gabarito)erros.push(n.replace(': ',id+': ')+'gabarito "'+q.gabarito+'" nao corresponde a nenhuma das '+q.alternativas.length+' alternativas')
     }
   })
   if(erros.length){
@@ -591,15 +649,22 @@ function validar(){
   }
 
   _lote=arr
+  const duvida=arr.filter(function(q){return q.em_duvida})
   const discs={}
   arr.forEach(function(q){discs[q.disciplina]=(discs[q.disciplina]||0)+1})
-  const ce=arr.filter(function(q){return (q.tipo||'certo_errado')==='certo_errado'}).length
+  const ce=arr.filter(function(q){return q.tipo==='certo_errado'}).length
   const semBizu=arr.filter(function(q){return !q.bizu}).length
 
   msg('msg-imp','<strong style="color:var(--ok)">'+arr.length+' questoes validas!</strong>'+(semBizu?' <span style="color:var(--alerta)">('+semBizu+' sem bizu)</span>':''),'var(--ok)')
   document.getElementById('prev-imp').innerHTML=
     '<div style="background:var(--card2);border-radius:8px;padding:12px">'
    +'<div style="color:var(--ouro);font-size:13px;font-weight:bold;margin-bottom:8px">'+ce+' certo/errado · '+(arr.length-ce)+' multipla escolha</div>'
+   +(duvida.length?'<div style="background:rgba(232,176,75,.08);border:1px solid var(--alerta);border-radius:8px;padding:10px;margin-bottom:10px;font-size:12.5px;color:var(--alerta);line-height:1.55">'
+      +'<strong>'+duvida.length+' questao(oes) marcadas como "em duvida"</strong> pelo gerador (o gabarito pode estar errado): '
+      +duvida.map(function(q,i){return '<strong>'+(q.codigo||('#'+(arr.indexOf(q)+1)))+'</strong>'}).join(', ')
+      +'.<br>Por seguranca elas <strong>nao serao importadas</strong>. Revise e importe depois, ou marque abaixo.'
+      +'<label style="display:flex;gap:8px;align-items:center;margin-top:8px;color:var(--tx2);cursor:pointer"><input type="checkbox" id="imp-duvida" style="width:16px;height:16px;margin:0"> Importar tambem as questoes em duvida</label></div>':'')
+   +'<div style="color:var(--tx3);font-size:12px;margin-bottom:6px">Por disciplina:</div>'
    +Object.keys(discs).sort().map(function(d){
       return '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--card);font-size:13px"><span>'+d+'</span><span style="color:var(--tx3)">'+discs[d]+'</span></div>'
     }).join('')+'</div>'
@@ -609,10 +674,15 @@ function validar(){
 async function importar(){
   if(!_lote){alert('Valide o JSON primeiro.');return}
   const concurso_id=document.getElementById('imp-concurso').value
-  if(!confirm('Importar '+_lote.length+' questoes'+(concurso_id?' vinculadas ao concurso selecionado':'')+'?'))return
+  const cbD=document.getElementById('imp-duvida')
+  const lote=_lote.filter(function(q){return !q.em_duvida||(cbD&&cbD.checked)})
+  const puladas=_lote.length-lote.length
+  if(!lote.length){alert('Nenhuma questao para importar (todas estao marcadas como em duvida).');return}
+  if(!concurso_id&&!confirm('Voce nao escolheu um concurso. Os alunos so veem questoes vinculadas ao concurso deles.\n\nImportar mesmo assim como questao geral?'))return
+  if(!confirm('Importar '+lote.length+' questoes'+(concurso_id?' vinculadas ao concurso selecionado':'')+'?'+(puladas?'\n\n'+puladas+' em duvida ficarao de fora.':'')))return
   msg('msg-imp','Importando...','var(--tx3)')
 
-  const linhas=_lote.map(function(q){
+  const linhas=lote.map(function(q){
     const tp=q.tipo||'certo_errado'
     return {
       disciplina:String(q.disciplina).trim(),
@@ -648,7 +718,7 @@ async function importar(){
     }
   }
 
-  msg('msg-imp','<strong style="color:var(--ok)">'+ids.length+' questoes importadas com sucesso!</strong>','var(--ok)')
+  msg('msg-imp','<strong style="color:var(--ok)">'+ids.length+' questoes importadas com sucesso!</strong>'+(puladas?' <span style="color:var(--alerta)">'+puladas+' em duvida ficaram de fora.</span>':''),'var(--ok)')
   document.getElementById('imp-json').value=''
   document.getElementById('prev-imp').innerHTML=''
   document.getElementById('btn-imp').style.display='none'
