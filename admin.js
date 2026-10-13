@@ -449,6 +449,7 @@ function renderizarListaAlunos(alunos) {
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-content:flex-start">
         <button class="btn-acao" onclick="verComoAluno('${a.id}')" style="background:var(--ouro);color:#0a1420;border:1px solid var(--ouro);font-weight:700"><span class="ic">👁️</span><span class="lb">Ver como aluno</span></button>
+        <button class="btn-acao btn-editar" onclick="location.href='cronograma.html?aluno=${a.id}&dias=1'" title="Trocar os dias da semana sem reiniciar o plano"><span class="ic">📅</span><span class="lb">Dias de estudo</span></button>
         ${bloq ? `<button class="btn-acao" onclick="reativarAluno('${a.id}','${String(a.nome).replace(/'/g,"\\'")}')" style="background:var(--ok);color:#0a1420;border:1px solid var(--ok);font-weight:700"><span class="ic">🔓</span><span class="lb">Reativar</span></button>` : ''}
         <button class="btn-acao btn-editar" onclick="abrirEditarAluno('${a.id}','${a.nome}','${a.email}','${a.concurso_id||''}')"><span class="ic">✏️</span><span class="lb">Editar</span></button>
         <button class="btn-acao btn-editar" onclick="gerenciarConcursosAluno('${a.id}','${a.nome}')"><span class="ic">🏆</span><span class="lb">Concursos</span></button>
@@ -706,17 +707,23 @@ async function salvarEdicaoAluno() {
   const alunoCache = window._todosAlunos?.find(a => a.id === id)
   if (alunoCache) { alunoCache.data_expiracao = data_expiracao; alunoCache.meta_questoes_dia = meta; alunoCache.diretrizes = diretrizes }
 
-  // Se digitou nova senha, envia link de redefinicao por email
-  if (novaSenha && novaSenha.length >= 6) {
-    msg.style.color='var(--tx3)'; msg.textContent='Atualizando dados e redefinindo senha...'
-    // Usa updateUser via admin (funciona pois o admin esta logado)
-    // Como nao temos acesso direto ao auth.admin via anon key,
-    // enviamos email de redefinicao como alternativa segura
-    await _supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: 'https://patrulheirojota.com.br/nova-senha.html'
-    })
-    msg.style.color='var(--ok)'
-    msg.textContent='Dados salvos! Um link de redefinicao de senha foi enviado para ' + email
+  // Se digitou nova senha: troca DIRETO pelo painel (funcao segura no banco, so o mentor pode usar)
+  if (novaSenha && novaSenha.length < 6) {
+    msg.style.color='var(--erro)'; msg.textContent='Dados salvos, mas a senha nao foi trocada: ela precisa ter pelo menos 6 caracteres.'
+  } else if (novaSenha) {
+    msg.style.color='var(--tx3)'; msg.textContent='Dados salvos. Trocando a senha...'
+    const r = await _supabase.rpc('definir_senha_aluno', { p_aluno: id, p_senha: novaSenha })
+    if (!r.error) {
+      msg.style.color='var(--ok)'
+      msg.innerHTML='Dados salvos e <strong>senha trocada!</strong> Passe ao aluno: login <strong>'+email+'</strong> / senha <strong>'+novaSenha.replace(/</g,'&lt;')+'</strong>'
+      document.getElementById('editar-aluno-senha').value=''
+    } else {
+      // plano B: link por e-mail (so funciona com o SMTP proprio configurado no Supabase)
+      const e2 = await _supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/nova-senha.html' })
+      msg.style.color='var(--erro)'
+      msg.textContent='Dados salvos, mas a senha NAO foi trocada pelo painel ('+r.error.message+'). '
+        + (e2.error ? 'O link por e-mail tambem falhou ('+e2.error.message+'). Rode o SQL de senhas no Supabase.' : 'Foi enviado um link de redefinicao para '+email+'.')
+    }
   } else {
     msg.style.color='var(--ok)'; msg.textContent='Dados salvos com sucesso!'
   }
