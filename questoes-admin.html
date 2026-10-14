@@ -77,6 +77,7 @@
     <button class="aba-btn" onclick="aba('a-dup')">Duplicadas</button>
     <button class="aba-btn" onclick="aba('a-vin')">Reaproveitar</button>
     <button class="aba-btn" onclick="aba('a-mat')">Materiais</button>
+    <button class="aba-btn" onclick="aba('a-map')">🧠 Mapas mentais</button>
   </div>
 
   <!-- IMPORTAR -->
@@ -324,6 +325,36 @@ Para MULTIPLA ESCOLHA, use o botao Baixar planilha modelo: ela tem a coluna alte
     </div>
   </div>
 
+  <div id="a-map" class="aba-conteudo" style="display:none">
+    <div class="card">
+      <h3 id="mp-titulo-card">Publicar mapa mental</h3>
+      <p style="color:var(--tx3);font-size:13px;margin-bottom:12px;line-height:1.6">Envie o arquivo <strong>.html</strong> do mapa (o que voce baixa do Claude). Ele fica guardado na plataforma e abre direto na area do aluno. As anotacoes e o "revisei" de cada aluno ficam salvos na conta dele, em qualquer aparelho.</p>
+      <div class="drop" id="mp-drop" onclick="document.getElementById('mp-file').click()">
+        <div style="font-size:28px;margin-bottom:8px">🧠</div>
+        <div style="color:var(--ouro);font-size:14px;font-weight:bold" id="mp-drop-t">Clique ou arraste o arquivo .html do mapa</div>
+        <div style="color:var(--tx4);font-size:12px;margin-top:4px">ate 3 MB</div>
+      </div>
+      <input type="file" id="mp-file" accept=".html,.htm" style="display:none" onchange="mpLerArquivo(this.files[0])">
+      <div class="mg" style="margin-top:10px">
+        <div><label class="ml">Titulo *</label><input type="text" id="mp-titulo" placeholder="Ex: Linha do Tempo de Pernambuco" style="margin:0"></div>
+        <div><label class="ml">Disciplina</label><input type="text" id="mp-disc" list="dl-disc" placeholder="Ex: Historia de Pernambuco" style="margin:0"></div>
+        <div><label class="ml">Concurso</label><select id="mp-concurso" style="margin:0"><option value="">Todos os concursos</option></select></div>
+      </div>
+      <label class="ml">Descricao curta (opcional)</label>
+      <input type="text" id="mp-desc" placeholder="Ex: Das capitanias as Diretas Ja, com pegadinhas de prova" style="margin:0">
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+        <button onclick="mpSalvar()" id="mp-btn" style="flex:2;min-width:180px;background:var(--ouro);color:#0a1420;border:none;font-weight:800">Publicar mapa</button>
+        <button onclick="mpPrevia()" style="flex:1;min-width:120px;background:var(--card2);color:var(--info);border:1px solid var(--info)">Ver previa</button>
+        <button onclick="mpLimpar()" id="mp-cancel" style="flex:1;min-width:120px;background:var(--card2);color:var(--tx3);border:1px solid var(--bd2)">Limpar</button>
+      </div>
+      <p id="msg-mp" style="display:none;margin-top:10px;font-size:13px"></p>
+    </div>
+    <div class="card">
+      <h3>Mapas publicados</h3>
+      <div id="lista-mp"></div>
+    </div>
+  </div>
+
   <div id="a-mat" class="aba-conteudo" style="display:none">
     <div class="card">
       <h3>Adicionar material</h3>
@@ -391,6 +422,7 @@ function aba(id){
   if(id==='a-dup')prepararDup()
   if(id==='a-vin')prepararVinculo()
   if(id==='a-mat')listarMateriais()
+  if(id==='a-map')mpListar()
 }
 
 let _concursos=[],_lote=null
@@ -409,7 +441,13 @@ async function init(){
   }
   manRenderAlts()
   carregarListasMan()
-  ;['imp-concurso','g-conc','m-concurso','m-filtro','man-concurso'].forEach(function(id){
+  const mpd=document.getElementById('mp-drop')
+  if(mpd){
+    mpd.addEventListener('dragover',function(e){e.preventDefault();mpd.classList.add('dentro')})
+    mpd.addEventListener('dragleave',function(){mpd.classList.remove('dentro')})
+    mpd.addEventListener('drop',function(e){e.preventDefault();mpd.classList.remove('dentro');if(e.dataTransfer.files[0])mpLerArquivo(e.dataTransfer.files[0])})
+  }
+  ;['imp-concurso','g-conc','m-concurso','m-filtro','man-concurso','mp-concurso'].forEach(function(id){
     const s=document.getElementById(id); if(!s)return
     _concursos.forEach(function(x){s.innerHTML+='<option value="'+x.id+'">'+x.nome+'</option>'})
   })
@@ -723,6 +761,126 @@ async function importar(){
   document.getElementById('prev-imp').innerHTML=''
   document.getElementById('btn-imp').style.display='none'
   _lote=null
+}
+
+// ================= MAPAS MENTAIS =================
+let _mpHtml=null, _mpEdit=null
+function mpMsg(t,c){const m=document.getElementById('msg-mp');m.style.display='block';m.style.color=c;m.innerHTML=t}
+
+function mpLerArquivo(file){
+  if(!file)return
+  if(!/\.html?$/i.test(file.name)){mpMsg('Envie o arquivo .html do mapa (nao o .md nem o link).','var(--erro)');return}
+  if(file.size>3*1024*1024){mpMsg('Arquivo maior que 3 MB.','var(--erro)');return}
+  const r=new FileReader()
+  r.onload=function(){
+    const h=String(r.result||'')
+    if(!/<(html|body|div|script)/i.test(h)){mpMsg('Este arquivo nao parece ser um mapa em HTML.','var(--erro)');return}
+    _mpHtml=h
+    const t=h.match(/<title[^>]*>([^<]+)<\/title>/i)
+    if(t&&!document.getElementById('mp-titulo').value)document.getElementById('mp-titulo').value=t[1].trim()
+    const marca=h.match(/class="brand"[^>]*>([^<]+)</i)
+    if(marca&&!document.getElementById('mp-disc').value){
+      const partes=marca[1].split('·').map(function(x){return x.trim()}).filter(Boolean)
+      if(partes.length)document.getElementById('mp-disc').value=partes[partes.length-1]
+    }
+    document.getElementById('mp-drop-t').textContent='✅ '+file.name+' ('+Math.round(file.size/1024)+' KB) — pronto'
+    mpMsg('Arquivo lido. Confira titulo, disciplina e concurso e clique em '+(_mpEdit?'Salvar':'Publicar')+'.','var(--ok)')
+  }
+  r.readAsText(file,'utf-8')
+}
+
+function mpPrevia(html){
+  const h=html||_mpHtml
+  if(!h){mpMsg('Envie o arquivo primeiro.','var(--alerta)');return}
+  const url=URL.createObjectURL(new Blob([h],{type:'text/html'}))
+  window.open(url,'_blank')
+}
+
+async function mpSalvar(){
+  const titulo=document.getElementById('mp-titulo').value.trim()
+  if(!titulo){mpMsg('Preencha o titulo.','var(--erro)');return}
+  if(!_mpHtml&&!_mpEdit){mpMsg('Envie o arquivo .html do mapa.','var(--erro)');return}
+  const d={titulo:titulo, disciplina:document.getElementById('mp-disc').value.trim()||null,
+    concurso_id:document.getElementById('mp-concurso').value||null,
+    descricao:document.getElementById('mp-desc').value.trim()||null, atualizado_em:new Date().toISOString()}
+  if(_mpHtml)d.html=_mpHtml
+  document.getElementById('mp-btn').disabled=true
+  mpMsg('Salvando...','var(--tx3)')
+  const r=_mpEdit ? await _supabase.from('mapas_mentais').update(d).eq('id',_mpEdit)
+                  : await _supabase.from('mapas_mentais').insert(Object.assign({ativo:true},d))
+  document.getElementById('mp-btn').disabled=false
+  if(r.error){mpMsg('Erro: '+r.error.message+' (ja rodou o SQL dos mapas no Supabase?)','var(--erro)');return}
+  const editou=!!_mpEdit
+  mpLimpar()
+  mpMsg(editou?'Mapa atualizado! As anotacoes dos alunos foram mantidas.':'<strong>Mapa publicado!</strong> Os alunos ja veem em Questoes → Mapas mentais.','var(--ok)')
+  mpListar()
+}
+
+function mpLimpar(){
+  _mpHtml=null;_mpEdit=null
+  ;['mp-titulo','mp-disc','mp-desc'].forEach(function(i){document.getElementById(i).value=''})
+  document.getElementById('mp-concurso').value=''
+  document.getElementById('mp-file').value=''
+  document.getElementById('mp-drop-t').textContent='Clique ou arraste o arquivo .html do mapa'
+  document.getElementById('mp-titulo-card').textContent='Publicar mapa mental'
+  document.getElementById('mp-btn').textContent='Publicar mapa'
+  document.getElementById('msg-mp').style.display='none'
+}
+
+async function mpListar(){
+  const box=document.getElementById('lista-mp')
+  box.innerHTML='<p style="color:var(--tx3);font-size:13px">Carregando...</p>'
+  const [rm,rp]=await Promise.all([
+    _supabase.from('mapas_mentais').select('id,titulo,disciplina,descricao,concurso_id,ativo,atualizado_em').order('disciplina').order('titulo'),
+    _supabase.from('mapa_progresso').select('mapa_id,aluno_id')
+  ])
+  if(rm.error){box.innerHTML='<p style="color:var(--erro);font-size:13px">Erro: '+rm.error.message+'<br>Rode o SQL "atualizacao-mapas-mentais.sql" no Supabase.</p>';return}
+  const ms=rm.data||[]
+  if(!ms.length){box.innerHTML='<p style="color:var(--tx3);font-size:13px">Nenhum mapa publicado ainda.</p>';return}
+  const uso={};(rp.data||[]).forEach(function(x){uso[x.mapa_id]=(uso[x.mapa_id]||0)+1})
+  const nomeC=function(id){const c=_concursos.find(function(x){return String(x.id)===String(id)});return c?c.nome:'todos os concursos'}
+  box.innerHTML=ms.map(function(m){
+    return '<div class="qa" style="border-left-color:'+(m.ativo?'var(--roxo)':'var(--bd2)')+';opacity:'+(m.ativo?1:.6)+'">'
+      +'<div class="qa-h"><span style="font-size:18px">🧠</span><strong style="font-size:14px">'+escA(m.titulo)+'</strong>'
+      +(m.ativo?'':'<span class="tag" style="background:var(--card);color:var(--tx3);border:1px solid var(--bd2)">OCULTO</span>')+'</div>'
+      +'<div style="color:var(--tx3);font-size:12px">'+escA(m.disciplina||'sem disciplina')+' · '+escA(m.concurso_id?nomeC(m.concurso_id):'todos os concursos')
+      +' · '+(uso[m.id]||0)+' aluno(s) ja abriram</div>'
+      +(m.descricao?'<div style="color:var(--tx2);font-size:12.5px;margin-top:4px">'+escA(m.descricao)+'</div>':'')
+      +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:9px">'
+      +'<button class="btn-acao btn-editar" style="font-size:11px;padding:4px 9px" onclick="mpVer(\''+m.id+'\')">Ver</button>'
+      +'<button class="btn-acao btn-editar" style="font-size:11px;padding:4px 9px" onclick="mpEditar(\''+m.id+'\')">Editar / trocar arquivo</button>'
+      +'<button class="btn-acao btn-editar" style="font-size:11px;padding:4px 9px" onclick="mpAtivo(\''+m.id+'\','+(!m.ativo)+')">'+(m.ativo?'Ocultar':'Mostrar')+'</button>'
+      +'<button class="btn-acao btn-excluir" style="font-size:11px;padding:4px 9px" onclick="mpExcluir(\''+m.id+'\')">Excluir</button>'
+      +'</div></div>'
+  }).join('')
+}
+
+async function mpVer(id){
+  const { data }=await _supabase.from('mapas_mentais').select('html').eq('id',id).single()
+  if(data)mpPrevia(data.html)
+}
+async function mpEditar(id){
+  const { data:m }=await _supabase.from('mapas_mentais').select('id,titulo,disciplina,descricao,concurso_id').eq('id',id).single()
+  if(!m)return
+  _mpEdit=id;_mpHtml=null
+  document.getElementById('mp-titulo').value=m.titulo||''
+  document.getElementById('mp-disc').value=m.disciplina||''
+  document.getElementById('mp-desc').value=m.descricao||''
+  document.getElementById('mp-concurso').value=m.concurso_id||''
+  document.getElementById('mp-titulo-card').textContent='Editando mapa'
+  document.getElementById('mp-btn').textContent='Salvar alteracoes'
+  document.getElementById('mp-drop-t').textContent='Para trocar o arquivo, clique ou arraste o novo .html (opcional)'
+  mpMsg('Editando "'+escA(m.titulo)+'". Se enviar um arquivo novo, as anotacoes dos alunos continuam.','var(--info)')
+  window.scrollTo({top:0,behavior:'smooth'})
+}
+async function mpAtivo(id,v){
+  await _supabase.from('mapas_mentais').update({ativo:v}).eq('id',id)
+  mpListar()
+}
+async function mpExcluir(id){
+  if(!confirm('Excluir este mapa? As anotacoes que os alunos fizeram nele tambem serao apagadas.\n\nSe quiser so tirar do ar, use "Ocultar".'))return
+  await _supabase.from('mapas_mentais').delete().eq('id',id)
+  mpListar()
 }
 
 // ================= CADASTRO MANUAL =================
