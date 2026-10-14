@@ -71,6 +71,9 @@
     <button onclick="location.href='admin.html'" style="width:auto;padding:8px 14px">Painel Admin</button>
   </header>
 
+  <div id="resumo-topo" style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px 16px;margin-bottom:14px;display:flex;gap:18px;align-items:center;flex-wrap:wrap">
+    <span style="color:var(--tx3);font-size:13px">Contando questoes...</span>
+  </div>
   <div class="abas">
     <button class="aba-btn ativa" onclick="aba('a-imp')">Importar</button>
     <button class="aba-btn" onclick="aba('a-ger')">Gerenciar</button>
@@ -441,6 +444,7 @@ async function init(){
   }
   manRenderAlts()
   carregarListasMan()
+  resumoTopo()
   const mpd=document.getElementById('mp-drop')
   if(mpd){
     mpd.addEventListener('dragover',function(e){e.preventDefault();mpd.classList.add('dentro')})
@@ -756,6 +760,7 @@ async function importar(){
     }
   }
 
+  resumoTopo()
   msg('msg-imp','<strong style="color:var(--ok)">'+ids.length+' questoes importadas com sucesso!</strong>'+(puladas?' <span style="color:var(--alerta)">'+puladas+' em duvida ficaram de fora.</span>':''),'var(--ok)')
   document.getElementById('imp-json').value=''
   document.getElementById('prev-imp').innerHTML=''
@@ -1026,6 +1031,7 @@ async function manSalvar(){
   manMsg(editou?'<strong>Alteracoes salvas!</strong> <a style="color:var(--ouro);cursor:pointer" onclick="abrirAba(\'a-ger\')">Voltar para Gerenciar</a>'
     :'<strong>Questao salva!</strong> Pode digitar a proxima — disciplina, assunto, banca e concurso continuam preenchidos.','var(--ok)')
   carregarListasMan()
+  resumoTopo()
   document.getElementById('man-enun').focus()
 }
 
@@ -1074,23 +1080,81 @@ async function manEditar(id){
   document.getElementById('card-man').scrollIntoView({behavior:'smooth'})
 }
 
+// conta sem o limite de 1000 linhas do Supabase
+async function contar(fn){
+  const r=await fn(_supabase.from('questoes').select('id',{count:'exact',head:true}))
+  return r.error?null:(r.count||0)
+}
+async function linhasTodas(tabela,campos,filtro){
+  const out=[];let ini=0
+  while(true){
+    let q=_supabase.from(tabela).select(campos)
+    if(filtro)q=filtro(q)
+    const r=await q.range(ini,ini+999)
+    if(r.error||!r.data)break
+    out.push.apply(out,r.data)
+    if(r.data.length<1000)break
+    ini+=1000
+  }
+  return out
+}
+
+let _resumo=null
+async function resumoTopo(){
+  const box=document.getElementById('resumo-topo')
+  try{
+    const [tot,ativas,mult,ce,qs,vinc]=await Promise.all([
+      contar(function(q){return q}),
+      contar(function(q){return q.eq('ativo',true)}),
+      contar(function(q){return q.eq('tipo','multipla')}),
+      contar(function(q){return q.eq('tipo','certo_errado')}),
+      linhasTodas('questoes','id,disciplina,origem,tipo'),
+      linhasTodas('questao_concursos','questao_id,concurso_id')
+    ])
+    const porConc={}, comConc={}
+    vinc.forEach(function(v){ comConc[v.questao_id]=1; (porConc[v.concurso_id]=porConc[v.concurso_id]||{})[v.questao_id]=1 })
+    const semConc=qs.filter(function(q){return !comConc[q.id]}).length
+    _resumo={tot:tot==null?qs.length:tot,ativas:ativas,mult:mult,ce:ce,qs:qs,porConc:porConc,semConc:semConc}
+    const it=function(n,l,c){return '<div style="text-align:center;min-width:70px"><div style="font-size:20px;font-weight:800;color:'+c+'">'+n+'</div><div style="color:var(--tx3);font-size:11px">'+l+'</div></div>'}
+    box.innerHTML='<div style="font-size:24px">📚</div>'
+      +'<div style="flex:1;min-width:150px"><div style="font-weight:800;font-size:15px">'+_resumo.tot+' questoes no banco</div>'
+      +'<div style="color:var(--tx3);font-size:12px">'+(ativas!=null&&ativas!==_resumo.tot?ativas+' ativas · ':'')+Object.keys(porConc).length+' concurso(s) com questoes</div></div>'
+      +it(mult==null?'-':mult,'Multipla escolha','var(--roxo)')
+      +it(ce==null?'-':ce,'Certo/Errado','var(--ok)')
+      +it(semConc,'Sem concurso','var(--alerta)')
+  }catch(e){box.innerHTML='<span style="color:var(--erro);font-size:13px">Nao foi possivel contar as questoes: '+e.message+'</span>'}
+}
+
 async function stats(){
-  const { data:qs }=await _supabase.from('questoes').select('disciplina,origem,tipo,ativo')
+  await resumoTopo()
   const box=document.getElementById('stats')
-  if(!qs||!qs.length){box.innerHTML='<p style="color:var(--tx3)">Nenhuma questao cadastrada ainda.</p>';return}
+  const R=_resumo
+  if(!R||!R.tot){box.innerHTML='<p style="color:var(--tx3)">Nenhuma questao cadastrada ainda.</p>';return}
+  const qs=R.qs
   const aut=qs.filter(function(q){return q.origem==='autoral'}).length
-  const ce=qs.filter(function(q){return q.tipo==='certo_errado'}).length
   const discs={}
-  qs.forEach(function(q){discs[q.disciplina]=1})
+  qs.forEach(function(q){discs[q.disciplina||'(sem disciplina)']=(discs[q.disciplina||'(sem disciplina)']||0)+1})
+  const nomeC=function(id){const c=_concursos.find(function(x){return String(x.id)===String(id)});return c?c.nome:'concurso removido'}
   box.innerHTML=
-    '<div class="st-c"><div class="st-n" style="color:var(--ouro)">'+qs.length+'</div><div class="st-l">Total</div></div>'
+    '<div class="st-c"><div class="st-n" style="color:var(--ouro)">'+R.tot+'</div><div class="st-l">Total</div></div>'
+   +'<div class="st-c"><div class="st-n" style="color:var(--roxo)">'+(R.mult==null?'-':R.mult)+'</div><div class="st-l">Multipla escolha</div></div>'
+   +'<div class="st-c"><div class="st-n" style="color:var(--ok)">'+(R.ce==null?'-':R.ce)+'</div><div class="st-l">Certo/Errado</div></div>'
    +'<div class="st-c"><div class="st-n" style="color:var(--ouro)">'+aut+'</div><div class="st-l">Autorais</div></div>'
    +'<div class="st-c"><div class="st-n" style="color:var(--info)">'+(qs.length-aut)+'</div><div class="st-l">De prova</div></div>'
-   +'<div class="st-c"><div class="st-n" style="color:var(--ok)">'+ce+'</div><div class="st-l">Certo/Errado</div></div>'
-   +'<div class="st-c"><div class="st-n">'+Object.keys(discs).length+'</div><div class="st-l">Disciplinas</div></div>'
+   +'<div class="st-c"><div class="st-n" style="color:var(--alerta)">'+R.semConc+'</div><div class="st-l">Sem concurso</div></div>'
+   +'<div style="grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-top:4px">'
+   +'<div style="background:var(--card2);border-radius:10px;padding:12px"><div style="color:var(--ouro);font-size:12px;font-weight:700;margin-bottom:6px">Por concurso</div>'
+   +(Object.keys(R.porConc).length?Object.keys(R.porConc).map(function(c){return [nomeC(c),Object.keys(R.porConc[c]).length]}).sort(function(a,b){return b[1]-a[1]})
+      .map(function(x){return '<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:3px 0;border-bottom:1px solid var(--card)"><span>'+escA(x[0])+'</span><strong>'+x[1]+'</strong></div>'}).join(''):'<span style="color:var(--tx3);font-size:12px">Nenhuma questao vinculada.</span>')
+   +'<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:3px 0;color:var(--alerta)"><span>Sem concurso (gerais)</span><strong>'+R.semConc+'</strong></div></div>'
+   +'<div style="background:var(--card2);border-radius:10px;padding:12px"><div style="color:var(--ouro);font-size:12px;font-weight:700;margin-bottom:6px">Por disciplina</div>'
+   +Object.keys(discs).sort(function(a,b){return discs[b]-discs[a]}).map(function(d){return '<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:3px 0;border-bottom:1px solid var(--card)"><span>'+escA(d)+'</span><strong>'+discs[d]+'</strong></div>'}).join('')
+   +'</div></div>'
   const sd=document.getElementById('g-disc')
+  const atual=sd.value
   sd.innerHTML='<option value="">Todas as disciplinas</option>'
-  Object.keys(discs).sort().forEach(function(d){sd.innerHTML+='<option value="'+d+'">'+d+'</option>'})
+  Object.keys(discs).sort().forEach(function(d){sd.innerHTML+='<option value="'+escA(d)+'">'+escA(d)+' ('+discs[d]+')</option>'})
+  sd.value=atual
 }
 
 async function listar(){
@@ -1108,15 +1172,18 @@ async function listar(){
     if(!ids.length){box.innerHTML='<p style="color:var(--tx3)">Nenhuma questao vinculada a este concurso.</p>';return}
   }
 
-  let q=_supabase.from('questoes').select('*').order('criado_em',{ascending:false}).limit(60)
+  let q=_supabase.from('questoes').select('*',{count:'exact'}).order('criado_em',{ascending:false}).limit(60)
   if(disc)q=q.eq('disciplina',disc)
   if(orig)q=q.eq('origem',orig)
   if(busca)q=q.ilike('enunciado','%'+busca+'%')
   if(ids)q=q.in('id',ids)
-  const { data:qs }=await q
+  const { data:qs,count }=await q
 
   if(!qs||!qs.length){box.innerHTML='<p style="color:var(--tx3)">Nenhuma questao encontrada.</p>';return}
-  box.innerHTML=qs.map(function(x){
+  const filtrado=!!(busca||disc||conc||orig)
+  box.innerHTML='<div style="color:var(--tx3);font-size:12.5px;margin-bottom:10px"><strong style="color:var(--tx)">'+(count==null?qs.length:count)+'</strong> questao(oes) '+(filtrado?'com esses filtros':'no banco')
+    +((count||0)>qs.length?' · mostrando as '+qs.length+' mais recentes':'')+'</div>'
+    +qs.map(function(x){
     return '<div class="qa"><div class="qa-h">'
       +'<span class="tag '+(x.origem==='autoral'?'t-aut':'t-prova')+'">'+(x.origem==='autoral'?'AUTORAL':'PROVA')+'</span>'
       +'<span class="tag '+(x.tipo==='certo_errado'?'t-ce':'t-mult')+'">'+(x.tipo==='certo_errado'?'C/E':'MULTIPLA')+'</span>'
@@ -1131,7 +1198,7 @@ async function listar(){
       +'<button class="btn-acao btn-editar" style="margin-left:auto;font-size:11px;padding:3px 8px" onclick="manEditar(\''+x.id+'\')">Editar</button>'
       +'<button class="btn-acao btn-excluir" style="font-size:11px;padding:3px 8px" onclick="excluirQ(\''+x.id+'\')">Excluir</button>'
       +'</div></div>'
-  }).join('')+(qs.length>=60?'<p style="color:var(--tx3);font-size:12px;text-align:center;margin-top:10px">Mostrando as 60 mais recentes. Use os filtros para refinar.</p>':'')
+  }).join('')+((count||0)>qs.length?'<p style="color:var(--tx3);font-size:12px;text-align:center;margin-top:10px">Mostrando as '+qs.length+' mais recentes de '+count+'. Use os filtros para refinar.</p>':'')
 }
 
 async function excluirQ(id){
