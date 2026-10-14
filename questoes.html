@@ -116,7 +116,7 @@
     <div class="nav-i" onclick="ir('edital.html')"><span class="nav-ic">📖</span>Edital</div>
     <div class="side-sep"></div>
     <div class="nav-i" data-s="flashcards" onclick="irSecao('flashcards')"><span class="nav-ic">🗂️</span>Flashcards<span class="nav-nv">EM BREVE</span></div>
-    <div class="nav-i" data-s="mapas" onclick="irSecao('mapas')"><span class="nav-ic">🧠</span>Mapas<span class="nav-nv">EM BREVE</span></div>
+    <div class="nav-i" data-s="mapas" onclick="irSecao('mapas')"><span class="nav-ic">🧠</span>Mapas mentais</div>
     <div class="side-sep"></div>
     <div class="nav-i" onclick="ir('cronograma.html#desempenho')"><span class="nav-ic">📊</span>Desempenho</div>
     <div class="side-b"><div class="nav-i" id="nav-sair" onclick="sair()"><span class="nav-ic">🚪</span>Sair</div></div>
@@ -241,15 +241,20 @@
 
     <!-- MAPAS -->
     <section class="sec" id="sec-mapas">
-      <div class="painel vazio">
-        <div style="font-size:46px;margin-bottom:14px">🧠</div>
-        <div style="color:var(--ouro);font-weight:700;font-size:17px">Mapas mentais — em breve</div>
-        <p style="color:var(--tx3);font-size:13px;margin-top:10px;max-width:440px;margin-left:auto;margin-right:auto;line-height:1.7">
-          Mapas por disciplina para revisao rapida na reta final, ligados aos temas do seu edital.
-        </p>
-      </div>
+      <div id="lista-mapas"><div class="vazio">Carregando mapas...</div></div>
     </section>
   </main>
+</div>
+
+<div id="mapa-ov" style="display:none;position:fixed;inset:0;z-index:200;background:var(--bg);flex-direction:column">
+  <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--bd);background:var(--bg2);flex-shrink:0">
+    <button class="btn" onclick="fecharMapa()" style="padding:8px 14px;font-weight:700">← Voltar</button>
+    <div style="flex:1;min-width:0">
+      <div id="mapa-tit" style="font-weight:800;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+      <div id="mapa-st" style="color:var(--tx3);font-size:11.5px"></div>
+    </div>
+  </div>
+  <iframe id="mapa-if" title="Mapa mental" style="flex:1;width:100%;border:0;background:var(--bg)"></iframe>
 </div>
 
 <script src="config.js"></script>
@@ -282,6 +287,7 @@ function irSecao(s){
     materiais:['Materiais','Resumos, lei seca e apoio'],flashcards:['Flashcards','Repeticao espacada'],mapas:['Mapas mentais','Revisao visual']}
   if(t[s]){document.getElementById('tit').textContent=t[s][0];document.getElementById('sub').textContent=t[s][1]}
   if(s==='materiais')carregarMateriais()
+  if(s==='mapas')carregarMapas()
   if(s==='simulados'){carregarSimulados();prepararSimulado();carregarHistorico();renderBoxErros()}
   window.scrollTo({top:0,behavior:'smooth'})
 }
@@ -360,6 +366,8 @@ async function init(){
   document.getElementById('sec-questoes').style.display='block'
   renderEstat()
   buscar()
+  const hs=String(location.hash||'').replace('#','')
+  if(['simulados','materiais','mapas','flashcards'].indexOf(hs)>=0)irSecao(hs)
 }
 
 async function carregarMarca(){
@@ -1107,6 +1115,109 @@ async function carregarHistorico(){
          +'<div style="color:var(--tx3);font-size:11px">'+t.acertos+'/'+t.total+'</div></div></div>'
      }).join('')
 }
+
+/* ================= MAPAS MENTAIS =================
+   O mapa (HTML) abre dentro da plataforma. Tudo o que ele guarda no navegador
+   (anotacoes, "revisei") e copiado para a conta do aluno, e volta em qualquer aparelho. */
+let _mapaId=null,_mapaKeys=null,_mapaUrl=null,_mapaT=null,_mapaSujo=false
+
+async function carregarMapas(){
+  const box=document.getElementById('lista-mapas')
+  box.innerHTML='<div class="vazio">Carregando mapas...</div>'
+  const [rm,rp]=await Promise.all([
+    _supabase.from('mapas_mentais').select('id,titulo,disciplina,descricao,concurso_id,ordem').eq('ativo',true).order('disciplina').order('ordem').order('titulo'),
+    _supabase.from('mapa_progresso').select('mapa_id,dados,atualizado_em').eq('aluno_id',_alunoId)
+  ])
+  if(rm.error){box.innerHTML='<div class="painel vazio">Nao foi possivel carregar os mapas agora.</div>';return}
+  const meus=_concursos.map(function(c){return String(c.id)})
+  const ms=(rm.data||[]).filter(function(m){return !m.concurso_id||meus.indexOf(String(m.concurso_id))>=0})
+  if(!ms.length){
+    box.innerHTML='<div class="painel vazio"><div style="font-size:46px;margin-bottom:14px">🧠</div>'
+      +'<div style="color:var(--ouro);font-weight:700;font-size:17px">Nenhum mapa mental ainda</div>'
+      +'<p style="color:var(--tx3);font-size:13px;margin-top:10px">Assim que o seu mentor publicar, eles aparecem aqui.</p></div>'
+    return
+  }
+  const prog={};(rp.data||[]).forEach(function(x){prog[x.mapa_id]=x})
+  const porD={}
+  ms.forEach(function(m){const d=m.disciplina||'Geral';(porD[d]=porD[d]||[]).push(m)})
+  box.innerHTML=Object.keys(porD).sort().map(function(d){
+    return '<div style="color:var(--tx3);font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin:6px 0 10px">'+esc(d)+'</div>'
+      +porD[d].map(function(m){
+        const p=prog[m.id], dd=(p&&p.dados)||{}
+        const rev=Object.keys(dd).filter(function(k){return /done|revis|feito/i.test(k)&&dd[k]==='1'}).length
+        const anot=Object.keys(dd).filter(function(k){return /note|anot/i.test(k)&&String(dd[k]).trim()}).length
+        const st=p?('<span style="color:#6ddba0">'+(rev?rev+' parte(s) revisada(s)':'aberto')+'</span>'+(anot?' · '+anot+' anotacao(oes)':'')):'<span style="color:var(--ouro)">novo</span>'
+        return '<div class="painel" style="display:flex;gap:14px;align-items:center;margin-bottom:10px;cursor:pointer;flex-wrap:wrap" onclick="abrirMapa(\''+m.id+'\')">'
+          +'<div style="width:46px;height:46px;border-radius:12px;background:linear-gradient(135deg,#b98ae0,#7d5fa8);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">🧠</div>'
+          +'<div style="flex:1;min-width:180px"><div style="font-weight:800;font-size:15px">'+esc(m.titulo)+'</div>'
+          +(m.descricao?'<div style="color:var(--tx2);font-size:12.5px;margin-top:2px">'+esc(m.descricao)+'</div>':'')
+          +'<div style="font-size:12px;margin-top:4px">'+st+'</div></div>'
+          +'<button class="btn btn-ouro" style="padding:10px 18px">Abrir</button></div>'
+      }).join('')
+  }).join('')
+}
+
+function mapaChavesReg(id){try{return JSON.parse(localStorage.getItem('mapa_keys_'+id)||'[]')}catch(e){return []}}
+
+async function abrirMapa(id){
+  const ov=document.getElementById('mapa-ov')
+  document.getElementById('mapa-tit').textContent='Abrindo mapa...'
+  document.getElementById('mapa-st').textContent=''
+  ov.style.display='flex'; document.body.style.overflow='hidden'
+  const [rm,rp]=await Promise.all([
+    _supabase.from('mapas_mentais').select('id,titulo,html').eq('id',id).single(),
+    _supabase.from('mapa_progresso').select('dados').eq('aluno_id',_alunoId).eq('mapa_id',id).maybeSingle()
+  ])
+  if(rm.error||!rm.data){document.getElementById('mapa-tit').textContent='Nao foi possivel abrir o mapa.';return}
+  const dados=(rp.data&&rp.data.dados)||{}
+  // limpa o que outra pessoa possa ter deixado neste aparelho e restaura o progresso DESTE aluno
+  const chaves=mapaChavesReg(id).concat(Object.keys(dados))
+  chaves.forEach(function(k){try{localStorage.removeItem(k)}catch(e){}})
+  Object.keys(dados).forEach(function(k){try{localStorage.setItem(k,dados[k])}catch(e){}})
+  _mapaId=id; _mapaKeys={}; chaves.forEach(function(k){_mapaKeys[k]=1}); _mapaSujo=false
+  // mesmo tema da plataforma
+  const tema=(localStorage.getItem('tema')||'escuro')==='claro'?'light':'dark'
+  let html=String(rm.data.html)
+  const inj='<script>try{document.documentElement.setAttribute("data-theme","'+tema+'")}catch(e){}<\/script>'
+  html=/<head[^>]*>/i.test(html)?html.replace(/<head[^>]*>/i,function(m){return m+inj}):inj+html
+  if(_mapaUrl)URL.revokeObjectURL(_mapaUrl)
+  _mapaUrl=URL.createObjectURL(new Blob([html],{type:'text/html'}))
+  document.getElementById('mapa-if').src=_mapaUrl
+  document.getElementById('mapa-tit').textContent=rm.data.titulo
+  document.getElementById('mapa-st').textContent=_mentor?'Modo mentor: voce ve as anotacoes do aluno (nada e alterado)':'Suas anotacoes ficam salvas na sua conta'
+}
+
+// o mapa grava no navegador -> copiamos para a conta do aluno
+window.addEventListener('storage',function(e){
+  if(!_mapaId||!e.key||e.storageArea!==localStorage)return
+  if(String(e.url||'').indexOf('blob:')!==0)return
+  _mapaKeys[e.key]=1
+  try{localStorage.setItem('mapa_keys_'+_mapaId,JSON.stringify(Object.keys(_mapaKeys)))}catch(x){}
+  _mapaSujo=true
+  clearTimeout(_mapaT); _mapaT=setTimeout(salvarMapa,1200)
+})
+
+async function salvarMapa(){
+  if(!_mapaId||!_mapaSujo||_mentor)return
+  const dados={}
+  Object.keys(_mapaKeys).forEach(function(k){const v=localStorage.getItem(k);if(v!==null)dados[k]=v})
+  _mapaSujo=false
+  const st=document.getElementById('mapa-st'); st.textContent='Salvando...'
+  const r=await _supabase.from('mapa_progresso').upsert({aluno_id:_alunoId,mapa_id:_mapaId,dados:dados,atualizado_em:new Date().toISOString()},{onConflict:'aluno_id,mapa_id'})
+  st.textContent=r.error?'Nao foi possivel salvar na sua conta agora ('+r.error.message+')':'✓ Salvo na sua conta'
+}
+
+async function fecharMapa(){
+  clearTimeout(_mapaT)
+  await salvarMapa()
+  document.getElementById('mapa-ov').style.display='none'
+  document.body.style.overflow=''
+  document.getElementById('mapa-if').src='about:blank'
+  if(_mapaUrl){URL.revokeObjectURL(_mapaUrl);_mapaUrl=null}
+  _mapaId=null
+  carregarMapas()
+}
+window.addEventListener('beforeunload',function(){ if(_mapaSujo)salvarMapa() })
 
 async function registrarAcesso(){
   if(_mentor)return
