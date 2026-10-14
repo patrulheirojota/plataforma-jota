@@ -140,6 +140,12 @@
       <div class="painel" style="margin-bottom:16px">
         <div style="font-size:13px;font-weight:700;color:var(--ouro);margin-bottom:12px">Filtros</div>
         <div class="chips" id="ch-status"></div>
+        <label style="color:var(--tx3);font-size:11px;display:block;margin-bottom:6px;font-weight:600">Tipo de questao</label>
+        <div class="chips" id="ch-tipo">
+          <div class="chip on" data-t="" onclick="setTipo('')">Todas</div>
+          <div class="chip" data-t="multipla" onclick="setTipo('multipla')">🔠 Multipla escolha</div>
+          <div class="chip" data-t="certo_errado" onclick="setTipo('certo_errado')">✔✖ Certo / Errado</div>
+        </div>
         <div class="fl">
           <div><label>Concurso</label><select class="inp" id="f-conc" onchange="aoTrocarConcurso()"></select></div>
           <div><label>Origem</label><select class="inp" id="f-orig" onchange="buscar()">
@@ -344,10 +350,15 @@ async function init(){
 
   const { data:vin }=await _supabase.from('aluno_concursos').select('concurso_id, concursos(id,nome)').eq('aluno_id',_alunoId)
   _concursos=(vin||[]).map(function(v){return v.concursos}).filter(Boolean)
+  // concurso: por padrao mostra TODAS as questoes da plataforma
   const sc=document.getElementById('f-conc')
-  sc.innerHTML='<option value="">Todos os concursos</option>'
-  _concursos.forEach(function(c){sc.innerHTML+='<option value="'+c.id+'">'+esc(c.nome)+'</option>'})
-  if(_concursos.length===1)sc.value=_concursos[0].id
+  let todosC=[]
+  try{ const rc=await _supabase.from('concursos').select('id,nome').order('nome'); todosC=rc.data||[] }catch(e){}
+  const meusIds=_concursos.map(function(c){return String(c.id)})
+  const outros=todosC.filter(function(c){return meusIds.indexOf(String(c.id))<0})
+  sc.innerHTML='<option value="">Todas as questoes</option><option value="__geral">Questoes gerais (sem concurso)</option>'
+    +(_concursos.length?'<optgroup label="Meu concurso">'+_concursos.map(function(c){return '<option value="'+c.id+'">'+esc(c.nome)+'</option>'}).join('')+'</optgroup>':'')
+    +(outros.length?'<optgroup label="Outros concursos">'+outros.map(function(c){return '<option value="'+c.id+'">'+esc(c.nome)+'</option>'}).join('')+'</optgroup>':'')
 
   document.getElementById('ch-status').innerHTML=
     [['todas','Todas'],['nao','Nao resolvidas'],['resolvidas','Resolvidas'],['acertei','Acertei'],['errei','Errei']]
@@ -476,7 +487,15 @@ function toggleDisc(el){
   buscar()
 }
 function aoTrocarConcurso(){buscar()}
+let _tipoSel=''
+function setTipo(t){
+  _tipoSel=t
+  document.querySelectorAll('#ch-tipo .chip').forEach(function(e){e.classList.toggle('on',e.dataset.t===t)})
+  buscar()
+}
 function limpar(){
+  _tipoSel=''
+  document.querySelectorAll('#ch-tipo .chip').forEach(function(e){e.classList.toggle('on',e.dataset.t==='')})
   document.getElementById('f-conc').value=''
   document.getElementById('f-orig').value=''
   document.getElementById('f-banca').value=''
@@ -486,6 +505,20 @@ function limpar(){
   _discSel=[];_assSel=[];renderAssuntos();setStatus('todas')
 }
 
+// busca todas as linhas de uma consulta, de 1000 em 1000 (limite do Supabase)
+async function todasLinhas(fabrica){
+  const out=[];let ini=0
+  while(true){
+    const r=await fabrica().range(ini,ini+999)
+    if(r.error)throw r.error
+    const d=r.data||[]
+    out.push.apply(out,d)
+    if(d.length<1000)break
+    ini+=1000
+  }
+  return out
+}
+
 async function buscar(pag){
   _pag=pag||0
   const box=document.getElementById('qbox')
@@ -493,50 +526,62 @@ async function buscar(pag){
   document.getElementById('paginacao').innerHTML=''
 
   const conc=document.getElementById('f-conc').value
-  let ids=null
-  if(conc){
-    const { data:v }=await _supabase.from('questao_concursos').select('questao_id').eq('concurso_id',conc)
-    ids=(v||[]).map(function(x){return x.questao_id})
-    if(!ids.length){box.innerHTML='<div class="vazio">Nenhuma questao vinculada a este concurso ainda.</div>';return}
-  }
+  const o=document.getElementById('f-orig').value
+  const b=document.getElementById('f-banca').value
+  const a=document.getElementById('f-ano').value
+  const bu=document.getElementById('f-busca').value.trim()
 
-  const respIds=Object.keys(_resp)
-  if(_status!=='todas'){
-    let alvo=[]
-    if(_status==='nao'){
-      if(respIds.length){ ids = ids ? ids.filter(function(i){return respIds.indexOf(i)<0}) : null }
-    }else{
-      if(_status==='resolvidas')alvo=respIds
-      else if(_status==='acertei')alvo=respIds.filter(function(i){return _resp[i].correta})
-      else alvo=respIds.filter(function(i){return !_resp[i].correta})
-      if(!alvo.length){box.innerHTML='<div class="vazio">Nenhuma questao neste filtro ainda.</div>';return}
-      ids = ids ? ids.filter(function(i){return alvo.indexOf(i)>=0}) : alvo
-      if(!ids.length){box.innerHTML='<div class="vazio">Nenhuma questao com essa combinacao de filtros.</div>';return}
+  let cand
+  try{
+    // 1) ids das questoes que batem com os filtros (sem limite de quantidade)
+    cand=await todasLinhas(function(){
+      let q=_supabase.from('questoes').select('id,criado_em').eq('ativo',true)
+      if(_tipoSel)q=q.eq('tipo',_tipoSel)
+      if(_discSel.length)q=q.in('disciplina',_discSel)
+      if(_assSel.length)q=q.in('assunto',_assSel)
+      if(o)q=q.eq('origem',o)
+      if(b)q=q.eq('banca',b)
+      if(a)q=q.eq('ano',parseInt(a))
+      if(bu)q=q.ilike('enunciado','%'+bu+'%')
+      return q.order('criado_em',{ascending:false}).order('id')
+    })
+    // 2) filtro de concurso
+    if(conc){
+      const vinc=await todasLinhas(function(){
+        let q=_supabase.from('questao_concursos').select('questao_id')
+        if(conc!=='__geral')q=q.eq('concurso_id',conc)
+        return q.order('questao_id')
+      })
+      const set={};vinc.forEach(function(x){set[x.questao_id]=1})
+      cand=cand.filter(function(x){return conc==='__geral'?!set[x.id]:!!set[x.id]})
     }
+  }catch(e){box.innerHTML='<div class="vazio">Erro ao buscar: '+esc(e.message||String(e))+'</div>';return}
+
+  // 3) filtro de situacao (respondidas, acertos, erros)
+  if(_status==='nao')cand=cand.filter(function(x){return !_resp[x.id]})
+  else if(_status==='resolvidas')cand=cand.filter(function(x){return !!_resp[x.id]})
+  else if(_status==='acertei')cand=cand.filter(function(x){return _resp[x.id]&&_resp[x.id].correta})
+  else if(_status==='errei')cand=cand.filter(function(x){return _resp[x.id]&&!_resp[x.id].correta})
+
+  const tot=cand.length
+  if(!tot){
+    const msg=conc==='__geral'?'Nenhuma questao geral (sem concurso) com esses filtros.'
+      :conc?'Nenhuma questao deste concurso com esses filtros.':'Nenhuma questao encontrada com esses filtros.'
+    box.innerHTML='<div class="vazio"><div style="font-size:40px;margin-bottom:10px">🔍</div>'+msg+'</div>';return
   }
+  const paginas=Math.ceil(tot/PP)
+  if(_pag>=paginas)_pag=paginas-1
+  const pagIds=cand.slice(_pag*PP,_pag*PP+PP).map(function(x){return x.id})
 
-  let q=_supabase.from('questoes').select('*',{count:'exact'}).eq('ativo',true)
-  if(ids)q=q.in('id',ids)
-  if(_discSel.length)q=q.in('disciplina',_discSel)
-  if(_assSel.length)q=q.in('assunto',_assSel)
-  const o=document.getElementById('f-orig').value; if(o)q=q.eq('origem',o)
-  const b=document.getElementById('f-banca').value; if(b)q=q.eq('banca',b)
-  const a=document.getElementById('f-ano').value; if(a)q=q.eq('ano',parseInt(a))
-  const bu=document.getElementById('f-busca').value.trim(); if(bu)q=q.ilike('enunciado','%'+bu+'%')
-
-  const { data:qs,count,error }=await q.order('criado_em',{ascending:false}).range(_pag*PP,_pag*PP+PP-1)
+  // 4) carrega so as questoes da pagina
+  const { data:qs,error }=await _supabase.from('questoes').select('*').in('id',pagIds)
   if(error){box.innerHTML='<div class="vazio">Erro ao buscar: '+esc(error.message)+'</div>';return}
-
-  let lista=qs||[]
-  if(_status==='nao')lista=lista.filter(function(x){return !_resp[x.id]})
-
-  if(!lista.length){box.innerHTML='<div class="vazio"><div style="font-size:40px;margin-bottom:10px">🔍</div>Nenhuma questao encontrada com esses filtros.</div>';return}
+  const porId={};(qs||[]).forEach(function(x){porId[x.id]=x})
+  const lista=pagIds.map(function(id){return porId[id]}).filter(Boolean)
 
   _qs=lista
-  box.innerHTML=lista.map(renderQ).join('')
+  box.innerHTML='<div style="color:var(--tx3);font-size:12.5px;margin-bottom:10px">'+tot+' questao(oes) encontrada(s)</div>'+lista.map(renderQ).join('')
 
-  const tot=count||lista.length
-  const paginas=Math.ceil(tot/PP)
   if(paginas>1){
     document.getElementById('paginacao').innerHTML=
       '<button class="btn" '+(_pag===0?'disabled style="opacity:.4"':'onclick="buscar('+(_pag-1)+')"')+'>Anterior</button>'
@@ -552,6 +597,7 @@ function renderQ(q){
   return '<div class="q" id="q-'+q.id+'">'
     +'<div class="q-h">'
     +'<span class="tag '+(q.origem==='autoral'?'t-aut':'t-prova')+'">'+(q.origem==='autoral'?'AUTORAL':'PROVA')+'</span>'
+    +'<span class="tag" style="background:var(--card2);color:var(--tx2);border:1px solid var(--bd2)">'+(ce?'C/E':'MULTIPLA')+'</span>'
     +'<span style="color:var(--ouro);font-size:12px;font-weight:700">'+esc(q.disciplina)+'</span>'
     +(q.assunto?'<span style="color:var(--tx3);font-size:12px">› '+esc(q.assunto)+'</span>':'')
     +'<span style="margin-left:auto;color:var(--tx4);font-size:11px">'+esc(q.banca||'')+(q.ano?' · '+q.ano:'')+(q.orgao?' · '+esc(q.orgao):'')+'</span>'
