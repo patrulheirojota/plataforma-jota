@@ -61,6 +61,31 @@
   .res{border-radius:12px;padding:14px;margin-top:14px}
   .res.ok{background:rgba(109,219,160,.1);border:1px solid #6ddba0}
   .res.no{background:rgba(240,113,113,.1);border:1px solid #f07171}
+  .cd-fab{position:fixed;right:20px;bottom:20px;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#b98ae0,#7d5fa8);border:none;color:#fff;font-size:24px;cursor:pointer;box-shadow:0 6px 22px rgba(125,95,168,.45);z-index:40;display:flex;align-items:center;justify-content:center}
+  .cd-fab:hover{transform:scale(1.06)}
+  .cd-ov{position:fixed;inset:0;background:rgba(5,10,18,.6);opacity:0;pointer-events:none;transition:.2s;z-index:44}
+  .cd-ov.on{opacity:1;pointer-events:auto}
+  .cd{position:fixed;top:0;right:-470px;width:450px;max-width:94vw;height:100%;background:var(--bg2);border-left:1px solid var(--bd2);z-index:45;transition:right .25s ease;display:flex;flex-direction:column}
+  .cd.on{right:0}
+  .cd-h{padding:14px 16px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:10px}
+  .cd-t{flex:1;font-size:16px;font-weight:800}
+  .cd-t span{color:#b98ae0;display:block;font-size:11px;font-weight:600;letter-spacing:.5px}
+  .cd-body{flex:1;overflow-y:auto;padding:14px 16px 18px}
+  .cd-item{background:var(--card);border:1px solid var(--bd);border-left:3px solid #b98ae0;border-radius:10px;padding:12px;margin-bottom:9px}
+  .cd-it{font-size:13.5px;font-weight:700;line-height:1.3}
+  .cd-id{color:var(--tx3);font-size:11px;margin-top:3px}
+  .cd-ic{color:var(--tx2);font-size:12.5px;line-height:1.55;margin-top:7px;white-space:pre-wrap;max-height:84px;overflow:hidden;cursor:pointer}
+  .cd-ic.full{max-height:none}
+  .cd-inp{width:100%;padding:10px;border-radius:9px;border:1px solid var(--bd2);background:var(--bg);color:var(--tx);font-size:14px;margin-bottom:9px;font-family:inherit}
+  textarea.cd-inp{min-height:160px;resize:vertical;line-height:1.6}
+  .cx{background:linear-gradient(135deg,rgba(185,138,224,.12),rgba(125,95,168,.04));border:1px solid #7d5fa8;border-radius:12px;padding:14px;margin-top:12px}
+  .cx-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+  .cx-t{color:#c9a9e8;font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;flex:1;min-width:150px}
+  .cx-jota{background:var(--card);border:1px dashed #7d5fa8;border-radius:10px;padding:11px 12px;margin-bottom:10px}
+  .cx select,.cx textarea{width:100%;padding:9px 11px;border-radius:9px;border:1px solid var(--bd2);background:var(--bg);color:var(--tx);font-size:13.5px;font-family:inherit}
+  .cx textarea{min-height:76px;resize:vertical;line-height:1.55}
+  .cx-ok{background:rgba(109,219,160,.1);border:1px solid #6ddba0;color:#6ddba0;border-radius:9px;padding:9px 12px;font-size:13px;font-weight:600;margin-top:8px}
+  .btn-cad{border-color:#7d5fa8!important;color:#c9a9e8!important}
   .bizu{background:linear-gradient(135deg,rgba(185,138,224,.14),rgba(125,95,168,.06));border:1px solid #7d5fa8;border-radius:11px;padding:13px;margin-top:12px}
   .bizu-h{display:flex;align-items:center;gap:8px;margin-bottom:7px}
   .bizu-t{color:#b98ae0;font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase}
@@ -252,6 +277,20 @@
   </main>
 </div>
 
+<button class="cd-fab" onclick="abrirCadernoQ()" title="Meu caderno de erros">📓</button>
+<div class="cd-ov" id="cd-ov" onclick="fecharCadernoQ()"></div>
+<aside class="cd" id="cd">
+  <div class="cd-h">
+    <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#b98ae0,#7d5fa8);display:flex;align-items:center;justify-content:center;font-size:17px">📓</div>
+    <div class="cd-t">Caderno de erros<span>SEU ARSENAL DE APRENDIZADO</span></div>
+    <button class="btn" style="padding:6px 11px" onclick="fecharCadernoQ()">✕</button>
+  </div>
+  <div style="padding:12px 16px 0">
+    <select class="cd-inp" id="cdq-disc" onchange="_cdDisc=this.value;_cdEdit=null;renderCadQ()" style="margin:0"></select>
+  </div>
+  <div class="cd-body" id="cd-body"></div>
+</aside>
+
 <div id="mapa-ov" style="display:none;position:fixed;inset:0;z-index:200;background:var(--bg);flex-direction:column">
   <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--bd);background:var(--bg2);flex-shrink:0">
     <button class="btn" onclick="fecharMapa()" style="padding:8px 14px;font-weight:700">← Voltar</button>
@@ -373,6 +412,7 @@ async function init(){
   renderMeta()
 
   await carregarFacetas()
+  carregarNotasQ()
   document.getElementById('loading').style.display='none'
   document.getElementById('sec-questoes').style.display='block'
   renderEstat()
@@ -410,6 +450,7 @@ async function carregarFacetas(){
     if(q.banca)b[q.banca]=1
     if(q.ano)a[q.ano]=1
   })
+  _discsQ=Object.keys(d)
   document.getElementById('ch-disc').innerHTML=Object.keys(d).sort().map(function(x){
     return '<div class="chip" data-d="'+esc(x)+'" onclick="toggleDisc(this)">'+esc(x)+' <span style="opacity:.6">'+d[x]+'</span></div>'
   }).join('')||'<span style="color:var(--tx4);font-size:12px">Nenhuma questao cadastrada ainda.</span>'
@@ -611,8 +652,9 @@ function renderQ(q){
          +'<div class="alt-l">'+a[0]+'</div><div class="alt-t">'+esc(a[1])+'</div></div>'
      }).join('')
     +'</div>'
-    +'<div id="acao-'+q.id+'" style="margin-top:14px">'
-    +'<button class="btn btn-ouro" onclick="responder(\''+q.id+'\')" style="padding:11px 26px">Responder</button></div>'
+    +'<div id="acao-'+q.id+'" style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">'
+    +'<button class="btn btn-ouro" onclick="responder(\''+q.id+'\')" style="padding:11px 26px">Responder</button>'
+    +'<button class="btn btn-cad" data-d="'+esc(q.disciplina)+'" onclick="abrirCadernoQ(this.dataset.d)" style="padding:10px 14px">📓 Caderno de '+esc(q.disciplina)+'</button></div>'
     +'<div id="fb-'+q.id+'"></div>'
     +'</div>'
 }
@@ -657,11 +699,7 @@ async function responder(id){
       +'<div style="color:var(--ouro);font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;margin-bottom:6px">Comentario do Jota</div>'
       +'<div style="font-size:13.5px;line-height:1.7;color:var(--tx2);white-space:pre-wrap">'+esc(q.comentario)+'</div></div>':'')
     +'</div>'
-    +(q.bizu?'<div class="bizu"><div class="bizu-h"><span style="font-size:16px">📓</span>'
-      +'<span class="bizu-t">Para o caderno de erros</span></div>'
-      +'<div style="font-size:13.5px;line-height:1.65;color:var(--tx)">'+esc(q.bizu)+'</div>'
-      +(!acertou?'<button class="btn" style="margin-top:10px;border-color:#7d5fa8;color:#c9a9e8;padding:8px 14px" onclick="paraCaderno(\''+id+'\')">Salvar no meu caderno de erros</button>':'')
-      +'<div id="cad-'+id+'" style="font-size:12px;margin-top:8px"></div></div>':'')
+    +painelCaderno(q,acertou)
     +'<div class="abas-q">'
     +'<div class="aba-q on" onclick="abaQ(\''+id+'\',\'cmt\',this)">Comentarios e bizus</div>'
     +'</div><div id="tab-'+id+'"></div>'
@@ -672,6 +710,178 @@ function abaQ(id,t,el){
   el.parentElement.querySelectorAll('.aba-q').forEach(function(e){e.classList.remove('on')})
   el.classList.add('on')
   if(t==='cmt')carregarComentarios(id)
+}
+
+/* ================= CADERNO DE ERROS NA ABA DE QUESTOES ================= */
+let _notas=null,_cdDisc='',_cdEdit=null,_discsQ=[],_semColQ=false
+
+async function carregarNotasQ(force){
+  if(_notas&&!force)return _notas
+  const { data,error }=await _supabase.from('caderno_erros').select('*').eq('aluno_id',_alunoId).order('atualizado_em',{ascending:false})
+  _notas=error?[]:(data||[])
+  return _notas
+}
+function discsCaderno(extra){
+  const d={}
+  ;(_notas||[]).forEach(function(n){if(n.disciplina)d[n.disciplina]=1})
+  _discsQ.forEach(function(x){d[x]=1})
+  if(extra)d[extra]=1
+  return Object.keys(d).sort()
+}
+function notaDaQuestao(qid){return (_notas||[]).find(function(n){return n.questao_id===qid})}
+
+function painelCaderno(q,acertou){
+  const id=q.id, ja=notaDaQuestao(id)
+  const ds=discsCaderno(q.disciplina)
+  return '<div class="cx" id="cx-'+id+'">'
+    +'<div class="cx-h"><span style="font-size:18px">📓</span><span class="cx-t">Caderno de erros</span>'
+    +'<button class="btn btn-cad" style="padding:6px 11px;font-size:12px" onclick="abrirCadernoQ(document.getElementById(\'cxd-'+id+'\').value)">Abrir caderno ▸</button></div>'
+    +(ja?'<div class="cx-ok" style="margin:0 0 10px">✓ Esta questao ja esta no seu caderno. <a style="color:#c9a9e8;cursor:pointer;text-decoration:underline" data-d="'+esc(ja.disciplina||'')+'" data-n="'+ja.id+'" onclick="abrirCadernoQ(this.dataset.d,this.dataset.n)">Ver anotacao</a></div>':'')
+    +(q.bizu?'<div class="cx-jota"><div style="color:#c9a9e8;font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;margin-bottom:5px">💡 Bizu do Jota</div>'
+      +'<div style="font-size:13.5px;line-height:1.6;color:var(--tx)">'+esc(q.bizu)+'</div>'
+      +'<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:9px">'
+      +'<button class="btn btn-ouro" style="padding:8px 13px;font-size:12.5px" onclick="salvarBizu(\''+id+'\',true)">⚡ Salvar este bizu no caderno</button>'
+      +'<button class="btn btn-cad" style="padding:8px 13px;font-size:12.5px" onclick="colarBizu(\''+id+'\')">✏️ Colar e editar</button></div></div>':'')
+    +'<label style="color:var(--tx3);font-size:11.5px;font-weight:600;display:block;margin-bottom:5px">'+(q.bizu?'Ou escreva o seu bizu, com as suas palavras':'Escreva o seu bizu: a regra, o macete ou onde voce errou')+'</label>'
+    +'<textarea id="bz-'+id+'" placeholder="Ex: Crase antes de palavra masculina so com \'a moda de\' subentendido."></textarea>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:9px">'
+    +'<div style="flex:1;min-width:170px"><select id="cxd-'+id+'" title="Em qual caderno salvar">'
+    +ds.map(function(d){return '<option value="'+esc(d)+'"'+(d===q.disciplina?' selected':'')+'>Caderno de '+esc(d)+'</option>'}).join('')
+    +'</select></div>'
+    +'<button class="btn btn-ouro" style="padding:9px 16px" onclick="salvarBizu(\''+id+'\',false)">Salvar no caderno</button></div>'
+    +'<label style="display:flex;gap:7px;align-items:center;margin-top:9px;color:var(--tx3);font-size:12.5px;cursor:pointer">'
+    +'<input type="checkbox" id="cxq-'+id+'" '+(acertou?'':'checked')+' style="width:16px;height:16px;margin:0;accent-color:#b98ae0"> Guardar junto a questao e o gabarito</label>'
+    +'<div id="cxm-'+id+'"></div>'
+    +'</div>'
+}
+
+function colarBizu(id){
+  const q=_qs.find(function(x){return x.id===id}); if(!q||!q.bizu)return
+  const t=document.getElementById('bz-'+id)
+  t.value=(t.value.trim()?t.value.trim()+'\n':'')+q.bizu
+  t.focus(); t.setSelectionRange(t.value.length,t.value.length)
+}
+
+function textoGabarito(q){
+  const g=String(q.gabarito||'').toUpperCase()
+  if(q.tipo==='certo_errado')return g==='C'?'CERTO':g==='E'?'ERRADO':g
+  const i='ABCDE'.indexOf(g), alts=q.alternativas||[]
+  return g+(i>=0&&alts[i]?') '+alts[i]:'')
+}
+
+async function salvarBizu(id,doJota){
+  const q=_qs.find(function(x){return x.id===id}); if(!q)return
+  const m=document.getElementById('cxm-'+id)
+  const bizu=doJota?String(q.bizu||''):document.getElementById('bz-'+id).value.trim()
+  if(!bizu){m.innerHTML='<div style="color:#f07171;font-size:12.5px;margin-top:8px">Escreva o seu bizu antes de salvar (ou use o bizu do Jota).</div>';return}
+  const disc=document.getElementById('cxd-'+id).value||q.disciplina
+  const comQ=document.getElementById('cxq-'+id).checked
+  const r=_resp[id]
+  let cont='BIZU:\n'+bizu
+  if(comQ){
+    cont+='\n\nQUESTAO'+(r?(r.correta?' (acertei)':' (errei)'):'')+':\n'+(q.texto_apoio?q.texto_apoio+'\n\n':'')+q.enunciado
+    if(q.tipo==='multipla'&&q.alternativas)cont+='\n'+q.alternativas.map(function(a,i){return 'ABCDE'[i]+') '+a}).join('\n')
+    cont+='\n\nGABARITO: '+textoGabarito(q)
+  }
+  const linha={aluno_id:_alunoId,disciplina:disc,titulo:(q.assunto||q.disciplina)+(r&&!r.correta?' — errei':' — bizu'),
+    conteudo:cont,atualizado_em:new Date().toISOString()}
+  m.innerHTML='<div style="color:var(--tx3);font-size:12.5px;margin-top:8px">Salvando...</div>'
+  let res
+  if(!_semColQ){
+    res=await _supabase.from('caderno_erros').insert(Object.assign({questao_id:id},linha)).select().single()
+    if(res.error){_semColQ=true}   // coluna ainda nao criada: salva sem o vinculo
+  }
+  if(_semColQ)res=await _supabase.from('caderno_erros').insert(linha).select().single()
+  if(res.error){m.innerHTML='<div style="color:#f07171;font-size:12.5px;margin-top:8px">Erro ao salvar: '+esc(res.error.message)+'</div>';return}
+  if(_notas&&res.data)_notas.unshift(res.data)
+  m.innerHTML='<div class="cx-ok">✓ Salvo no caderno de <strong>'+esc(disc)+'</strong>. '
+    +'<a style="color:#c9a9e8;cursor:pointer;text-decoration:underline" data-d="'+esc(disc)+'" data-n="'+(res.data?res.data.id:'')+'" onclick="abrirCadernoQ(this.dataset.d,this.dataset.n)">Abrir caderno</a></div>'
+  if(!doJota)document.getElementById('bz-'+id).value=''
+}
+
+// ---------- gaveta do caderno ----------
+async function abrirCadernoQ(disc,notaId){
+  document.getElementById('cd').classList.add('on')
+  document.getElementById('cd-ov').classList.add('on')
+  document.getElementById('cd-body').innerHTML='<div style="color:var(--tx3);font-size:13px;text-align:center;padding:24px">Carregando...</div>'
+  await carregarNotasQ(true)
+  _cdDisc=(typeof disc==='string')?disc:_cdDisc
+  _cdEdit=null
+  renderCadQ(notaId)
+}
+function fecharCadernoQ(){
+  document.getElementById('cd').classList.remove('on')
+  document.getElementById('cd-ov').classList.remove('on')
+  _cdEdit=null
+}
+
+function renderCadQ(abrirId){
+  const sel=document.getElementById('cdq-disc')
+  const ds=discsCaderno(_cdDisc||null)
+  const cont={};(_notas||[]).forEach(function(n){const d=n.disciplina||'';cont[d]=(cont[d]||0)+1})
+  sel.innerHTML='<option value="">Todas as disciplinas ('+(_notas||[]).length+')</option>'
+    +ds.map(function(d){return '<option value="'+esc(d)+'">'+esc(d)+' ('+(cont[d]||0)+')</option>'}).join('')
+  sel.value=_cdDisc
+  const box=document.getElementById('cd-body')
+  if(_cdEdit!==null){
+    const n=_cdEdit==='novo'?{titulo:'',conteudo:'',disciplina:_cdDisc}:(_notas||[]).find(function(x){return x.id===_cdEdit})
+    if(!n){_cdEdit=null;renderCadQ();return}
+    box.innerHTML='<button class="btn" style="margin-bottom:12px;padding:7px 12px" onclick="_cdEdit=null;renderCadQ()">&#8249; Voltar</button>'
+      +'<label class="lbl" style="color:var(--tx3);font-size:12px">Titulo</label>'
+      +'<input class="cd-inp" id="nq-tit" value="'+esc(n.titulo||'')+'" placeholder="Ex: Crase antes de palavra masculina">'
+      +'<label class="lbl" style="color:var(--tx3);font-size:12px">Caderno (disciplina)</label>'
+      +'<input class="cd-inp" id="nq-disc" list="dl-cdq" value="'+esc(n.disciplina||'')+'" placeholder="Ex: Lingua Portuguesa">'
+      +'<datalist id="dl-cdq">'+discsCaderno().map(function(d){return '<option value="'+esc(d)+'">'}).join('')+'</datalist>'
+      +'<label class="lbl" style="color:var(--tx3);font-size:12px">Anotacao</label>'
+      +'<textarea class="cd-inp" id="nq-cont" placeholder="O bizu, o erro que cometeu e a explicacao correta...">'+esc(n.conteudo||'')+'</textarea>'
+      +'<button class="btn btn-ouro" style="width:100%;padding:12px" onclick="salvarNotaQ()">Salvar anotacao</button>'
+      +(_cdEdit!=='novo'?'<button class="btn" style="width:100%;margin-top:8px;padding:11px;border-color:#d9566a;color:#f07171" onclick="excluirNotaQ(\''+_cdEdit+'\')">Excluir anotacao</button>':'')
+      +'<div id="nq-msg" style="font-size:12px;margin-top:10px;text-align:center"></div>'
+    return
+  }
+  const lista=(_notas||[]).filter(function(n){return !_cdDisc||n.disciplina===_cdDisc})
+  box.innerHTML='<button class="btn btn-ouro" style="width:100%;padding:11px;margin-bottom:12px" onclick="_cdEdit=\'novo\';renderCadQ()">+ Nova anotacao'+(_cdDisc?' em '+esc(_cdDisc):'')+'</button>'
+    +(!lista.length?'<div style="text-align:center;padding:30px 10px"><div style="font-size:36px;margin-bottom:10px">📓</div>'
+        +'<div style="color:#c9a9e8;font-weight:700">'+(_cdDisc?'Nenhuma anotacao em '+esc(_cdDisc)+' ainda':'Seu caderno esta vazio')+'</div>'
+        +'<p style="color:var(--tx3);font-size:12.5px;margin-top:6px;line-height:1.6">Depois de responder uma questao, salve o bizu aqui. Reler os proprios erros e o que mais acelera a aprovacao.</p></div>'
+      :lista.map(function(n){
+        return '<div class="cd-item" id="nq-'+n.id+'">'
+          +'<div style="display:flex;gap:8px;align-items:flex-start"><div style="flex:1"><div class="cd-it">'+esc(n.titulo)+'</div>'
+          +'<div class="cd-id">'+(n.disciplina?esc(n.disciplina)+' · ':'')+new Date(n.atualizado_em).toLocaleDateString('pt-BR')+'</div></div>'
+          +'<button class="btn" style="padding:4px 9px;font-size:11.5px" onclick="_cdEdit=\''+n.id+'\';renderCadQ()">Editar</button></div>'
+          +(n.conteudo?'<div class="cd-ic'+(n.id===abrirId?' full':'')+'" onclick="this.classList.toggle(\'full\')">'+esc(n.conteudo)+'</div>':'')
+          +'</div>'
+      }).join(''))
+  if(abrirId){const el=document.getElementById('nq-'+abrirId);if(el){el.style.borderColor='#b98ae0';el.scrollIntoView({block:'center'})}}
+}
+
+async function salvarNotaQ(){
+  const tit=document.getElementById('nq-tit').value.trim()
+  const disc=document.getElementById('nq-disc').value.trim()
+  const cont=document.getElementById('nq-cont').value
+  const m=document.getElementById('nq-msg')
+  if(!tit){m.style.color='#f07171';m.textContent='Escreva um titulo.';return}
+  m.style.color='var(--tx3)';m.textContent='Salvando...'
+  const agora=new Date().toISOString()
+  if(_cdEdit==='novo'){
+    const r=await _supabase.from('caderno_erros').insert({aluno_id:_alunoId,titulo:tit,conteudo:cont,disciplina:disc||null,atualizado_em:agora}).select().single()
+    if(r.error){m.style.color='#f07171';m.textContent='Erro: '+r.error.message;return}
+    if(r.data)_notas.unshift(r.data)
+  }else{
+    const r=await _supabase.from('caderno_erros').update({titulo:tit,conteudo:cont,disciplina:disc||null,atualizado_em:agora}).eq('id',_cdEdit)
+    if(r.error){m.style.color='#f07171';m.textContent='Erro: '+r.error.message;return}
+    const n=_notas.find(function(x){return x.id===_cdEdit})
+    if(n){n.titulo=tit;n.conteudo=cont;n.disciplina=disc||null;n.atualizado_em=agora}
+  }
+  _cdEdit=null; if(disc)_cdDisc=disc
+  renderCadQ()
+}
+async function excluirNotaQ(id){
+  if(!confirm('Excluir esta anotacao? Nao da para desfazer.'))return
+  const r=await _supabase.from('caderno_erros').delete().eq('id',id)
+  if(r.error){alert('Erro: '+r.error.message);return}
+  _notas=_notas.filter(function(x){return x.id!==id})
+  _cdEdit=null;renderCadQ()
 }
 
 async function paraCaderno(id){
