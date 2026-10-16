@@ -116,6 +116,15 @@
       <div class="dias-row" id="g-dias"></div>
     </div>
 
+    <label id="box-semteo" style="display:flex;gap:12px;align-items:flex-start;margin-top:14px;padding:14px;border-radius:10px;border:2px solid var(--bd2);background:var(--card2);cursor:pointer">
+      <input type="checkbox" id="g-semteo" onchange="alternarSemTeoria(this.checked)" style="width:22px;height:22px;margin:2px 0 0;accent-color:var(--ouro);flex-shrink:0">
+      <span style="flex:1">
+        <span style="display:block;font-size:14.5px;font-weight:800;color:var(--tx)">🎓 Aluno avancado — sem teoria</span>
+        <span style="display:block;font-size:12.5px;color:var(--tx3);margin-top:3px;line-height:1.55">Marque para gerar o plano <strong>so com resolucao de questoes e revisao</strong>. Cada tema comeca direto nas questoes e a revisao vem depois. Use para quem ja estudou a teoria do edital.</span>
+        <span id="semteo-info" style="display:none;font-size:12px;color:var(--ouro);margin-top:6px"></span>
+      </span>
+    </label>
+
     <div style="background:var(--card2);border-radius:8px;padding:12px;margin-top:14px">
       <p style="color:var(--ouro);font-size:13px;font-weight:bold;margin-bottom:8px">Modos de sessao ativos</p>
       <p style="color:var(--tx4);font-size:11px;margin-bottom:10px">Desmarque o que nao entra no plano. Ex: aluno que ja fechou a teoria do edital fica so com questoes e revisao.</p>
@@ -124,7 +133,7 @@
         <label class="modo-chip on" data-m="questoes" onclick="alternarModo(this)"><span class="modo-dot" style="background:var(--ouro)"></span>Questoes</label>
         <label class="modo-chip on" data-m="revisao" onclick="alternarModo(this)"><span class="modo-dot" style="background:var(--ok)"></span>Revisao</label>
       </div>
-      <label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:13px;cursor:pointer">
+      <label id="lb-pular" style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:13px;cursor:pointer">
         <input type="checkbox" id="g-pular" style="width:18px;height:18px;accent-color:var(--ouro)">
         Pular temas cuja teoria o aluno ja concluiu
       </label>
@@ -262,7 +271,35 @@ function modosAtivos(){
 function alternarModo(el){
   el.classList.toggle('on')
   if (!modosAtivos().length) { el.classList.add('on'); alert('Pelo menos um modo precisa ficar ativo.'); return }
+  sincronizarSemTeoria()
   atualizarCapacidade()
+}
+
+// caixa "Aluno avancado — sem teoria": desliga a teoria e garante questoes + revisao
+function alternarSemTeoria(sem){
+  document.querySelectorAll('.modo-chip').forEach(function(el){
+    if (el.dataset.m==='teoria') el.classList.toggle('on', !sem)
+    else if (sem) el.classList.add('on')
+  })
+  if (sem) document.getElementById('g-pular').checked = false
+  sincronizarSemTeoria()
+  atualizarCapacidade()
+}
+function sincronizarSemTeoria(){
+  const sem = modosAtivos().indexOf('teoria') < 0
+  const cb = document.getElementById('g-semteo'); if (cb) cb.checked = sem
+  const box = document.getElementById('box-semteo')
+  if (box) { box.style.borderColor = sem ? 'var(--ouro)' : 'var(--bd2)'; box.style.background = sem ? 'rgba(201,168,60,.08)' : 'var(--card2)' }
+  const lp = document.getElementById('lb-pular'); if (lp) lp.style.display = sem ? 'none' : 'flex'
+  const info = document.getElementById('semteo-info')
+  if (info) {
+    const dq = parseInt(document.getElementById('g-dq').value)||5, dr = parseInt(document.getElementById('g-dr').value)||15
+    const ativos = modosAtivos()
+    info.style.display = sem ? 'block' : 'none'
+    info.textContent = (ativos.indexOf('questoes')>=0 && ativos.indexOf('revisao')>=0)
+      ? 'Ativo: questoes no dia do tema e revisao '+Math.max(1,dr-dq)+' dia(s) depois (ajuste em "Intervalos do ciclo").'
+      : 'Ativo: so '+ativos.join(' e ')+'.'
+  }
 }
 
 function montarEtapas(){
@@ -337,7 +374,8 @@ function atualizarCapacidade(){
 }
 
 function ligarListeners(){
-  ['g-inicio','g-prova','g-sessoes','g-tempo','g-dq','g-dr','g-mq','g-encaixe'].forEach(function(id){
+  ;['g-dq','g-dr'].forEach(function(id){ const el=document.getElementById(id); if(el) el.addEventListener('input', sincronizarSemTeoria) })
+  ;['g-inicio','g-prova','g-sessoes','g-tempo','g-dq','g-dr','g-mq','g-encaixe'].forEach(function(id){
     const el = document.getElementById(id)
     if (el) { el.addEventListener('input', atualizarCapacidade); el.addEventListener('change', atualizarCapacidade) }
   })
@@ -385,6 +423,7 @@ async function carregarTemas(){
       const ativo = (m==='teoria') ? (cfg.modo_teoria !== false) : (m==='questoes') ? (cfg.modo_questoes !== false) : (cfg.modo_revisao !== false)
       if (ativo) el.classList.add('on'); else el.classList.remove('on')
     })
+    sincronizarSemTeoria()
     const dias = String(cfg.dias_semana||'').split(',').map(n=>parseInt(n))
     document.querySelectorAll('.dia-chip').forEach(el => {
       if (dias.indexOf(parseInt(el.dataset.d)) >= 0) el.classList.add('on'); else el.classList.remove('on')
@@ -683,6 +722,10 @@ function renderPreview(plano){
   if (_pulados > 0) {
     al.innerHTML += '<div style="background:var(--card2);border:1px solid var(--ok);border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px;color:var(--ok)">'
       + _pulados+' tema(s) foram pulados porque o aluno ja concluiu a teoria deles.</div>'
+  }
+  if (modosAtivos().indexOf('teoria') < 0) {
+    al.innerHTML += '<div style="background:var(--card2);border:1px solid var(--ouro);border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px;color:var(--ouro)">'
+      + '<strong>🎓 Plano sem teoria.</strong> Cada tema entra direto com resolucao de questoes'+(modosAtivos().indexOf('revisao')>=0?' e depois revisao':'')+'.</div>'
   }
   if (plano.nivel > 0 && plano.encurtadas > 0) {
     const nomes = ['','as revisoes','as revisoes e os temas de prioridade baixa','as revisoes, a prioridade baixa e as questoes de prioridade media','quase todas as sessoes (a teoria de prioridade alta segue no tempo cheio)','todas as sessoes']
