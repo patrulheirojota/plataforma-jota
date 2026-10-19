@@ -440,9 +440,11 @@ async function carregarTemas(){
     msgEx.style.display='block'
     msgEx.innerHTML = 'Este aluno ja tem '+existentes.length+' sessoes neste concurso ('+feitas+' concluidas). Gerar novamente vai substituir o plano.'
       + '<div style="background:var(--card2);border:1px solid var(--info);border-radius:10px;padding:12px 14px;margin-top:10px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">'
-      + '<div style="flex:1;min-width:200px;color:var(--tx2);font-size:13px;line-height:1.5"><strong style="color:var(--info)">So quer trocar os dias da semana?</strong><br>'
-      + 'Nao precisa gerar de novo. Ajuste os dias no plano atual: o que ja foi estudado fica igual e so o que vem pela frente muda de dia.</div>'
-      + '<button onclick="location.href=\'cronograma.html?aluno='+aluno_id+'&dias=1\'" style="width:auto;margin:0;padding:10px 16px;background:var(--info);color:#0a1420;border:none;font-weight:700">📅 Ajustar dias sem reiniciar</button></div>'
+      + '<div style="flex:1;min-width:200px;color:var(--tx2);font-size:13px;line-height:1.5"><strong style="color:var(--info)">So quer trocar os dias ou a carga horaria?</strong><br>'
+      + 'Nao precisa gerar de novo. Ajuste no plano atual: o que ja foi estudado fica igual e so o que vem pela frente se reorganiza.</div>'
+      + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
+      + '<button onclick="location.href=\'cronograma.html?aluno='+aluno_id+'&dias=1\'" style="width:auto;margin:0;padding:10px 16px;background:var(--info);color:#0a1420;border:none;font-weight:700">📅 Ajustar dias sem reiniciar</button>'
+      + '<button onclick="location.href=\'cronograma.html?aluno='+aluno_id+'&carga=1\'" style="width:auto;margin:0;padding:10px 16px;background:var(--info);color:#0a1420;border:none;font-weight:700">⏱️ Ajustar carga sem reiniciar</button></div></div>'
   } else { msgEx.style.display='none' }
 
   // status individual dos temas definido em Controle de Temas
