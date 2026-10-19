@@ -450,6 +450,7 @@ function renderizarListaAlunos(alunos) {
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-content:flex-start">
         <button class="btn-acao" onclick="verComoAluno('${a.id}')" style="background:var(--ouro);color:#0a1420;border:1px solid var(--ouro);font-weight:700"><span class="ic">👁️</span><span class="lb">Ver como aluno</span></button>
         <button class="btn-acao btn-editar" onclick="location.href='cronograma.html?aluno=${a.id}&dias=1'" title="Trocar os dias da semana sem reiniciar o plano"><span class="ic">📅</span><span class="lb">Dias de estudo</span></button>
+        <button class="btn-acao btn-editar" onclick="location.href='cronograma.html?aluno=${a.id}&carga=1'" title="Aumentar ou reduzir a carga horaria sem reiniciar o plano"><span class="ic">⏱️</span><span class="lb">Carga horaria</span></button>
         ${bloq ? `<button class="btn-acao" onclick="reativarAluno('${a.id}','${String(a.nome).replace(/'/g,"\\'")}')" style="background:var(--ok);color:#0a1420;border:1px solid var(--ok);font-weight:700"><span class="ic">🔓</span><span class="lb">Reativar</span></button>` : ''}
         <button class="btn-acao btn-editar" onclick="abrirEditarAluno('${a.id}','${a.nome}','${a.email}','${a.concurso_id||''}')"><span class="ic">✏️</span><span class="lb">Editar</span></button>
         <button class="btn-acao btn-editar" onclick="gerenciarConcursosAluno('${a.id}','${a.nome}')"><span class="ic">🏆</span><span class="lb">Concursos</span></button>
