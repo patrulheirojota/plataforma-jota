@@ -316,6 +316,7 @@
           <div><div class="h2">Planejamento</div><div class="h2s" id="sec-sub"></div></div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button class="btn" onclick="abrirDias()" title="Trocar os dias da semana em que voce estuda, sem reiniciar o plano">📅 Dias de estudo</button>
+            <button class="btn" onclick="abrirCarga()" title="Aumentar ou reduzir o tempo de estudo por dia, sem reiniciar o plano">⏱️ Carga horaria</button>
             <button class="btn btn-ouro" onclick="replanejarAtrasadas(true)" title="Coloca atrasadas em dia, arruma a ordem dos temas e encaixa tudo ate a prova">🔄 Replanejar plano</button>
           </div>
         </div>
@@ -584,6 +585,7 @@ async function init(){
   desenhar()
   checarAvisos()
   if(new URLSearchParams(location.search).get('dias')==='1')setTimeout(abrirDias,500)
+  else if(new URLSearchParams(location.search).get('carga')==='1')setTimeout(abrirCarga,500)
   else if(!_mentor)setTimeout(checarDiaAnterior,700)
 }
 
@@ -1801,6 +1803,115 @@ async function confirmarDias(){
   fecharModal()
   irData(hojeStr())
   toast('📅 Dias atualizados! Seu plano continua de onde parou.')
+}
+
+/* ---------- CARGA HORARIA (aumentar/reduzir sem reiniciar o plano) ----------
+   Muda sessoes por dia e minutos por sessao. So as sessoes PENDENTES de hoje em
+   diante mudam (tempo e dia). O que ja foi concluido fica exatamente como esta. */
+let _cgSess=3,_cgTempo=60,_cgPrevia=null,_cgOrig=null
+
+function abrirCarga(){
+  _cgSess=capacidadeDia(); _cgTempo=tempoBase()
+  _cgOrig={sess:_cgSess,tempo:_cgTempo}
+  renderCarga()
+  document.getElementById('modal').classList.add('on')
+}
+function mudarCarga(campo,delta){
+  if(campo==='sess')_cgSess=Math.min(10,Math.max(1,_cgSess+delta))
+  else _cgTempo=Math.min(240,Math.max(15,_cgTempo+delta))
+  renderCarga()
+}
+
+// simula com a carga nova sem salvar nada
+function simularCarga(sess,tempo){
+  const hj=hojeStr()
+  const pend=_sessoes.filter(function(x){return !x.concluida&&x.data>=hj})
+  const backupT=pend.map(function(x){return x.tempo_minutos})
+  const temCfg=!!_cfg; if(!_cfg)_cfg={}
+  const backupCfg={s:_cfg.sessoes_por_dia,t:_cfg.tempo_sessao}
+  _cfg.sessoes_por_dia=sess; _cfg.tempo_sessao=tempo
+  if(tempo!==_cgOrig.tempo)pend.forEach(function(x){x.tempo_minutos=tempo})
+  let p
+  try{ p=simularReplan(hj,[]) }
+  finally{
+    pend.forEach(function(x,i){x.tempo_minutos=backupT[i]})
+    if(temCfg){_cfg.sessoes_por_dia=backupCfg.s;_cfg.tempo_sessao=backupCfg.t}else _cfg=null
+  }
+  // recalcula o que muda comparando com o plano real (dia, ordem e tempo)
+  p.mudancas=p.itens.filter(function(it){
+    return it.s._novo||it.data!==it.s.data||it.ordem!==(it.s.ordem||0)||it.min!==(it.s.tempo_minutos||0)
+  })
+  return p
+}
+
+function renderCarga(){
+  const br=function(k){return parseD(k).toLocaleDateString('pt-BR')}
+  const antes=_cgOrig.sess*_cgOrig.tempo, depois=_cgSess*_cgTempo
+  const mudou=_cgSess!==_cgOrig.sess||_cgTempo!==_cgOrig.tempo
+  let prev=''
+  _cgPrevia=null
+  if(mudou){
+    const p=simularCarga(_cgSess,_cgTempo)
+    _cgPrevia=p
+    const cor=p.sobrecarga?'#f07171':p.encurtadas?'#e8b04b':'#6ddba0'
+    prev='<div class="bloco">'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;text-align:center">'
+      +'<div><div style="color:var(--tx3);font-size:11px">Plano terminava</div><div style="font-weight:800;font-size:15px">'+br(p.fimAntes)+'</div></div>'
+      +'<div><div style="color:var(--tx3);font-size:11px">Passa a terminar</div><div style="font-weight:800;font-size:15px;color:'+cor+'">'+br(p.fimDepois)+'</div></div></div>'
+      +(p.lim?'<div style="color:var(--tx4);font-size:11.5px;text-align:center;margin-top:6px">Data da prova: '+br(p.lim)+'</div>':'')
+      +'<div style="color:var(--tx2);font-size:12.5px;line-height:1.55;margin-top:10px;text-align:center">'+p.mudancas.length+' sessoes futuras serao ajustadas. <strong>O que ja foi concluido nao muda.</strong></div>'
+      +'</div>'
+      +(p.encurtadas?'<div style="background:rgba(232,176,75,.08);border:1px solid #e8b04b;border-radius:10px;padding:10px 12px;margin-top:10px;color:#e8b04b;font-size:12.5px;line-height:1.55">Para caber ate a prova, <strong>'+p.encurtadas+' sessoes de questoes/revisao</strong> ficam mais curtas. A teoria continua com o tempo escolhido.</div>':'')
+      +(p.sobrecarga?'<div style="background:rgba(240,113,113,.08);border:1px solid #d9566a;border-radius:10px;padding:10px 12px;margin-top:10px;color:#f07171;font-size:12.5px;line-height:1.55">Com essa carga o conteudo nao cabe ate a prova: em '+p.sobrecarga+' dia(s) o estudo precisaria subir para ate <strong>'+dur(p.orcUsado)+'</strong>. Considere uma carga um pouco maior ou mais dias de estudo.</div>':'')
+  }
+  const ctl=function(rot,val,campo,passo,sub){
+    return '<div style="background:var(--bg);border:1px solid var(--bd2);border-radius:12px;padding:10px 6px;text-align:center;min-width:0">'
+      +'<div style="color:var(--tx3);font-size:11.5px;font-weight:600">'+rot+'</div>'
+      +'<div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:6px">'
+      +'<button class="btn" style="width:36px;height:36px;padding:0;font-size:19px;font-weight:800;flex-shrink:0" onclick="mudarCarga(\''+campo+'\','+(-passo)+')">−</button>'
+      +'<div style="font-size:22px;font-weight:800;min-width:42px">'+val+'</div>'
+      +'<button class="btn" style="width:36px;height:36px;padding:0;font-size:19px;font-weight:800;flex-shrink:0" onclick="mudarCarga(\''+campo+'\','+passo+')">+</button></div>'
+      +'<div style="color:var(--tx4);font-size:11px;margin-top:4px">'+sub+'</div></div>'
+  }
+  const corD=depois>antes?'#6ddba0':depois<antes?'#e8b04b':'var(--tx)'
+  document.getElementById('modal-c').innerHTML=
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:6px">'
+   +'<div><div style="color:var(--ouro);font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase">Carga horaria</div>'
+   +'<div style="font-size:18px;font-weight:800;margin-top:2px">Quanto tempo '+(_mentor?'o aluno estuda':'voce estuda')+' por dia?</div></div>'
+   +'<button class="btn" onclick="fecharModal()" style="padding:5px 11px">✕</button></div>'
+   +'<div style="color:var(--tx3);font-size:12.5px;line-height:1.55;margin-bottom:12px">Aumente ou reduza sem reiniciar o plano: <strong>o progresso fica</strong> e so as sessoes de hoje em diante se reorganizam, na mesma ordem.</div>'
+   +'<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px">'
+   +ctl('Sessoes por dia',_cgSess,'sess',1,'antes: '+_cgOrig.sess)
+   +ctl('Min. por sessao',_cgTempo,'tempo',15,'antes: '+_cgOrig.tempo)
+   +'</div>'
+   +'<div style="text-align:center;margin-top:12px;font-size:14px">Por dia: <strong>'+dur(antes)+'</strong> → <strong style="color:'+corD+'">'+dur(depois)+'</strong></div>'
+   +prev
+   +(mudou?'<button class="btn btn-ouro" style="width:100%;padding:12px;margin-top:14px" onclick="confirmarCarga()">Confirmar nova carga</button>'
+          :'<div style="color:var(--tx3);font-size:12.5px;text-align:center;margin-top:14px">Use os botoes − e + para mudar.</div>')
+   +'<div id="cg-msg" style="font-size:12px;margin-top:10px;text-align:center"></div>'
+}
+
+async function confirmarCarga(){
+  const p=_cgPrevia; if(!p)return
+  const m=document.getElementById('cg-msg')
+  m.style.color='var(--tx3)';m.textContent='Salvando a nova carga...'
+  let r
+  if(_cfg&&_cfg.aluno_id){
+    r=await _supabase.from('config_cronograma').update({sessoes_por_dia:_cgSess,tempo_sessao:_cgTempo}).eq('aluno_id',_alunoId).eq('concurso_id',_concursoId)
+  }else{
+    r=await _supabase.from('config_cronograma').insert({aluno_id:_alunoId,concurso_id:_concursoId,sessoes_por_dia:_cgSess,tempo_sessao:_cgTempo,dias_semana:diasEstudo().join(',')})
+  }
+  if(r.error){m.style.color='#f07171';m.textContent='Nao foi possivel salvar: '+r.error.message+(_mentor?'':' Fale com o seu mentor.');return}
+  if(!_cfg)_cfg={aluno_id:_alunoId,concurso_id:_concursoId}
+  if(!_cfg.aluno_id)_cfg.aluno_id=_alunoId
+  _cfg.sessoes_por_dia=_cgSess; _cfg.tempo_sessao=_cgTempo
+  try{
+    await aplicarReplan(p,function(a,b){m.textContent='Reorganizando o plano... '+a+'/'+b})
+  }catch(e){m.style.color='#f07171';m.textContent='Erro ao reorganizar: '+e.message;return}
+  logar('mudou_carga','Mudou a carga de '+_cgOrig.sess+'x'+_cgOrig.tempo+'min ('+dur(_cgOrig.sess*_cgOrig.tempo)+'/dia) para '+_cgSess+'x'+_cgTempo+'min ('+dur(_cgSess*_cgTempo)+'/dia): '+textoReplan(p))
+  fecharModal()
+  irData(hojeStr())
+  toast('⏱️ Carga atualizada! Seu progresso foi mantido.')
 }
 
 /* ---------- CADERNO DE ERROS ---------- */
