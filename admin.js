@@ -430,6 +430,8 @@ function renderizarListaAlunos(alunos) {
         <div style="color:${status.cor};font-size:11px;margin-top:2px;font-weight:bold">${status.texto}</div>
         ${(ci&&ci.vencido) ? `<div style="margin-top:6px;padding:7px 10px;border-radius:8px;background:rgba(232,176,75,.10);border:1px solid var(--alerta);color:var(--alerta);font-size:11.5px;font-weight:700">
           🗓️ Relatorio de 21 dias (ciclo ${ci.ciclo}) ${ci.atraso>0?('vencido ha '+ci.atraso+' dia(s)'):'fecha hoje'} — periodo ${ci.iniBR} a ${ci.fimBR}</div>` : ''}
+        ${al.pausa ? `<div style="margin-top:6px;padding:7px 10px;border-radius:8px;background:rgba(232,176,75,.10);border:1px solid var(--alerta);color:var(--alerta);font-size:11.5px;font-weight:700">
+          ⏸️ Plano pausado desde ${new Date(al.pausa.em+'T12:00:00').toLocaleDateString('pt-BR')}${al.pausa.prevista ? ' — retorno previsto ' + new Date(al.pausa.prevista+'T12:00:00').toLocaleDateString('pt-BR') : ' — sem data de retorno'}${al.pausa.motivo ? '<br><span style="font-weight:400">Motivo: ' + String(al.pausa.motivo).replace(/</g,'&lt;').substring(0,120) + '</span>' : ''}</div>` : ''}
         ${bloq ? `<div style="margin-top:6px;padding:7px 10px;border-radius:8px;background:rgba(240,113,113,.10);border:1px solid var(--erro);color:var(--erro);font-size:11.5px;font-weight:700">
           🔒 Bloqueado por inatividade (${bloq} dias sem acessar). Aguardando taxa de reabilitacao.</div>` : ''}
 
@@ -451,6 +453,7 @@ function renderizarListaAlunos(alunos) {
         <button class="btn-acao" onclick="verComoAluno('${a.id}')" style="background:var(--ouro);color:#0a1420;border:1px solid var(--ouro);font-weight:700"><span class="ic">👁️</span><span class="lb">Ver como aluno</span></button>
         <button class="btn-acao btn-editar" onclick="location.href='cronograma.html?aluno=${a.id}&dias=1'" title="Trocar os dias da semana sem reiniciar o plano"><span class="ic">📅</span><span class="lb">Dias de estudo</span></button>
         <button class="btn-acao btn-editar" onclick="location.href='cronograma.html?aluno=${a.id}&carga=1'" title="Aumentar ou reduzir a carga horaria sem reiniciar o plano"><span class="ic">⏱️</span><span class="lb">Carga horaria</span></button>
+        <button class="btn-acao btn-editar" onclick="location.href='cronograma.html?aluno=${a.id}&pausa=1'" title="Pausar ou retomar o cronograma (o prazo da mentoria continua contando)"${al.pausa?' style="background:var(--alerta);color:#0a1420;border:1px solid var(--alerta);font-weight:700"':''}><span class="ic">${al.pausa?'▶️':'⏸️'}</span><span class="lb">${al.pausa?'Retomar plano':'Pausar plano'}</span></button>
         ${bloq ? `<button class="btn-acao" onclick="reativarAluno('${a.id}','${String(a.nome).replace(/'/g,"\\'")}')" style="background:var(--ok);color:#0a1420;border:1px solid var(--ok);font-weight:700"><span class="ic">🔓</span><span class="lb">Reativar</span></button>` : ''}
         <button class="btn-acao btn-editar" onclick="abrirEditarAluno('${a.id}','${a.nome}','${a.email}','${a.concurso_id||''}')"><span class="ic">✏️</span><span class="lb">Editar</span></button>
         <button class="btn-acao btn-editar" onclick="gerenciarConcursosAluno('${a.id}','${a.nome}')"><span class="ic">🏆</span><span class="lb">Concursos</span></button>
@@ -472,6 +475,8 @@ function alunoBloqueado(a) {
   if (!a.ultimo_acesso) return a.bloqueado_inatividade ? lim : 0
   const dias = Math.floor((Date.now() - new Date(a.ultimo_acesso).getTime()) / 86400000)
   if (a.bloqueado_inatividade) return Math.max(dias, lim)
+  // plano pausado: nao bloqueia por inatividade enquanto a pausa durar
+  if ((window._pausados || {})[a.id]) return 0
   return dias >= lim ? dias : 0
 }
 
@@ -499,7 +504,7 @@ async function carregarAlertas() {
   const [rl, rs, rr] = await Promise.all([
     _supabase.from('cronograma_log').select('*').order('criado_em',{ascending:false}),
     _supabase.from('sessoes_estudo').select('aluno_id,disciplina,questoes_feitas,questoes_certas,concluida,data'),
-    _supabase.from('config_cronograma').select('aluno_id,atualizado_em')
+    _supabase.from('config_cronograma').select('*')
   ])
 
   // ultimo ajuste feito pelo proprio aluno
@@ -512,10 +517,14 @@ async function carregarAlertas() {
   })
 
   // ultima geracao de plano feita por voce
+  const pausados = {}
   ;(rr.data||[]).forEach(function(x){
     if(!alertas[x.aluno_id])alertas[x.aluno_id]={}
-    alertas[x.aluno_id].plano = x.atualizado_em
+    const a = alertas[x.aluno_id]
+    if(!a.plano || (x.atualizado_em && x.atualizado_em > a.plano)) a.plano = x.atualizado_em
+    if(x.pausado_em){ a.pausa = { em: x.pausado_em, prevista: x.pausa_prevista||null, motivo: x.pausa_motivo||'' }; pausados[x.aluno_id] = x.pausado_em }
   })
+  window._pausados = pausados
 
   // ultimo estudo e desempenho fraco por disciplina
   const acc = {}, ultimo = {}
