@@ -379,7 +379,11 @@ async function init(){
   }
   if(!_mentor&&al){
     const diasSem=al.ultimo_acesso?Math.floor((Date.now()-new Date(al.ultimo_acesso).getTime())/86400000):0
-    if(al.bloqueado_inatividade||diasSem>=_limiteBloq){location.href='cronograma.html';return}
+    let pausado=false
+    if(!al.bloqueado_inatividade&&diasSem>=_limiteBloq){
+      try{const { data:pz }=await _supabase.from('config_cronograma').select('pausado_em').eq('aluno_id',_alunoId);pausado=(pz||[]).some(function(c){return !!c.pausado_em})}catch(e){}
+    }
+    if(al.bloqueado_inatividade||(diasSem>=_limiteBloq&&!pausado)){location.href='cronograma.html';return}
     if(al.data_expiracao){
       const h=new Date();h.setHours(0,0,0,0)
       if(h>new Date(al.data_expiracao+'T00:00:00')){location.href='cronograma.html';return}
