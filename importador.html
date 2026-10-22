@@ -68,7 +68,7 @@
     <div class="drop" id="drop" onclick="document.getElementById('file').click()">
       <div style="font-size:34px;margin-bottom:10px">📄</div>
       <div style="color:var(--ouro);font-size:15px;font-weight:bold">Clique ou arraste o arquivo</div>
-      <div style="color:var(--tx4);font-size:12px;margin-top:6px">.docx (Word) · .pdf · .txt — ate 15 MB</div>
+      <div style="color:var(--tx4);font-size:12px;margin-top:6px">.docx (Word) · .pdf · .txt — ate 15 MB<br>Aceita tambem o PDF "Imprimir" do TEC Concursos (com gabarito no fim)</div>
     </div>
     <input type="file" id="file" accept=".docx,.pdf,.txt" style="display:none" onchange="processar(this.files[0])">
     <div id="lendo" style="display:none;margin-top:12px">
@@ -83,6 +83,13 @@
     <div class="passo"><div class="passo-n">2</div><h3 style="margin:0">Questoes encontradas</h3></div>
     <div class="st" id="stats"></div>
     <div id="aviso-tipo"></div>
+  </div>
+
+  <!-- TEC: DISCIPLINAS -->
+  <div class="card" id="c-tec" style="display:none">
+    <div class="passo"><div class="passo-n">3</div><h3 style="margin:0">Disciplina na plataforma</h3></div>
+    <p style="color:var(--tx3);font-size:13px;margin-bottom:12px">E o nome que o aluno ve no filtro do Banco de Questoes. Se na plataforma voce usa outro nome (ex.: "Legislacao Extravagante"), troque aqui. O assunto (lei/tema) continua o do arquivo.</p>
+    <div id="tec-disc"></div>
   </div>
 
   <!-- 3. GABARITO -->
@@ -129,6 +136,27 @@ CEECEECCEE...   (sequencia direta, item 1 em diante)
     <button onclick="importar()" id="btn-imp" style="margin-top:14px;background:var(--card2);color:var(--ok);border:1px solid var(--ok)">Importar para a plataforma</button>
     <p id="msg-imp" style="display:none;margin-top:10px;font-size:13px"></p>
   </div>
+
+  <!-- 7. IA: GABARITO COMENTADO + BIZU -->
+  <div class="card" id="c-ia" style="display:none">
+    <div class="passo"><div class="passo-n">7</div><h3 style="margin:0">🤖 Gabarito comentado + Bizu do Jota</h3></div>
+    <div style="color:var(--tx2);font-size:13px;line-height:1.65">
+      A plataforma ja separou as questoes em lotes com o prompt pronto. Para cada lote:<br>
+      <strong>1.</strong> Toque no lote para copiar.<br>
+      <strong>2.</strong> Abra uma conversa nova com a IA e cole.<br>
+      <strong>3.</strong> Copie o JSON que ela devolver e cole em <strong>Banco de Questoes → Colar JSON</strong> → Validar → Importar.<br>
+      <span style="color:var(--tx3)">As questoes que ja estao no banco <strong>recebem</strong> o comentario e o bizu (nao duplicam). Se ainda nao importou, elas entram ja comentadas.</span>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:12px 0 8px">
+      <label style="color:var(--tx3);font-size:12px">Questoes por lote</label>
+      <select onchange="tecMudarLote(this.value)" style="width:auto;margin:0"><option value="15">15</option><option value="20" selected>20</option><option value="25">25</option></select>
+      <button onclick="tecBaixar()" style="width:auto;margin:0;padding:9px 13px;background:var(--card2);color:var(--info);border:1px solid var(--info);font-size:12.5px">⬇️ Baixar todos os lotes (.txt)</button>
+    </div>
+    <div id="tec-lotes" style="display:flex;gap:7px;flex-wrap:wrap"></div>
+    <p id="msg-ia" style="display:none;margin-top:10px;font-size:13px"></p>
+    <textarea id="tec-txt" readonly rows="6" style="display:none;width:100%;margin-top:8px;padding:10px;border-radius:8px;border:1px solid var(--bd2);background:var(--card2);color:var(--tx2);font-size:11.5px;font-family:ui-monospace,monospace"></textarea>
+    <button onclick="location.href='questoes-admin.html'" style="margin-top:12px;background:var(--ouro);color:#0a1420;border:none;font-weight:700">Ir para o Banco de Questoes (colar o JSON)</button>
+  </div>
 </div>
 
 <script src="config.js"></script>
@@ -152,7 +180,7 @@ const DISCS=Object.keys(MAPA)
 
 let _itens=[],_tipo='',_concursos=[]
 
-let _fonte='texto'
+let _fonte='texto', _pdfItens=[]
 function norm(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 function msg(id,t,c){const m=document.getElementById(id);m.style.display='block';m.style.color=c;m.innerHTML=t}
@@ -193,10 +221,12 @@ async function processar(file){
       bar(30,'Abrindo PDF...')
       const buf=await file.arrayBuffer()
       const pdf=await pdfjsLib.getDocument({data:buf}).promise
+      _pdfItens=[]
       for(let i=1;i<=pdf.numPages;i++){
         bar(30+Math.round(i/pdf.numPages*40),'Lendo pagina '+i+' de '+pdf.numPages+'...')
         const pg=await pdf.getPage(i)
         const tc=await pg.getTextContent()
+        tc.items.forEach(function(it){_pdfItens.push({s:it.str,x:it.transform[4],y:it.transform[5],h:it.height,p:i})})
         let y=null,linha=''
         tc.items.forEach(function(it){
           const ny=Math.round(it.transform[5])
@@ -217,6 +247,20 @@ async function processar(file){
   }
 
   bar(80,'Identificando questoes...')
+  ;['m-banca','m-ano','m-orgao'].forEach(function(id){document.getElementById(id).parentElement.style.display=''})
+  document.getElementById('c-tec').style.display='none'
+  document.getElementById('c-ia').style.display='none'
+  if(_fonte==='pdf'&&_pdfItens.length){
+    const lp=linhasPorPosicao(_pdfItens)
+    if(ehTec(lp)){
+      _itens=parseTec(lp); _tipo='tec'
+      if(_itens.length){
+        bar(100,'Pronto!')
+        setTimeout(function(){document.getElementById('lendo').style.display='none'},400)
+        mostrar();return
+      }
+    }
+  }
   const multipla=parseMultipla(linhas)
   const comentado=parseComentado(linhas)
   if(multipla.length>=3&&multipla.length>=comentado.length){ _itens=multipla; _tipo='multipla' }
@@ -322,6 +366,305 @@ function parseMultipla(ls){
   return ok
 }
 
+// ---------- FORMATO 4: caderno do TEC Concursos (PDF "imprimir") ----------
+// Cada questao: "www.tecconcursos.com.br/questoes/ID", linha da banca/orgao/ano,
+// linha "Disciplina - Assunto", "N) enunciado", alternativas a) ... e) ou Certo/Errado.
+// O gabarito vem numa pagina "Gabarito" no fim do arquivo.
+function linhasPorPosicao(itens){
+  // itens: [{s,x,y,h,p}] -> linhas ordenadas de cima para baixo, esquerda para direita
+  const porPag={}
+  itens.forEach(function(it){if(it.s&&it.s.trim()!==''||it.s===' ')(porPag[it.p]=porPag[it.p]||[]).push(it)})
+  const out=[]
+  Object.keys(porPag).map(Number).sort(function(a,b){return a-b}).forEach(function(p){
+    const its=porPag[p].filter(function(it){return it.s!==''}).sort(function(a,b){return (b.y-a.y)||(a.x-b.x)})
+    const ls=[]
+    its.forEach(function(it){
+      const u=ls[ls.length-1]
+      if(u&&Math.abs(u.y-it.y)<=2)u.partes.push(it)
+      else ls.push({y:it.y,h:it.h||0,p:p,partes:[it]})
+      if(it.h&&ls[ls.length-1].h<it.h)ls[ls.length-1].h=it.h
+    })
+    ls.forEach(function(l){
+      l.partes.sort(function(a,b){return a.x-b.x})
+      let t=''
+      l.partes.forEach(function(it){
+        if(t&&!/\s$/.test(t)&&!/^\s/.test(it.s))t+=' '
+        t+=it.s
+      })
+      t=t.replace(/\s+/g,' ').trim()
+      if(t)out.push({t:t,y:l.y,h:l.h||7,p:p})
+    })
+  })
+  return out
+}
+
+function limparTec(t){
+  return String(t||'').replace(/[ \t]+/g,' ').replace(/ \n/g,'\n')
+    .replace(/ +([,.;:!?)\]”])/g,'$1').replace(/([(\[“]) +/g,'$1').trim()
+}
+
+function ehTec(L){
+  let n=0
+  for(let i=0;i<L.length&&n<3;i++)if(/^www\.tecconcursos\.com\.br\/questoes\/\d+$/.test(L[i].t))n++
+  return n>=3
+}
+
+function parseTec(L){
+  const RE_URL=/^www\.tecconcursos\.com\.br\/questoes\/(\d+)$/
+  const RE_NUM=/^(\d{1,4})\)\s*(.*)$/
+  const limpas=L.filter(function(l){
+    return !/^\d{2}\/\d{2}\/\d{4},?\s+\d{1,2}:\d{2}/.test(l.t)&&!/tecconcursos\.com\.br\/questoes\/cadernos\//.test(l.t)
+  })
+  const out=[];let a=null,modo=null,gabTxt=''
+  limpas.forEach(function(l){
+    const t=l.t
+    if(modo==='gab'){gabTxt+=' '+t;return}
+    if(/^Gabarito$/i.test(t)&&(a||out.length)){if(a)out.push(a);a=null;modo='gab';return}
+    const u=t.match(RE_URL)
+    if(u){if(a)out.push(a);a={tec:u[1],cab:[],linhas:[],n:null,banca_linha:''};modo='banca';return}
+    if(!a)return
+    if(modo==='banca'){a.banca_linha=t;modo='cab';return}
+    if(modo==='cab'){
+      const m=t.match(RE_NUM)
+      if(m){a.n=parseInt(m[1]);modo='corpo';a.linhas.push({t:m[2],y:l.y,h:l.h,p:l.p});return}
+      a.cab.push(t);return
+    }
+    if(modo==='corpo')a.linhas.push({t:t,y:l.y,h:l.h,p:l.p})
+  })
+  if(a)out.push(a)
+
+  // gabarito
+  const gab={}
+  const re=/(\d{1,4})\)\s*(Certo|Errado|Anulada|Anulado|[A-EX])\b/gi;let k
+  while((k=re.exec(gabTxt))!==null){
+    let g=k[2].toUpperCase()
+    if(g==='CERTO')g='C';else if(g==='ERRADO')g='E';else if(g.indexOf('ANUL')===0||g==='X')g='ANULADA'
+    gab[parseInt(k[1])]=g
+  }
+
+  return out.filter(function(q){return q.n!==null&&q.linhas.length}).map(function(q){
+    const ls=q.linhas.filter(function(x){return x.t!==''})
+    let tipo='multipla', alts=[], corpo=ls
+    const n=ls.length
+    if(n>=2&&/^certo$/i.test(ls[n-2].t)&&/^errado$/i.test(ls[n-1].t)){tipo='certo_errado';corpo=ls.slice(0,n-2)}
+    else{
+      // ultima linha "a)" que tenha um "b)" depois
+      let ini=-1
+      for(let i=ls.length-1;i>=0;i--){
+        if(/^a\)\s*/i.test(ls[i].t)&&ls.slice(i+1).some(function(x){return /^b\)\s*/i.test(x.t)})){ini=i;break}
+      }
+      if(ini>=0){
+        corpo=ls.slice(0,ini)
+        const LT='abcde'
+        ls.slice(ini).forEach(function(x){
+          const m=x.t.match(/^([a-e])\)\s*(.*)$/i)
+          if(m&&m[1].toLowerCase()===LT[alts.length])alts.push(m[2])
+          else if(alts.length)alts[alts.length-1]+=' '+x.t
+        })
+        alts=alts.map(function(s){return s.replace(/\s+/g,' ').trim()})
+      }
+    }
+    // enunciado com paragrafos
+    let enun=''
+    corpo.forEach(function(x,i){
+      if(i===0){enun=x.t;return}
+      const ant=corpo[i-1]
+      const quebra=ant.p===x.p&&(ant.y-x.y)>(ant.h||7)*1.75
+      const item=/^(\d{1,2}|[IVXL]{1,5})\s?[.)–-]\s/.test(x.t)
+      enun+=(quebra?'\n\n':item?'\n':' ')+x.t
+    })
+    enun=limparTec(enun)
+    if(alts)alts=alts.map(limparTec)
+
+    // cabecalho: "Disciplina - Assunto"
+    const cab=q.cab.join(' ').replace(/\s+/g,' ').trim()
+    const pc=cab.split(/\s+-\s+/)
+    const disciplina=(pc.shift()||'').trim()
+    const assunto=pc.join(' - ').trim()||null
+    // banca: "FGV - Alun Of (PM AM)/PM AM/2022"
+    const bl=q.banca_linha
+    const ib=bl.indexOf(' - ')
+    let banca=(ib>0?bl.slice(0,ib):bl).trim()
+    banca=banca.replace(/^CEBRASPE\s*\(CESPE\)$/i,'CEBRASPE').replace(/^CESPE$/i,'CEBRASPE')
+    const resto=ib>0?bl.slice(ib+3):''
+    const partes=resto.split('/').map(function(s){return s.trim()}).filter(Boolean)
+    let ano=null
+    if(partes.length&&/^(19|20)\d{2}$/.test(partes[partes.length-1]))ano=parseInt(partes[partes.length-1])
+    const orgao=partes.length>1?partes[1]:(partes[0]||null)
+    const cargo=partes.length?partes[0]:null
+
+    let g=gab[q.n]||null
+    const problemas=[]
+    if(!g)problemas.push('sem gabarito')
+    else if(g==='ANULADA')problemas.push('anulada')
+    else if(tipo==='certo_errado'&&g!=='C'&&g!=='E')problemas.push('gabarito "'+g+'" nao e Certo/Errado')
+    else if(tipo==='multipla'&&'ABCDE'.slice(0,alts.length).indexOf(g)<0)problemas.push('gabarito "'+g+'" fora das alternativas')
+    if(tipo==='multipla'&&alts.length<2)problemas.push('alternativas nao encontradas')
+    if(!enun)problemas.push('enunciado vazio')
+    if(/\b(figura|imagem|gr[aá]fico)\b.{0,30}\b(a seguir|abaixo|acima)\b|observe (a|o) (figura|imagem|gr[aá]fico)/i.test(enun))problemas.push('pode depender de imagem')
+
+    return {n:q.n,tec:q.tec,codigo_externo:'TEC-'+q.tec,tipo:tipo,enun:enun,alts:tipo==='multipla'?alts:null,
+      gab:(g&&g!=='ANULADA')?g:null,disciplina:disciplina,assunto:assunto,banca:banca||null,ano:ano,orgao:orgao,cargo:cargo,
+      problemas:problemas,txt:enun}
+  })
+}
+
+// ---------- TEC: tela, previa, importacao e lotes para a IA ----------
+function tecBloqueante(q){return q.problemas.filter(function(p){return p!=='pode depender de imagem'})}
+function tecProntas(){return _itens.filter(function(q){return q.gab&&!tecBloqueante(q).length&&(q.disc||q.disciplina)})}
+
+function mostrarTec(){
+  const ce=_itens.filter(function(q){return q.tipo==='certo_errado'}).length
+  const prob=_itens.filter(function(q){return tecBloqueante(q).length})
+  const img=_itens.filter(function(q){return q.problemas.indexOf('pode depender de imagem')>=0})
+  document.getElementById('aviso-tipo').innerHTML=
+    '<div style="background:var(--card2);border:1px solid var(--ok);border-radius:9px;padding:12px;font-size:13px;color:var(--ok);line-height:1.55">'
+    +'<strong>Caderno do TEC Concursos reconhecido.</strong> Disciplina, assunto, banca, ano, orgao e o gabarito oficial vieram do proprio arquivo. '
+    +'<span style="color:var(--tx2)">'+ce+' certo/errado · '+(_itens.length-ce)+' multipla escolha.</span></div>'
+    +(prob.length?'<div style="background:var(--card2);border:1px solid var(--erro);border-radius:9px;padding:12px;font-size:12.5px;color:var(--erro);margin-top:8px;line-height:1.55">'
+      +'<strong>'+prob.length+' questao(oes) ficarao de fora</strong> (anulada, sem gabarito ou com alternativas incompletas): '
+      +prob.map(function(q){return q.n+' ('+tecBloqueante(q).join(', ')+')'}).join('; ')+'</div>':'')
+    +(img.length?'<div style="background:var(--card2);border:1px solid var(--alerta);border-radius:9px;padding:12px;font-size:12.5px;color:var(--alerta);margin-top:8px;line-height:1.55">'
+      +'Confira depois: '+img.map(function(q){return q.n}).join(', ')+' podem depender de uma imagem que nao vem no texto.</div>':'')
+  // disciplinas: permite renomear para o nome usado na plataforma
+  const ds={}
+  _itens.forEach(function(q){q.disc=q.disc||q.disciplina;ds[q.disciplina]=(ds[q.disciplina]||0)+1})
+  document.getElementById('tec-disc').innerHTML=Object.keys(ds).sort().map(function(d,i){
+    return '<div style="margin-bottom:10px"><div style="color:var(--tx3);font-size:12px;margin-bottom:4px">No arquivo: <strong style="color:var(--tx2)">'+esc(d)+'</strong> ('+ds[d]+')</div>'
+      +'<input type="text" list="lst-disc-tec" data-orig="'+esc(d)+'" value="'+esc(d)+'" onchange="tecRenomear()" style="margin:0"></div>'
+  }).join('')+'<datalist id="lst-disc-tec">'+DISCS.map(function(d){return '<option value="'+d+'">'}).join('')+'</datalist>'
+  document.getElementById('c-tec').style.display='block'
+  document.getElementById('c-gab').style.display='none'
+  document.getElementById('c-disc').style.display='none'
+  ;['m-banca','m-ano','m-orgao'].forEach(function(id){document.getElementById(id).parentElement.style.display='none'})
+  document.getElementById('m-orig').value='prova'
+  montarPrevia()
+  tecLotes()
+}
+
+function tecRenomear(){
+  const mapa={}
+  document.querySelectorAll('#tec-disc input[data-orig]').forEach(function(el){mapa[el.getAttribute('data-orig')]=el.value.trim()||el.getAttribute('data-orig')})
+  _itens.forEach(function(q){q.disc=mapa[q.disciplina]||q.disciplina})
+  montarPrevia();tecLotes()
+}
+
+function montarPreviaTec(){
+  const box=document.getElementById('prev')
+  const prontas=tecProntas()
+  const porD={}
+  prontas.forEach(function(q){const k=q.disc+' · '+(q.assunto||'sem assunto');porD[k]=(porD[k]||0)+1})
+  box.innerHTML=
+    '<div style="background:var(--card2);border-radius:9px;padding:12px;margin-bottom:12px">'
+   +'<div style="color:var(--ouro);font-size:13px;font-weight:bold;margin-bottom:8px">'+prontas.length+' de '+_itens.length+' questoes prontas para importar</div>'
+   +Object.keys(porD).sort().map(function(d){
+      return '<div style="display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-bottom:1px solid var(--card);font-size:12.5px"><span>'+esc(d)+'</span><span style="color:var(--tx3)">'+porD[d]+'</span></div>'
+    }).join('')+'</div>'
+   +'<div style="color:var(--tx3);font-size:12px;margin-bottom:8px">Amostra das 3 primeiras:</div>'
+   +_itens.slice(0,3).map(function(q){
+      const g=q.gab?('<div class="gb gb-'+(q.tipo==='multipla'?'c':(q.gab==='C'?'c':'e'))+'">'+q.gab+'</div>'):'<div class="gb gb-x">?</div>'
+      return '<div class="qp"><div class="qp-h">'+g
+        +'<span style="color:var(--ouro);font-size:12px;font-weight:700">'+esc(q.disc)+'</span>'
+        +'<span style="color:var(--tx4);font-size:11px;margin-left:auto">'+esc((q.banca||'')+' '+(q.ano||''))+' · n. '+q.n+'</span></div>'
+        +'<div style="color:var(--tx2);line-height:1.5;white-space:pre-wrap">'+esc(q.enun.substring(0,260))+(q.enun.length>260?'...':'')+'</div>'
+        +(q.alts?'<div style="color:var(--tx3);font-size:12px;margin-top:6px">'+q.alts.map(function(a,i){return 'ABCDE'[i]+') '+esc(a.substring(0,90))}).join('<br>')+'</div>':'<div style="color:var(--tx3);font-size:12px;margin-top:6px">Certo / Errado</div>')
+        +'</div>'
+    }).join('')
+  document.getElementById('btn-imp').style.display=prontas.length?'block':'none'
+}
+
+function linhaTec(q,orig){
+  return {
+    disciplina:q.disc||q.disciplina, assunto:q.assunto||null, tipo:q.tipo,
+    enunciado:q.enun, texto_apoio:null, alternativas:q.tipo==='multipla'?q.alts:null, gabarito:q.gab,
+    comentario:null, bizu:null, origem:orig, banca:q.banca||null, ano:q.ano||null, orgao:q.orgao||null,
+    dificuldade:'media', codigo_externo:q.codigo_externo
+  }
+}
+
+async function importarTec(){
+  const prontas=tecProntas()
+  if(!prontas.length){msg('msg-imp','Nenhuma questao pronta.','var(--erro)');return}
+  const conc=document.getElementById('m-conc').value
+  const orig=document.getElementById('m-orig').value
+  msg('msg-imp','Conferindo se alguma ja existe no banco...','var(--tx3)')
+  // evita duplicar: confere pelo codigo do TEC
+  const existe={}
+  const cods=prontas.map(function(q){return q.codigo_externo})
+  for(let i=0;i<cods.length;i+=100){
+    const { data,error }=await _supabase.from('questoes').select('codigo_externo').in('codigo_externo',cods.slice(i,i+100))
+    if(error){
+      msg('msg-imp','<strong>Falta ativar a protecao contra duplicadas.</strong><br>Rode o arquivo <strong>atualizacao-importar-tec.sql</strong> no Supabase (SQL Editor) e tente de novo.<br><span style="color:var(--tx3);font-size:12px">'+esc(error.message)+'</span>','var(--erro)')
+      return
+    }
+    ;(data||[]).forEach(function(x){existe[x.codigo_externo]=1})
+  }
+  const novas=prontas.filter(function(q){return !existe[q.codigo_externo]})
+  const repet=prontas.length-novas.length
+  if(!novas.length){msg('msg-imp','Todas as '+prontas.length+' questoes deste arquivo ja estao no banco. Nada foi importado.','var(--alerta)');return}
+  const pulou=_itens.length-prontas.length
+  if(!confirm('Importar '+novas.length+' questoes?'+(repet?'\n\n'+repet+' ja estavam no banco e serao ignoradas.':'')+(pulou?'\n'+pulou+' ficam de fora (anuladas ou incompletas).':'')))return
+
+  const linhas=novas.map(function(q){return linhaTec(q,orig)})
+  msg('msg-imp','Importando...','var(--tx3)')
+  const L=100;let ids=[]
+  for(let i=0;i<linhas.length;i+=L){
+    const { data,error }=await _supabase.from('questoes').insert(linhas.slice(i,i+L)).select('id')
+    if(error){msg('msg-imp','Erro: '+esc(error.message)+(ids.length?'<br>'+ids.length+' ja tinham sido importadas. Pode tentar de novo: as repetidas sao ignoradas.':''),'var(--erro)');return}
+    if(data)ids=ids.concat(data.map(function(x){return x.id}))
+    msg('msg-imp','Importando... '+ids.length+'/'+linhas.length,'var(--tx3)')
+  }
+  if(conc&&ids.length){
+    const v=ids.map(function(id){return {questao_id:id,concurso_id:conc}})
+    for(let i=0;i<v.length;i+=L)await _supabase.from('questao_concursos').insert(v.slice(i,i+L))
+  }
+  msg('msg-imp','<strong style="color:var(--ok)">'+ids.length+' questoes importadas!</strong>'+(repet?' <span style="color:var(--alerta)">('+repet+' ja existiam e foram ignoradas)</span>':'')
+    +'<br><span style="color:var(--tx2)">Agora gere o gabarito comentado e o bizu no passo 7.</span>','var(--ok)')
+  document.getElementById('btn-imp').style.display='none'
+}
+
+// lotes para a IA comentar
+let _tecLote=20
+function tecQuestoesIA(q){
+  return {codigo_externo:q.codigo_externo,numero:q.n,disciplina:q.disc||q.disciplina,assunto:q.assunto,tipo:q.tipo,
+    banca:q.banca,ano:q.ano,orgao:q.orgao,origem:'prova',enunciado:q.enun,alternativas:q.tipo==='multipla'?q.alts:null,gabarito:q.gab}
+}
+function tecTextoLote(i){
+  const p=tecProntas().slice(i*_tecLote,(i+1)*_tecLote)
+  return PROMPT_IA+JSON.stringify(p.map(tecQuestoesIA),null,1)
+}
+function tecLotes(){
+  const box=document.getElementById('tec-lotes'); if(!box)return
+  document.getElementById('c-ia').style.display='block'
+  const pr=tecProntas(), n=Math.ceil(pr.length/_tecLote)
+  box.innerHTML=Array.from({length:n},function(_,i){
+    const p=pr.slice(i*_tecLote,(i+1)*_tecLote)
+    return '<button id="lote-'+i+'" onclick="tecCopiar('+i+')" style="width:auto;margin:0;padding:10px 12px;background:var(--card2);color:var(--roxo);border:1px solid var(--roxo);font-size:12.5px">📋 Lote '+(i+1)+' <span style="color:var(--tx3)">(n. '+p[0].n+'–'+p[p.length-1].n+')</span></button>'
+  }).join('')
+}
+function tecMudarLote(v){_tecLote=parseInt(v)||20;tecLotes()}
+async function tecCopiar(i){
+  const t=tecTextoLote(i)
+  let ok=false
+  try{await navigator.clipboard.writeText(t);ok=true}catch(e){}
+  const area=document.getElementById('tec-txt')
+  area.value=t; area.style.display='block'
+  if(!ok){area.focus();area.select()}
+  const b=document.getElementById('lote-'+i); if(b){b.style.background='var(--roxo)';b.style.color='#0a1420'}
+  msg('msg-ia',ok?'✅ Lote '+(i+1)+' copiado! Cole numa conversa nova com a IA.':'Nao consegui copiar sozinho: o texto esta selecionado abaixo. Copie (Ctrl+C ou segure e "Copiar").','var(--ok)')
+}
+function tecBaixar(){
+  const pr=tecProntas(), n=Math.ceil(pr.length/_tecLote)
+  let txt=''
+  for(let i=0;i<n;i++)txt+='==================== LOTE '+(i+1)+' de '+n+' ====================\n\n'+tecTextoLote(i)+'\n\n\n'
+  const a=document.createElement('a')
+  a.href=URL.createObjectURL(new Blob([txt],{type:'text/plain;charset=utf-8'}))
+  a.download='lotes-para-ia-'+(pr.length?pr[0].n+'-'+pr[pr.length-1].n:'')+'.txt'
+  a.click()
+}
+
+const PROMPT_IA="Você é o professor revisor do Cabo Jota (Patrulheiro Jota), mentor de concursos policiais. Vou te enviar um lote de questões REAIS de provas anteriores, já extraídas e com o GABARITO OFICIAL. Sua tarefa é escrever o gabarito comentado e o \"Bizu do Jota\" de cada uma, e devolver tudo em JSON para eu importar na plataforma Patrulheiros de Elite.\n\nREGRAS DE OURO\n1. NÃO altere enunciado, alternativas, gabarito, codigo_externo, tipo, disciplina, assunto, banca, ano, orgao ou origem. Copie esses campos exatamente como vieram.\n2. O gabarito oficial é a referência. Explique POR QUE ele está certo.\n3. Se você tiver motivo concreto para achar que o gabarito oficial está errado ou DESATUALIZADO (lei alterada depois da prova, súmula nova, mudança de entendimento do STF/STJ, questão anulável), NÃO troque o gabarito: marque \"em_duvida\": true e explique em \"nota_revisao\" (o que mudou, qual lei/julgado e qual seria a resposta hoje). Nos demais casos, \"em_duvida\": false e \"nota_revisao\": \"\".\n4. Nunca invente número de artigo, lei, súmula ou julgado. Se não tiver certeza do número exato, descreva a regra sem citar o número.\n5. Responda SOMENTE com o JSON (um array), sem texto antes ou depois, sem blocos ``` e sem comentários.\n\nO QUE ACRESCENTAR EM CADA QUESTÃO\n- \"comentario\": explicação direta do gabarito, em português simples, frases curtas, 3 a 6 linhas. Comece pela resposta (\"Gabarito: Errado.\" / \"Gabarito: letra D.\"). Diga a regra e onde ela está na lei. Use um exemplo da rotina policial quando ajudar.\n- \"fundamento\": o dispositivo legal, súmula ou entendimento que sustenta o gabarito (ex.: \"Lei 9.455/1997, art. 1º, § 7º\"). Se não houver, \"\".\n- \"distratores\": SÓ para múltipla escolha. Objeto com as letras ERRADAS e, para cada uma, uma frase dizendo exatamente o erro (ex.: {\"A\": \"Racismo é crime, não mero ilícito civil.\", \"B\": \"...\"}). Para certo/errado, use {}.\n- \"bizu\": o Bizu do Jota. 1 a 2 frases, no máximo 220 caracteres. É a regra prática que o aluno vai colar no caderno de erros e reler antes da prova. Pode usar macete, palavra-chave, comparação ou a \"pegadinha\" que a banca usou. Deve fazer sentido sozinho, sem precisar ler a questão (ex.: \"Tortura: inafiançável e insuscetível de graça/anistia, mas o regime é só INICIALMENTE fechado — 'integralmente' é pegadinha.\").\n- \"dificuldade\": \"facil\", \"media\" ou \"dificil\".\n- \"em_duvida\" e \"nota_revisao\": conforme a regra 3.\n\nFORMATO DE SAÍDA (um objeto por questão, na mesma ordem e na mesma quantidade que recebeu)\n[\n  {\n    \"codigo_externo\": \"...\",\n    \"numero\": 0,\n    \"disciplina\": \"...\",\n    \"assunto\": \"...\",\n    \"tipo\": \"multipla\" ou \"certo_errado\",\n    \"banca\": \"...\",\n    \"ano\": 0,\n    \"orgao\": \"...\",\n    \"origem\": \"prova\",\n    \"enunciado\": \"...\",\n    \"alternativas\": [\"...\", \"...\"] (ou null em certo/errado),\n    \"gabarito\": \"A\"..\"E\" ou \"C\"/\"E\",\n    \"comentario\": \"...\",\n    \"fundamento\": \"...\",\n    \"distratores\": {},\n    \"bizu\": \"...\",\n    \"dificuldade\": \"media\",\n    \"em_duvida\": false,\n    \"nota_revisao\": \"\"\n  }\n]\n\nSe não couber tudo numa resposta, pare ao fim de uma questão completa e feche o array com ]. Quando eu escrever \"continue\", mande as que faltaram em um novo array, no mesmo formato.\n\nQUESTÕES DO LOTE:\n"
+
 // ---------- FORMATO 2: prova CEBRASPE ----------
 function parseProva(ls){
   const RE_IT=/^(\d{1,3})\s+([A-ZÀ-Ú].{12,})$/
@@ -397,7 +740,9 @@ function mostrar(){
    +'<div class="st-c"><div class="st-n" style="color:'+(comCom?'var(--ok)':'var(--tx3)')+'">'+comCom+'</div><div class="st-l">Com comentario</div></div>'
    +'<div class="st-c"><div class="st-n">'+_itens[0].n+'–'+_itens[_itens.length-1].n+'</div><div class="st-l">Numeracao</div></div>'
 
-  if(_tipo==='multipla'){
+  if(_tipo==='tec'){
+    mostrarTec()
+  }else if(_tipo==='multipla'){
     const semGab=_itens.filter(function(q){return !q.gab}).length
     const semDisc=_itens.filter(function(q){return !q.disciplina}).length
     document.getElementById('aviso-tipo').innerHTML=
@@ -508,6 +853,7 @@ function mostrarStats(){
 
 function montarPrevia(){
   document.getElementById('c-prev').style.display='block'
+  if(_tipo==='tec'){montarPreviaTec();return}
   const box=document.getElementById('prev')
   const prontas=_itens.filter(function(q){return q.gab&&(q.disc||q.disciplina)})
   const porD={}
@@ -532,6 +878,7 @@ function montarPrevia(){
 }
 
 async function importar(){
+  if(_tipo==='tec'){await importarTec();return}
   const prontas=_itens.filter(function(q){return q.gab&&(q.disc||q.disciplina)})
   if(!prontas.length){msg('msg-imp','Nenhuma questao pronta.','var(--erro)');return}
   const pulou=_itens.length-prontas.length
