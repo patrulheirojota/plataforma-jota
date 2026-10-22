@@ -308,6 +308,7 @@
       <!-- CRONOGRAMA -->
       <section class="sec on" id="sec-cronograma">
         <div id="diretrizes"></div>
+        <div id="pausa-box"></div>
         <div id="hoje-box"></div>
         <div class="strip" id="strip"></div>
         <div class="hero" id="hero"></div>
@@ -315,9 +316,10 @@
         <div class="sechead">
           <div><div class="h2">Planejamento</div><div class="h2s" id="sec-sub"></div></div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <button class="btn" onclick="abrirDias()" title="Trocar os dias da semana em que voce estuda, sem reiniciar o plano">📅 Dias de estudo</button>
-            <button class="btn" onclick="abrirCarga()" title="Aumentar ou reduzir o tempo de estudo por dia, sem reiniciar o plano">⏱️ Carga horaria</button>
-            <button class="btn btn-ouro" onclick="replanejarAtrasadas(true)" title="Coloca atrasadas em dia, arruma a ordem dos temas e encaixa tudo ate a prova">🔄 Replanejar plano</button>
+            <button class="btn" id="bt-pausa" onclick="abrirPausa()" title="Congelar o cronograma por um tempo (o prazo da mentoria continua contando)">⏸️ Pausar plano</button>
+            <button class="btn pz-esc" onclick="abrirDias()" title="Trocar os dias da semana em que voce estuda, sem reiniciar o plano">📅 Dias de estudo</button>
+            <button class="btn pz-esc" onclick="abrirCarga()" title="Aumentar ou reduzir o tempo de estudo por dia, sem reiniciar o plano">⏱️ Carga horaria</button>
+            <button class="btn btn-ouro pz-esc" onclick="replanejarAtrasadas(true)" title="Coloca atrasadas em dia, arruma a ordem dos temas e encaixa tudo ate a prova">🔄 Replanejar plano</button>
           </div>
         </div>
         <div class="layout">
@@ -428,6 +430,7 @@ const LABEL={teoria:'Teoria',questoes:'Questoes',revisao:'Revisao'}
 
 let _alunoId=null,_nome='',_email='',_diretrizes=null,_diretrizesEm=null,_concursoId=null,_concursoNome='',_dataProva=null,_cfg=null
 let _sessoes=[],_porData={},_refSem=null,_refMes=null,_corDisc={},_graf=null,_secAtual='cronograma'
+let _dataExp=null,_pzDur='7',_pzPrevia=null
 let _mentor=false,_limiteBloq=20,_wpp=null,_fd=null,_saindo=false,_editalFeito={},_sessoesOutros=[]
 
 function ymd(d){const x=new Date(d);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')}
@@ -512,6 +515,7 @@ async function init(){
   _nome=aluno.nome
   if(_mentor)_email=aluno.email||''
   _diretrizes=aluno.diretrizes||null
+  _dataExp=aluno.data_expiracao||null
   _diretrizesEm=aluno.diretrizes_em||null
   document.getElementById('nome').textContent=_nome.split(' ')[0]
 
@@ -520,7 +524,15 @@ async function init(){
   }else{
     // bloqueio por inatividade (confere ANTES de registrar o acesso de hoje)
     const diasSem=aluno.ultimo_acesso?Math.floor((Date.now()-new Date(aluno.ultimo_acesso).getTime())/86400000):0
-    if(aluno.bloqueado_inatividade||diasSem>=_limiteBloq){
+    // plano pausado: o aluno nao e bloqueado por inatividade enquanto a pausa durar
+    let pausadoInat=false
+    if(!aluno.bloqueado_inatividade&&diasSem>=_limiteBloq){
+      try{
+        const { data:pz }=await _supabase.from('config_cronograma').select('pausado_em').eq('aluno_id',_alunoId)
+        pausadoInat=(pz||[]).some(function(c){return !!c.pausado_em})
+      }catch(e){}
+    }
+    if(aluno.bloqueado_inatividade||(diasSem>=_limiteBloq&&!pausadoInat)){
       if(!aluno.bloqueado_inatividade){try{await _supabase.from('alunos').update({bloqueado_inatividade:true}).eq('id',_alunoId)}catch(e){}}
       mostrarBloqueado(Math.max(diasSem,_limiteBloq))
       return
@@ -584,8 +596,11 @@ async function init(){
   _refSem=parseD(dRef); _refMes=parseD(dRef)
   desenhar()
   checarAvisos()
-  if(new URLSearchParams(location.search).get('dias')==='1')setTimeout(abrirDias,500)
-  else if(new URLSearchParams(location.search).get('carga')==='1')setTimeout(abrirCarga,500)
+  const qs=new URLSearchParams(location.search)
+  if(qs.get('pausa')==='1')setTimeout(abrirPausa,500)
+  else if(planoPausado()){if(!_mentor)setTimeout(checarFimPausa,700)}
+  else if(qs.get('dias')==='1')setTimeout(abrirDias,500)
+  else if(qs.get('carga')==='1')setTimeout(abrirCarga,500)
   else if(!_mentor)setTimeout(checarDiaAnterior,700)
 }
 
@@ -675,7 +690,7 @@ function proxima(a){
   for(let i=0;i<ds.length;i++)if(ds[i]>=a)return ds[i]
   return ds.length?ds[ds.length-1]:a
 }
-function desenhar(){renderDiretrizes();renderHoje();renderStrip();renderHero();renderAtraso();renderBoard();renderCal();renderLegenda()}
+function desenhar(){renderDiretrizes();renderPausa();renderHoje();renderStrip();renderHero();renderAtraso();renderBoard();renderCal();renderLegenda()}
 
 function renderDiretrizes(){
   const box=document.getElementById('diretrizes')
@@ -746,6 +761,7 @@ function renderHero(){
 function renderAtraso(){
   const hj=hojeStr(), at=_sessoes.filter(function(s){return !s.concluida&&s.data<hj})
   const box=document.getElementById('aviso-atraso')
+  if(planoPausado()){box.innerHTML='';return}
   if(!at.length){
     const fo=contarForaDeOrdem()+teoriasPerdidas().length
     if(!fo){box.innerHTML='';return}
@@ -1914,6 +1930,198 @@ async function confirmarCarga(){
   toast('⏱️ Carga atualizada! Seu progresso foi mantido.')
 }
 
+/* ---------- PAUSAR PLANO ----------
+   A pausa congela SO o cronograma: nada fica atrasado, nao aparecem cobrancas
+   do dia e o aluno nao e bloqueado por inatividade. O prazo da mentoria
+   (data_expiracao) continua correndo normalmente.
+   Ao retomar, todas as sessoes pendentes voltam a partir do dia da retomada,
+   na mesma ordem, usando o mesmo motor do replanejamento. */
+function planoPausado(){return !!(_cfg&&_cfg.pausado_em)}
+function brD(k){return parseD(k).toLocaleDateString('pt-BR')}
+function diasEntre(a,b){return Math.round((parseD(b)-parseD(a))/86400000)}
+
+function textoPrazo(){
+  if(!_dataExp)return ''
+  const hj=hojeStr(), f=diasEntre(hj,_dataExp)
+  return 'O prazo da mentoria <strong>continua contando</strong> durante a pausa: '
+    +(f>=0?'acesso ate <strong>'+brD(_dataExp)+'</strong> ('+(f===0?'ultimo dia hoje':'faltam '+f+' dia(s)')+').':'o acesso venceu em '+brD(_dataExp)+'.')
+}
+
+function renderPausa(){
+  const box=document.getElementById('pausa-box'); if(!box)return
+  const pz=planoPausado()
+  document.querySelectorAll('.pz-esc').forEach(function(b){b.style.display=pz?'none':''})
+  const bt=document.getElementById('bt-pausa')
+  if(bt){bt.innerHTML=pz?'▶️ Retomar plano':'⏸️ Pausar plano';bt.className=pz?'btn btn-ouro':'btn'}
+  if(!pz){box.innerHTML='';return}
+  const hj=hojeStr(), em=_cfg.pausado_em, dias=Math.max(0,diasEntre(em,hj))
+  const prev=_cfg.pausa_prevista
+  const venceu=prev&&prev<=hj
+  box.innerHTML='<div class="aviso" style="background:rgba(232,176,75,.07);border-color:#e8b04b">'
+   +'<span style="font-size:26px">⏸️</span>'
+   +'<div style="flex:1;min-width:200px">'
+   +'<div style="color:#e8b04b;font-weight:800;font-size:15px">'+(_mentor?'Plano do aluno pausado':'Seu plano esta pausado')+'</div>'
+   +'<div style="color:var(--tx2);font-size:12.5px;margin-top:3px;line-height:1.55">'
+   +'Pausado desde <strong>'+brD(em)+'</strong> ('+(dias===0?'hoje':dias+' dia(s)')+'). '
+   +(prev?(venceu?'<span style="color:#6ddba0;font-weight:700">A pausa prevista terminou em '+brD(prev)+'. Ja pode retomar.</span>':'Retorno previsto: <strong>'+brD(prev)+'</strong>.'):'Sem data de retorno definida.')
+   +(_cfg.pausa_motivo?'<br>Motivo: '+String(_cfg.pausa_motivo).replace(/</g,'&lt;'):'')
+   +'<br>O cronograma esta congelado: nada fica atrasado enquanto a pausa durar. Ao retomar, o plano continua de onde parou.'
+   +(_dataExp?'<br><span style="color:#f0a3a3">⚠️ '+textoPrazo()+'</span>':'')
+   +'</div></div>'
+   +'<button class="btn btn-ouro" onclick="abrirRetomar()">▶️ Retomar plano</button></div>'
+}
+
+function abrirPausa(){
+  if(planoPausado()){abrirRetomar();return}
+  _pzDur='7'
+  renderModalPausa()
+  document.getElementById('modal').classList.add('on')
+}
+
+function pzPrevista(){
+  const hj=new Date()
+  if(_pzDur==='sem')return null
+  if(_pzDur==='data'){const v=(document.getElementById('pz-data')||{}).value;return v||null}
+  return ymd(addDays(hj,parseInt(_pzDur,10)))
+}
+
+function escolherPz(v){
+  const mot=document.getElementById('pz-mot'), dt=document.getElementById('pz-data')
+  const keep={mot:mot?mot.value:'',dt:dt?dt.value:''}
+  _pzDur=v; renderModalPausa(keep)
+}
+
+function renderModalPausa(keep){
+  keep=keep||{}
+  const op=[['7','1 semana'],['14','2 semanas'],['30','1 mes'],['data','Escolher data'],['sem','Sem data']]
+  const hj=hojeStr()
+  const chips=op.map(function(o){
+    const on=_pzDur===o[0]
+    return '<button class="btn" style="padding:9px 6px;font-size:12.5px;'+(on?'background:var(--ouro);color:#0a1420;border-color:var(--ouro);font-weight:800':'')+'" onclick="escolherPz(\''+o[0]+'\')">'+o[1]+'</button>'
+  }).join('')
+  const minD=ymd(addDays(new Date(),1))
+  document.getElementById('modal-c').innerHTML=
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:6px">'
+   +'<div><div style="color:var(--ouro);font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase">Pausar plano</div>'
+   +'<div style="font-size:18px;font-weight:800;margin-top:2px">'+(_mentor?'Pausar o cronograma do aluno':'Precisa dar uma pausa?')+'</div></div>'
+   +'<button class="btn" onclick="fecharModal()" style="padding:5px 11px">✕</button></div>'
+   +'<div style="color:var(--tx2);font-size:13px;line-height:1.6;margin-bottom:10px">O cronograma fica <strong>congelado</strong>: nada fica atrasado e nao aparecem cobrancas do dia. '
+   +'Quando '+(_mentor?'o aluno':'voce')+' retomar, o plano continua <strong>de onde parou</strong>, a partir do dia da retomada. <strong>Nenhuma sessao e apagada.</strong></div>'
+   +'<div style="color:var(--tx3);font-size:11.5px;font-weight:700;margin-bottom:6px">POR QUANTO TEMPO? (previsao)</div>'
+   +'<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px">'+chips+'</div>'
+   +(_pzDur==='data'?'<input type="date" id="pz-data" min="'+minD+'" value="'+(keep.dt||'')+'" style="width:100%;margin-top:8px;padding:10px;border-radius:9px;border:1px solid var(--bd2);background:var(--bg);color:var(--tx);font-size:14px">':'')
+   +'<div style="color:var(--tx4);font-size:11.5px;margin-top:6px">A previsao serve so de lembrete. Da para retomar antes ou depois, quando quiser.</div>'
+   +'<div style="color:var(--tx3);font-size:11.5px;font-weight:700;margin:12px 0 6px">MOTIVO (opcional)</div>'
+   +'<textarea id="pz-mot" rows="2" maxlength="300" placeholder="Ex.: problema de saude na familia, mudanca, trabalho..." style="width:100%;padding:10px;border-radius:9px;border:1px solid var(--bd2);background:var(--bg);color:var(--tx);font-size:13.5px;resize:vertical;font-family:inherit">'+String(keep.mot||'').replace(/</g,'&lt;')+'</textarea>'
+   +(_dataExp?'<div style="background:rgba(240,113,113,.08);border:1px solid #d9566a;border-radius:10px;padding:11px 13px;margin-top:12px;color:#f0a3a3;font-size:12.5px;line-height:1.55">⚠️ A pausa vale <strong>so para o cronograma</strong>. '+textoPrazo()+'</div>'
+     :'<div style="background:rgba(240,113,113,.08);border:1px solid #d9566a;border-radius:10px;padding:11px 13px;margin-top:12px;color:#f0a3a3;font-size:12.5px;line-height:1.55">⚠️ A pausa vale <strong>so para o cronograma</strong>. O prazo da mentoria continua contando normalmente.</div>')
+   +'<div id="pz-alerta"></div>'
+   +'<button class="btn btn-ouro" style="width:100%;padding:12px;margin-top:14px" onclick="confirmarPausa()">⏸️ Pausar plano</button>'
+   +'<div id="pz-msg" style="font-size:12px;margin-top:10px;text-align:center"></div>'
+  const dt=document.getElementById('pz-data'); if(dt)dt.addEventListener('change',alertaPausa)
+  alertaPausa()
+}
+
+function alertaPausa(){
+  const el=document.getElementById('pz-alerta'); if(!el)return
+  const pv=pzPrevista(), avisos=[]
+  if(pv&&_dataExp&&pv>_dataExp)avisos.push('A volta prevista ('+brD(pv)+') e <strong>depois do fim do seu acesso</strong> ('+brD(_dataExp)+').')
+  if(pv&&_dataProva&&pv>=_dataProva)avisos.push('A volta prevista ('+brD(pv)+') e <strong>depois da data da prova</strong> ('+brD(_dataProva)+').')
+  el.innerHTML=avisos.length?'<div style="background:rgba(232,176,75,.08);border:1px solid #e8b04b;border-radius:10px;padding:10px 12px;margin-top:10px;color:#e8b04b;font-size:12.5px;line-height:1.55">'+avisos.join('<br>')+'</div>':''
+}
+
+async function confirmarPausa(){
+  const m=document.getElementById('pz-msg')
+  const pv=pzPrevista()
+  if(_pzDur==='data'&&!pv){m.style.color='#f07171';m.textContent='Escolha a data prevista de retorno.';return}
+  const mot=((document.getElementById('pz-mot')||{}).value||'').trim()
+  const dados={pausado_em:hojeStr(),pausa_prevista:pv,pausa_motivo:mot||null}
+  m.style.color='var(--tx3)';m.textContent='Pausando...'
+  let r
+  if(_cfg&&_cfg.aluno_id){
+    r=await _supabase.from('config_cronograma').update(dados).eq('aluno_id',_alunoId).eq('concurso_id',_concursoId)
+  }else{
+    r=await _supabase.from('config_cronograma').insert(Object.assign({aluno_id:_alunoId,concurso_id:_concursoId,dias_semana:diasEstudo().join(',')},dados))
+  }
+  if(r.error){
+    const falta=/pausado_em|pausa_|column/i.test(r.error.message)
+    m.style.color='#f07171'
+    m.textContent=falta?'A pausa ainda nao esta ativada no banco de dados.'+(_mentor?' Rode o arquivo atualizacao-pausa-plano.sql no Supabase.':' Avise o seu mentor.')
+      :'Nao foi possivel pausar: '+r.error.message+(_mentor?'':' Fale com o seu mentor.')
+    return
+  }
+  if(!_cfg)_cfg={concurso_id:_concursoId}
+  _cfg.aluno_id=_alunoId
+  Object.assign(_cfg,dados)
+  logar('pausou','Pausou o plano em '+brD(dados.pausado_em)+(pv?' (retorno previsto '+brD(pv)+')':' (sem data de retorno)')+(mot?'. Motivo: '+mot:''))
+  fecharModal()
+  desenhar()
+  window.scrollTo({top:0,behavior:'smooth'})
+  toast('⏸️ Plano pausado. Seu progresso esta guardado.')
+}
+
+function abrirRetomar(fim){
+  if(!planoPausado())return
+  const hj=hojeStr()
+  const at=_sessoes.filter(function(s){return !s.concluida&&s.data<hj}).sort(ordenarSess)
+  const p=simularReplan(hj,at,{recriar:true})
+  _pzPrevia=p
+  const em=_cfg.pausado_em, dias=Math.max(0,diasEntre(em,hj))
+  const pend=_sessoes.filter(function(s){return !s.concluida}).length
+  const cor=p.sobrecarga?'#f07171':p.encurtadas?'#e8b04b':'#6ddba0'
+  document.getElementById('modal-c').innerHTML=
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px">'
+   +'<div><div style="color:var(--ouro);font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase">Retomar plano</div>'
+   +'<div style="font-size:18px;font-weight:800;margin-top:2px">'+(fim?'Sua pausa terminou 💪':'Voltar a estudar')+'</div></div>'
+   +'<button class="btn" onclick="fecharModal()" style="padding:5px 11px">✕</button></div>'
+   +'<div style="color:var(--tx2);font-size:13px;line-height:1.6;margin-bottom:12px">'
+   +'O plano esta pausado desde <strong>'+brD(em)+'</strong> ('+(dias===0?'hoje':dias+' dia(s)')+'). '
+   +'Ao retomar, as <strong>'+pend+' sessoes pendentes</strong> continuam de onde '+(_mentor?'o aluno':'voce')+' parou, a partir de <strong>hoje</strong>, na mesma ordem. '
+   +'O que ja foi estudado nao muda. <strong>Nenhuma sessao e apagada.</strong></div>'
+   +'<div class="bloco" style="margin-top:0">'
+   +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;text-align:center">'
+   +'<div><div style="color:var(--tx3);font-size:11px">Plano terminava</div><div style="font-weight:800;font-size:16px">'+brD(p.fimAntes)+'</div></div>'
+   +'<div><div style="color:var(--tx3);font-size:11px">Passa a terminar</div><div style="font-weight:800;font-size:16px;color:'+cor+'">'+brD(p.fimDepois)+'</div></div>'
+   +'</div>'
+   +(p.lim?'<div style="color:var(--tx4);font-size:11.5px;text-align:center;margin-top:8px">Data da prova: '+brD(p.lim)+'</div>':'')
+   +'</div>'
+   +(p.encurtadas?'<div style="background:rgba(232,176,75,.08);border:1px solid #e8b04b;border-radius:10px;padding:11px 13px;margin-top:10px;color:#e8b04b;font-size:12.5px;line-height:1.55">'
+      +'Por causa do tempo parado, para terminar ate a prova <strong>'+p.encurtadas+' sessoes de '+(p.nivel===1?'revisao':'questoes e revisao')+'</strong> ficam mais curtas. A teoria continua com o tempo cheio.</div>':'')
+   +(p.sobrecarga?'<div style="background:rgba(240,113,113,.08);border:1px solid #d9566a;border-radius:10px;padding:11px 13px;margin-top:10px;color:#f07171;font-size:12.5px;line-height:1.55">'
+      +'Mesmo encurtando questoes e revisoes, o tempo ate a prova ficou curto. Para nada ser apagado, o tempo de estudo sobe de <strong>'+dur(p.orc)+'</strong> para ate <strong>'+dur(p.orcUsado)+'</strong> por dia em <strong>'+p.sobrecarga+' dia(s)</strong>.'+(_mentor?'':' Converse com seu mentor se nao conseguir esse tempo.')+'</div>':'')
+   +(_dataExp?'<div style="color:#f0a3a3;font-size:12px;line-height:1.55;margin-top:10px">⚠️ '+textoPrazo()+'</div>':'')
+   +'<button class="btn btn-ouro" style="width:100%;padding:12px;margin-top:14px" onclick="confirmarRetomar()">▶️ Retomar plano</button>'
+   +(fim?'<button class="btn" style="width:100%;padding:10px;margin-top:8px" onclick="fecharModal()">Continuar pausado por enquanto</button>':'')
+   +'<div id="rt-msg" style="font-size:12px;margin-top:10px;text-align:center"></div>'
+  document.getElementById('modal').classList.add('on')
+}
+
+async function confirmarRetomar(){
+  const p=_pzPrevia; if(!p)return
+  const m=document.getElementById('rt-msg')
+  const em=_cfg.pausado_em, dias=Math.max(0,diasEntre(em,hojeStr()))
+  m.style.color='var(--tx3)';m.textContent='Retomando o plano...'
+  try{
+    if(p.mudancas.length)await aplicarReplan(p,function(a,b){m.textContent='Reorganizando o plano... '+a+'/'+b})
+  }catch(e){m.style.color='#f07171';m.textContent='Erro ao reorganizar: '+e.message+'. Tente de novo.';return}
+  const r=await _supabase.from('config_cronograma').update({pausado_em:null,pausa_prevista:null,pausa_motivo:null}).eq('aluno_id',_alunoId).eq('concurso_id',_concursoId)
+  if(r.error){m.style.color='#f07171';m.textContent='Nao foi possivel retomar: '+r.error.message;return}
+  _cfg.pausado_em=null;_cfg.pausa_prevista=null;_cfg.pausa_motivo=null
+  _pzPrevia=null
+  logar('retomou','Retomou o plano em '+brD(hojeStr())+' depois de '+dias+' dia(s) de pausa (pausado em '+brD(em)+'): '+textoReplan(p))
+  fecharModal()
+  desenhar()
+  irData(hojeStr())
+  toast('▶️ Bem-vindo de volta! O plano continua de onde voce parou.')
+}
+
+function checarFimPausa(){
+  if(!planoPausado()||!_cfg.pausa_prevista||_cfg.pausa_prevista>hojeStr())return
+  const ch='pz_'+_alunoId+'_'+hojeStr()
+  try{if(sessionStorage.getItem(ch))return;sessionStorage.setItem(ch,'1')}catch(e){}
+  abrirRetomar(true)
+}
+
 /* ---------- CADERNO DE ERROS ---------- */
 let _notas=[],_modoCd='ler',_editando=null,_cdCarregado=false
 
@@ -2068,6 +2276,7 @@ async function registrarAcesso(){
 async function sairDireto(){_saindo=true;await _supabase.auth.signOut();location.href='index.html'}
 function sair(){
   if(_mentor){voltarPainel();return}
+  if(planoPausado()){sairDireto();return}
   const pend=pendentesDia(hojeStr())
   if(!pend.length){sairDireto();return}
   fecharDia(hojeStr(),'sair')
@@ -2084,6 +2293,7 @@ function toast(t){
 
 function renderHoje(){
   const box=document.getElementById('hoje-box'); if(!box)return
+  if(planoPausado()){box.innerHTML='';return}
   const hj=hojeStr(), sess=(_porData[hj]||[]).slice().sort(function(a,b){return (a.ordem||0)-(b.ordem||0)})
   if(!sess.length){
     const px=proxima(ymd(addDays(new Date(),1)))
@@ -2222,6 +2432,7 @@ async function sairSemMarcar(){
 
 // ao entrar: cobra o ultimo dia de estudo que ficou sem marcar
 function checarDiaAnterior(){
+  if(planoPausado())return
   const hj=hojeStr(), lim=ymd(addDays(new Date(),-7))
   const ds=Object.keys(_porData).filter(function(d){return d<hj&&d>=lim}).sort().reverse()
   for(let i=0;i<ds.length;i++){
@@ -2236,7 +2447,7 @@ function checarDiaAnterior(){
 
 // aviso do navegador ao fechar a aba com sessoes de hoje sem marcar
 window.addEventListener('beforeunload',function(e){
-  if(_mentor||_saindo||!_sessoes.length)return
+  if(_mentor||_saindo||!_sessoes.length||planoPausado())return
   if(pendentesDia(hojeStr()).length){e.preventDefault();e.returnValue='';return ''}
 })
 document.addEventListener('keydown',function(e){if(e.key==='Escape'){fecharModal();fecharCaderno()}})
