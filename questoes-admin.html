@@ -652,6 +652,8 @@ function normalizarQ(o){
   const dif=txtLimpo(q.dificuldade).toLowerCase()
   q.dificuldade=/^f/.test(dif)?'facil':/^d/.test(dif)?'dificil':'media'
   q.em_duvida=q.em_divida===true||q.em_duvida===true
+  q.codigo_externo=txtLimpo(q.codigo_externo)||null
+  if(!q.codigo&&q.codigo_externo)q.codigo=q.codigo_externo+(q.numero?' (n. '+q.numero+')':'')
   return q
 }
 
@@ -703,7 +705,7 @@ function validar(){
    +'<div style="color:var(--ouro);font-size:13px;font-weight:bold;margin-bottom:8px">'+ce+' certo/errado · '+(arr.length-ce)+' multipla escolha</div>'
    +(duvida.length?'<div style="background:rgba(232,176,75,.08);border:1px solid var(--alerta);border-radius:8px;padding:10px;margin-bottom:10px;font-size:12.5px;color:var(--alerta);line-height:1.55">'
       +'<strong>'+duvida.length+' questao(oes) marcadas como "em duvida"</strong> pelo gerador (o gabarito pode estar errado): '
-      +duvida.map(function(q,i){return '<strong>'+(q.codigo||('#'+(arr.indexOf(q)+1)))+'</strong>'}).join(', ')
+      +duvida.map(function(q,i){return '<strong>'+esc(q.codigo||('#'+(arr.indexOf(q)+1)))+'</strong>'+(q.nota_revisao?' — <span style="color:var(--tx2)">'+esc(String(q.nota_revisao).substring(0,240))+'</span>':'')}).join('<br>')
       +'.<br>Por seguranca elas <strong>nao serao importadas</strong>. Revise e importe depois, ou marque abaixo.'
       +'<label style="display:flex;gap:8px;align-items:center;margin-top:8px;color:var(--tx2);cursor:pointer"><input type="checkbox" id="imp-duvida" style="width:16px;height:16px;margin:0"> Importar tambem as questoes em duvida</label></div>':'')
    +'<div style="color:var(--tx3);font-size:12px;margin-bottom:6px">Por disciplina:</div>'
@@ -744,7 +746,37 @@ async function importar(){
     }
   })
 
+  // questoes com codigo de origem (ex.: TEC): se ja existem no banco, so recebem comentario/bizu
   const LOTE=100
+  let atualizadas=0
+  const comCod=lote.some(function(q){return q.codigo_externo})
+  if(comCod){
+    linhas.forEach(function(l,i){if(lote[i].codigo_externo)l.codigo_externo=lote[i].codigo_externo})
+    const cods=lote.map(function(q){return q.codigo_externo}).filter(Boolean)
+    const existe={}
+    for(let i=0;i<cods.length;i+=LOTE){
+      const { data,error }=await _supabase.from('questoes').select('id,codigo_externo').in('codigo_externo',cods.slice(i,i+LOTE))
+      if(error){msg('msg-imp','<strong>Falta rodar o arquivo atualizacao-importar-tec.sql no Supabase.</strong> Ele evita questoes duplicadas. Rode e importe de novo.<br><span style="color:var(--tx3);font-size:12px">'+escA(error.message)+'</span>','var(--erro)');return}
+      ;(data||[]).forEach(function(x){existe[x.codigo_externo]=x.id})
+    }
+    const novas=[]
+    for(let i=0;i<linhas.length;i++){
+      const l=linhas[i], id=l.codigo_externo&&existe[l.codigo_externo]
+      if(!id){novas.push(l);continue}
+      const up={}
+      if(l.comentario)up.comentario=l.comentario
+      if(l.bizu)up.bizu=l.bizu
+      if(lote[i].dificuldade)up.dificuldade=l.dificuldade
+      if(Object.keys(up).length){
+        const r=await _supabase.from('questoes').update(up).eq('id',id)
+        if(r.error){msg('msg-imp','Erro ao atualizar '+escA(l.codigo_externo)+': '+escA(r.error.message),'var(--erro)');return}
+        atualizadas++
+        msg('msg-imp','Atualizando comentarios e bizus... '+atualizadas,'var(--tx3)')
+      }
+    }
+    linhas.length=0; novas.forEach(function(l){linhas.push(l)})
+  }
+
   let ids=[]
   for(let i=0;i<linhas.length;i+=LOTE){
     const { data,error }=await _supabase.from('questoes').insert(linhas.slice(i,i+LOTE)).select('id')
@@ -761,7 +793,7 @@ async function importar(){
   }
 
   resumoTopo()
-  msg('msg-imp','<strong style="color:var(--ok)">'+ids.length+' questoes importadas com sucesso!</strong>'+(puladas?' <span style="color:var(--alerta)">'+puladas+' em duvida ficaram de fora.</span>':''),'var(--ok)')
+  msg('msg-imp','<strong style="color:var(--ok)">'+ids.length+' questoes novas importadas'+(atualizadas?' e '+atualizadas+' ja existentes receberam comentario e bizu':'')+'!</strong>'+(puladas?' <span style="color:var(--alerta)">'+puladas+' em duvida ficaram de fora.</span>':''),'var(--ok)')
   document.getElementById('imp-json').value=''
   document.getElementById('prev-imp').innerHTML=''
   document.getElementById('btn-imp').style.display='none'
@@ -902,6 +934,7 @@ async function carregarListasMan(){
   }catch(e){}
 }
 function escA(t){return String(t==null?'':t).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;')}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 
 function manTipo(t){
   _manTipo=t
