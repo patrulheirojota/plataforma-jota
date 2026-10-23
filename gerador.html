@@ -137,6 +137,10 @@
         <input type="checkbox" id="g-pular" style="width:18px;height:18px;accent-color:var(--ouro)">
         Pular temas cuja teoria o aluno ja concluiu
       </label>
+      <label id="lb-edital" style="display:flex;align-items:flex-start;gap:8px;margin-top:10px;font-size:13px;cursor:pointer;line-height:1.45">
+        <input type="checkbox" id="g-edital" checked onchange="gerarPreviewSeAberto()" style="width:18px;height:18px;accent-color:var(--ouro);flex-shrink:0;margin:1px 0 0">
+        <span>Tirar a <strong>teoria</strong> dos temas que o aluno marcou como estudados no <strong>Edital</strong> (questoes e revisao continuam) <span id="g-edital-n" style="color:var(--ok)"></span></span>
+      </label>
       <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;cursor:pointer">
         <input type="checkbox" id="g-encaixe" checked style="width:18px;height:18px;accent-color:var(--ouro)">
         Encaixe automatico quando o prazo for curto
@@ -230,6 +234,8 @@ const PESO = { alta:0, media:1, baixa:2 }
 let _temas = []
 let _plano = null
 let _teoriaFeita = {}
+let _editalFeitoG = {}, _semTeoEdital = 0
+function gerarPreviewSeAberto(){ const pv=document.getElementById('card-preview'); if (pv && pv.style.display==='block') gerarPreview() }
 let _statusTema = {}
 let _pulados = 0
 let _soRevisao = 0
@@ -291,6 +297,7 @@ function sincronizarSemTeoria(){
   const box = document.getElementById('box-semteo')
   if (box) { box.style.borderColor = sem ? 'var(--ouro)' : 'var(--bd2)'; box.style.background = sem ? 'rgba(201,168,60,.08)' : 'var(--card2)' }
   const lp = document.getElementById('lb-pular'); if (lp) lp.style.display = sem ? 'none' : 'flex'
+  const le = document.getElementById('lb-edital'); if (le) le.style.display = sem ? 'none' : 'flex'
   const info = document.getElementById('semteo-info')
   if (info) {
     const dq = parseInt(document.getElementById('g-dq').value)||5, dr = parseInt(document.getElementById('g-dr').value)||15
@@ -459,6 +466,13 @@ async function carregarTemas(){
     .eq('aluno_id',aluno_id).eq('concurso_id',concurso_id).eq('tipo','teoria').eq('concluida',true)
   if (feitas) feitas.forEach(function(s){ _teoriaFeita[s.topico] = true })
 
+  // temas que o aluno marcou como estudados no Edital
+  _editalFeitoG = {}
+  try {
+    const { data: ep } = await _supabase.from('edital_progresso').select('topico_id').eq('aluno_id',aluno_id).eq('concluido',true)
+    if (ep) ep.forEach(function(x){ _editalFeitoG[x.topico_id] = true })
+  } catch(e) {}
+
   // temas do edital
   const { data: tops } = await _supabase.from('edital_topicos').select('*').eq('concurso_id',concurso_id).order('disciplina').order('ordem')
   document.getElementById('card-config').style.display='block'
@@ -475,6 +489,8 @@ async function carregarTemas(){
     return { key:'t'+i, disciplina:t.disciplina, topico:t.topico, topico_id:t.id,
              prioridade:t.prioridade||'media', incluir: st !== 'removido', status: st }
   })
+  const nEd = tops.filter(function(t){ return _editalFeitoG[t.id] }).length
+  const ne = document.getElementById('g-edital-n'); if (ne) ne.textContent = nEd ? '— '+nEd+' tema(s) marcados' : '— nenhum tema marcado ainda'
   renderTemas()
 }
 
@@ -569,6 +585,16 @@ function minutosDaSessao(tipo, prioridade, tempo, nivel){
   return tempo
 }
 
+// etapas de cada tema: "so revisao", "sem teoria" (ja estudado no Edital) ou o ciclo normal
+function etapasDoTema(tema, cfg){
+  if (tema.status==='so_revisao') return [{tipo:'revisao',off:0}]
+  if (tema.semTeoria && cfg.etapas[0].tipo==='teoria' && cfg.etapas.length>1){
+    const r = cfg.etapas.slice(1), base = r[0].off
+    return r.map(function(e){ return { tipo:e.tipo, off:e.off-base } })
+  }
+  return cfg.etapas
+}
+
 function montarPlano(temas, cfg){
   const fila = intercalar(temas)
   const dias = cfg.dias
@@ -597,7 +623,7 @@ function montarPlano(temas, cfg){
     let reserva = 0
     if (idx < fila.length && cfg.porDia > 1) {
       const prox = fila[idx]
-      const tipoProx = (prox.status==='so_revisao') ? 'revisao' : cfg.etapas[0].tipo
+      const tipoProx = etapasDoTema(prox, cfg)[0].tipo
       reserva = minutosDaSessao(tipoProx, prox.prioridade, tempo, nivel)
     }
 
@@ -614,7 +640,7 @@ function montarPlano(temas, cfg){
 
     while (idx < fila.length){
       const tema = fila[idx]
-      const et = (tema.status==='so_revisao') ? [{tipo:'revisao',off:0}] : cfg.etapas
+      const et = etapasDoTema(tema, cfg)
       const min = minutosDaSessao(et[0].tipo, tema.prioridade, tempo, nivel)
       if (usado + min > orcamento) break
       if (min < tempo) encurtadas++
@@ -678,6 +704,12 @@ function gerarPreview(){
     selecionados = selecionados.filter(function(t){ return !_teoriaFeita[t.topico] })
     _pulados = antes - selecionados.length
   } else { _pulados = 0 }
+  // ja estudados no Edital: entram sem a teoria (so questoes e revisao)
+  const usarEd = document.getElementById('g-edital') && document.getElementById('g-edital').checked && modosAtivos().indexOf('teoria') >= 0
+  const soTeoria = modosAtivos().length === 1 && modosAtivos()[0] === 'teoria'
+  selecionados = selecionados.map(function(t){ return Object.assign({}, t, { semTeoria: !!(usarEd && t.topico_id && _editalFeitoG[t.topico_id] && t.status !== 'so_revisao') }) })
+  if (soTeoria) selecionados = selecionados.filter(function(t){ return !t.semTeoria })
+  _semTeoEdital = selecionados.filter(function(t){ return t.semTeoria }).length
   if (!selecionados.length) { msg.textContent='Nenhum tema restante apos os filtros. Desmarque "pular temas concluidos" ou selecione outros temas.'; return }
 
   msg.style.display='none'
@@ -720,6 +752,10 @@ function renderPreview(plano){
   if (_soRevisao > 0) {
     al.innerHTML += '<div style="background:var(--card2);border:1px solid var(--ok);border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px;color:var(--ok)">'
       + _soRevisao+' tema(s) marcados como <strong>so revisao</strong> no Controle de Temas entraram apenas com a sessao de revisao.</div>'
+  }
+  if (_semTeoEdital > 0) {
+    al.innerHTML += '<div style="background:var(--card2);border:1px solid var(--ok);border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px;color:var(--ok)">'
+      + _semTeoEdital+' tema(s) que o aluno marcou como estudados no <strong>Edital</strong> entraram <strong>sem a teoria</strong> (so questoes e revisao).</div>'
   }
   if (_pulados > 0) {
     al.innerHTML += '<div style="background:var(--card2);border:1px solid var(--ok);border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px;color:var(--ok)">'
