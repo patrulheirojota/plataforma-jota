@@ -96,6 +96,11 @@
       </div>
     </div>
 
+    <div style="background:#10283a;border:1px solid #2a4a6a;border-radius:10px;padding:11px 14px;margin-bottom:12px;color:#c5d3e0;font-size:13px;line-height:1.55">
+      📗 <b style="color:#81c784">Ja estudou algum tema?</b> Marque aqui. A <b>teoria</b> desse tema sai do seu cronograma, e as <b>questoes e a revisao continuam</b>.
+    </div>
+    <div id="aviso-cron"></div>
+
     <!-- Filtros -->
     <div class="filtros-edital">
       <button class="filtro-e ativo" onclick="setFiltroEdital('todos',this)">Todos</button>
@@ -124,6 +129,8 @@ let _concursoId = null
 let _topicos = []
 let _progresso = {}
 let _filtroAtual = 'todos'
+let _teoriaPend = {}   // topico_id -> qtde de sessoes de teoria pendentes no cronograma
+let _mentorAluno = null
 
 async function init() {
   const { data: { user } } = await _supabase.auth.getUser()
@@ -138,7 +145,7 @@ async function init() {
     try { const r = await _supabase.rpc('eh_admin'); if (!r.error) ok = !!r.data; else throw 0 }
     catch(e) { const { data: x } = await _supabase.from('alunos').select('id').eq('id', user.id).maybeSingle(); ok = !x }
     if (!ok) { window.location.href = 'edital.html'; return }
-    mentor = true; _alunoId = alvo
+    mentor = true; _alunoId = alvo; _mentorAluno = alvo
   }
 
   const { data: aluno } = await _supabase
@@ -177,7 +184,15 @@ async function init() {
 
   prog?.forEach(p => { _progresso[p.topico_id] = p })
 
+  // teoria ainda pendente no cronograma (para avisar que vai sair)
+  try {
+    const { data: tp } = await _supabase.from('sessoes_estudo').select('topico_id')
+      .eq('aluno_id', _alunoId).eq('tipo', 'teoria').eq('concluida', false)
+    ;(tp || []).forEach(x => { if (x.topico_id) _teoriaPend[x.topico_id] = (_teoriaPend[x.topico_id] || 0) + 1 })
+  } catch (e) {}
+
   renderizarEdital()
+  atualizarAvisoCron()
 }
 
 function renderizarEdital() {
@@ -230,6 +245,7 @@ function renderizarEdital() {
           <div style="color:#aaa;font-size:18px;margin-left:8px">›</div>
         </div>
         <div class="edital-disc-body" id="${divId}">
+          ${concluidos < topicos.length ? `<div style="text-align:right;margin:2px 0 6px"><button onclick="marcarDisciplina('${encodeURIComponent(disc).replace(/'/g,'%27')}')" style="width:auto;margin:0;padding:6px 11px;font-size:12px;background:#1a2f45;color:#81c784;border:1px solid #3d7a50;border-radius:8px;font-weight:normal">✓ Ja estudei a disciplina toda</button></div>` : ''}
           ${topicosFiltrados.length === 0 ? '<p style="color:#aaa;font-size:13px;padding:8px 0">Nenhum topico encontrado com este filtro.</p>' :
             topicosFiltrados.map(t => {
               const prog = _progresso[t.id]
@@ -300,6 +316,28 @@ async function toggleTopico(topico_id, concluido) {
 
   // Atualiza barras de progresso sem re-renderizar tudo
   atualizarBarras()
+  atualizarAvisoCron()
+}
+
+async function marcarDisciplina(discCod) {
+  const disc = decodeURIComponent(discCod)
+  const pend = _topicos.filter(t => t.disciplina === disc && !_progresso[t.id]?.concluido)
+  if (!pend.length) return
+  if (!confirm('Marcar os ' + pend.length + ' topico(s) de "' + disc + '" como ja estudados?\n\nA teoria deles sai do cronograma. Questoes e revisao continuam.')) return
+  for (const t of pend) await toggleTopico(t.id, true)
+  renderizarEdital()
+}
+
+function atualizarAvisoCron() {
+  const box = document.getElementById('aviso-cron'); if (!box) return
+  const ids = Object.keys(_teoriaPend).filter(id => _progresso[id]?.concluido)
+  if (!ids.length) { box.innerHTML = ''; return }
+  const n = ids.reduce((a, id) => a + _teoriaPend[id], 0)
+  const url = 'cronograma.html?' + (_mentorAluno ? 'aluno=' + _mentorAluno + '&' : '') + 'teoria=1'
+  box.innerHTML = '<div style="background:#14301f;border:1px solid #81c784;border-radius:10px;padding:12px 14px;margin-bottom:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">'
+    + '<div style="flex:1;min-width:200px;color:#c8e6c9;font-size:13px;line-height:1.5"><b style="color:#81c784">' + ids.length + ' tema(s) marcados</b> ainda tem ' + n + ' sessao(oes) de teoria no cronograma. '
+    + 'Abra o cronograma para tira-las (questoes e revisao continuam).</div>'
+    + '<button onclick="location.href=\'' + url + '\'" style="width:auto;margin:0;padding:10px 16px;background:#81c784;color:#0d1b2a;border:none;border-radius:8px;font-weight:bold">Tirar do cronograma</button></div>'
 }
 
 function atualizarBarras() {
