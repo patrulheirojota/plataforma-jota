@@ -601,6 +601,8 @@ async function init(){
   else if(planoPausado()){if(!_mentor)setTimeout(checarFimPausa,700)}
   else if(qs.get('dias')==='1')setTimeout(abrirDias,500)
   else if(qs.get('carga')==='1')setTimeout(abrirCarga,500)
+  else if(qs.get('teoria')==='1')setTimeout(abrirJaVistas,500)
+  else if(checarJaVistas()){}
   else if(!_mentor)setTimeout(checarDiaAnterior,700)
 }
 
@@ -1175,7 +1177,9 @@ function abrirSessao(id){
    +((!s.concluida&&s.tipo==='teoria')?
       '<button class="btn" style="width:100%;padding:12px;margin-top:8px;border-color:#7d5fa8;color:#c9a9e8" onclick="naoFinalizei(\''+id+'\')">'
      +'Estudei, mas nao finalizei o assunto</button>'
-     +'<div style="color:var(--tx4);font-size:11px;margin-top:6px;text-align:center;line-height:1.5">O dia conta como estudado e o tema volta na proxima vaga desta disciplina.</div>':'')
+     +'<div style="color:var(--tx4);font-size:11px;margin-top:6px;text-align:center;line-height:1.5">O dia conta como estudado e o tema volta na proxima vaga desta disciplina.</div>'
+     +(s.topico_id?'<button class="btn" style="width:100%;padding:12px;margin-top:10px;border-color:#3d9b6e;color:#6ddba0" onclick="jaEstudeiTema(\''+id+'\')">📗 Ja estudei este assunto antes — tirar a teoria</button>'
+       +'<div style="color:var(--tx4);font-size:11px;margin-top:6px;text-align:center;line-height:1.5">Marca o tema como visto no Edital. Questoes e revisao continuam.</div>':''):'')
    +'<div class="bloco">'
    +'<div class="bloco-t">Tempo desta sessao</div>'
    +'<div class="bloco-d">Ajuste conforme o tempo que voce tem hoje.</div>'
@@ -2120,6 +2124,138 @@ function checarFimPausa(){
   const ch='pz_'+_alunoId+'_'+hojeStr()
   try{if(sessionStorage.getItem(ch))return;sessionStorage.setItem(ch,'1')}catch(e){}
   abrirRetomar(true)
+}
+
+/* ---------- TEMAS JA ESTUDADOS (marcados no Edital) ----------
+   Quando o aluno marca um tema como concluido no Edital, a TEORIA pendente
+   desse tema sai do cronograma. Questoes e revisao continuam.
+   Se ele desmarcar depois, a teoria volta pelo botao "Reorganizar". */
+let _jvSel={}, _jvAdiantar=true, _jvPrevia=null
+
+function teoriasJaVistas(){
+  return _sessoes.filter(function(s){
+    return s.tipo==='teoria'&&!s.concluida&&s.topico_id&&_editalFeito[s.topico_id]
+  }).sort(ordenarSess)
+}
+
+function checarJaVistas(){
+  const l=teoriasJaVistas(); if(!l.length)return false
+  const ch='jv_'+_alunoId+'_'+l.length+'_'+l[0].id
+  try{if(sessionStorage.getItem(ch))return false;sessionStorage.setItem(ch,'1')}catch(e){}
+  setTimeout(function(){abrirJaVistas()},700)
+  return true
+}
+
+function abrirJaVistas(){
+  const l=teoriasJaVistas()
+  if(!l.length){toast('Nenhuma teoria pendente de tema ja estudado.');return}
+  _jvSel={}; l.forEach(function(s){_jvSel[s.id]=1})
+  _jvAdiantar=!planoPausado()
+  renderJaVistas()
+  document.getElementById('modal').classList.add('on')
+}
+
+function jvToggle(id,v){if(v)_jvSel[id]=1;else delete _jvSel[id];renderJaVistas()}
+function jvTodos(v){teoriasJaVistas().forEach(function(s){if(v)_jvSel[s.id]=1;else delete _jvSel[s.id]});renderJaVistas()}
+function jvAdiantar(v){_jvAdiantar=!!v;renderJaVistas()}
+
+function simularJaVistas(ids){
+  // simula o plano sem as teorias escolhidas, puxando o resto para frente
+  const guard=_sessoes
+  _sessoes=_sessoes.filter(function(s){return !ids[s.id]})
+  let p=null
+  try{p=simularReplan(hojeStr(),[])}finally{_sessoes=guard}
+  return p
+}
+
+function renderJaVistas(){
+  const l=teoriasJaVistas()
+  const n=Object.keys(_jvSel).length
+  const br=function(k){return parseD(k).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})}
+  const porDisc={}
+  l.forEach(function(s){(porDisc[s.disciplina]=porDisc[s.disciplina]||[]).push(s)})
+  let prev=''
+  _jvPrevia=null
+  if(n&&_jvAdiantar){
+    const p=simularJaVistas(_jvSel)
+    _jvPrevia=p
+    prev='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;text-align:center;margin-top:10px">'
+      +'<div><div style="color:var(--tx3);font-size:11px">Plano terminava</div><div style="font-weight:800;font-size:15px">'+parseD(p.fimAntes).toLocaleDateString('pt-BR')+'</div></div>'
+      +'<div><div style="color:var(--tx3);font-size:11px">Passa a terminar</div><div style="font-weight:800;font-size:15px;color:#6ddba0">'+parseD(p.fimDepois).toLocaleDateString('pt-BR')+'</div></div></div>'
+  }
+  document.getElementById('modal-c').innerHTML=
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:6px">'
+   +'<div><div style="color:var(--ouro);font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase">Temas ja estudados</div>'
+   +'<div style="font-size:18px;font-weight:800;margin-top:2px">Tirar a teoria do cronograma</div></div>'
+   +'<button class="btn" onclick="fecharModal()" style="padding:5px 11px">✕</button></div>'
+   +'<div style="color:var(--tx2);font-size:13px;line-height:1.6;margin-bottom:10px">'
+   +(_mentor?'O aluno marcou':'Voce marcou')+' no <strong>Edital</strong> que ja estudou estes temas. A <strong>teoria</strong> deles sai do cronograma. '
+   +'<strong>Questoes e revisao desses temas continuam</strong> no plano.</div>'
+   +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+   +'<span style="color:var(--tx3);font-size:12px;font-weight:700">'+n+' de '+l.length+' selecionada(s)</span>'
+   +'<span><button class="btn" style="padding:4px 9px;font-size:11.5px" onclick="jvTodos(true)">Todas</button> '
+   +'<button class="btn" style="padding:4px 9px;font-size:11.5px" onclick="jvTodos(false)">Nenhuma</button></span></div>'
+   +'<div style="max-height:38vh;overflow:auto;border:1px solid var(--bd2);border-radius:10px;padding:4px 10px;background:var(--bg)">'
+   +Object.keys(porDisc).sort().map(function(d){
+      return '<div style="color:'+corDe(d)+';font-size:11.5px;font-weight:800;margin:9px 0 3px">'+esc(d)+'</div>'
+        +porDisc[d].map(function(s){
+          return '<label style="display:flex;gap:9px;align-items:flex-start;padding:6px 0;border-bottom:1px solid var(--bd);cursor:pointer;font-size:13px;line-height:1.4">'
+            +'<input type="checkbox" '+(_jvSel[s.id]?'checked':'')+' onchange="jvToggle(\''+s.id+'\',this.checked)" style="width:17px;height:17px;margin:1px 0 0;flex-shrink:0;accent-color:var(--ouro)">'
+            +'<span style="flex:1">'+esc(s.topico)+'</span><span style="color:var(--tx4);font-size:11.5px;white-space:nowrap">'+br(s.data)+'</span></label>'
+        }).join('')
+    }).join('')+'</div>'
+   +(planoPausado()?'':'<label style="display:flex;gap:10px;align-items:flex-start;margin-top:12px;cursor:pointer;font-size:13px;line-height:1.5;color:var(--tx2)">'
+     +'<input type="checkbox" '+(_jvAdiantar?'checked':'')+' onchange="jvAdiantar(this.checked)" style="width:18px;height:18px;margin:2px 0 0;flex-shrink:0;accent-color:var(--ouro)">'
+     +'<span><strong>Adiantar o plano</strong> (recomendado): as proximas sessoes ocupam os horarios que ficarem livres, sem mudar a ordem. Desmarque para manter todas as outras datas como estao.</span></label>')
+   +prev
+   +'<button class="btn btn-ouro" style="width:100%;padding:12px;margin-top:14px" '+(n?'':'disabled ')+'onclick="confirmarJaVistas()">Tirar '+n+' teoria(s) do cronograma</button>'
+   +'<button class="btn" style="width:100%;padding:10px;margin-top:8px" onclick="fecharModal()">Agora nao</button>'
+   +'<div style="color:var(--tx4);font-size:11.5px;margin-top:8px;text-align:center;line-height:1.5">Marcou errado? E so desmarcar o tema no Edital: a teoria volta pelo botao "Reorganizar" do cronograma.</div>'
+   +'<div id="jv-msg" style="font-size:12px;margin-top:8px;text-align:center"></div>'
+}
+
+async function confirmarJaVistas(){
+  const ids=Object.keys(_jvSel); if(!ids.length)return
+  const m=document.getElementById('jv-msg')
+  m.style.color='var(--tx3)';m.textContent='Retirando a teoria...'
+  const apagou={}
+  for(let i=0;i<ids.length;i+=100){
+    const r=await _supabase.from('sessoes_estudo').delete().in('id',ids.slice(i,i+100)).eq('aluno_id',_alunoId).eq('tipo','teoria').eq('concluida',false).select('id')
+    if(r.error){m.style.color='#f07171';m.textContent='Nao foi possivel retirar: '+r.error.message;return}
+    ;(r.data||[]).forEach(function(x){apagou[x.id]=1})
+  }
+  if(!Object.keys(apagou).length){
+    // o banco nao deixou apagar (permissao ainda nao liberada)
+    m.style.color='#f07171'
+    m.textContent='Ainda nao liberado no banco de dados.'+(_mentor?' Rode o arquivo atualizacao-teoria-ja-vista.sql no Supabase.':' Avise o seu mentor.')
+    return
+  }
+  const sel=_sessoes.filter(function(s){return apagou[s.id]})
+  _sessoes=_sessoes.filter(function(s){return !apagou[s.id]})
+  let txt=''
+  if(_jvAdiantar&&!planoPausado()){
+    const p=simularReplan(hojeStr(),[])
+    try{
+      if(p.mudancas.length)await aplicarReplan(p,function(a,b){m.textContent='Adiantando o plano... '+a+'/'+b})
+      else await recarregar()
+    }catch(e){m.style.color='#f07171';m.textContent='A teoria saiu, mas houve erro ao adiantar o plano: '+e.message+'. Use "Replanejar plano".';await recarregar();return}
+    txt='; '+textoReplan(p)
+  }else{indexar();desenhar()}
+  logar('teoria_ja_vista','Tirou do cronograma a teoria de '+sel.length+' tema(s) ja estudado(s) (marcados no Edital): '
+    +sel.slice(0,12).map(function(s){return s.topico}).join('; ')+(sel.length>12?'; ...':'')+txt)
+  fecharModal()
+  toast('✅ '+sel.length+' teoria(s) retirada(s). Questoes e revisao continuam no plano.')
+}
+
+// pela sessao: "ja estudei este assunto"
+async function jaEstudeiTema(id){
+  const s=_sessoes.find(function(x){return x.id===id}); if(!s||!s.topico_id)return
+  if(!confirm('Marcar "'+s.topico+'" como ja estudado no Edital e tirar a teoria do cronograma?\n\nQuestoes e revisao deste tema continuam.'))return
+  await marcarEdital(s.topico_id,true)
+  _editalFeito[s.topico_id]=1
+  abrirJaVistas()
+  _jvSel={}; _jvSel[id]=1
+  renderJaVistas()
 }
 
 /* ---------- CADERNO DE ERROS ---------- */
