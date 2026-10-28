@@ -180,17 +180,37 @@ async function carregarMarca(){
 function setTipo(t){_tipo=t;document.querySelectorAll('#ch-tipo .chip').forEach(function(e){e.classList.toggle('on',e.dataset.t===t)});render()}
 function setPer(p){_per=p;document.querySelectorAll('#ch-per .chip').forEach(function(e){e.classList.toggle('on',e.dataset.p===p)});carregar()}
 
+
+// busca todas as linhas de uma consulta, de 1000 em 1000 (limite do Supabase)
+async function todasLinhas(fabrica){
+  const out=[];let ini=0
+  for(let g=0;g<200;g++){
+    const r=await fabrica().range(ini,ini+999)
+    if(r.error)throw r.error
+    const d=r.data||[]
+    out.push.apply(out,d)
+    if(d.length<1000)break
+    ini+=1000
+  }
+  return out
+}
+function pag(fab,fallback){return todasLinhas(fab).then(function(d){return {data:d}}).catch(function(){return fallback()})}
+
 async function carregar(){
   document.getElementById('loading').style.display='block'
   document.getElementById('conteudo').style.display='none'
   const desde=inicioPeriodo()
 
   // 3 consultas apenas, independente do numero de alunos
+  // de 1000 em 1000: sem isso o ranking ficava incompleto (o Supabase corta em 1000 linhas)
   const [ra,rs,rq,rr]=await Promise.all([
     _supabase.from('alunos').select('id,nome,concursos(nome)'),
-    _supabase.from('sessoes_estudo').select('aluno_id,tempo_minutos,questoes_feitas,questoes_certas,concluida,data').eq('concluida',true).gte('data',desde),
-    _supabase.from('questao_respostas').select('aluno_id,correta,respondido_em').gte('respondido_em',desde+'T00:00:00'),
-    _supabase.from('registros_diarios').select('aluno_id,questoes_feitas,questoes_certas,cumpriu,data').gte('data',desde)
+    pag(function(){return _supabase.from('sessoes_estudo').select('aluno_id,tempo_minutos,questoes_feitas,questoes_certas,concluida,data').eq('concluida',true).gte('data',desde).order('id')},
+        function(){return _supabase.from('sessoes_estudo').select('aluno_id,tempo_minutos,questoes_feitas,questoes_certas,concluida,data').eq('concluida',true).gte('data',desde)}),
+    pag(function(){return _supabase.from('questao_respostas').select('aluno_id,correta,respondido_em').gte('respondido_em',new Date(desde+'T00:00:00').toISOString()).order('aluno_id').order('questao_id')},
+        function(){return _supabase.from('questao_respostas').select('aluno_id,correta,respondido_em').gte('respondido_em',new Date(desde+'T00:00:00').toISOString())}),
+    pag(function(){return _supabase.from('registros_diarios').select('aluno_id,questoes_feitas,questoes_certas,cumpriu,data').gte('data',desde).order('aluno_id').order('data')},
+        function(){return _supabase.from('registros_diarios').select('aluno_id,questoes_feitas,questoes_certas,cumpriu,data').gte('data',desde)})
   ])
 
   const alunos=ra.data||[]
