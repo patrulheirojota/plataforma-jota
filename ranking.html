@@ -31,40 +31,80 @@
   .btn{padding:9px 15px;border-radius:9px;border:1px solid var(--bd2);background:var(--btn);color:var(--tx2);font-size:13px;cursor:pointer;font-weight:500}
   .btn:hover{border-color:var(--ouro);color:var(--tx)}
   .painel{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:18px}
-  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
-  .chip{padding:8px 15px;border-radius:20px;border:1px solid var(--bd2);background:var(--card);color:var(--tx3);font-size:13px;cursor:pointer;font-weight:600}
-  .chip.on{background:var(--ouro);color:#0a1420;border-color:var(--ouro)}
-  .podio{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;align-items:end;margin-bottom:18px}
-  .pod{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:16px 10px;text-align:center;position:relative}
-  .pod.p1{border-color:var(--ouro);background:linear-gradient(180deg,rgba(201,168,60,.12),var(--card))}
-  .pod.p2{border-color:#a8b8c8}
-  .pod.p3{border-color:#c98a4b}
-  .pod-m{font-size:26px;margin-bottom:6px}
-  .pod-av{width:44px;height:44px;border-radius:50%;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:800;color:#0a1420}
-  .pod-n{font-size:13px;font-weight:700;line-height:1.3;margin-bottom:4px}
-  .pod-v{font-size:19px;font-weight:800;color:var(--ouro)}
-  .pod-l{font-size:10px;color:var(--tx3);margin-top:2px}
-  .lin{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:11px;background:var(--card2);border:1px solid var(--bd);margin-bottom:7px}
-  .lin.eu{border-color:var(--ouro);background:rgba(201,168,60,.07)}
-  .pos{width:30px;text-align:center;font-size:15px;font-weight:800;color:var(--tx3);flex-shrink:0}
-  .av{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#0a1420;flex-shrink:0}
-  .nm{flex:1;min-width:0}
-  .nm-t{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .nm-s{color:var(--tx4);font-size:11.5px;margin-top:1px}
-  .vl{text-align:right;flex-shrink:0}
-  .vl-n{font-size:16px;font-weight:800;color:var(--ouro)}
+  .seg{display:inline-flex;background:var(--card2);border:1px solid var(--bd);border-radius:12px;padding:4px;gap:4px}
+  .seg button{border:0;background:transparent;color:var(--tx3);font-size:13px;font-weight:700;padding:9px 16px;border-radius:9px;cursor:pointer;font-family:inherit;white-space:nowrap}
+  .seg button.on{background:var(--ouro);color:#0a1420;box-shadow:0 2px 10px rgba(201,168,60,.25)}
+  .filtros{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:20px}
+  /* seu lugar */
+  .eu-card{position:relative;overflow:hidden;background:linear-gradient(135deg,rgba(201,168,60,.16),rgba(201,168,60,.03) 60%),var(--card);border:1px solid rgba(201,168,60,.5);border-radius:18px;padding:20px 22px;margin-bottom:22px;display:grid;grid-template-columns:auto 1fr auto;gap:18px;align-items:center}
+  .eu-pos{font-size:44px;font-weight:900;line-height:1;color:var(--ouro);letter-spacing:-2px}
+  .eu-pos small{font-size:14px;color:var(--tx3);font-weight:700;letter-spacing:0;margin-left:4px}
+  .eu-t{font-size:16px;font-weight:800}
+  .eu-s{color:var(--tx3);font-size:12.5px;margin-top:3px}
+  .eu-meta{margin-top:12px}
+  .eu-bar{height:8px;border-radius:10px;background:var(--card2);overflow:hidden}
+  .eu-bar div{height:100%;border-radius:10px;background:linear-gradient(90deg,var(--ouro),#f3d77a)}
+  .eu-bl{display:flex;justify-content:space-between;font-size:11.5px;color:var(--tx3);margin-top:6px;gap:8px}
+  .eu-v{text-align:right}
+  .eu-vn{font-size:24px;font-weight:900}
+  .eu-vl{font-size:11px;color:var(--tx3)}
+  /* podio: 1o, 2o e 3o em ordem */
+  .top3{display:grid;grid-template-columns:1.25fr 1fr 1fr;gap:12px;margin-bottom:22px}
+  .tc{position:relative;border-radius:18px;padding:18px 16px;background:var(--card);border:1px solid var(--bd);display:flex;flex-direction:column;gap:12px;overflow:hidden}
+  .tc::before{content:'';position:absolute;inset:0 0 auto 0;height:4px;background:var(--mc)}
+  .tc.n1{background:linear-gradient(160deg,rgba(201,168,60,.20),rgba(201,168,60,.03) 70%),var(--card);border-color:rgba(201,168,60,.55)}
+  .tc-h{display:flex;align-items:center;gap:12px}
+  .tc-av{width:52px;height:52px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:900;color:#0a1420;flex-shrink:0;position:relative}
+  .tc.n1 .tc-av{width:62px;height:62px;font-size:21px;border-radius:18px}
+  .tc-md{position:absolute;right:-8px;bottom:-8px;width:26px;height:26px;border-radius:50%;background:var(--bg2);border:2px solid var(--mc);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:var(--mc)}
+  .tc-pos{font-size:12px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:var(--mc)}
+  .tc-n{font-size:15px;font-weight:800;line-height:1.25;margin-top:2px;word-break:break-word}
+  .tc.n1 .tc-n{font-size:17px}
+  .tc-v{display:flex;align-items:baseline;gap:6px;margin-top:auto}
+  .tc-vn{font-size:24px;font-weight:900;letter-spacing:-.5px}
+  .tc.n1 .tc-vn{font-size:30px;color:var(--ouro)}
+  .tc-vl{font-size:11.5px;color:var(--tx3)}
+  .tc-s{font-size:11.5px;color:var(--tx3)}
+  .tc-ver{position:absolute;top:12px;right:12px;font-size:12px;color:var(--ouro);cursor:pointer}
+  /* lista */
+  .lst{background:var(--card);border:1px solid var(--bd);border-radius:18px;overflow:hidden}
+  .lst-h{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--bd);font-size:12px;color:var(--tx3);font-weight:700;letter-spacing:.5px;text-transform:uppercase}
+  .row{display:grid;grid-template-columns:42px 40px minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 18px;border-bottom:1px solid var(--bd)}
+  .row:last-child{border-bottom:0}
+  .row.eu{background:rgba(201,168,60,.08);box-shadow:inset 3px 0 0 var(--ouro)}
+  .pos{font-size:15px;font-weight:800;color:var(--tx3);text-align:center}
+  .av{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:#0a1420}
+  .nm-t{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .nm-b{height:5px;border-radius:5px;background:var(--card2);margin-top:7px;overflow:hidden}
+  .nm-b div{height:100%;border-radius:5px;background:var(--bd2)}
+  .row.eu .nm-b div{background:var(--ouro)}
+  .nm-s{color:var(--tx4);font-size:11px;margin-top:5px}
+  .vl{text-align:right;min-width:74px}
+  .vl-n{font-size:16px;font-weight:900}
   .vl-l{font-size:10.5px;color:var(--tx3)}
-  .meu{background:linear-gradient(135deg,rgba(201,168,60,.14),var(--card));border:1px solid var(--ouro);border-radius:14px;padding:16px;margin-bottom:16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+  .row .ver{border:1px solid var(--bd2);background:var(--btn);color:var(--tx2);border-radius:9px;padding:6px 9px;cursor:pointer;font-size:13px;margin-left:8px}
+  .side-h{color:var(--tx4);font-size:10px;font-weight:700;letter-spacing:1.1px;text-transform:uppercase;padding:14px 12px 6px}
   .vazio{text-align:center;padding:50px 20px;color:var(--tx3)}
   @media(max-width:860px){
     .side{position:static;width:100%;flex-direction:row;overflow-x:auto;padding:10px;border-right:none;border-bottom:1px solid var(--bd);gap:5px;align-items:center}
-    .logo,.side-sep,.side-b{display:none}
+    .logo,.side-sep,.side-b,.side-h{display:none}
     .nav-i{margin-bottom:0;white-space:nowrap;padding:9px 13px;font-size:13px}
     .shell{flex-direction:column}
     .main{margin-left:0;padding:16px 12px 50px}
-    .h2{font-size:21px}
-    .pod-av{width:36px;height:36px;font-size:14px}
-    .pod-v{font-size:16px}
+    .h2{font-size:22px}
+    .top3{grid-template-columns:1fr;gap:10px}
+    .tc:not(.n1){flex-direction:row;align-items:center;justify-content:space-between;padding:14px}
+    .tc:not(.n1) .tc-av{width:44px;height:44px;font-size:15px;border-radius:13px}
+    .tc:not(.n1) > div:last-child{text-align:right;flex-shrink:0}
+    .tc:not(.n1) .tc-v{justify-content:flex-end}
+    .tc:not(.n1) .tc-vn{font-size:19px}
+    .tc:not(.n1) .tc-s{display:none}
+    .tc-ver{top:auto;bottom:10px}
+    .eu-card{grid-template-columns:auto 1fr;padding:16px}
+    .eu-v{grid-column:1 / -1;text-align:left;display:flex;gap:8px;align-items:baseline}
+    .row{grid-template-columns:30px 36px minmax(0,1fr) auto;gap:9px;padding:11px 12px}
+    .av{width:36px;height:36px;font-size:13px}
+    .seg button{padding:8px 12px;font-size:12.5px}
   }
 </style>
 </head>
@@ -74,27 +114,32 @@
     <div class="logo"><div class="logo-i">🛡️</div><div class="logo-t">Patrulheiros<span>de Elite</span></div></div>
     <div class="nav-i" onclick="location.href='cronograma.html'"><span class="nav-ic">📅</span>Meu Cronograma</div>
     <div class="nav-i" onclick="location.href='questoes.html'"><span class="nav-ic">❓</span>Questoes</div>
+    <div class="nav-i" onclick="location.href='questoes.html#simulados'"><span class="nav-ic">🎯</span>Simulados</div>
+    <div class="nav-i on"><span class="nav-ic">🏆</span>Ranking</div>
     <div class="nav-i" onclick="location.href='edital.html'"><span class="nav-ic">📖</span>Edital</div>
     <div class="side-sep"></div>
-    <div class="nav-i on"><span class="nav-ic">🏆</span>Ranking</div>
+    <div class="nav-i" onclick="location.href='flashcards.html'"><span class="nav-ic">🗂️</span>Flashcards</div>
+    <div class="nav-i" onclick="location.href='questoes.html#mapas'"><span class="nav-ic">🧠</span>Mapas mentais</div>
     <div class="side-b"><div class="nav-i" onclick="sair()"><span class="nav-ic">🚪</span>Sair</div></div>
   </aside>
 
   <main class="main">
-    <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:20px">
-      <div><div class="h2">Ranking</div><div class="h2s" id="sub">Quem esta puxando o pelotao</div></div>
-      <button class="btn" onclick="carregar()">Atualizar</button>
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:18px">
+      <div><div class="h2">🏆 Ranking</div><div class="h2s" id="sub">Quem esta puxando o pelotao</div></div>
+      <button class="btn" onclick="carregar()">↻ Atualizar</button>
     </div>
 
-    <div class="chips" id="ch-tipo">
-      <div class="chip on" data-t="horas" onclick="setTipo('horas')">⏱️ Horas estudadas</div>
-      <div class="chip" data-t="questoes" onclick="setTipo('questoes')">🎯 Questoes respondidas</div>
-    </div>
-    <div class="chips" id="ch-per">
-      <div class="chip" data-p="dia" onclick="setPer('dia')">Hoje</div>
-      <div class="chip on" data-p="semana" onclick="setPer('semana')">Esta semana</div>
-      <div class="chip" data-p="mes" onclick="setPer('mes')">Este mes</div>
-      <div class="chip" data-p="geral" onclick="setPer('geral')">Geral</div>
+    <div class="filtros">
+      <div class="seg" id="ch-tipo">
+        <button class="on" data-t="horas" onclick="setTipo('horas')">⏱️ Horas</button>
+        <button data-t="questoes" onclick="setTipo('questoes')">🎯 Questoes</button>
+      </div>
+      <div class="seg" id="ch-per">
+        <button data-p="dia" onclick="setPer('dia')">Hoje</button>
+        <button class="on" data-p="semana" onclick="setPer('semana')">Semana</button>
+        <button data-p="mes" onclick="setPer('mes')">Mes</button>
+        <button data-p="geral" onclick="setPer('geral')">Geral</button>
+      </div>
     </div>
 
     <div id="loading" class="vazio">Carregando ranking...</div>
@@ -107,6 +152,8 @@
   </main>
 </div>
 
+<script>window.MENU_ADMIN_MANUAL=true</script>
+<script src="menu-admin.js"></script>
 <script src="config.js"></script>
 <script>
 const CORES=['#C9A83C','#5bb3f0','#6ddba0','#f07171','#b98ae0','#e8b04b','#4ecdc4','#f0955b','#8ab4f0','#d4e05b']
@@ -153,13 +200,7 @@ async function init(){
 
 // mentor: menu do painel admin, nomes completos e atalho para ver o aluno
 function modoAdmin(){
-  document.getElementById('side').innerHTML=
-    '<div class="logo"><div class="logo-i">🛡️</div><div class="logo-t">Patrulheiros<span>Painel do Mentor</span></div></div>'
-   +'<div class="nav-i" onclick="location.href=\'admin.html\'"><span class="nav-ic">←</span>Voltar ao painel</div>'
-   +'<div class="nav-i" onclick="location.href=\'overview.html\'"><span class="nav-ic">📊</span>Visao Geral</div>'
-   +'<div class="side-sep"></div>'
-   +'<div class="nav-i on"><span class="nav-ic">🏆</span>Ranking</div>'
-   +'<div class="side-b"><div class="nav-i" onclick="sair()"><span class="nav-ic">🚪</span>Sair</div></div>'
+  document.getElementById('side').innerHTML=(window.MenuAdmin?MenuAdmin.html('ranking.html'):'<div class="nav-i" onclick="location.href=\'admin.html\'"><span class="nav-ic">←</span>Voltar ao painel</div>')
   document.title='Ranking — Painel do Mentor'
 }
 function verAluno(id){location.href='cronograma.html?aluno='+id}
@@ -177,8 +218,8 @@ async function carregarMarca(){
   }
 }
 
-function setTipo(t){_tipo=t;document.querySelectorAll('#ch-tipo .chip').forEach(function(e){e.classList.toggle('on',e.dataset.t===t)});render()}
-function setPer(p){_per=p;document.querySelectorAll('#ch-per .chip').forEach(function(e){e.classList.toggle('on',e.dataset.p===p)});carregar()}
+function setTipo(t){_tipo=t;document.querySelectorAll('#ch-tipo button').forEach(function(e){e.classList.toggle('on',e.dataset.t===t)});render()}
+function setPer(p){_per=p;document.querySelectorAll('#ch-per button').forEach(function(e){e.classList.toggle('on',e.dataset.p===p)});carregar()}
 
 
 // busca todas as linhas de uma consulta, de 1000 em 1000 (limite do Supabase)
@@ -269,7 +310,6 @@ function render(){
     if(b[campo]!==a[campo])return b[campo]-a[campo]
     return b.ndias-a.ndias
   })
-
   const per={dia:'hoje',semana:'esta semana',mes:'este mes',geral:'no total'}[_per]
   document.getElementById('sub').textContent=(_tipo==='horas'?'Horas estudadas':'Questoes respondidas')+' — '+per
 
@@ -277,69 +317,74 @@ function render(){
     document.getElementById('meu').innerHTML=''
     document.getElementById('podio').innerHTML=''
     document.getElementById('lista').innerHTML=
-      '<div class="painel vazio"><div style="font-size:42px;margin-bottom:12px">🏆</div>'
-      +'<div style="color:var(--ouro);font-weight:700;font-size:16px">Ranking ainda vazio</div>'
+      '<div class="lst vazio"><div style="font-size:42px;margin-bottom:12px">🏆</div>'
+      +'<div style="color:var(--ouro);font-weight:800;font-size:16px">Ranking ainda vazio</div>'
       +'<p style="color:var(--tx3);font-size:13px;margin-top:8px">Ninguem registrou '+(_tipo==='horas'?'estudo':'questoes')+' '+per+'. Seja o primeiro!</p></div>'
     document.getElementById('rodape').textContent=''
     return
   }
 
-  const val=function(x){return _tipo==='horas'?dur(x.min):x.q}
+  const val=function(x){return _tipo==='horas'?dur(x.min):String(x.q)}
   const lbl=_tipo==='horas'?'estudadas':'questoes'
+  const lider=lista[0][campo]||1
+  const MED=['#C9A83C','#b9c6d3','#d08a4e']
 
-  // meu card
+  // ----- seu lugar -----
   const eu=_admin?null:lista.find(function(x){return x.id===_alunoId})
   const pos=eu?lista.indexOf(eu)+1:null
   const box=document.getElementById('meu')
   if(eu){
-    const c=cor(eu.id)
-    box.innerHTML='<div class="av" style="background:'+c+';width:44px;height:44px;font-size:16px">'+iniciais(eu.nome)+'</div>'
-      +'<div style="flex:1;min-width:140px"><div style="font-size:15px;font-weight:700">Voce esta em '+pos+'º lugar</div>'
-      +'<div style="color:var(--tx3);font-size:12.5px;margin-top:2px">'+val(eu)+' '+lbl+' · '+eu.ndias+' dia(s) ativo(s)'+(eu.q>0?' · '+eu.pct+'% de acerto':'')+'</div></div>'
-      +(pos>1?'<div style="text-align:right"><div style="color:var(--ouro);font-size:14px;font-weight:700">'
-        +(_tipo==='horas'?dur(Math.max(0,lista[pos-2].min-eu.min)):Math.max(0,lista[pos-2].q-eu.q))+'</div>'
-        +'<div style="color:var(--tx3);font-size:11px">para subir uma posicao</div></div>'
-        :'<div style="text-align:right;color:var(--ouro);font-size:13px;font-weight:700">🥇 Lider!</div>')
-    box.className='meu'
+    const acima=pos>1?lista[pos-2]:null
+    const falta=acima?Math.max(0,acima[campo]-eu[campo]):0
+    const pctBar=acima?Math.max(6,Math.min(100,Math.round(eu[campo]/Math.max(1,acima[campo])*100))):100
+    box.innerHTML='<div class="eu-card">'
+      +'<div class="eu-pos">'+pos+'º<small>de '+lista.length+'</small></div>'
+      +'<div><div class="eu-t">'+(pos===1?'Voce lidera o pelotao! 🥇':pos<=3?'Voce esta no podio!':'Sua posicao '+per)+'</div>'
+      +'<div class="eu-s">'+eu.ndias+' dia(s) ativo(s)'+(eu.q>0?' · '+eu.pct+'% de acerto':'')+'</div>'
+      +(acima?'<div class="eu-meta"><div class="eu-bar"><div style="width:'+pctBar+'%"></div></div>'
+        +'<div class="eu-bl"><span>Faltam <strong style="color:var(--ouro)">'+(_tipo==='horas'?dur(falta):falta)+'</strong> para passar o '+(pos-1)+'º lugar</span><span>'+pctBar+'%</span></div></div>'
+        :'<div class="eu-s" style="margin-top:8px;color:var(--ouro);font-weight:700">Mantenha o ritmo para seguir na frente.</div>')
+      +'</div>'
+      +'<div class="eu-v"><div class="eu-vn">'+val(eu)+'</div><div class="eu-vl">'+lbl+'</div></div>'
+      +'</div>'
   }else if(_admin){
     const sem=_dados.filter(function(x){return !(x[campo]>0)})
-    box.className=''
-    box.innerHTML='<div class="painel" style="margin-bottom:16px;font-size:13px;color:var(--tx2);line-height:1.6">'
-      +'<strong style="color:var(--ouro)">Visao do mentor</strong> — os alunos veem apenas o primeiro nome e a inicial do sobrenome. Toque em 👁️ para abrir a area do aluno.'
+    box.innerHTML='<div class="painel" style="margin-bottom:18px;font-size:13px;color:var(--tx2);line-height:1.6">'
+      +'<strong style="color:var(--ouro)">Visao do mentor</strong> — os alunos veem so o primeiro nome e a inicial do sobrenome. Toque em 👁️ para abrir a area do aluno.'
       +(sem.length?'<div style="margin-top:8px;color:var(--erro)"><strong>'+sem.length+' aluno(s) sem registro '+per+':</strong> <span style="color:var(--tx3)">'+sem.map(function(x){return esc(x.nome)}).join(', ')+'</span></div>':'')
       +'</div>'
   }else{
-    box.className=''
-    box.innerHTML='<div class="painel" style="margin-bottom:16px;text-align:center;color:var(--tx3);font-size:13px">Voce ainda nao pontuou '+per+'. Registre seu estudo para entrar no ranking!</div>'
+    box.innerHTML='<div class="painel" style="margin-bottom:18px;text-align:center;color:var(--tx3);font-size:13px">Voce ainda nao pontuou '+per+'. Registre seu estudo para entrar no ranking!</div>'
   }
 
-  // podio
+  // ----- top 3, em ordem: 1o, 2o, 3o -----
   const top=lista.slice(0,3)
-  const ord=[1,0,2]
-  document.getElementById('podio').innerHTML=top.length>=3?ord.map(function(i){
-    const x=top[i];if(!x)return ''
-    const c=cor(x.id)
-    return '<div class="pod p'+(i+1)+'"><div class="pod-m">'+['🥇','🥈','🥉'][i]+'</div>'
-      +'<div class="pod-av" style="background:'+c+'">'+iniciais(x.nome)+'</div>'
-      +'<div class="pod-n">'+esc(nomeCurto(x.nome))+'</div>'
-      +'<div class="pod-v">'+val(x)+'</div><div class="pod-l">'+lbl+'</div>'
-      +(_admin?'<div style="margin-top:8px"><span style="cursor:pointer;font-size:12px;color:var(--ouro)" onclick="verAluno(\''+x.id+'\')">👁️ ver</span></div>':'')+'</div>'
-  }).join(''):''
+  document.getElementById('podio').innerHTML=top.length?'<div class="top3">'+top.map(function(x,i){
+    return '<div class="tc n'+(i+1)+'" style="--mc:'+MED[i]+'">'
+      +(_admin?'<span class="tc-ver" onclick="verAluno(\''+x.id+'\')">👁️ ver</span>':'')
+      +'<div class="tc-h"><div class="tc-av" style="background:'+cor(x.id)+'">'+iniciais(x.nome)+'<span class="tc-md">'+(i+1)+'</span></div>'
+      +'<div style="min-width:0"><div class="tc-pos">'+['🥇 1º lugar','🥈 2º lugar','🥉 3º lugar'][i]+'</div>'
+      +'<div class="tc-n">'+esc(nomeCurto(x.nome))+(x.id===_alunoId?' <span style="color:var(--ouro);font-size:11px">(voce)</span>':'')+'</div></div></div>'
+      +'<div><div class="tc-v"><span class="tc-vn">'+val(x)+'</span><span class="tc-vl">'+lbl+'</span></div>'
+      +'<div class="tc-s">'+x.ndias+' dia(s) ativo(s)'+(x.q>0?' · '+x.pct+'% acerto':'')+'</div></div>'
+      +'</div>'
+  }).join('')+'</div>':''
 
-  // lista
-  const resto=top.length>=3?lista.slice(3):lista
-  const ini=top.length>=3?4:1
-  document.getElementById('lista').innerHTML=resto.map(function(x,i){
-    const c=cor(x.id)
-    const p=ini+i
-    return '<div class="lin'+(x.id===_alunoId?' eu':'')+'">'
-      +'<div class="pos">'+p+'º</div>'
-      +'<div class="av" style="background:'+c+'">'+iniciais(x.nome)+'</div>'
-      +'<div class="nm"><div class="nm-t">'+esc(nomeCurto(x.nome))+(x.id===_alunoId?' <span style="color:var(--ouro);font-size:11px">(voce)</span>':'')+'</div>'
-      +'<div class="nm-s">'+x.ndias+' dia(s) ativo(s)'+(x.q>0?' · '+x.pct+'% acerto':'')+'</div></div>'
-      +'<div class="vl"><div class="vl-n">'+val(x)+'</div><div class="vl-l">'+lbl+'</div></div>'
-      +(_admin?'<button class="btn" style="padding:7px 10px" title="Ver como aluno" onclick="verAluno(\''+x.id+'\')">👁️</button>':'')+'</div>'
-  }).join('')
+  // ----- demais posicoes -----
+  const resto=lista.slice(3)
+  document.getElementById('lista').innerHTML=resto.length?'<div class="lst"><div class="lst-h"><span>Classificacao</span><span>'+lbl+'</span></div>'
+    +resto.map(function(x,i){
+      const p=i+4, w=Math.max(3,Math.round(x[campo]/lider*100))
+      return '<div class="row'+(x.id===_alunoId?' eu':'')+'">'
+        +'<div class="pos">'+p+'º</div>'
+        +'<div class="av" style="background:'+cor(x.id)+'">'+iniciais(x.nome)+'</div>'
+        +'<div style="min-width:0"><div class="nm-t">'+esc(nomeCurto(x.nome))+(x.id===_alunoId?' <span style="color:var(--ouro);font-size:11px">(voce)</span>':'')+'</div>'
+        +'<div class="nm-b"><div style="width:'+w+'%"></div></div>'
+        +'<div class="nm-s">'+x.ndias+' dia(s) ativo(s)'+(x.q>0?' · '+x.pct+'% acerto':'')+'</div></div>'
+        +'<div style="display:flex;align-items:center"><div class="vl"><div class="vl-n">'+val(x)+'</div><div class="vl-l">'+lbl+'</div></div>'
+        +(_admin?'<button class="ver" title="Ver como aluno" onclick="verAluno(\''+x.id+'\')">👁️</button>':'')+'</div>'
+        +'</div>'
+    }).join('')+'</div>':''
 
   const totMin=lista.reduce(function(s,x){return s+x.min},0)
   const totQ=lista.reduce(function(s,x){return s+x.q},0)
