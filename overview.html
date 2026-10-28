@@ -134,6 +134,22 @@ async function init(){
   carregar()
 }
 
+
+// busca todas as linhas de uma consulta, de 1000 em 1000 (limite do Supabase)
+async function todasLinhas(fabrica){
+  const out=[];let ini=0
+  for(let g=0;g<200;g++){
+    const r=await fabrica().range(ini,ini+999)
+    if(r.error)throw r.error
+    const d=r.data||[]
+    out.push.apply(out,d)
+    if(d.length<1000)break
+    ini+=1000
+  }
+  return out
+}
+function pag(fab,fallback){return todasLinhas(fab).then(function(d){return {data:d}}).catch(function(){return fallback()})}
+
 async function carregar(){
   document.getElementById('load').style.display='block'
   document.getElementById('app').style.display='none'
@@ -148,10 +164,10 @@ async function carregar(){
   // TUDO em 6 consultas, independente do numero de alunos
   const [ra,rs,rr,rq,rl,rc]=await Promise.all([
     _supabase.from('alunos').select('id,nome,email,concurso_id,ultimo_acesso,data_expiracao,meta_questoes_dia,concursos(nome)'),
-    _supabase.from('sessoes_estudo').select('aluno_id,data,concluida,tempo_minutos,questoes_feitas,questoes_certas,caderno_erros_lido').gte('data',d14),
-    _supabase.from('registros_diarios').select('aluno_id,data,cumpriu,questoes_feitas,questoes_certas').gte('data',d14),
-    _supabase.from('questao_respostas').select('aluno_id,correta,respondido_em').gte('respondido_em',d14+'T00:00:00'),
-    _supabase.from('cronograma_log').select('aluno_id,acao,detalhe,criado_em,visto').order('criado_em',{ascending:false}),
+    pag(function(){return _supabase.from('sessoes_estudo').select('aluno_id,data,concluida,tempo_minutos,questoes_feitas,questoes_certas,caderno_erros_lido').gte('data',d14).order('id')},function(){return _supabase.from('sessoes_estudo').select('aluno_id,data,concluida,tempo_minutos,questoes_feitas,questoes_certas,caderno_erros_lido').gte('data',d14)}),
+    pag(function(){return _supabase.from('registros_diarios').select('aluno_id,data,cumpriu,questoes_feitas,questoes_certas').gte('data',d14).order('aluno_id').order('data')},function(){return _supabase.from('registros_diarios').select('aluno_id,data,cumpriu,questoes_feitas,questoes_certas').gte('data',d14)}),
+    pag(function(){return _supabase.from('questao_respostas').select('aluno_id,correta,respondido_em').gte('respondido_em',new Date(d14+'T00:00:00').toISOString()).order('aluno_id').order('questao_id')},function(){return _supabase.from('questao_respostas').select('aluno_id,correta,respondido_em').gte('respondido_em',new Date(d14+'T00:00:00').toISOString())}),
+    pag(function(){return _supabase.from('cronograma_log').select('aluno_id,acao,detalhe,criado_em,visto').gte('criado_em',new Date(Date.now()-90*864e5).toISOString()).order('criado_em',{ascending:false}).order('id')},function(){return _supabase.from('cronograma_log').select('aluno_id,acao,detalhe,criado_em,visto').order('criado_em',{ascending:false})}),
     _supabase.from('config_cronograma').select('aluno_id,atualizado_em,data_prova')
   ])
 
