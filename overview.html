@@ -163,15 +163,27 @@ async function carregar(){
 
   // TUDO em 6 consultas, independente do numero de alunos
   const [ra,rs,rr,rq,rl,rc]=await Promise.all([
-    _supabase.from('alunos').select('id,nome,email,concurso_id,ultimo_acesso,data_expiracao,meta_questoes_dia,concursos(nome)'),
+    _supabase.from('alunos').select('id,nome,email,concurso_id,ultimo_acesso,data_expiracao,meta_questoes_dia,bloqueado_inatividade,concursos(nome)'),
     pag(function(){return _supabase.from('sessoes_estudo').select('aluno_id,data,concluida,tempo_minutos,questoes_feitas,questoes_certas,caderno_erros_lido').gte('data',d14).order('id')},function(){return _supabase.from('sessoes_estudo').select('aluno_id,data,concluida,tempo_minutos,questoes_feitas,questoes_certas,caderno_erros_lido').gte('data',d14)}),
     pag(function(){return _supabase.from('registros_diarios').select('aluno_id,data,cumpriu,questoes_feitas,questoes_certas').gte('data',d14).order('aluno_id').order('data')},function(){return _supabase.from('registros_diarios').select('aluno_id,data,cumpriu,questoes_feitas,questoes_certas').gte('data',d14)}),
     pag(function(){return _supabase.from('questao_respostas').select('aluno_id,correta,respondido_em').gte('respondido_em',new Date(d14+'T00:00:00').toISOString()).order('aluno_id').order('questao_id')},function(){return _supabase.from('questao_respostas').select('aluno_id,correta,respondido_em').gte('respondido_em',new Date(d14+'T00:00:00').toISOString())}),
     pag(function(){return _supabase.from('cronograma_log').select('aluno_id,acao,detalhe,criado_em,visto').gte('criado_em',new Date(Date.now()-90*864e5).toISOString()).order('criado_em',{ascending:false}).order('id')},function(){return _supabase.from('cronograma_log').select('aluno_id,acao,detalhe,criado_em,visto').order('criado_em',{ascending:false})}),
-    _supabase.from('config_cronograma').select('aluno_id,atualizado_em,data_prova')
+    _supabase.from('config_cronograma').select('*')
   ])
 
-  const alunos=ra.data||[]
+  // alunos desativados por inatividade saem da Visao Geral (nenhum dado e apagado:
+  // eles continuam na aba Alunos e voltam aqui assim que forem reativados)
+  let limBloq=20
+  try{const { data:mc }=await _supabase.from('config_marca').select('dias_bloqueio').eq('id',1).maybeSingle();if(mc&&mc.dias_bloqueio)limBloq=mc.dias_bloqueio}catch(e){}
+  const pausado={};(rc.data||[]).forEach(function(c){if(c.pausado_em)pausado[c.aluno_id]=1})
+  const todosAl=ra.data||[]
+  const inativo=function(a){
+    if(a.bloqueado_inatividade)return true
+    if(pausado[a.id]||!a.ultimo_acesso)return false
+    return Math.floor((Date.now()-new Date(a.ultimo_acesso).getTime())/86400000)>=limBloq
+  }
+  const alunos=todosAl.filter(function(a){return !inativo(a)})
+  window._nInativos=todosAl.length-alunos.length
   if(!alunos.length){
     document.getElementById('load').innerHTML='<div style="font-size:40px;margin-bottom:12px">👥</div>Nenhum aluno cadastrado ainda.'
     return
@@ -393,7 +405,7 @@ function render(){
       +'</div>'
   }).join('')
 
-  document.getElementById('rodape').textContent=l.length+' de '+_dados.length+' alunos'
+  document.getElementById('rodape').textContent=l.length+' de '+_dados.length+' alunos ativos'+(window._nInativos?' · '+window._nInativos+' desativado(s) por inatividade nao aparecem aqui (continuam na aba Alunos)':'')
 }
 
 function abrir(id){
@@ -403,5 +415,6 @@ function abrir(id){
 
 init()
 </script>
+<script src="menu-admin.js"></script>
 </body>
 </html>
