@@ -19,6 +19,8 @@ function mostrarErroLogin(msg) {
 async function entrarNoPainel() {
   document.getElementById('tela-login').style.display = 'none'
   document.getElementById('painel-admin').style.display = 'flex'
+  const abaHash = (location.hash || '').replace('#', '')
+  if (abaHash && abaHash !== 'aba-alunos' && document.getElementById(abaHash)) mostrarAba(abaHash)
   try { await carregarConcursos() } catch(e) { console.error(e) }
   try { await carregarAlunosParaCronograma() } catch(e) { console.error(e) }
   try { await carregarAlunos() } catch(e) { console.error(e) }
@@ -37,7 +39,11 @@ async function entrarNoPainel() {
   }
 }
 
-async function sairAdmin() { await _supabase.auth.signOut(); location.reload() }
+async function sairAdmin() { await _supabase.auth.signOut(); location.href = 'admin.html' }
+window.addEventListener('hashchange', function(){
+  const h = (location.hash || '').replace('#', '')
+  if (h && document.getElementById(h) && typeof mostrarAba === 'function') mostrarAba(h)
+})
 
 async function verificarSessao() {
   const { data: { user } } = await _supabase.auth.getUser()
@@ -72,7 +78,7 @@ function mostrarAba(id) {
     if(m2)m2.textContent=t[1]
   }
   window.scrollTo({top:0,behavior:'smooth'})
-  if (id === 'aba-alunos') carregarAlunos()
+  if (id === 'aba-alunos' && !window._todosAlunos) carregarAlunos()
   if (id === 'aba-cronograma') carregarSelectsCronograma()
   if (id === 'aba-desempenho') carregarSelectDesempenho()
   if (id === 'aba-avisos') carregarSelectsAvisos()
@@ -319,21 +325,27 @@ async function carregarAlunos() {
   <div id="lista-alunos-inner"></div>`
 
   window._todosAlunos = alunos
+  window._pagAl = 0
+  // mostra a lista na hora; os alertas (ultimo estudo, ciclos) completam os cartoes em seguida
+  filtrarAlunos()
   try {
     const { data: mc } = await _supabase.from('config_marca').select('*').eq('id',1).maybeSingle()
     window._diasBloqueio = (mc && mc.dias_bloqueio) ? mc.dias_bloqueio : 20
   } catch(e) { window._diasBloqueio = 20 }
-  await carregarAlertas()
-  await calcularCiclos()
-  filtrarAlunos()
+  try { await carregarAlertas() } catch(e) { console.error(e) }
+  try { await calcularCiclos() } catch(e) { console.error(e) }
+  filtrarAlunos(true)
 }
 
-function filtrarAlunos() {
-  const termo = document.getElementById('busca-aluno')?.value.toLowerCase() || ''
+const POR_PAGINA_ALUNOS = 10
+function filtrarAlunos(manterPagina) {
+  if (!window._todosAlunos) return
+  const termo = (document.getElementById('busca-aluno')?.value || '').toLowerCase().trim()
   const ordem = document.getElementById('ordenar-alunos')?.value || 'recente'
+  if (manterPagina !== true) window._pagAl = 0
 
   let filtrados = window._todosAlunos.filter(a =>
-    a.nome.toLowerCase().includes(termo) || a.email.toLowerCase().includes(termo)
+    String(a.nome||'').toLowerCase().includes(termo) || String(a.email||'').toLowerCase().includes(termo)
   )
 
   filtrados = [...filtrados].sort((a, b) => {
@@ -368,7 +380,37 @@ function filtrarAlunos() {
     return 0
   })
 
-  renderizarListaAlunos(filtrados)
+  window._filtradosAl = filtrados
+  renderPaginaAlunos()
+}
+
+function renderPaginaAlunos() {
+  const f = window._filtradosAl || []
+  const np = Math.max(1, Math.ceil(f.length / POR_PAGINA_ALUNOS))
+  if ((window._pagAl||0) > np - 1) window._pagAl = np - 1
+  const pg = window._pagAl || 0
+  renderizarListaAlunos(f.slice(pg * POR_PAGINA_ALUNOS, (pg + 1) * POR_PAGINA_ALUNOS), f.length)
+  const div = document.getElementById('lista-alunos-inner')
+  if (!div || np <= 1) return
+  // numeros de pagina: primeira, ultima e as vizinhas da atual
+  const nums = []
+  for (let i = 0; i < np; i++) if (i === 0 || i === np - 1 || Math.abs(i - pg) <= 1) nums.push(i)
+  let h = '<div style="display:flex;gap:6px;justify-content:center;align-items:center;flex-wrap:wrap;margin-top:14px">'
+  h += '<button class="btn-acao btn-editar" style="padding:9px 14px" ' + (pg ? '' : 'disabled ') + 'onclick="irPaginaAlunos(' + (pg - 1) + ')">‹ Anterior</button>'
+  let ant = -1
+  nums.forEach(function(i){
+    if (i - ant > 1) h += '<span style="color:var(--tx4);padding:0 2px">…</span>'
+    h += '<button class="btn-acao' + (i === pg ? '' : ' btn-editar') + '" style="padding:9px 13px;min-width:40px;' + (i === pg ? 'background:var(--ouro);color:#0a1420;border:1px solid var(--ouro);font-weight:800' : '') + '" onclick="irPaginaAlunos(' + i + ')">' + (i + 1) + '</button>'
+    ant = i
+  })
+  h += '<button class="btn-acao btn-editar" style="padding:9px 14px" ' + (pg < np - 1 ? '' : 'disabled ') + 'onclick="irPaginaAlunos(' + (pg + 1) + ')">Proxima ›</button></div>'
+  div.insertAdjacentHTML('beforeend', h)
+}
+function irPaginaAlunos(p) {
+  window._pagAl = Math.max(0, p)
+  renderPaginaAlunos()
+  const el = document.getElementById('lista-alunos')
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
 function exportarAlunosCSV() {
@@ -403,7 +445,7 @@ function statusAcesso(data_expiracao) {
   return { texto: 'Acesso ate ' + dataFmt, cor: 'var(--ok)' }
 }
 
-function renderizarListaAlunos(alunos) {
+function renderizarListaAlunos(alunos, total) {
   const div = document.getElementById('lista-alunos-inner')
   if (!div) return
   div.innerHTML = ''
@@ -469,7 +511,9 @@ function renderizarListaAlunos(alunos) {
       </div>
     </div>`
   })
-  div.innerHTML += `<p style="color:var(--tx3);font-size:12px;margin-top:8px">${alunos.length} aluno(s)</p>`
+  const tot = (typeof total === 'number') ? total : alunos.length
+  const pg = window._pagAl || 0
+  div.innerHTML += `<p style="color:var(--tx3);font-size:12px;margin-top:8px">${tot > alunos.length ? 'Mostrando ' + (pg * POR_PAGINA_ALUNOS + 1) + '–' + (pg * POR_PAGINA_ALUNOS + alunos.length) + ' de ' : ''}${tot} aluno(s)</p>`
 }
 
 // ========== MODO MENTOR E BLOQUEIO POR INATIVIDADE ==========
@@ -497,7 +541,7 @@ async function reativarAluno(aluno_id, nome) {
   if (r.error) { alert('Erro ao reativar: ' + r.error.message); return }
   const a = (window._todosAlunos || []).find(function(x){ return x.id === aluno_id })
   if (a) { a.bloqueado_inatividade = false; a.ultimo_acesso = agora }
-  filtrarAlunos()
+  filtrarAlunos(true)
   alert(nome + ' foi reativado. Ja pode acessar a plataforma.')
 }
 
@@ -518,13 +562,18 @@ async function todasLinhasA(fabrica) {
 
 async function carregarAlertas() {
   const alertas = {}
+  let resumo = null
+  try {
+    const r = await _supabase.rpc('resumo_alunos_painel')
+    if (!r.error && Array.isArray(r.data)) resumo = r.data
+  } catch(e) {}
 
   // O Supabase devolve no maximo 1000 linhas por consulta: com muitos alunos, o "ultimo estudo"
   // e o "fraco em" saiam errados. Agora busca tudo, de 1000 em 1000.
   const d90 = new Date(); d90.setDate(d90.getDate() - 90)
   const [rl, rs, rr] = await Promise.all([
     todasLinhasA(function(){ return _supabase.from('cronograma_log').select('aluno_id,acao,detalhe,criado_em,visto,por_mentor').gte('criado_em', d90.toISOString()).order('criado_em',{ascending:false}).order('id') }).then(function(d){return {data:d}}).catch(function(){ return _supabase.from('cronograma_log').select('*').order('criado_em',{ascending:false}) }),
-    todasLinhasA(function(){ return _supabase.from('sessoes_estudo').select('aluno_id,disciplina,questoes_feitas,questoes_certas,concluida,data').eq('concluida',true).order('id') }).then(function(d){return {data:d}}).catch(function(){ return {data:[]} }),
+    resumo ? Promise.resolve({data:[]}) : todasLinhasA(function(){ return _supabase.from('sessoes_estudo').select('aluno_id,disciplina,questoes_feitas,questoes_certas,concluida,data').eq('concluida',true).order('id') }).then(function(d){return {data:d}}).catch(function(){ return {data:[]} }),
     _supabase.from('config_cronograma').select('*')
   ])
 
@@ -572,6 +621,13 @@ async function carregarAlertas() {
   Object.keys(piores).forEach(function(id){
     if(!alertas[id])alertas[id]={}
     alertas[id].fraco = piores[id].pct+'% em '+piores[id].disc
+  })
+  // resumo pronto do banco (ultimo estudo e disciplina mais fraca de cada aluno)
+  if (resumo) resumo.forEach(function(x){
+    if(!x.aluno_id) return
+    if(!alertas[x.aluno_id])alertas[x.aluno_id]={}
+    if(x.ultimo_estudo) alertas[x.aluno_id].estudo = String(x.ultimo_estudo).slice(0,10)
+    if(x.fraco_disc) alertas[x.aluno_id].fraco = x.fraco_pct+'% em '+x.fraco_disc
   })
 
   window._alertasAluno = alertas
@@ -1122,7 +1178,7 @@ async function carregarLog() {
 async function marcarLogVisto() {
   await _supabase.from('cronograma_log').update({ visto: true }).eq('visto', false)
   carregarLog()
-  carregarAlertas().then(function(){ if(window._todosAlunos) filtrarAlunos() })
+  carregarAlertas().then(function(){ if(window._todosAlunos) filtrarAlunos(true) })
 }
 
 async function verificarInatividade() {
@@ -1606,7 +1662,7 @@ async function marcarRelatorioEnviado() {
   if (error) { m.style.color='var(--erro)'; m.textContent='Erro: '+error.message+' (ja rodou o SQL desta atualizacao?)'; return }
   m.style.color='var(--ok)'; m.textContent='Relatorio registrado. Proximo ciclo fecha em '+diaBR(somaDias(new Date(),CICLO_DIAS))+'.'
   await carregarCiclos()
-  if (window._todosAlunos) filtrarAlunos()
+  if (window._todosAlunos) filtrarAlunos(true)
 }
 
 function carregarSelectsAvisos() {
