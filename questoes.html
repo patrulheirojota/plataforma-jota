@@ -407,12 +407,15 @@ async function init(){
     [['todas','Todas'],['nao','Nao resolvidas'],['resolvidas','Resolvidas'],['acertei','Acertei'],['errei','Errei']]
     .map(function(x){return '<div class="chip'+(x[0]==='todas'?' on':'')+'" data-st="'+x[0]+'" onclick="setStatus(\''+x[0]+'\')">'+x[1]+'</div>'}).join('')
 
-  const { data:rs }=await _supabase.from('questao_respostas').select('questao_id,correta,respondido_em').eq('aluno_id',_alunoId)
-  ;(rs||[]).forEach(function(r){_resp[r.questao_id]={correta:r.correta,em:r.respondido_em}})
+  // todas as respostas (de 1000 em 1000: quem ja respondeu mais de 1000 nao perde o historico)
+  let rs=[]
+  try{rs=await todasLinhas(function(){return _supabase.from('questao_respostas').select('questao_id,correta,respondido_em').eq('aluno_id',_alunoId).order('questao_id')})}catch(e){rs=[]}
+  rs.forEach(function(r){_resp[r.questao_id]={correta:r.correta,em:r.respondido_em}})
 
   if(al&&al.meta_questoes_dia)_metaDia=al.meta_questoes_dia
-  const hj=new Date().toISOString().split('T')[0]
-  _respHoje=(rs||[]).filter(function(r){return String(r.respondido_em||'').slice(0,10)===hj}).length
+  // "hoje" no horario local (antes usava o horario de Londres e virava o dia as 21h)
+  const hj=diaLocal(new Date())
+  _respHoje=rs.filter(function(r){return r.respondido_em&&diaLocal(new Date(r.respondido_em))===hj}).length
   renderMeta()
 
   await carregarFacetas()
@@ -440,8 +443,11 @@ async function carregarMarca(){
   }
 }
 
+function diaLocal(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+
 async function carregarFacetas(){
-  const { data:qs }=await _supabase.from('questoes').select('disciplina,assunto,banca,ano').eq('ativo',true)
+  let qs=[]
+  try{qs=await todasLinhas(function(){return _supabase.from('questoes').select('disciplina,assunto,banca,ano').eq('ativo',true).order('id')})}catch(e){qs=[]}
   const d={},b={},a={}
   _assuntos={}
   ;(qs||[]).forEach(function(q){
@@ -1307,24 +1313,27 @@ async function prepararSimulado(){
   const conc=sc.value, orig=document.getElementById('sim-orig').value
   let ids=null
   if(conc){
-    const { data:v }=await _supabase.from('questao_concursos').select('questao_id').eq('concurso_id',conc)
-    ids=(v||[]).map(function(x){return x.questao_id})
+    const v=await todasLinhas(function(){return _supabase.from('questao_concursos').select('questao_id').eq('concurso_id',conc).order('questao_id')})
+    ids=v.map(function(x){return x.questao_id})
     if(!ids.length){ box.innerHTML='<div style="color:var(--alerta);font-size:13px;padding:10px">Nenhuma questao vinculada a este concurso ainda.</div>'; _simDisp={}; somar(); return }
   }else if(_concursos.length){
-    const { data:v }=await _supabase.from('questao_concursos').select('questao_id')
-      .in('concurso_id',_concursos.map(function(c){return c.id}))
-    ids=(v||[]).map(function(x){return x.questao_id})
+    const cids=_concursos.map(function(c){return c.id})
+    const v=await todasLinhas(function(){return _supabase.from('questao_concursos').select('questao_id').in('concurso_id',cids).order('questao_id')})
+    ids=v.map(function(x){return x.questao_id})
   }
 
-  let q=_supabase.from('questoes').select('id,disciplina').eq('ativo',true)
-  if(ids)q=q.in('id',ids)
-  if(orig)q=q.eq('origem',orig)
-  const { data:qs }=await q.limit(5000)
+  // busca todas as questoes ativas e filtra aqui (enviar milhares de ids na consulta estoura o limite do endereco)
+  const qs=await todasLinhas(function(){
+    let q=_supabase.from('questoes').select('id,disciplina').eq('ativo',true)
+    if(orig)q=q.eq('origem',orig)
+    return q.order('id')
+  })
+  const permitidas=ids?new Set(ids.map(String)):null
 
-  const resolvidas=Object.keys(_resp)
   _simDisp={}
   ;(qs||[]).forEach(function(x){
-    if(resolvidas.indexOf(x.id)>=0)return
+    if(permitidas&&!permitidas.has(String(x.id)))return
+    if(_resp[x.id])return
     const d=x.disciplina||'Outras'
     if(!_simDisp[d])_simDisp[d]=[]
     _simDisp[d].push(x.id)
@@ -1391,7 +1400,12 @@ async function iniciarSimulado(){
     escolhidos=escolhidos.concat(embaralhar(_simDisp[d].slice()).slice(0,pedido[d]))
   })
 
-  const { data:qs }=await _supabase.from('questoes').select('*').in('id',escolhidos)
+  // em lotes de 100 (simulado grande nao estoura o tamanho do endereco)
+  let qs=[]
+  for(let i=0;i<escolhidos.length;i+=100){
+    const r=await _supabase.from('questoes').select('*').in('id',escolhidos.slice(i,i+100))
+    if(r.data)qs=qs.concat(r.data)
+  }
   if(!qs||!qs.length){ m.style.color='var(--erro)'; m.textContent='Nao consegui carregar as questoes.'; return }
 
   // intercala disciplinas para nao cair tudo junto
