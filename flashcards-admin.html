@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flashcards — Admin</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="style.css">
+<script>document.documentElement.setAttribute("data-tema",localStorage.getItem("tema")||"escuro")</script>
+<style>
+  .st{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px}
+  .st-c{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:13px;text-align:center}
+  .st-n{font-size:22px;font-weight:800}
+  .st-l{color:var(--tx3);font-size:11px;margin-top:2px}
+  .bt{width:auto;margin:0;padding:9px 15px;font-size:13px}
+  .bt2{width:auto;margin:0;padding:9px 15px;font-size:13px;background:var(--card2);color:var(--tx2);border:1px solid var(--bd2);font-weight:600}
+  .bt-p{width:auto;margin:0;padding:6px 11px;font-size:12px;background:var(--card2);color:var(--tx2);border:1px solid var(--bd2);font-weight:600}
+  .fg{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+  .ml{color:var(--tx3);font-size:12px;display:block;margin:10px 0 2px;font-weight:600}
+  .fca{background:var(--card2);border:1px solid var(--bd);border-left:3px solid var(--ouro);border-radius:11px;padding:13px;margin-bottom:9px}
+  .fca.off{opacity:.55;border-left-color:var(--tx4)}
+  .fca-h{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+  .tg{font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:9px;background:var(--card);border:1px solid var(--bd2);color:var(--tx3)}
+  .lado{color:var(--tx4);font-size:10.5px;font-weight:800;letter-spacing:.5px;margin:8px 0 3px}
+  textarea.big{width:100%;padding:12px;border-radius:8px;border:1px solid var(--bd2);background:var(--card2);color:var(--tx);font-size:12px;font-family:ui-monospace,Menlo,monospace;min-height:230px;resize:vertical;line-height:1.5}
+  .voltar-mob{display:none}
+  @media(max-width:860px){
+    header{display:none}
+    .voltar-mob{display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:40;background:var(--bg2);border-bottom:1px solid var(--bd);padding:11px 14px;margin:-16px -12px 16px}
+    .voltar-mob button{width:42px;height:42px;border-radius:11px;flex-shrink:0;margin:0;padding:0;background:var(--card);border:1px solid var(--bd2);color:var(--tx);font-size:19px;display:flex;align-items:center;justify-content:center}
+    .voltar-mob .t1{font-size:16px;font-weight:800;line-height:1.2}
+    .voltar-mob .t2{color:var(--tx3);font-size:11.5px}
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="voltar-mob"><button onclick="location.href='admin.html'" aria-label="Voltar">&#8249;</button><div><div class="t1">Flashcards</div><div class="t2">Criar, importar e gerenciar</div></div></div>
+  <header>
+    <div>
+      <h2>Flashcards</h2>
+      <div style="color:var(--tx3);font-size:13px">Cartoes do Jota para os alunos estudarem com repeticao espacada</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button onclick="location.href='questoes-admin.html'" style="width:auto;padding:8px 14px;background:var(--card2);color:var(--info);border:1px solid var(--info)">Banco de Questoes</button>
+      <button onclick="location.href='admin.html'" style="width:auto;padding:8px 14px">Painel Admin</button>
+    </div>
+  </header>
+
+  <div id="aviso-sql"></div>
+  <div class="st" id="stats"><div class="st-c"><div class="st-n">...</div><div class="st-l">Carregando</div></div></div>
+
+  <div class="abas">
+    <button class="aba-btn ativa" data-a="a-criar" onclick="aba('a-criar')">✍️ Criar</button>
+    <button class="aba-btn" data-a="a-imp" onclick="aba('a-imp')">📥 Importar lote</button>
+    <button class="aba-btn" data-a="a-ger" onclick="aba('a-ger')">🗂️ Gerenciar</button>
+    <button class="aba-btn" data-a="a-prompt" onclick="aba('a-prompt')">🤖 Prompt para gerar</button>
+  </div>
+
+  <!-- CRIAR -->
+  <div id="a-criar" class="aba-conteudo">
+    <div class="card">
+      <h3>Criar flashcard do Jota</h3>
+      <p style="color:var(--tx3);font-size:13px;line-height:1.6;margin-bottom:12px">
+        Os cartoes criados aqui aparecem para os alunos com o selo <strong style="color:var(--ouro)">🛡️ Flashcard do Jota</strong>.
+        Use <strong>"Salvar e criar outro"</strong> para cadastrar varios em sequencia: o modelo, a disciplina, o assunto e o concurso ficam guardados.
+      </p>
+      <button class="bt" onclick="novo()" style="padding:13px 22px;font-size:14px">+ Novo flashcard do Jota</button>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-top:16px">
+        <div style="background:var(--card2);border-radius:11px;padding:12px;font-size:12.5px;line-height:1.55;color:var(--tx2)"><strong style="color:var(--tx)">❓ Pergunta e resposta</strong><br>"Prazo do IP com o indiciado preso?" → "10 dias (CPP, art. 10)".</div>
+        <div style="background:var(--card2);border-radius:11px;padding:12px;font-size:12.5px;line-height:1.55;color:var(--tx2)"><strong style="color:var(--tx)">▢ Complete a lacuna</strong><br>"O crime de tortura e {{inafiancavel}}..." — otimo para lei seca.</div>
+        <div style="background:var(--card2);border-radius:11px;padding:12px;font-size:12.5px;line-height:1.55;color:var(--tx2)"><strong style="color:var(--tx)">✔✖ Certo ou Errado</strong><br>A afirmacao com a pegadinha da banca + uma linha explicando.</div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Ultimos criados</h3>
+      <div id="ultimos"></div>
+    </div>
+  </div>
+
+  <!-- IMPORTAR -->
+  <div id="a-imp" class="aba-conteudo" style="display:none">
+    <div class="card">
+      <h3>Importar lote gerado pela IA</h3>
+      <p style="color:var(--tx3);font-size:13px;line-height:1.6;margin-bottom:10px">
+        1. Copie o prompt na aba <strong>🤖 Prompt para gerar</strong> e gere os cartoes em outra conversa.<br>
+        2. Cole aqui o JSON que a IA devolver (ou envie o arquivo .json) e toque em <strong>Conferir</strong>.<br>
+        3. Confira a previa e toque em <strong>Importar</strong>. Cartoes repetidos sao ignorados.
+      </p>
+      <div class="fg">
+        <div><label class="ml">Vincular ao concurso</label><select id="imp-conc"><option value="">Todos os concursos</option></select></div>
+        <div><label class="ml">Disciplina (se o JSON nao trouxer)</label><input id="imp-disc" list="dl-disc" placeholder="Ex.: Legislacao Penal Especial"></div>
+        <div><label class="ml">Assunto (se o JSON nao trouxer)</label><input id="imp-ass" list="dl-ass" placeholder="Ex.: Lei de Tortura"></div>
+      </div>
+      <datalist id="dl-disc"></datalist><datalist id="dl-ass"></datalist>
+      <label class="ml">JSON dos flashcards</label>
+      <textarea class="big" id="imp-json" placeholder='[ { "disciplina": "...", "assunto": "...", "tipo": "basico", "frente": "...", "verso": "...", "gabarito": null, "fundamento": "..." } ]'></textarea>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+        <button class="bt" onclick="conferir()">Conferir</button>
+        <button class="bt2" onclick="document.getElementById('imp-arq').click()">📎 Enviar arquivo .json</button>
+        <button class="bt2" onclick="limparImp()">Limpar</button>
+        <input type="file" id="imp-arq" accept=".json,.txt" style="display:none" onchange="lerArquivo(this.files[0])">
+      </div>
+      <div id="imp-msg" style="margin-top:12px;font-size:13px"></div>
+      <div id="imp-prev"></div>
+      <button class="bt" id="btn-imp" onclick="importar()" style="display:none;margin-top:12px;padding:13px 22px">Importar</button>
+    </div>
+  </div>
+
+  <!-- GERENCIAR -->
+  <div id="a-ger" class="aba-conteudo" style="display:none">
+    <div class="card">
+      <h3>Flashcards do Jota</h3>
+      <div class="fg">
+        <div><label class="ml">Concurso</label><select id="g-conc" onchange="listar(0)"><option value="__todos">Todos</option><option value="">So os gerais (todos os concursos)</option></select></div>
+        <div><label class="ml">Disciplina</label><select id="g-disc" onchange="atualizarAssuntos();listar(0)"><option value="">Todas</option></select></div>
+        <div><label class="ml">Assunto</label><select id="g-ass" onchange="listar(0)"><option value="">Todos</option></select></div>
+        <div><label class="ml">Modelo</label><select id="g-tipo" onchange="listar(0)"><option value="">Todos</option><option value="basico">Pergunta e resposta</option><option value="lacuna">Lacuna</option><option value="ce">Certo ou Errado</option></select></div>
+        <div><label class="ml">Situacao</label><select id="g-st" onchange="listar(0)"><option value="">Ativos e inativos</option><option value="1">So ativos</option><option value="0">So inativos</option></select></div>
+        <div><label class="ml">Buscar</label><input id="g-busca" placeholder="Palavra na frente ou verso" oninput="listar(0)"></div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center">
+        <span id="g-cont" style="color:var(--tx3);font-size:12.5px;flex:1;min-width:150px"></span>
+        <button class="bt-p" onclick="emMassa('desativar')">Desativar os filtrados</button>
+        <button class="bt-p" onclick="emMassa('ativar')">Ativar os filtrados</button>
+        <button class="bt-p" style="color:var(--erro)" onclick="emMassa('excluir')">Excluir os filtrados</button>
+      </div>
+    </div>
+    <div id="g-lista"></div>
+    <div id="g-pag" style="text-align:center;margin-top:10px"></div>
+  </div>
+
+  <!-- PROMPT -->
+  <div id="a-prompt" class="aba-conteudo" style="display:none">
+    <div class="card">
+      <h3>Prompt para gerar flashcards em outra conversa</h3>
+      <p style="color:var(--tx3);font-size:13px;line-height:1.6;margin-bottom:6px">Preencha, copie e cole numa conversa nova com a IA (de preferencia anexando a lei seca ou o seu material). Depois cole a resposta na aba <strong>📥 Importar lote</strong>.</p>
+      <div class="fg">
+        <div><label class="ml">Concurso e banca</label><input id="p-conc" placeholder="Ex.: PMSE — CEBRASPE" oninput="montarPrompt()"></div>
+        <div><label class="ml">Disciplina</label><input id="p-disc" list="dl-disc" placeholder="Ex.: Legislacao Penal Especial" oninput="montarPrompt()"></div>
+        <div><label class="ml">Assunto(s)</label><input id="p-ass" placeholder="Ex.: Lei 9.455/1997 — Tortura" oninput="montarPrompt(true)"></div>
+        <div><label class="ml">Quantidade</label><input id="p-qtd" type="number" value="40" min="5" max="200" oninput="montarPrompt()"></div>
+        <div><label class="ml">Prefixo do codigo</label><input id="p-pre" placeholder="gerado sozinho" oninput="this.dataset.auto='0';montarPrompt()"></div>
+      </div>
+      <label class="ml">Material de base</label>
+      <input id="p-mat" placeholder='Ex.: "vou anexar a lei seca" ou "use a lei seca atualizada"' oninput="montarPrompt()">
+      <textarea class="big" id="p-txt" style="min-height:320px;margin-top:12px" readonly></textarea>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center">
+        <button class="bt" onclick="copiarPrompt()">📋 Copiar prompt</button>
+        <span id="p-msg" style="font-size:12.5px;color:var(--ok)"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script>
+/* ================= FLASHCARDS: formulario (criar/editar) e desenho do cartao ================= */
+const FC={
+  TIPOS:{basico:'Pergunta e resposta',lacuna:'Complete a lacuna',ce:'Certo ou Errado'},
+  _st:null,
+  esc:function(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')},
+
+  // ---------- desenho ----------
+  frenteHTML:function(c){
+    const e=FC.esc(c.frente||'')
+    if(c.tipo==='lacuna')return e.replace(/\{\{([\s\S]+?)\}\}/g,'<span class="fc-lac">[ . . . ]</span>')
+    return e
+  },
+  versoHTML:function(c){
+    let h=''
+    if(c.tipo==='lacuna'){
+      h='<div class="fc-v-main">'+FC.esc(c.frente||'').replace(/\{\{([\s\S]+?)\}\}/g,'<span class="fc-lac-ok">$1</span>')+'</div>'
+      if(c.verso)h+='<div class="fc-v-ext">'+FC.esc(c.verso)+'</div>'
+    }else if(c.tipo==='ce'){
+      const g=String(c.gabarito||'').toUpperCase()
+      h='<div class="fc-v-ce '+(g==='C'?'c':'e')+'">'+(g==='C'?'✔ CERTO':'✖ ERRADO')+'</div>'
+      if(c.verso)h+='<div class="fc-v-main" style="font-size:15px">'+FC.esc(c.verso)+'</div>'
+    }else{
+      h='<div class="fc-v-main">'+FC.esc(c.verso||'')+'</div>'
+    }
+    if(c.fundamento)h+='<div class="fc-v-fund">📌 '+FC.esc(c.fundamento)+'</div>'
+    return h
+  },
+  selo:function(c){
+    return c.autor_tipo==='mentor'?'<span class="fc-selo jota">🛡️ Flashcard do Jota</span>':'<span class="fc-selo meu">✍️ Meu cartao</span>'
+  },
+
+  // ---------- conferencias de qualidade (metodo: um cartao, uma informacao) ----------
+  conferir:function(c){
+    const erros=[],dicas=[]
+    const fr=String(c.frente||'').trim(), vs=String(c.verso||'').trim()
+    if(!String(c.disciplina||'').trim())erros.push('Informe a disciplina.')
+    if(!fr)erros.push(c.tipo==='ce'?'Escreva a afirmacao.':'Escreva a frente do cartao.')
+    if(c.tipo==='basico'&&!vs)erros.push('Escreva a resposta (verso).')
+    if(c.tipo==='lacuna'&&!/\{\{[\s\S]+?\}\}/.test(fr))erros.push('Marque a lacuna: selecione a palavra e toque em "Esconder palavra" (fica entre {{ }}).')
+    if(c.tipo==='ce'&&['C','E'].indexOf(String(c.gabarito||'').toUpperCase())<0)erros.push('Escolha se a afirmacao e CERTA ou ERRADA.')
+    if(fr.length>260)dicas.push('Frente longa ('+fr.length+' letras). Um cartao, uma informacao: se tiver mais de uma ideia, divida em dois cartoes.')
+    if(vs.length>320)dicas.push('Resposta longa. O verso deve ser seco: a regra, o prazo, o numero. O resto vai no caderno de erros.')
+    if(c.tipo==='basico'&&/\?\s*$/.test(fr)===false&&fr.length>0&&fr.split(' ').length<4)dicas.push('Frente muito curta. Faca uma pergunta direta (ex.: "Prazo do IP com reu preso?").')
+    if(c.tipo==='lacuna'&&(fr.match(/\{\{/g)||[]).length>2)dicas.push('Muitas lacunas no mesmo cartao. O ideal e 1 lacuna por cartao.')
+    if(c.tipo==='basico'&&/^(e |é |sim|nao|não)/i.test(vs)&&vs.length<6)dicas.push('Evite resposta "sim/nao": transforme em pergunta que exija lembrar a regra.')
+    return {erros:erros,dicas:dicas}
+  },
+
+  // ---------- formulario ----------
+  montar:function(){
+    if(document.getElementById('fcm'))return
+    const css=document.createElement('style')
+    css.textContent=''
+      +'.fcm-ov{position:fixed;inset:0;background:rgba(5,10,18,.72);z-index:300;display:none;align-items:flex-start;justify-content:center;padding:18px 10px;overflow-y:auto}'
+      +'.fcm-ov.on{display:flex}'
+      +'.fcm{background:var(--bg2);border:1px solid var(--bd2);border-radius:16px;width:100%;max-width:560px;padding:18px;color:var(--tx)}'
+      +'.fcm *{box-sizing:border-box}'
+      +'.fcm input,.fcm textarea,.fcm select{width:100%;margin:0;padding:10px 12px;border-radius:10px;border:1px solid var(--bd2);background:var(--bg);color:var(--tx);font-size:14px;font-family:inherit}'
+      +'.fcm textarea{resize:vertical;line-height:1.55;min-height:74px}'
+      +'.fcm button{width:auto;margin:0;cursor:pointer;font-family:inherit}'
+      +'.fcm-l{display:block;color:var(--tx3);font-size:12px;font-weight:700;margin:12px 0 5px}'
+      +'.fcm-tp{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}'
+      +'.fcm-tp button{padding:10px 6px;border-radius:10px;border:1px solid var(--bd2);background:var(--card2);color:var(--tx3);font-size:12.5px;font-weight:700;line-height:1.3}'
+      +'.fcm-tp button.on{background:var(--hov);border-color:var(--ouro);color:var(--ouro)}'
+      +'.fcm-b{padding:10px 16px;border-radius:10px;border:1px solid var(--bd2);background:var(--btn,var(--card2));color:var(--tx2);font-size:13px;font-weight:600}'
+      +'.fcm-b.ouro{background:var(--ouro);border-color:var(--ouro);color:#0a1420;font-weight:800}'
+      +'.fcm-ce{display:grid;grid-template-columns:1fr 1fr;gap:8px}'
+      +'.fcm-ce button{padding:11px;border-radius:10px;border:1px solid var(--bd2);background:var(--card2);color:var(--tx3);font-weight:800}'
+      +'.fcm-ce button.c{background:rgba(109,219,160,.15);border-color:#6ddba0;color:#6ddba0}'
+      +'.fcm-ce button.e{background:rgba(240,113,113,.15);border-color:#f07171;color:#f07171}'
+      +'.fcm-g{display:grid;grid-template-columns:1fr 1fr;gap:8px}'
+      +'@media(max-width:480px){.fcm-g{grid-template-columns:1fr}}'
+      +'.fcm-dica{font-size:12px;color:var(--tx4);margin-top:5px;line-height:1.5}'
+      +'.fcm-prev{background:var(--card);border:1px solid var(--bd2);border-radius:12px;padding:14px;margin-top:12px}'
+      +'.fcm-prev .lado{color:var(--tx4);font-size:10.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;margin-bottom:6px}'
+      +'.fc-lac{display:inline-block;padding:0 6px;border-radius:6px;background:rgba(201,168,60,.18);color:var(--ouro);font-weight:800}'
+      +'.fc-lac-ok{padding:0 5px;border-radius:6px;background:rgba(109,219,160,.18);color:#6ddba0;font-weight:800}'
+      +'.fc-v-main{font-size:16px;line-height:1.6;white-space:pre-wrap}'
+      +'.fc-v-ext{font-size:13.5px;color:var(--tx2);margin-top:10px;line-height:1.6;white-space:pre-wrap}'
+      +'.fc-v-fund{font-size:12.5px;color:var(--tx3);margin-top:12px;padding-top:10px;border-top:1px dashed var(--bd2)}'
+      +'.fc-v-ce{display:inline-block;font-weight:900;font-size:15px;padding:5px 12px;border-radius:9px;margin-bottom:10px}'
+      +'.fc-v-ce.c{background:rgba(109,219,160,.15);color:#6ddba0;border:1px solid #6ddba0}'
+      +'.fc-v-ce.e{background:rgba(240,113,113,.15);color:#f07171;border:1px solid #f07171}'
+      +'.fc-selo{font-size:10.5px;font-weight:800;padding:3px 9px;border-radius:10px;letter-spacing:.3px}'
+      +'.fc-selo.jota{background:rgba(201,168,60,.15);color:var(--ouro);border:1px solid var(--ouro)}'
+      +'.fc-selo.meu{background:rgba(185,138,224,.14);color:#c9a9e8;border:1px solid #7d5fa8}'
+    document.head.appendChild(css)
+    const ov=document.createElement('div')
+    ov.className='fcm-ov';ov.id='fcm'
+    ov.addEventListener('click',function(e){if(e.target===ov)FC.fechar()})
+    ov.innerHTML='<div class="fcm" id="fcm-c"></div>'
+    document.body.appendChild(ov)
+  },
+
+  // opts: {card, pre, autor:'aluno'|'mentor', alunoId, concursos:[{id,nome}], disciplinas:[], assuntos:[], titulo, lote:true, onSalvo:function(card){}}
+  abrir:function(opts){
+    FC.montar()
+    opts=opts||{}
+    const c=Object.assign({tipo:'basico',frente:'',verso:'',gabarito:'',disciplina:'',assunto:'',fundamento:'',concurso_id:''},opts.pre||{},opts.card||{})
+    FC._st={opts:opts,c:c,salvos:0}
+    FC.render()
+    document.getElementById('fcm').classList.add('on')
+    setTimeout(function(){const f=document.getElementById('fcm-fr');if(f)f.focus()},60)
+  },
+  fechar:function(){const o=document.getElementById('fcm');if(o)o.classList.remove('on')},
+
+  ler:function(){
+    const st=FC._st; if(!st)return
+    const v=function(id){const el=document.getElementById(id);return el?el.value:''}
+    st.c.frente=v('fcm-fr');st.c.verso=v('fcm-vs');st.c.disciplina=v('fcm-di').trim();st.c.assunto=v('fcm-as').trim();st.c.fundamento=v('fcm-fu').trim()
+    const cc=document.getElementById('fcm-co'); if(cc)st.c.concurso_id=cc.value
+  },
+  tipo:function(t){FC.ler();FC._st.c.tipo=t;FC.render()},
+  gab:function(g){FC.ler();FC._st.c.gabarito=g;FC.render()},
+  lacuna:function(){
+    const el=document.getElementById('fcm-fr'); if(!el)return
+    const a=el.selectionStart,b=el.selectionEnd,t=el.value
+    if(a===b){
+      FC.msg('Selecione (marque) a palavra da frase que deve ficar escondida e toque de novo em "Esconder palavra".','var(--alerta,#e8b04b)');return
+    }
+    el.value=t.slice(0,a)+'{{'+t.slice(a,b).trim()+'}}'+t.slice(b)
+    FC.ler();FC.prever()
+  },
+  msg:function(t,cor){const m=document.getElementById('fcm-msg');if(m){m.style.color=cor||'var(--tx3)';m.innerHTML=t}},
+
+  render:function(){
+    const st=FC._st,c=st.c,o=st.opts,E=FC.esc
+    const lbl={basico:['Frente — a pergunta','Ex.: Qual o prazo para concluir o inquerito policial com o indiciado preso?','Verso — a resposta','Ex.: 10 dias (CPP, art. 10).'],
+      lacuna:['Frase com a palavra escondida','Ex.: O crime de tortura e {{inafiancavel}} e insuscetivel de graca ou anistia.','Complemento (opcional)','Ex.: Tambem e equiparado a hediondo.'],
+      ce:['Afirmacao (como a banca cobraria)','Ex.: A condenacao por tortura acarreta a perda do cargo e a interdicao para seu exercicio pelo dobro do prazo da pena aplicada.','Por que? (justificativa curta)','Ex.: A perda do cargo e automatica (art. 1º, § 5º).']}[c.tipo]
+    const dl=function(id,arr){return '<datalist id="'+id+'">'+(arr||[]).map(function(x){return '<option value="'+E(x)+'">'}).join('')+'</datalist>'}
+    document.getElementById('fcm-c').innerHTML=
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">'
+     +'<div><div style="color:var(--ouro);font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase">'+(o.autor==='mentor'?'Flashcard do Jota':'Meu flashcard')+'</div>'
+     +'<div style="font-size:18px;font-weight:800;margin-top:2px">'+E(o.titulo||(o.card?'Editar flashcard':'Novo flashcard'))+'</div></div>'
+     +'<button class="fcm-b" onclick="FC.fechar()" style="padding:6px 11px">✕</button></div>'
+     +'<div class="fcm-dica" style="margin-top:6px">Regra de ouro: <strong style="color:var(--tx2)">um cartao, uma informacao</strong>. Prazos, penas, competencias, excecoes e artigos-chave.</div>'
+     +'<span class="fcm-l">Modelo</span>'
+     +'<div class="fcm-tp">'
+     +['basico','lacuna','ce'].map(function(t){return '<button class="'+(c.tipo===t?'on':'')+'" onclick="FC.tipo(\''+t+'\')">'+{basico:'❓ Pergunta<br>e resposta',lacuna:'▢ Complete<br>a lacuna',ce:'✔✖ Certo<br>ou Errado'}[t]+'</button>'}).join('')
+     +'</div>'
+     +'<span class="fcm-l">'+lbl[0]+'</span>'
+     +'<textarea id="fcm-fr" oninput="FC.ler();FC.prever()" placeholder="'+E(lbl[1])+'">'+E(c.frente)+'</textarea>'
+     +(c.tipo==='lacuna'?'<div style="display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap"><button class="fcm-b" onclick="FC.lacuna()" style="padding:8px 12px;border-color:var(--ouro);color:var(--ouro)">▢ Esconder palavra selecionada</button><span class="fcm-dica" style="margin:0">ou escreva entre {{ }}</span></div>':'')
+     +(c.tipo==='ce'?'<span class="fcm-l">Gabarito</span><div class="fcm-ce"><button class="'+(String(c.gabarito).toUpperCase()==='C'?'c':'')+'" onclick="FC.gab(\'C\')">✔ CERTO</button><button class="'+(String(c.gabarito).toUpperCase()==='E'?'e':'')+'" onclick="FC.gab(\'E\')">✖ ERRADO</button></div>':'')
+     +'<span class="fcm-l">'+lbl[2]+'</span>'
+     +'<textarea id="fcm-vs" oninput="FC.ler();FC.prever()" style="min-height:60px" placeholder="'+E(lbl[3])+'">'+E(c.verso)+'</textarea>'
+     +'<div class="fcm-g">'
+     +'<div><span class="fcm-l">Disciplina *</span><input id="fcm-di" list="fcm-dl-d" value="'+E(c.disciplina)+'" placeholder="Ex.: Legislacao Penal Especial">'+dl('fcm-dl-d',o.disciplinas)+'</div>'
+     +'<div><span class="fcm-l">Assunto</span><input id="fcm-as" list="fcm-dl-a" value="'+E(c.assunto)+'" placeholder="Ex.: Lei de Tortura">'+dl('fcm-dl-a',o.assuntos)+'</div>'
+     +'</div>'
+     +'<span class="fcm-l">Fundamento (opcional)</span><input id="fcm-fu" value="'+E(c.fundamento)+'" placeholder="Ex.: Lei 9.455/1997, art. 1º, § 5º">'
+     +(o.concursos?'<span class="fcm-l">Concurso</span><select id="fcm-co"><option value="">Todos os concursos</option>'+o.concursos.map(function(x){return '<option value="'+E(x.id)+'"'+(String(c.concurso_id||'')===String(x.id)?' selected':'')+'>'+E(x.nome)+'</option>'}).join('')+'</select>':'')
+     +'<div class="fcm-prev" id="fcm-prev"></div>'
+     +'<div id="fcm-conf"></div>'
+     +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">'
+     +'<button class="fcm-b ouro" style="flex:2;min-width:150px;padding:12px" onclick="FC.salvar(false)">'+(o.card?'Salvar alteracoes':'Salvar flashcard')+'</button>'
+     +((!o.card&&o.lote)?'<button class="fcm-b" style="flex:1;min-width:150px;padding:12px;border-color:var(--ouro);color:var(--ouro)" onclick="FC.salvar(true)">Salvar e criar outro</button>':'')
+     +'</div>'
+     +'<div id="fcm-msg" style="font-size:12.5px;margin-top:10px;text-align:center"></div>'
+    FC.prever()
+  },
+
+  prever:function(){
+    const c=FC._st.c,el=document.getElementById('fcm-prev'); if(!el)return
+    const temF=String(c.frente||'').trim()
+    el.innerHTML='<div class="lado">Pre-visualizacao — frente</div><div class="fc-v-main" style="font-size:15px">'+(temF?FC.frenteHTML(c):'<span style="color:var(--tx4)">O aluno ve isto primeiro.</span>')+'</div>'
+      +'<div class="lado" style="margin-top:12px">Verso</div>'+((temF||c.verso)?FC.versoHTML(c):'<span style="color:var(--tx4);font-size:13px">A resposta aparece depois que ele tenta lembrar.</span>')
+    const r=FC.conferir(c), cf=document.getElementById('fcm-conf')
+    if(cf)cf.innerHTML=r.dicas.length?'<div style="background:rgba(232,176,75,.08);border:1px solid #e8b04b;border-radius:10px;padding:9px 12px;margin-top:10px;color:#e8b04b;font-size:12.5px;line-height:1.5">💡 '+r.dicas.join('<br>💡 ')+'</div>':''
+  },
+
+  salvar:async function(outro){
+    FC.ler()
+    const st=FC._st,c=st.c,o=st.opts
+    const r=FC.conferir(c)
+    if(r.erros.length){FC.msg(r.erros.join('<br>'),'#f07171');return}
+    const reg={tipo:c.tipo,frente:String(c.frente).trim(),verso:String(c.verso||'').trim()||null,
+      gabarito:c.tipo==='ce'?String(c.gabarito).toUpperCase():null,disciplina:c.disciplina,assunto:c.assunto||null,
+      fundamento:c.fundamento||null,atualizado_em:new Date().toISOString()}
+    if(o.concursos)reg.concurso_id=c.concurso_id||null
+    FC.msg('Salvando...')
+    let res
+    if(o.card&&o.card.id){
+      res=await _supabase.from('flashcards').update(reg).eq('id',o.card.id).select().maybeSingle()
+    }else{
+      reg.autor_tipo=o.autor==='mentor'?'mentor':'aluno'
+      reg.aluno_id=o.autor==='mentor'?null:o.alunoId
+      if(c.questao_id)reg.questao_id=String(c.questao_id)
+      res=await _supabase.from('flashcards').insert(reg).select().maybeSingle()
+    }
+    if(res.error){
+      const falta=/relation|does not exist|schema cache/i.test(res.error.message)
+      FC.msg(falta?'Os flashcards ainda nao foram ativados no banco de dados. '+(o.autor==='mentor'?'Rode o arquivo atualizacao-flashcards.sql no Supabase.':'Avise o seu mentor.'):'Nao foi possivel salvar: '+FC.esc(res.error.message),'#f07171')
+      return
+    }
+    const salvo=res.data||Object.assign({},o.card||{},reg)
+    st.salvos++
+    if(o.onSalvo)o.onSalvo(salvo)
+    if(outro){
+      // mantem modelo, disciplina, assunto e concurso para agilizar
+      st.c=Object.assign({},c,{frente:'',verso:'',gabarito:'',fundamento:'',questao_id:null})
+      FC.render()
+      FC.msg('✅ '+st.salvos+' flashcard(s) salvos nesta sequencia. Pode escrever o proximo.','#6ddba0')
+      setTimeout(function(){const f=document.getElementById('fcm-fr');if(f)f.focus()},60)
+    }else{
+      FC.fechar()
+    }
+  }
+}
+FC.montar()
+
+
+const PROMPT_BASE="Você é o especialista em flashcards do Cabo Jota (Patrulheiro Jota), mentor de concursos policiais. Sua tarefa é criar FLASHCARDS de repetição espaçada para os alunos da mentoria Patrulheiros de Elite estudarem na plataforma.\n\nDADOS DO PEDIDO\n- Concurso / banca: [ex.: PMSE — banca CEBRASPE]\n- Disciplina: [ex.: Legislação Penal Especial]\n- Assunto(s): [ex.: Lei 9.455/1997 — Crimes de Tortura]\n- Quantidade: [ex.: 40 cartões]\n- Prefixo do código: [ex.: TORT-2610]  (use um prefixo novo a cada lote)\n- Material de base: [cole o texto, anexe o PDF/lei seca, ou escreva \"use a lei seca atualizada\"]\n\nMÉTODO DO JOTA PARA FLASHCARDS (siga à risca)\n1. UM CARTÃO, UMA INFORMAÇÃO. Nunca junte duas regras no mesmo cartão. Se o tema tiver uma lista longa (mais de 3 itens), divida em vários cartões ou use um macete.\n2. SÓ \"DECOREBA DE ALTO VALOR\": prazos, penas, competências, quóruns, exceções, requisitos, vedações, artigos-chave e os detalhes que a banca costuma trocar. Não faça cartão de conceito genérico que só se aprende entendendo.\n3. FRENTE CURTA E DIRETA (até 200 caracteres): uma pergunta objetiva que obriga o aluno a puxar a resposta da memória. Nada de \"Fale sobre...\", nada de pergunta que se responde com \"sim\" ou \"não\".\n4. VERSO SECO (até 250 caracteres): a resposta exata — o número, o prazo, a palavra, a regra. Sem enrolação.\n5. FUNDAMENTO: o artigo, parágrafo, súmula ou lei (ex.: \"Lei 9.455/1997, art. 1º, § 5º\"). Nunca invente número de artigo ou súmula; se não tiver certeza, deixe \"\".\n6. FOCO NA BANCA: priorize o que mais cai e as pegadinhas clássicas (trocar \"reclusão\" por \"detenção\", \"inafiançável\" por \"afiançável\", \"pode\" por \"deve\", \"inicialmente\" por \"integralmente\", inverter competência, mudar prazo).\n7. Português do Brasil, linguagem simples. Pode usar exemplos da rotina policial.\n\nTRÊS MODELOS DE CARTÃO (use os três, nesta proporção aproximada: 50% basico, 25% lacuna, 25% ce)\n- \"basico\" — pergunta e resposta.\n  frente: \"Qual o prazo para concluir o IP com o indiciado preso?\"  verso: \"10 dias.\"\n- \"lacuna\" — complete a lacuna. A palavra escondida vai entre chaves duplas {{ }} dentro da \"frente\". Esconda SÓ a palavra que a banca troca. Uma lacuna por cartão. O \"verso\" é um complemento opcional (pode ser \"\").\n  frente: \"O crime de tortura é {{inafiançável}} e insuscetível de graça ou anistia.\"  verso: \"\"\n- \"ce\" — certo ou errado, no estilo da banca. A \"frente\" é uma afirmação como a banca cobraria (muitas vezes com a pegadinha). \"gabarito\" é \"C\" ou \"E\". O \"verso\" explica em uma ou duas frases por que está certo ou errado. Equilibre: metade C e metade E.\n  frente: \"A pena por tortura será cumprida em regime integralmente fechado.\"  gabarito: \"E\"  verso: \"O regime é INICIALMENTE fechado (art. 1º, § 7º).\"\n\nFORMATO DE SAÍDA\nResponda SOMENTE com um array JSON válido, sem texto antes ou depois, sem blocos ``` e sem comentários. Cada cartão:\n{\n  \"codigo_externo\": \"PREFIXO-001\",\n  \"disciplina\": \"Legislação Penal Especial\",\n  \"assunto\": \"Lei de Tortura (Lei 9.455/1997)\",\n  \"tipo\": \"basico\",\n  \"frente\": \"...\",\n  \"verso\": \"...\",\n  \"gabarito\": null,\n  \"fundamento\": \"...\"\n}\nRegras do JSON:\n- \"codigo_externo\": o prefixo informado + número sequencial com 3 dígitos (PREFIXO-001, PREFIXO-002...). Nunca repita código.\n- \"tipo\": exatamente \"basico\", \"lacuna\" ou \"ce\".\n- \"gabarito\": \"C\" ou \"E\" nos cartões \"ce\"; null nos outros.\n- Use o mesmo nome de \"disciplina\" em todos os cartões do lote. Em \"assunto\", use nomes curtos e iguais para cartões do mesmo tema (é assim que a plataforma monta os baralhos).\n- Não repita a mesma informação em dois cartões do mesmo modelo.\n\nCHECAGEM ANTES DE ENTREGAR (faça mentalmente)\n- [ ] Cada cartão tem uma única informação e frente com até 200 caracteres.\n- [ ] Todo \"lacuna\" tem exatamente uma {{ }} na frente.\n- [ ] Todo \"ce\" tem gabarito C ou E, e o lote tem C e E equilibrados.\n- [ ] Nenhum artigo, prazo ou pena inventado; tudo confere com a lei atualizada.\n- [ ] A quantidade pedida foi entregue. Se não couber numa resposta, pare ao fim de um cartão completo, feche o array com ] e, quando eu escrever \"continue\", mande o resto em um novo array, continuando a numeração.\n"
+let _concursos=[],_cards=[],_lote=null,_pag=0
+const PP=25
+function esc(s){return FC.esc(s)}
+function normT(s){return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9{}]+/g,' ').trim()}
+function nomeConc(id){const c=_concursos.find(function(x){return String(x.id)===String(id)});return c?c.nome:''}
+
+async function ehAdmin(){
+  try{const r=await _supabase.rpc('eh_admin');if(!r.error)return !!r.data}catch(e){}
+  const { data:{user} }=await _supabase.auth.getUser()
+  const { data:x }=await _supabase.from('alunos').select('id').eq('id',user.id).maybeSingle()
+  return !x
+}
+async function todas(fab){
+  let out=[],de=0
+  for(let g=0;g<50;g++){
+    const r=await fab().range(de,de+999)
+    if(r.error)throw r.error
+    out=out.concat(r.data||[])
+    if(!r.data||r.data.length<1000)break
+    de+=1000
+  }
+  return out
+}
+
+function aba(id){
+  document.querySelectorAll('.aba-conteudo').forEach(function(e){e.style.display='none'})
+  document.querySelectorAll('.aba-btn').forEach(function(e){e.classList.toggle('ativa',e.dataset.a===id)})
+  document.getElementById(id).style.display='block'
+  if(id==='a-ger'){preencherFiltros();listar(0)}
+  if(id==='a-prompt')montarPrompt()
+  if(id==='a-criar')renderUltimos()
+}
+
+async function init(){
+  const { data:{user} }=await _supabase.auth.getUser()
+  if(!user){location.href='index.html';return}
+  if(!(await ehAdmin())){location.href='flashcards.html';return}
+  const { data:c }=await _supabase.from('concursos').select('id,nome').order('nome')
+  _concursos=c||[]
+  ;['imp-conc','g-conc'].forEach(function(id){
+    const s=document.getElementById(id)
+    _concursos.forEach(function(x){s.innerHTML+='<option value="'+esc(x.id)+'">'+esc(x.nome)+'</option>'})
+  })
+  await carregar()
+  montarPrompt()
+}
+
+async function carregar(){
+  try{
+    _cards=await todas(function(){return _supabase.from('flashcards').select('*').eq('autor_tipo','mentor').order('criado_em',{ascending:false})})
+  }catch(e){
+    const falta=/relation|does not exist|schema cache/i.test(e.message||'')
+    document.getElementById('aviso-sql').innerHTML='<div class="card" style="border-color:var(--erro)"><strong style="color:var(--erro)">'
+      +(falta?'Os flashcards ainda nao foram ativados no banco.':'Erro ao carregar: '+esc(e.message))+'</strong>'
+      +(falta?'<p style="color:var(--tx2);font-size:13px;margin-top:6px">Rode o arquivo <strong>atualizacao-flashcards.sql</strong> no Supabase (SQL Editor) e recarregue esta pagina.</p>':'')+'</div>'
+    _cards=[]
+  }
+  renderStats()
+  listasDatalist()
+  renderUltimos()
+}
+
+async function renderStats(){
+  const ativos=_cards.filter(function(c){return c.ativo!==false}).length
+  const ds={};_cards.forEach(function(c){ds[c.disciplina]=1})
+  let deAlunos='—',estudando='—'
+  try{
+    const a=await todas(function(){return _supabase.from('flashcards').select('id').eq('autor_tipo','aluno')})
+    deAlunos=a.length
+    const p=await todas(function(){return _supabase.from('flashcard_progresso').select('aluno_id')})
+    const s={};p.forEach(function(x){s[x.aluno_id]=1});estudando=Object.keys(s).length
+  }catch(e){}
+  document.getElementById('stats').innerHTML=
+    [[_cards.length,'Cartoes do Jota','var(--ouro)'],[ativos,'Ativos','var(--ok)'],[Object.keys(ds).length,'Disciplinas','var(--info)'],
+     [deAlunos,'Criados pelos alunos','var(--roxo)'],[estudando,'Alunos estudando','var(--tx)']]
+    .map(function(x){return '<div class="st-c"><div class="st-n" style="color:'+x[2]+'">'+x[0]+'</div><div class="st-l">'+x[1]+'</div></div>'}).join('')
+}
+
+function listas(){
+  const d={},a={}
+  _cards.forEach(function(c){if(c.disciplina)d[c.disciplina]=1;if(c.assunto)a[c.assunto]=1})
+  return {disciplinas:Object.keys(d).sort(),assuntos:Object.keys(a).sort()}
+}
+function listasDatalist(){
+  const l=listas()
+  document.getElementById('dl-disc').innerHTML=l.disciplinas.map(function(x){return '<option value="'+esc(x)+'">'}).join('')
+  document.getElementById('dl-ass').innerHTML=l.assuntos.map(function(x){return '<option value="'+esc(x)+'">'}).join('')
+}
+
+function cartaoHTML(c,acoes){
+  return '<div class="fca'+(c.ativo===false?' off':'')+'">'
+    +'<div class="fca-h"><span style="color:var(--ouro);font-size:12px;font-weight:800">'+esc(c.disciplina)+'</span>'
+    +(c.assunto?'<span style="color:var(--tx3);font-size:12px">› '+esc(c.assunto)+'</span>':'')
+    +'<span class="tg">'+esc(FC.TIPOS[c.tipo]||c.tipo)+'</span>'
+    +(c.concurso_id?'<span class="tg" style="color:var(--info)">'+esc(nomeConc(c.concurso_id)||'concurso')+'</span>':'<span class="tg">todos os concursos</span>')
+    +(c.ativo===false?'<span class="tg" style="color:var(--erro)">INATIVO</span>':'')
+    +(c.codigo_externo?'<span style="margin-left:auto;color:var(--tx4);font-size:11px;font-family:ui-monospace,monospace">'+esc(c.codigo_externo)+'</span>':'')+'</div>'
+    +'<div class="lado">FRENTE</div><div style="font-size:14px;line-height:1.55;white-space:pre-wrap">'+FC.frenteHTML(c)+'</div>'
+    +'<div class="lado">VERSO</div><div style="font-size:13.5px">'+FC.versoHTML(c)+'</div>'
+    +(acoes||'')+'</div>'
+}
+
+/* ---------- criar ---------- */
+function novo(){
+  const l=listas()
+  FC.abrir({autor:'mentor',concursos:_concursos,disciplinas:l.disciplinas,assuntos:l.assuntos,lote:true,titulo:'Novo flashcard do Jota',
+    onSalvo:function(c){_cards.unshift(c);renderStats();listasDatalist();renderUltimos()}})
+}
+function editar(id){
+  const c=_cards.find(function(x){return x.id===id}); if(!c)return
+  const l=listas()
+  FC.abrir({autor:'mentor',card:c,concursos:_concursos,disciplinas:l.disciplinas,assuntos:l.assuntos,titulo:'Editar flashcard do Jota',
+    onSalvo:function(n){Object.assign(c,n);listar(_pag);renderUltimos()}})
+}
+function renderUltimos(){
+  const box=document.getElementById('ultimos'); if(!box)return
+  const u=_cards.slice(0,8)
+  box.innerHTML=u.length?u.map(function(c){return cartaoHTML(c,acoesHTML(c))}).join(''):'<p style="color:var(--tx3);font-size:13px">Nenhum flashcard do Jota ainda.</p>'
+}
+function acoesHTML(c){
+  return '<div style="display:flex;gap:7px;margin-top:10px;flex-wrap:wrap">'
+    +'<button class="bt-p" onclick="editar(\''+c.id+'\')">✎ Editar</button>'
+    +'<button class="bt-p" onclick="alternar(\''+c.id+'\')">'+(c.ativo===false?'Ativar':'Desativar')+'</button>'
+    +'<button class="bt-p" style="color:var(--erro)" onclick="excluir(\''+c.id+'\')">Excluir</button></div>'
+}
+async function alternar(id){
+  const c=_cards.find(function(x){return x.id===id}); if(!c)return
+  const v=c.ativo===false
+  const r=await _supabase.from('flashcards').update({ativo:v}).eq('id',id)
+  if(r.error){alert('Erro: '+r.error.message);return}
+  c.ativo=v;listar(_pag);renderUltimos();renderStats()
+}
+async function excluir(id){
+  if(!confirm('Excluir este flashcard? O progresso dos alunos nele tambem sera apagado.\n\nSe quiser so tirar do ar, use "Desativar".'))return
+  const r=await _supabase.from('flashcards').delete().eq('id',id)
+  if(r.error){alert('Erro: '+r.error.message);return}
+  _cards=_cards.filter(function(c){return c.id!==id});listar(_pag);renderUltimos();renderStats()
+}
+
+/* ---------- importar ---------- */
+function limparImp(){
+  document.getElementById('imp-json').value='';document.getElementById('imp-prev').innerHTML=''
+  document.getElementById('imp-msg').innerHTML='';document.getElementById('btn-imp').style.display='none';_lote=null
+}
+function lerArquivo(f){
+  if(!f)return
+  const r=new FileReader()
+  r.onload=function(){document.getElementById('imp-json').value=String(r.result||'');conferir()}
+  r.readAsText(f,'utf-8')
+}
+function normalizar(o,pad){
+  const t=function(v){return v==null?'':String(v).trim()}
+  let frente=t(o.frente||o.pergunta||o.front||o.afirmacao||o.texto)
+  let verso=t(o.verso||o.resposta||o.back||o.explicacao||o.justificativa)
+  let tipo=t(o.tipo||o.modelo).toLowerCase()
+  let gab=t(o.gabarito||o.resposta_ce).toUpperCase()
+  if(o.gabarito===true)gab='C'; if(o.gabarito===false)gab='E'
+  if(/^CERT/.test(gab))gab='C';else if(/^ERRAD/.test(gab))gab='E'
+  // lacunas no formato do Anki {{c1::texto}} ou [[texto]]
+  frente=frente.replace(/\{\{c\d+::([\s\S]+?)(::[\s\S]*?)?\}\}/g,'{{$1}}').replace(/\[\[([\s\S]+?)\]\]/g,'{{$1}}')
+  if(/lacuna|cloze|omiss|complet/.test(tipo))tipo='lacuna'
+  else if(/^ce$|certo|c\/e|julg/.test(tipo))tipo='ce'
+  else if(/basic|pergunta|resposta|qa|^$/.test(tipo))tipo=''
+  if(!tipo)tipo=(gab==='C'||gab==='E')?'ce':(/\{\{[\s\S]+?\}\}/.test(frente)?'lacuna':'basico')
+  if(tipo==='lacuna'&&!/\{\{/.test(frente)&&/_{3,}/.test(frente)&&verso&&verso.length<60){frente=frente.replace(/_{3,}/,'{{'+verso+'}}');verso=''}
+  return {
+    codigo_externo:t(o.codigo_externo||o.codigo||o.id)||null,
+    disciplina:t(o.disciplina)||pad.disciplina,
+    assunto:t(o.assunto||o.topico||o.tema)||pad.assunto||null,
+    tipo:tipo,frente:frente,verso:verso,gabarito:tipo==='ce'?gab:null,
+    fundamento:t(o.fundamento||o.base_legal||o.artigo)||null
+  }
+}
+function conferir(){
+  const msg=document.getElementById('imp-msg'),prev=document.getElementById('imp-prev')
+  document.getElementById('btn-imp').style.display='none';_lote=null;prev.innerHTML=''
+  let txt=document.getElementById('imp-json').value.trim()
+  if(!txt){msg.innerHTML='<span style="color:var(--erro)">Cole o JSON primeiro.</span>';return}
+  txt=txt.replace(/^```(json)?/i,'').replace(/```\s*$/,'').trim()
+  let arr
+  try{arr=JSON.parse(txt)}catch(e){
+    // varios arrays colados em sequencia (respostas "continue")
+    try{arr=JSON.parse('['+txt.replace(/\]\s*\[/g,',').replace(/^\[/,'').replace(/\]\s*$/,'')+']')}catch(e2){
+      msg.innerHTML='<span style="color:var(--erro)">JSON invalido: '+esc(e.message)+'</span><br><span style="color:var(--tx3);font-size:12px">Confira se copiou tudo, do [ ate o ].</span>';return
+    }
+  }
+  if(!Array.isArray(arr)&&arr&&Array.isArray(arr.flashcards))arr=arr.flashcards
+  if(!Array.isArray(arr)&&arr&&Array.isArray(arr.cartoes))arr=arr.cartoes
+  if(!Array.isArray(arr)){msg.innerHTML='<span style="color:var(--erro)">O JSON precisa ser uma lista [ ... ] de cartoes.</span>';return}
+  const pad={disciplina:document.getElementById('imp-disc').value.trim(),assunto:document.getElementById('imp-ass').value.trim()}
+  const cods={},chaves={}
+  _cards.forEach(function(c){if(c.codigo_externo)cods[c.codigo_externo]=1;chaves[normT(c.disciplina)+'|'+normT(c.frente)]=1})
+  const ok=[],ruins=[],rep=[];let dicas=0
+  arr.forEach(function(o,i){
+    if(!o||typeof o!=='object'){ruins.push({n:i+1,e:['item vazio']});return}
+    const c=normalizar(o,pad)
+    const r=FC.conferir(c)
+    if(r.erros.length){ruins.push({n:i+1,c:c,e:r.erros});return}
+    const k=normT(c.disciplina)+'|'+normT(c.frente)
+    if((c.codigo_externo&&cods[c.codigo_externo])||chaves[k]){rep.push(c);return}
+    if(c.codigo_externo)cods[c.codigo_externo]=1
+    chaves[k]=1
+    if(r.dicas.length)dicas++
+    ok.push(c)
+  })
+  _lote=ok
+  const porT={basico:0,lacuna:0,ce:0},porA={};let nc=0,ne=0
+  ok.forEach(function(c){porT[c.tipo]++;const k=c.disciplina+' › '+(c.assunto||'sem assunto');porA[k]=(porA[k]||0)+1;if(c.tipo==='ce'){if(c.gabarito==='C')nc++;else ne++}})
+  msg.innerHTML='<strong style="color:'+(ok.length?'var(--ok)':'var(--erro)')+'">'+ok.length+' cartao(oes) prontos para importar</strong>'
+    +(rep.length?' · <span style="color:var(--alerta)">'+rep.length+' repetido(s) ignorado(s)</span>':'')
+    +(ruins.length?' · <span style="color:var(--erro)">'+ruins.length+' com problema</span>':'')
+  prev.innerHTML=
+    (ok.length?'<div style="background:var(--card2);border-radius:10px;padding:12px;margin-top:10px">'
+      +'<div style="font-size:13px;margin-bottom:8px"><strong>'+porT.basico+'</strong> pergunta/resposta · <strong>'+porT.lacuna+'</strong> lacuna · <strong>'+porT.ce+'</strong> certo/errado'
+      +(porT.ce?' <span style="color:var(--tx3)">('+nc+' C / '+ne+' E)</span>':'')+'</div>'
+      +Object.keys(porA).sort().map(function(k){return '<div style="display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-bottom:1px solid var(--card);font-size:12.5px"><span>'+esc(k)+'</span><span style="color:var(--tx3)">'+porA[k]+'</span></div>'}).join('')
+      +(dicas?'<div style="color:var(--alerta);font-size:12px;margin-top:8px">💡 '+dicas+' cartao(oes) com frente ou verso longo. Importam normalmente; revise depois em Gerenciar se quiser.</div>':'')
+      +'</div>':'')
+    +(ruins.length?'<div style="background:rgba(240,113,113,.07);border:1px solid var(--erro);border-radius:10px;padding:12px;margin-top:10px;font-size:12.5px;color:var(--erro);line-height:1.55"><strong>Ficam de fora:</strong><br>'
+      +ruins.slice(0,15).map(function(x){return 'Cartao '+x.n+(x.c&&x.c.codigo_externo?' ('+esc(x.c.codigo_externo)+')':'')+': '+esc(x.e.join(' '))}).join('<br>')+(ruins.length>15?'<br>...':'')+'</div>':'')
+    +(ok.length?'<div style="color:var(--tx3);font-size:12px;margin:12px 0 6px">Amostra:</div>'+ok.slice(0,3).map(function(c){return cartaoHTML(c,'')}).join(''):'')
+  document.getElementById('btn-imp').style.display=ok.length?'inline-block':'none'
+  document.getElementById('btn-imp').textContent='Importar '+ok.length+' flashcard(s)'
+}
+async function importar(){
+  if(!_lote||!_lote.length)return
+  const conc=document.getElementById('imp-conc').value||null
+  if(!confirm('Importar '+_lote.length+' flashcards do Jota'+(conc?' para '+nomeConc(conc):' para todos os concursos')+'?'))return
+  const msg=document.getElementById('imp-msg')
+  const linhas=_lote.map(function(c){return Object.assign({},c,{autor_tipo:'mentor',aluno_id:null,concurso_id:conc,ativo:true,verso:c.verso||null})})
+  let feitos=[]
+  for(let i=0;i<linhas.length;i+=100){
+    const r=await _supabase.from('flashcards').insert(linhas.slice(i,i+100)).select()
+    if(r.error){msg.innerHTML='<span style="color:var(--erro)">Erro ao importar: '+esc(r.error.message)+'</span>'+(feitos.length?'<br>'+feitos.length+' ja foram importados. Confira em Gerenciar e tente de novo: os repetidos sao ignorados.':'');break}
+    feitos=feitos.concat(r.data||[])
+    msg.innerHTML='Importando... '+feitos.length+'/'+linhas.length
+  }
+  _cards=feitos.slice().reverse().concat(_cards)
+  if(feitos.length===linhas.length){
+    msg.innerHTML='<strong style="color:var(--ok)">✅ '+feitos.length+' flashcards importados!</strong> Os alunos ja podem estudar.'
+    document.getElementById('imp-json').value='';document.getElementById('imp-prev').innerHTML=''
+  }
+  document.getElementById('btn-imp').style.display='none';_lote=null
+  renderStats();listasDatalist();renderUltimos()
+}
+
+/* ---------- gerenciar ---------- */
+function preencherFiltros(){
+  const sd=document.getElementById('g-disc'),v=sd.value
+  const l=listas()
+  sd.innerHTML='<option value="">Todas</option>'+l.disciplinas.map(function(d){return '<option value="'+esc(d)+'"'+(d===v?' selected':'')+'>'+esc(d)+'</option>'}).join('')
+  atualizarAssuntos()
+}
+function atualizarAssuntos(){
+  const d=document.getElementById('g-disc').value, sa=document.getElementById('g-ass'), v=sa.value
+  const a={};_cards.forEach(function(c){if((!d||c.disciplina===d)&&c.assunto)a[c.assunto]=1})
+  sa.innerHTML='<option value="">Todos</option>'+Object.keys(a).sort().map(function(x){return '<option value="'+esc(x)+'"'+(x===v?' selected':'')+'>'+esc(x)+'</option>'}).join('')
+}
+function filtradosGer(){
+  const co=document.getElementById('g-conc').value,d=document.getElementById('g-disc').value,a=document.getElementById('g-ass').value
+  const tp=document.getElementById('g-tipo').value,st=document.getElementById('g-st').value,b=normT(document.getElementById('g-busca').value)
+  return _cards.filter(function(c){
+    if(co!=='__todos'&&String(c.concurso_id||'')!==co)return false
+    if(d&&c.disciplina!==d)return false
+    if(a&&c.assunto!==a)return false
+    if(tp&&c.tipo!==tp)return false
+    if(st==='1'&&c.ativo===false)return false
+    if(st==='0'&&c.ativo!==false)return false
+    if(b&&normT(c.frente+' '+(c.verso||'')+' '+(c.fundamento||'')).indexOf(b)<0)return false
+    return true
+  })
+}
+function listar(p){
+  _pag=p||0
+  const f=filtradosGer(),box=document.getElementById('g-lista')
+  document.getElementById('g-cont').textContent=f.length+' flashcard(s) com este filtro'
+  const parte=f.slice(_pag*PP,(_pag+1)*PP)
+  box.innerHTML=parte.length?parte.map(function(c){return cartaoHTML(c,acoesHTML(c))}).join(''):'<div class="card" style="text-align:center;color:var(--tx3)">Nenhum flashcard encontrado.</div>'
+  const np=Math.ceil(f.length/PP)
+  document.getElementById('g-pag').innerHTML=np>1?(
+    '<button class="bt-p" '+(_pag?'':'disabled ')+'onclick="listar('+(_pag-1)+')">‹ Anterior</button> '
+    +'<span style="color:var(--tx3);font-size:12.5px;margin:0 8px">pagina '+(_pag+1)+' de '+np+'</span> '
+    +'<button class="bt-p" '+(_pag<np-1?'':'disabled ')+'onclick="listar('+(_pag+1)+')">Proxima ›</button>'):''
+}
+async function emMassa(acao){
+  const f=filtradosGer(); if(!f.length){alert('Nenhum flashcard no filtro.');return}
+  const nome={desativar:'DESATIVAR',ativar:'ATIVAR',excluir:'EXCLUIR'}[acao]
+  if(!confirm(nome+' '+f.length+' flashcard(s) do filtro atual?'+(acao==='excluir'?'\n\nIsso apaga tambem o progresso dos alunos nesses cartoes e nao pode ser desfeito.':'')))return
+  if(acao==='excluir'&&prompt('Para confirmar, digite EXCLUIR')!=='EXCLUIR')return
+  const ids=f.map(function(c){return c.id})
+  for(let i=0;i<ids.length;i+=100){
+    const parte=ids.slice(i,i+100)
+    const q=acao==='excluir'?_supabase.from('flashcards').delete().in('id',parte):_supabase.from('flashcards').update({ativo:acao==='ativar'}).in('id',parte)
+    const r=await q
+    if(r.error){alert('Erro: '+r.error.message);break}
+  }
+  if(acao==='excluir'){const s={};ids.forEach(function(x){s[x]=1});_cards=_cards.filter(function(c){return !s[c.id]})}
+  else _cards.forEach(function(c){if(ids.indexOf(c.id)>=0)c.ativo=acao==='ativar'})
+  preencherFiltros();listar(0);renderStats();renderUltimos()
+}
+
+/* ---------- prompt ---------- */
+function sugerirPrefixo(){
+  const ws=normT(document.getElementById('p-ass').value).replace(/[{}]/g,'').split(' ').filter(function(w){return w.length>2&&!/^(lei|dos|das|de|do|da|crimes?|codigo|art|arts)$/.test(w)})
+  const a=ws.filter(function(w){return /[a-z]{3,}/.test(w)})[0]||ws[0]||'FC'
+  const d=new Date()
+  return a.slice(0,5).toUpperCase()+'-'+String(d.getDate()).padStart(2,'0')+String(d.getMonth()+1).padStart(2,'0')
+}
+function montarPrompt(trocouAssunto){
+  const v=function(id){return document.getElementById(id).value.trim()}
+  const pre=document.getElementById('p-pre')
+  if(trocouAssunto||!pre.value.trim()||pre.dataset.auto==='1'){pre.value=sugerirPrefixo();pre.dataset.auto='1'}
+  let p=PROMPT_BASE
+  const troca=function(rot,val){p=p.replace(new RegExp('(- '+rot+': )\\[[^\\]]*\\]'),function(m,a){return val?a+val:m})}
+  troca('Concurso \\/ banca',v('p-conc'))
+  troca('Disciplina',v('p-disc'))
+  troca('Assunto\\(s\\)',v('p-ass'))
+  troca('Quantidade',v('p-qtd')?v('p-qtd')+' cartões':'')
+  troca('Prefixo do código',pre.value.trim())
+  troca('Material de base',v('p-mat'))
+  document.getElementById('p-txt').value=p
+}
+async function copiarPrompt(){
+  const t=document.getElementById('p-txt')
+  let ok=false
+  try{await navigator.clipboard.writeText(t.value);ok=true}catch(e){}
+  if(!ok){t.focus();t.select();try{ok=document.execCommand('copy')}catch(e){}}
+  document.getElementById('p-msg').textContent=ok?'✅ Prompt copiado! Cole numa conversa nova.':'Selecionei o texto: copie com Ctrl+C (ou segure e "Copiar").'
+}
+
+init()
+</script>
+</body>
+</html>
