@@ -545,8 +545,9 @@ async function init(){
     registrarAcesso()
   }
 
-  const { data:sess }=await _supabase.from('sessoes_estudo').select('*')
-    .eq('aluno_id',_alunoId).order('data').order('ordem')
+  let sess=null
+  try{sess=await todasLinhasC(function(){return _supabase.from('sessoes_estudo').select('*').eq('aluno_id',_alunoId).order('data').order('ordem').order('id')})}
+  catch(e){const r=await _supabase.from('sessoes_estudo').select('*').eq('aluno_id',_alunoId).order('data').order('ordem');sess=r.data}
 
   document.getElementById('loading').style.display='none'
   if(!sess||!sess.length){
@@ -1324,10 +1325,23 @@ function vagasFuturas(apartir,quantas){
   }
   return out
 }
+// busca todas as linhas de uma consulta, de 1000 em 1000 (planos longos passam de 1000 sessoes)
+async function todasLinhasC(fabrica){
+  const out=[];let ini=0
+  for(let g=0;g<50;g++){
+    const r=await fabrica().range(ini,ini+999)
+    if(r.error)throw r.error
+    const d=r.data||[]
+    out.push.apply(out,d)
+    if(d.length<1000)break
+    ini+=1000
+  }
+  return out
+}
 async function recarregar(){
-  let q=_supabase.from('sessoes_estudo').select('*').eq('aluno_id',_alunoId)
-  if(_concursoId)q=q.eq('concurso_id',_concursoId)
-  const { data }=await q.order('data').order('ordem')
+  const fab=function(){let q=_supabase.from('sessoes_estudo').select('*').eq('aluno_id',_alunoId);if(_concursoId)q=q.eq('concurso_id',_concursoId);return q.order('data').order('ordem').order('id')}
+  let data
+  try{data=await todasLinhasC(fab)}catch(e){let q=_supabase.from('sessoes_estudo').select('*').eq('aluno_id',_alunoId);if(_concursoId)q=q.eq('concurso_id',_concursoId);data=(await q.order('data').order('ordem')).data}
   _sessoes=data||[]
   indexar();desenhar()
 }
