@@ -1,20 +1,34 @@
+let _entrando = false
 async function login() {
-  const email = document.getElementById('email').value
+  if (_entrando) return
+  const email = document.getElementById('email').value.trim()
   const senha = document.getElementById('senha').value
-  
-  const { data, error } = await _supabase.auth.signInWithPassword({
-    email: email,
-    password: senha
-  })
+  const msg = document.getElementById('msg-erro')
+  const bt = document.querySelector('.login-box button')
+  if (!email || !senha) { msg.style.display = 'block'; msg.textContent = 'Preencha o e-mail e a senha.'; return }
+  _entrando = true
+  if (bt) { bt.disabled = true; bt.textContent = 'Entrando...' }
+
+  const { data, error } = await _supabase.auth.signInWithPassword({ email: email, password: senha })
 
   if (error) {
-    document.getElementById('msg-erro').style.display = 'block'
-    document.getElementById('msg-erro').textContent = 'E-mail ou senha incorretos.'
+    _entrando = false
+    if (bt) { bt.disabled = false; bt.textContent = 'Entrar' }
+    msg.style.display = 'block'
+    msg.textContent = 'E-mail ou senha incorretos.'
     return
   }
 
-  window.location.href = 'dashboard.html'
+  // mentor vai direto para o painel; aluno para a plataforma
+  let admin = false
+  try { const r = await _supabase.rpc('eh_admin'); admin = !r.error && !!r.data } catch (e) {}
+  window.location.href = admin ? 'admin.html' : 'dashboard.html'
 }
+
+// Enter no campo de senha (ou e-mail) ja entra
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Enter' && (e.target.id === 'senha' || e.target.id === 'email')) login()
+})
 async function esqueceuSenha() {
   const email = document.getElementById('email').value
   if (!email) {
