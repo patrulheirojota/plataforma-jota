@@ -29,12 +29,46 @@ REGRAS IMPORTANTES
 - Nao responda temas fora do escopo de concursos e estudo. Se fugir do assunto, redirecione com gentileza.
 - Nunca escreva ou corrija provas em andamento, nem ajude em qualquer forma de fraude.`
 
+// So o site da mentoria pode chamar esta funcao, e so com aluno logado.
+// (antes qualquer pessoa na internet podia usar e gastar os creditos da API)
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://hlygwqftnfmywsmajvkz.supabase.co'
+const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY || 'sb_publishable_g1To88yIFAty6kkkIeskkQ_XrSkGOaA'
+const ORIGENS = ['https://patrulheirojota.com.br', 'https://www.patrulheirojota.com.br']
+const LIMITE_POR_HORA = 40
+const _uso = {}   // limite simples por usuario (por instancia do servidor)
+
+async function usuarioLogado(req) {
+  const h = req.headers.authorization || ''
+  const token = h.indexOf('Bearer ') === 0 ? h.slice(7) : ''
+  if (!token) return null
+  try {
+    const r = await fetch(SUPABASE_URL + '/auth/v1/user', {
+      headers: { Authorization: 'Bearer ' + token, apikey: SUPABASE_KEY }
+    })
+    if (!r.ok) return null
+    const u = await r.json()
+    return u && u.id ? u : null
+  } catch (e) { return null }
+}
+
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
+  const origem = req.headers.origin || ''
+  const permitida = ORIGENS.indexOf(origem) >= 0 || /\.vercel\.app$/.test(origem)
+  if (permitida) res.setHeader('Access-Control-Allow-Origin', origem)
+  res.setHeader('Vary', 'Origin')
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
   if (req.method === 'OPTIONS') return res.status(200).end()
   if (req.method !== 'POST') return res.status(405).json({ erro: 'Metodo nao permitido' })
+  if (origem && !permitida) return res.status(403).json({ erro: 'Origem nao permitida.' })
+
+  const usuario = await usuarioLogado(req)
+  if (!usuario) return res.status(401).json({ erro: 'Entre na plataforma para usar o tutor.' })
+
+  const hora = Math.floor(Date.now() / 3600000)
+  const k = usuario.id + ':' + hora
+  _uso[k] = (_uso[k] || 0) + 1
+  if (_uso[k] > LIMITE_POR_HORA) return res.status(429).json({ erro: 'Limite de perguntas por hora atingido. Tente mais tarde.' })
 
   const chave = process.env.ANTHROPIC_API_KEY
   if (!chave) {
