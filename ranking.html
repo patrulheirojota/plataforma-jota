@@ -201,6 +201,22 @@ async function carregar(){
   document.getElementById('conteudo').style.display='none'
   const desde=inicioPeriodo()
 
+  // 1) caminho seguro: o banco soma tudo e devolve so o resultado (nenhum aluno ve dados de outro)
+  try{
+    const r=await _supabase.rpc('ranking_alunos',{p_desde:desde,p_desde_ts:new Date(desde+'T00:00:00').toISOString()})
+    if(!r.error&&Array.isArray(r.data)){
+      _dados=r.data.map(function(x){
+        const q=Number(x.questoes)||0,ac=Number(x.acertos)||0
+        return {id:x.id,nome:x.nome||'',concurso:x.concurso||'',min:Number(x.minutos)||0,q:q,ac:ac,ndias:Number(x.dias)||0,pct:q>0?Math.round(ac/q*100):0}
+      })
+      document.getElementById('loading').style.display='none'
+      document.getElementById('conteudo').style.display='block'
+      render()
+      return
+    }
+  }catch(e){}
+  // 2) caminho antigo (enquanto o SQL novo nao foi rodado)
+
   // 3 consultas apenas, independente do numero de alunos
   // de 1000 em 1000: sem isso o ranking ficava incompleto (o Supabase corta em 1000 linhas)
   const [ra,rs,rq,rr]=await Promise.all([
