@@ -1157,7 +1157,17 @@ async function paraCaderno(id){
 async function carregarComentarios(id){
   const box=document.getElementById('tab-'+id)
   box.innerHTML='<div style="color:var(--tx3);font-size:12px;padding:10px">Carregando...</div>'
-  const { data:cs }=await _supabase.from('questao_comentarios').select('*, alunos(nome)').eq('questao_id',id).order('criado_em',{ascending:false})
+  const { data:cs }=await _supabase.from('questao_comentarios').select('*').eq('questao_id',id).order('criado_em',{ascending:false})
+  // nome de quem comentou: o banco devolve so o primeiro nome + inicial (o aluno nao ve os dados dos colegas)
+  const sem=(cs||[]).map(function(c){return c.aluno_id}).filter(function(x,i,a){return x&&a.indexOf(x)===i})
+  if(sem.length){
+    let nomes={}
+    try{const r=await _supabase.rpc('nomes_publicos',{p_ids:sem});(r.data||[]).forEach(function(x){nomes[x.id]=x.nome})}catch(e){}
+    if(!Object.keys(nomes).length){
+      try{const r=await _supabase.from('alunos').select('id,nome').in('id',sem);(r.data||[]).forEach(function(x){nomes[x.id]=x.nome})}catch(e){}
+    }
+    ;(cs||[]).forEach(function(c){c.alunos={nome:nomes[c.aluno_id]||'Aluno'}})
+  }
   box.innerHTML=
     '<div style="margin-top:10px"><textarea class="inp" id="nc-'+id+'" placeholder="Deixe seu bizu ou duvida sobre esta questao..." style="min-height:70px;resize:vertical;font-family:inherit"></textarea>'
    +'<button class="btn" style="margin-top:8px" onclick="comentar(\''+id+'\')">Publicar comentario</button>'
