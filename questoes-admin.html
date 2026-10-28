@@ -920,13 +920,28 @@ async function mpExcluir(id){
   mpListar()
 }
 
+
+// busca todas as linhas de uma consulta, de 1000 em 1000 (limite do Supabase)
+async function todasLinhasQA(fabrica){
+  const out=[];let ini=0
+  for(let g=0;g<200;g++){
+    const r=await fabrica().range(ini,ini+999)
+    if(r.error)throw r.error
+    const d=r.data||[]
+    out.push.apply(out,d)
+    if(d.length<1000)break
+    ini+=1000
+  }
+  return out
+}
+
 // ================= CADASTRO MANUAL =================
 let _manTipo='certo_errado', _manGab=null, _manEdit=null, _manCont=0
 const LETRAS='ABCDE'
 
 async function carregarListasMan(){
   try{
-    const { data }=await _supabase.from('questoes').select('disciplina,assunto').limit(5000)
+    const data=await todasLinhasQA(function(){return _supabase.from('questoes').select('disciplina,assunto').order('id')})
     const d={},a={}
     ;(data||[]).forEach(function(q){ if(q.disciplina)d[q.disciplina]=1; if(q.assunto)a[q.assunto]=1 })
     document.getElementById('dl-disc').innerHTML=Object.keys(d).sort().map(function(x){return '<option value="'+escA(x)+'">'}).join('')
@@ -1505,7 +1520,8 @@ async function prepararVinculo(){
     s.innerHTML=(id==='v-origem'?'<option value="">Todo o banco</option>':'<option value="">Selecione o concurso destino</option>')
     _concursos.forEach(function(c){ s.innerHTML+='<option value="'+c.id+'">'+esc(c.nome)+'</option>' })
   })
-  const { data:qs }=await _supabase.from('questoes').select('disciplina,banca')
+  let qs=[]
+  try{qs=await todasLinhasQA(function(){return _supabase.from('questoes').select('disciplina,banca').order('id')})}catch(e){qs=[]}
   const d={},b={}
   ;(qs||[]).forEach(function(q){ if(q.disciplina)d[q.disciplina]=(d[q.disciplina]||0)+1; if(q.banca)b[q.banca]=1 })
   document.getElementById('v-discs').innerHTML=Object.keys(d).sort().map(function(x){
