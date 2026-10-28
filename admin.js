@@ -207,7 +207,8 @@ function calcularDataExpiracao(meses) {
   if (!meses || meses === '0') return null
   const data = new Date()
   data.setMonth(data.getMonth() + parseInt(meses))
-  return data.toISOString().split('T')[0]
+  // data no horario local (toISOString usava o horario de Londres: depois das 21h dava 1 dia a mais)
+  return data.getFullYear() + '-' + String(data.getMonth()+1).padStart(2,'0') + '-' + String(data.getDate()).padStart(2,'0')
 }
 
 async function criarAluno() {
@@ -418,6 +419,9 @@ function renderizarListaAlunos(alunos) {
     const plano  = tempoRelativo(al.plano)
 
     const bloq = alunoBloqueado(a)
+    // nome/e-mail seguros dentro do onclick (nomes com apostrofo, ex.: D'Avila, quebravam os botoes)
+    const jsTxt = function(v){ return String(v==null?'':v).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;') }
+    const nomeJs = jsTxt(a.nome), emailJs = jsTxt(a.email)
     const ci = (window._ciclos||{})[a.id]
     const corEstudo = !al.estudo ? 'var(--erro)'
       : (Math.floor((Date.now()-new Date(al.estudo+'T12:00:00').getTime())/86400000) > 3 ? 'var(--alerta)' : 'var(--ok)')
@@ -455,13 +459,13 @@ function renderizarListaAlunos(alunos) {
         <button class="btn-acao btn-editar" onclick="location.href='cronograma.html?aluno=${a.id}&carga=1'" title="Aumentar ou reduzir a carga horaria sem reiniciar o plano"><span class="ic">⏱️</span><span class="lb">Carga horaria</span></button>
         <button class="btn-acao btn-editar" onclick="location.href='cronograma.html?aluno=${a.id}&pausa=1'" title="Pausar ou retomar o cronograma (o prazo da mentoria continua contando)"${al.pausa?' style="background:var(--alerta);color:#0a1420;border:1px solid var(--alerta);font-weight:700"':''}><span class="ic">${al.pausa?'▶️':'⏸️'}</span><span class="lb">${al.pausa?'Retomar plano':'Pausar plano'}</span></button>
         ${bloq ? `<button class="btn-acao" onclick="reativarAluno('${a.id}','${String(a.nome).replace(/'/g,"\\'")}')" style="background:var(--ok);color:#0a1420;border:1px solid var(--ok);font-weight:700"><span class="ic">🔓</span><span class="lb">Reativar</span></button>` : ''}
-        <button class="btn-acao btn-editar" onclick="abrirEditarAluno('${a.id}','${a.nome}','${a.email}','${a.concurso_id||''}')"><span class="ic">✏️</span><span class="lb">Editar</span></button>
-        <button class="btn-acao btn-editar" onclick="gerenciarConcursosAluno('${a.id}','${a.nome}')"><span class="ic">🏆</span><span class="lb">Concursos</span></button>
-        <button class="btn-acao btn-editar" onclick="irParaCronogramaAluno('${a.id}','${a.nome}')" style="background:var(--hov);color:var(--info);border:1px solid var(--info)"><span class="ic">📅</span><span class="lb">Cronograma</span></button>
+        <button class="btn-acao btn-editar" onclick="abrirEditarAluno('${a.id}','${nomeJs}','${emailJs}','${a.concurso_id||''}')"><span class="ic">✏️</span><span class="lb">Editar</span></button>
+        <button class="btn-acao btn-editar" onclick="gerenciarConcursosAluno('${a.id}','${nomeJs}')"><span class="ic">🏆</span><span class="lb">Concursos</span></button>
+        <button class="btn-acao btn-editar" onclick="irParaCronogramaAluno('${a.id}','${nomeJs}')" style="background:var(--hov);color:var(--info);border:1px solid var(--info)"><span class="ic">📅</span><span class="lb">Cronograma</span></button>
         <button class="btn-acao" onclick="abrirRelatorioCiclo('${a.id}')" style="background:${(ci&&ci.vencido)?'var(--alerta)':'var(--card2)'};color:${(ci&&ci.vencido)?'#0a1420':'var(--alerta)'};border:1px solid var(--alerta);font-weight:700"><span class="ic">🗓️</span><span class="lb">Relatorio 21d</span></button>
         <button class="btn-acao btn-editar" onclick="anotarAluno('${a.id}','${String(a.nome).replace(/'/g,"\\'")}')"><span class="ic">📝</span><span class="lb">Anotar</span></button>
         <button class="btn-acao btn-info" onclick="avisoParaAluno('${a.id}','${String(a.nome).replace(/'/g,"\\'")}')"><span class="ic">🔔</span><span class="lb">Aviso</span></button>
-        <button class="btn-acao btn-excluir" onclick="confirmarExcluirAluno('${a.id}','${a.nome}')"><span class="ic">🗑️</span><span class="lb">Excluir</span></button>
+        <button class="btn-acao btn-excluir" onclick="confirmarExcluirAluno('${a.id}','${nomeJs}')"><span class="ic">🗑️</span><span class="lb">Excluir</span></button>
       </div>
     </div>`
   })
@@ -498,12 +502,29 @@ async function reativarAluno(aluno_id, nome) {
 }
 
 // Alertas: quem mexeu no cronograma e quem esta fraco em alguma disciplina
+// busca todas as linhas de uma consulta, de 1000 em 1000 (limite do Supabase)
+async function todasLinhasA(fabrica) {
+  const out = []; let ini = 0
+  for (let g = 0; g < 200; g++) {
+    const r = await fabrica().range(ini, ini + 999)
+    if (r.error) throw r.error
+    const d = r.data || []
+    out.push.apply(out, d)
+    if (d.length < 1000) break
+    ini += 1000
+  }
+  return out
+}
+
 async function carregarAlertas() {
   const alertas = {}
 
+  // O Supabase devolve no maximo 1000 linhas por consulta: com muitos alunos, o "ultimo estudo"
+  // e o "fraco em" saiam errados. Agora busca tudo, de 1000 em 1000.
+  const d90 = new Date(); d90.setDate(d90.getDate() - 90)
   const [rl, rs, rr] = await Promise.all([
-    _supabase.from('cronograma_log').select('*').order('criado_em',{ascending:false}),
-    _supabase.from('sessoes_estudo').select('aluno_id,disciplina,questoes_feitas,questoes_certas,concluida,data'),
+    todasLinhasA(function(){ return _supabase.from('cronograma_log').select('aluno_id,acao,detalhe,criado_em,visto,por_mentor').gte('criado_em', d90.toISOString()).order('criado_em',{ascending:false}).order('id') }).then(function(d){return {data:d}}).catch(function(){ return _supabase.from('cronograma_log').select('*').order('criado_em',{ascending:false}) }),
+    todasLinhasA(function(){ return _supabase.from('sessoes_estudo').select('aluno_id,disciplina,questoes_feitas,questoes_certas,concluida,data').eq('concluida',true).order('id') }).then(function(d){return {data:d}}).catch(function(){ return {data:[]} }),
     _supabase.from('config_cronograma').select('*')
   ])
 
