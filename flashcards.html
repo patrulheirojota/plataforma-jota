@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flashcards — Patrulheiros de Elite</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{--ouro:#C9A83C;--bg:#0a1420;--bg2:#0c1826;--card:#101d2c;--card2:#0d1a28;--btn:#132030;--bd:#1b2c40;--bd2:#24384f;--tx:#e8edf4;--tx2:#8fa5bd;--tx3:#63809e;--tx4:#4d6684;--hov:#16283c}
+  [data-tema="claro"]{--bg:#eef1f6;--bg2:#fff;--card:#fff;--card2:#f7f9fc;--btn:#fff;--bd:#dde4ed;--bd2:#c6d2e0;--tx:#0f1b2a;--tx2:#4a5f78;--tx3:#66809b;--tx4:#8fa2b8;--hov:#eaf0f8}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--tx);min-height:100vh}
+  .shell{display:flex;min-height:100vh}
+  .side{width:236px;background:var(--bg2);border-right:1px solid var(--bd);padding:20px 14px;display:flex;flex-direction:column;position:fixed;top:0;bottom:0;left:0;overflow-y:auto;z-index:30}
+  .logo{display:flex;align-items:center;gap:10px;padding:0 8px 22px}
+  .logo-i{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--ouro),#8a6f1e);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;overflow:hidden}
+  .logo-t{font-size:14px;font-weight:800;line-height:1.2}
+  .logo-t span{color:var(--ouro);display:block;font-size:11px;font-weight:600}
+  .nav-i{display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:11px;color:var(--tx2);font-size:14px;cursor:pointer;margin-bottom:3px;border:1px solid transparent;font-weight:500}
+  .nav-i:hover{background:var(--btn);color:var(--tx)}
+  .nav-i.on{background:var(--hov);color:var(--ouro);border-color:var(--bd2);font-weight:600}
+  .nav-ic{width:19px;text-align:center;font-size:15px;flex-shrink:0}
+  .side-sep{height:1px;background:var(--bd);margin:10px 6px}
+  .side-b{margin-top:auto;padding-top:14px}
+  .main{flex:1;margin-left:236px;padding:22px 24px 60px;min-width:0}
+  .topbar{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px}
+  .h2{font-size:25px;font-weight:800;letter-spacing:-.6px}
+  .h2s{color:var(--tx3);font-size:13px;margin-top:2px}
+  .btn{padding:9px 15px;border-radius:9px;border:1px solid var(--bd2);background:var(--btn);color:var(--tx2);font-size:13px;cursor:pointer;font-weight:600;white-space:nowrap;font-family:inherit}
+  .btn:hover{border-color:var(--ouro);color:var(--tx)}
+  .btn-ouro{background:var(--ouro);border-color:var(--ouro);color:#0a1420;font-weight:800}
+  .btn-ouro:hover{color:#0a1420}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .painel{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:18px;margin-bottom:14px}
+  .vazio{text-align:center;padding:46px 20px;color:var(--tx3)}
+  .chips{display:flex;gap:6px;flex-wrap:wrap}
+  .chip{padding:7px 13px;border-radius:20px;border:1px solid var(--bd2);background:var(--bg);color:var(--tx3);font-size:12px;cursor:pointer;font-weight:600}
+  .chip.on{background:var(--ouro);color:#0a1420;border-color:var(--ouro)}
+  .dchip{padding:6px 12px;border-radius:8px;border:1px solid var(--bd2);background:var(--bg);color:var(--tx3);font-size:12px;cursor:pointer}
+  .dchip.on{background:var(--hov);border-color:var(--ouro);color:var(--ouro);font-weight:600}
+  .lbl{color:var(--tx3);font-size:11px;font-weight:700;display:block;margin-bottom:7px;letter-spacing:.3px}
+  /* hero */
+  .hero{background:linear-gradient(135deg,rgba(201,168,60,.13),rgba(201,168,60,.02));border:1px solid rgba(201,168,60,.45);border-radius:18px;padding:20px;margin-bottom:14px;display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+  .hero-n{font-size:46px;font-weight:900;color:var(--ouro);line-height:1}
+  .hero-t{flex:1;min-width:200px}
+  .est{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:14px}
+  .est-c{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px 8px;text-align:center}
+  .est-n{font-size:20px;font-weight:800}
+  .est-l{color:var(--tx3);font-size:11px;margin-top:2px}
+  @media(max-width:520px){.est{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  /* baralhos */
+  .disc{border:1px solid var(--bd);border-radius:13px;margin-bottom:9px;overflow:hidden;background:var(--card)}
+  .disc-h{display:flex;align-items:center;gap:10px;padding:13px 14px;cursor:pointer}
+  .disc-n{flex:1;font-weight:800;font-size:14px;min-width:0}
+  .disc-b{display:none;border-top:1px solid var(--bd)}
+  .disc.on .disc-b{display:block}
+  .deck{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--bd);flex-wrap:wrap}
+  .deck:last-child{border-bottom:none}
+  .deck-n{flex:1;min-width:150px;font-size:13.5px;line-height:1.35}
+  .cnt{font-size:11.5px;font-weight:800;padding:2px 8px;border-radius:9px;white-space:nowrap}
+  .cnt.dev{background:rgba(240,113,113,.14);color:#f07171}
+  .cnt.nov{background:rgba(91,179,240,.14);color:#5bb3f0}
+  .cnt.tot{background:var(--card2);color:var(--tx3)}
+  /* estudo */
+  .est-top{display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+  .bar{height:8px;border-radius:20px;background:var(--card2);overflow:hidden;flex:1;min-width:120px}
+  .bar-f{height:100%;background:var(--ouro);border-radius:20px;transition:width .3s}
+  .carta{background:var(--card);border:1px solid var(--bd2);border-radius:20px;padding:22px 20px;min-height:280px;display:flex;flex-direction:column;box-shadow:0 10px 30px rgba(0,0,0,.18);max-width:720px;margin:0 auto}
+  .carta-h{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+  .carta-d{color:var(--ouro);font-size:12px;font-weight:800}
+  .carta-a{color:var(--tx3);font-size:12px}
+  .carta-f{font-size:19px;line-height:1.6;font-weight:600;white-space:pre-wrap;flex:1}
+  .carta-v{border-top:1px dashed var(--bd2);margin-top:18px;padding-top:16px}
+  .acoes{max-width:720px;margin:14px auto 0}
+  .rev{width:100%;padding:16px;font-size:16px;border-radius:14px}
+  .notas{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+  .notas.tres{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .nota{padding:12px 4px;border-radius:13px;border:1px solid var(--bd2);background:var(--btn);cursor:pointer;text-align:center;font-family:inherit;color:var(--tx)}
+  .nota b{display:block;font-size:14px}
+  .nota small{display:block;color:var(--tx3);font-size:11px;margin-top:3px;font-weight:600}
+  .nota.n1{border-color:#f07171}.nota.n1 b{color:#f07171}
+  .nota.n2{border-color:#e8b04b}.nota.n2 b{color:#e8b04b}
+  .nota.n3{border-color:#6ddba0}.nota.n3 b{color:#6ddba0}
+  .nota.n4{border-color:#5bb3f0}.nota.n4 b{color:#5bb3f0}
+  .ce2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .ce2 button{padding:16px;border-radius:14px;font-size:16px;font-weight:900;cursor:pointer;font-family:inherit}
+  .ce2 .c{background:rgba(109,219,160,.12);border:1px solid #6ddba0;color:#6ddba0}
+  .ce2 .e{background:rgba(240,113,113,.12);border:1px solid #f07171;color:#f07171}
+  .resp-ce{border-radius:11px;padding:10px 13px;font-weight:800;font-size:14px;margin-bottom:10px}
+  .resp-ce.ok{background:rgba(109,219,160,.12);color:#6ddba0;border:1px solid #6ddba0}
+  .resp-ce.no{background:rgba(240,113,113,.12);color:#f07171;border:1px solid #f07171}
+  .meu{background:var(--card);border:1px solid var(--bd);border-left:3px solid #7d5fa8;border-radius:11px;padding:12px 14px;margin-bottom:8px}
+  .guia li{margin:0 0 7px 18px;line-height:1.55;font-size:13px;color:var(--tx2)}
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:#13233a;border:1px solid var(--ouro);color:var(--tx);padding:11px 18px;border-radius:12px;font-size:13.5px;opacity:0;pointer-events:none;transition:.25s;z-index:400;max-width:92vw;text-align:center}
+  .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+  .inp{width:100%;padding:10px;border-radius:9px;border:1px solid var(--bd2);background:var(--bg);color:var(--tx);font-size:13.5px;font-family:inherit}
+  @media(max-width:860px){
+    .side{position:static;width:100%;flex-direction:row;overflow-x:auto;padding:10px;border-right:none;border-bottom:1px solid var(--bd);gap:5px;align-items:center}
+    .logo,.side-sep,.side-b{display:none}
+    .nav-i{margin-bottom:0;white-space:nowrap;padding:9px 13px;font-size:13px}
+    .shell{flex-direction:column}
+    .main{margin-left:0;padding:16px 12px 50px}
+    .carta{padding:18px 15px;min-height:240px}
+    .carta-f{font-size:17px}
+  }
+</style>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0a1420">
+<link rel="apple-touch-icon" href="/icone-192.png">
+</head>
+<body>
+<div class="shell">
+  <aside class="side">
+    <div class="logo"><div class="logo-i">🛡️</div><div class="logo-t">Patrulheiros<span>de Elite</span></div></div>
+    <div class="nav-i" onclick="ir('cronograma.html')"><span class="nav-ic">📅</span>Meu Cronograma</div>
+    <div class="nav-i" onclick="ir('questoes.html')"><span class="nav-ic">❓</span>Questoes</div>
+    <div class="nav-i" onclick="ir('questoes.html#simulados')"><span class="nav-ic">🎯</span>Simulados</div>
+    <div class="nav-i" onclick="ir('questoes.html#materiais')"><span class="nav-ic">📁</span>Materiais</div>
+    <div class="nav-i" onclick="ir('ranking.html')"><span class="nav-ic">🏆</span>Ranking</div>
+    <div class="nav-i" onclick="ir('edital.html')"><span class="nav-ic">📖</span>Edital</div>
+    <div class="side-sep"></div>
+    <div class="nav-i on" onclick="voltarInicio()"><span class="nav-ic">🗂️</span>Flashcards</div>
+    <div class="nav-i" onclick="ir('questoes.html#mapas')"><span class="nav-ic">🧠</span>Mapas mentais</div>
+    <div class="side-sep"></div>
+    <div class="nav-i" onclick="ir('cronograma.html#desempenho')"><span class="nav-ic">📊</span>Desempenho</div>
+    <div class="side-b"><div class="nav-i" id="nav-sair" onclick="sair()"><span class="nav-ic">🚪</span>Sair</div></div>
+  </aside>
+
+  <main class="main">
+    <div id="mentor-bar" style="display:none;position:sticky;top:0;z-index:35;background:linear-gradient(90deg,#3a2c08,#1d1a10);border:1px solid var(--ouro);border-radius:12px;padding:11px 14px;margin-bottom:16px;align-items:center;gap:12px;flex-wrap:wrap"></div>
+    <div class="topbar" id="topbar">
+      <div><div class="h2">Flashcards</div><div class="h2s">Repeticao espacada — um cartao, uma informacao</div></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" onclick="trocarTema()" id="btn-tema" title="Alternar tema">🌙</button>
+      </div>
+    </div>
+
+    <div id="loading" class="vazio">Carregando seus flashcards...</div>
+    <div id="erro" style="display:none"></div>
+
+    <!-- INICIO -->
+    <section id="v-inicio" style="display:none">
+      <div class="hero" id="hero"></div>
+      <div class="est" id="est"></div>
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+        <button class="btn btn-ouro" onclick="novoCartao()" style="padding:11px 18px">+ Criar flashcard</button>
+        <button class="btn" onclick="verMeus()" style="padding:11px 16px">✍️ Meus cartoes</button>
+        <button class="btn" onclick="abrirGuia()" style="padding:11px 16px">📘 Como fazer um bom flashcard</button>
+      </div>
+
+      <div class="painel">
+        <span class="lbl">ORIGEM</span>
+        <div class="chips" id="ch-orig" style="margin-bottom:12px"></div>
+        <span class="lbl">DISCIPLINAS — toque para filtrar</span>
+        <div class="chips" id="ch-disc"></div>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin:4px 2px 10px;flex-wrap:wrap">
+        <div style="font-weight:800;font-size:15px">Baralhos por assunto</div>
+        <div style="color:var(--tx3);font-size:12px"><span class="cnt dev">para hoje</span> <span class="cnt nov">novos</span> <span class="cnt tot">total</span></div>
+      </div>
+      <div id="decks"></div>
+      <div id="rodape" style="margin-top:14px"></div>
+    </section>
+
+    <!-- ESTUDO -->
+    <section id="v-estudo" style="display:none">
+      <div class="est-top">
+        <button class="btn" onclick="pararEstudo()">← Sair</button>
+        <div class="bar"><div class="bar-f" id="bar" style="width:0%"></div></div>
+        <div id="cont" style="color:var(--tx3);font-size:12.5px;font-weight:700;white-space:nowrap"></div>
+      </div>
+      <div id="carta"></div>
+      <div class="acoes" id="acoes"></div>
+      <div id="dica-tecla" style="text-align:center;color:var(--tx4);font-size:11.5px;margin-top:12px"></div>
+    </section>
+
+    <!-- MEUS -->
+    <section id="v-meus" style="display:none">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
+        <button class="btn" onclick="voltarInicio()">← Voltar</button>
+        <input class="inp" id="busca-meus" placeholder="Buscar nos meus cartoes..." oninput="renderMeus()" style="flex:1;min-width:180px">
+        <button class="btn btn-ouro" onclick="novoCartao()">+ Criar</button>
+      </div>
+      <div id="lista-meus"></div>
+    </section>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="config.js"></script>
+<script>
+/* ================= FLASHCARDS: formulario (criar/editar) e desenho do cartao ================= */
+const FC={
+  TIPOS:{basico:'Pergunta e resposta',lacuna:'Complete a lacuna',ce:'Certo ou Errado'},
+  _st:null,
+  esc:function(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')},
+
+  // ---------- desenho ----------
+  frenteHTML:function(c){
+    const e=FC.esc(c.frente||'')
+    if(c.tipo==='lacuna')return e.replace(/\{\{([\s\S]+?)\}\}/g,'<span class="fc-lac">[ . . . ]</span>')
+    return e
+  },
+  versoHTML:function(c){
+    let h=''
+    if(c.tipo==='lacuna'){
+      h='<div class="fc-v-main">'+FC.esc(c.frente||'').replace(/\{\{([\s\S]+?)\}\}/g,'<span class="fc-lac-ok">$1</span>')+'</div>'
+      if(c.verso)h+='<div class="fc-v-ext">'+FC.esc(c.verso)+'</div>'
+    }else if(c.tipo==='ce'){
+      const g=String(c.gabarito||'').toUpperCase()
+      h='<div class="fc-v-ce '+(g==='C'?'c':'e')+'">'+(g==='C'?'✔ CERTO':'✖ ERRADO')+'</div>'
+      if(c.verso)h+='<div class="fc-v-main" style="font-size:15px">'+FC.esc(c.verso)+'</div>'
+    }else{
+      h='<div class="fc-v-main">'+FC.esc(c.verso||'')+'</div>'
+    }
+    if(c.fundamento)h+='<div class="fc-v-fund">📌 '+FC.esc(c.fundamento)+'</div>'
+    return h
+  },
+  selo:function(c){
+    return c.autor_tipo==='mentor'?'<span class="fc-selo jota">🛡️ Flashcard do Jota</span>':'<span class="fc-selo meu">✍️ Meu cartao</span>'
+  },
+
+  // ---------- conferencias de qualidade (metodo: um cartao, uma informacao) ----------
+  conferir:function(c){
+    const erros=[],dicas=[]
+    const fr=String(c.frente||'').trim(), vs=String(c.verso||'').trim()
+    if(!String(c.disciplina||'').trim())erros.push('Informe a disciplina.')
+    if(!fr)erros.push(c.tipo==='ce'?'Escreva a afirmacao.':'Escreva a frente do cartao.')
+    if(c.tipo==='basico'&&!vs)erros.push('Escreva a resposta (verso).')
+    if(c.tipo==='lacuna'&&!/\{\{[\s\S]+?\}\}/.test(fr))erros.push('Marque a lacuna: selecione a palavra e toque em "Esconder palavra" (fica entre {{ }}).')
+    if(c.tipo==='ce'&&['C','E'].indexOf(String(c.gabarito||'').toUpperCase())<0)erros.push('Escolha se a afirmacao e CERTA ou ERRADA.')
+    if(fr.length>260)dicas.push('Frente longa ('+fr.length+' letras). Um cartao, uma informacao: se tiver mais de uma ideia, divida em dois cartoes.')
+    if(vs.length>320)dicas.push('Resposta longa. O verso deve ser seco: a regra, o prazo, o numero. O resto vai no caderno de erros.')
+    if(c.tipo==='basico'&&/\?\s*$/.test(fr)===false&&fr.length>0&&fr.split(' ').length<4)dicas.push('Frente muito curta. Faca uma pergunta direta (ex.: "Prazo do IP com reu preso?").')
+    if(c.tipo==='lacuna'&&(fr.match(/\{\{/g)||[]).length>2)dicas.push('Muitas lacunas no mesmo cartao. O ideal e 1 lacuna por cartao.')
+    if(c.tipo==='basico'&&/^(e |é |sim|nao|não)/i.test(vs)&&vs.length<6)dicas.push('Evite resposta "sim/nao": transforme em pergunta que exija lembrar a regra.')
+    return {erros:erros,dicas:dicas}
+  },
+
+  // ---------- formulario ----------
+  montar:function(){
+    if(document.getElementById('fcm'))return
+    const css=document.createElement('style')
+    css.textContent=''
+      +'.fcm-ov{position:fixed;inset:0;background:rgba(5,10,18,.72);z-index:300;display:none;align-items:flex-start;justify-content:center;padding:18px 10px;overflow-y:auto}'
+      +'.fcm-ov.on{display:flex}'
+      +'.fcm{background:var(--bg2);border:1px solid var(--bd2);border-radius:16px;width:100%;max-width:560px;padding:18px;color:var(--tx)}'
+      +'.fcm *{box-sizing:border-box}'
+      +'.fcm input,.fcm textarea,.fcm select{width:100%;margin:0;padding:10px 12px;border-radius:10px;border:1px solid var(--bd2);background:var(--bg);color:var(--tx);font-size:14px;font-family:inherit}'
+      +'.fcm textarea{resize:vertical;line-height:1.55;min-height:74px}'
+      +'.fcm button{width:auto;margin:0;cursor:pointer;font-family:inherit}'
+      +'.fcm-l{display:block;color:var(--tx3);font-size:12px;font-weight:700;margin:12px 0 5px}'
+      +'.fcm-tp{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}'
+      +'.fcm-tp button{padding:10px 6px;border-radius:10px;border:1px solid var(--bd2);background:var(--card2);color:var(--tx3);font-size:12.5px;font-weight:700;line-height:1.3}'
+      +'.fcm-tp button.on{background:var(--hov);border-color:var(--ouro);color:var(--ouro)}'
+      +'.fcm-b{padding:10px 16px;border-radius:10px;border:1px solid var(--bd2);background:var(--btn,var(--card2));color:var(--tx2);font-size:13px;font-weight:600}'
+      +'.fcm-b.ouro{background:var(--ouro);border-color:var(--ouro);color:#0a1420;font-weight:800}'
+      +'.fcm-ce{display:grid;grid-template-columns:1fr 1fr;gap:8px}'
+      +'.fcm-ce button{padding:11px;border-radius:10px;border:1px solid var(--bd2);background:var(--card2);color:var(--tx3);font-weight:800}'
+      +'.fcm-ce button.c{background:rgba(109,219,160,.15);border-color:#6ddba0;color:#6ddba0}'
+      +'.fcm-ce button.e{background:rgba(240,113,113,.15);border-color:#f07171;color:#f07171}'
+      +'.fcm-g{display:grid;grid-template-columns:1fr 1fr;gap:8px}'
+      +'@media(max-width:480px){.fcm-g{grid-template-columns:1fr}}'
+      +'.fcm-dica{font-size:12px;color:var(--tx4);margin-top:5px;line-height:1.5}'
+      +'.fcm-prev{background:var(--card);border:1px solid var(--bd2);border-radius:12px;padding:14px;margin-top:12px}'
+      +'.fcm-prev .lado{color:var(--tx4);font-size:10.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;margin-bottom:6px}'
+      +'.fc-lac{display:inline-block;padding:0 6px;border-radius:6px;background:rgba(201,168,60,.18);color:var(--ouro);font-weight:800}'
+      +'.fc-lac-ok{padding:0 5px;border-radius:6px;background:rgba(109,219,160,.18);color:#6ddba0;font-weight:800}'
+      +'.fc-v-main{font-size:16px;line-height:1.6;white-space:pre-wrap}'
+      +'.fc-v-ext{font-size:13.5px;color:var(--tx2);margin-top:10px;line-height:1.6;white-space:pre-wrap}'
+      +'.fc-v-fund{font-size:12.5px;color:var(--tx3);margin-top:12px;padding-top:10px;border-top:1px dashed var(--bd2)}'
+      +'.fc-v-ce{display:inline-block;font-weight:900;font-size:15px;padding:5px 12px;border-radius:9px;margin-bottom:10px}'
+      +'.fc-v-ce.c{background:rgba(109,219,160,.15);color:#6ddba0;border:1px solid #6ddba0}'
+      +'.fc-v-ce.e{background:rgba(240,113,113,.15);color:#f07171;border:1px solid #f07171}'
+      +'.fc-selo{font-size:10.5px;font-weight:800;padding:3px 9px;border-radius:10px;letter-spacing:.3px}'
+      +'.fc-selo.jota{background:rgba(201,168,60,.15);color:var(--ouro);border:1px solid var(--ouro)}'
+      +'.fc-selo.meu{background:rgba(185,138,224,.14);color:#c9a9e8;border:1px solid #7d5fa8}'
+    document.head.appendChild(css)
+    const ov=document.createElement('div')
+    ov.className='fcm-ov';ov.id='fcm'
+    ov.addEventListener('click',function(e){if(e.target===ov)FC.fechar()})
+    ov.innerHTML='<div class="fcm" id="fcm-c"></div>'
+    document.body.appendChild(ov)
+  },
+
+  // opts: {card, pre, autor:'aluno'|'mentor', alunoId, concursos:[{id,nome}], disciplinas:[], assuntos:[], titulo, lote:true, onSalvo:function(card){}}
+  abrir:function(opts){
+    FC.montar()
+    opts=opts||{}
+    const c=Object.assign({tipo:'basico',frente:'',verso:'',gabarito:'',disciplina:'',assunto:'',fundamento:'',concurso_id:''},opts.pre||{},opts.card||{})
+    FC._st={opts:opts,c:c,salvos:0}
+    FC.render()
+    document.getElementById('fcm').classList.add('on')
+    setTimeout(function(){const f=document.getElementById('fcm-fr');if(f)f.focus()},60)
+  },
+  fechar:function(){const o=document.getElementById('fcm');if(o)o.classList.remove('on')},
+
+  ler:function(){
+    const st=FC._st; if(!st)return
+    const v=function(id){const el=document.getElementById(id);return el?el.value:''}
+    st.c.frente=v('fcm-fr');st.c.verso=v('fcm-vs');st.c.disciplina=v('fcm-di').trim();st.c.assunto=v('fcm-as').trim();st.c.fundamento=v('fcm-fu').trim()
+    const cc=document.getElementById('fcm-co'); if(cc)st.c.concurso_id=cc.value
+  },
+  tipo:function(t){FC.ler();FC._st.c.tipo=t;FC.render()},
+  gab:function(g){FC.ler();FC._st.c.gabarito=g;FC.render()},
+  lacuna:function(){
+    const el=document.getElementById('fcm-fr'); if(!el)return
+    const a=el.selectionStart,b=el.selectionEnd,t=el.value
+    if(a===b){
+      FC.msg('Selecione (marque) a palavra da frase que deve ficar escondida e toque de novo em "Esconder palavra".','var(--alerta,#e8b04b)');return
+    }
+    el.value=t.slice(0,a)+'{{'+t.slice(a,b).trim()+'}}'+t.slice(b)
+    FC.ler();FC.prever()
+  },
+  msg:function(t,cor){const m=document.getElementById('fcm-msg');if(m){m.style.color=cor||'var(--tx3)';m.innerHTML=t}},
+
+  render:function(){
+    const st=FC._st,c=st.c,o=st.opts,E=FC.esc
+    const lbl={basico:['Frente — a pergunta','Ex.: Qual o prazo para concluir o inquerito policial com o indiciado preso?','Verso — a resposta','Ex.: 10 dias (CPP, art. 10).'],
+      lacuna:['Frase com a palavra escondida','Ex.: O crime de tortura e {{inafiancavel}} e insuscetivel de graca ou anistia.','Complemento (opcional)','Ex.: Tambem e equiparado a hediondo.'],
+      ce:['Afirmacao (como a banca cobraria)','Ex.: A condenacao por tortura acarreta a perda do cargo e a interdicao para seu exercicio pelo dobro do prazo da pena aplicada.','Por que? (justificativa curta)','Ex.: A perda do cargo e automatica (art. 1º, § 5º).']}[c.tipo]
+    const dl=function(id,arr){return '<datalist id="'+id+'">'+(arr||[]).map(function(x){return '<option value="'+E(x)+'">'}).join('')+'</datalist>'}
+    document.getElementById('fcm-c').innerHTML=
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">'
+     +'<div><div style="color:var(--ouro);font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase">'+(o.autor==='mentor'?'Flashcard do Jota':'Meu flashcard')+'</div>'
+     +'<div style="font-size:18px;font-weight:800;margin-top:2px">'+E(o.titulo||(o.card?'Editar flashcard':'Novo flashcard'))+'</div></div>'
+     +'<button class="fcm-b" onclick="FC.fechar()" style="padding:6px 11px">✕</button></div>'
+     +'<div class="fcm-dica" style="margin-top:6px">Regra de ouro: <strong style="color:var(--tx2)">um cartao, uma informacao</strong>. Prazos, penas, competencias, excecoes e artigos-chave.</div>'
+     +'<span class="fcm-l">Modelo</span>'
+     +'<div class="fcm-tp">'
+     +['basico','lacuna','ce'].map(function(t){return '<button class="'+(c.tipo===t?'on':'')+'" onclick="FC.tipo(\''+t+'\')">'+{basico:'❓ Pergunta<br>e resposta',lacuna:'▢ Complete<br>a lacuna',ce:'✔✖ Certo<br>ou Errado'}[t]+'</button>'}).join('')
+     +'</div>'
+     +'<span class="fcm-l">'+lbl[0]+'</span>'
+     +'<textarea id="fcm-fr" oninput="FC.ler();FC.prever()" placeholder="'+E(lbl[1])+'">'+E(c.frente)+'</textarea>'
+     +(c.tipo==='lacuna'?'<div style="display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap"><button class="fcm-b" onclick="FC.lacuna()" style="padding:8px 12px;border-color:var(--ouro);color:var(--ouro)">▢ Esconder palavra selecionada</button><span class="fcm-dica" style="margin:0">ou escreva entre {{ }}</span></div>':'')
+     +(c.tipo==='ce'?'<span class="fcm-l">Gabarito</span><div class="fcm-ce"><button class="'+(String(c.gabarito).toUpperCase()==='C'?'c':'')+'" onclick="FC.gab(\'C\')">✔ CERTO</button><button class="'+(String(c.gabarito).toUpperCase()==='E'?'e':'')+'" onclick="FC.gab(\'E\')">✖ ERRADO</button></div>':'')
+     +'<span class="fcm-l">'+lbl[2]+'</span>'
+     +'<textarea id="fcm-vs" oninput="FC.ler();FC.prever()" style="min-height:60px" placeholder="'+E(lbl[3])+'">'+E(c.verso)+'</textarea>'
+     +'<div class="fcm-g">'
+     +'<div><span class="fcm-l">Disciplina *</span><input id="fcm-di" list="fcm-dl-d" value="'+E(c.disciplina)+'" placeholder="Ex.: Legislacao Penal Especial">'+dl('fcm-dl-d',o.disciplinas)+'</div>'
+     +'<div><span class="fcm-l">Assunto</span><input id="fcm-as" list="fcm-dl-a" value="'+E(c.assunto)+'" placeholder="Ex.: Lei de Tortura">'+dl('fcm-dl-a',o.assuntos)+'</div>'
+     +'</div>'
+     +'<span class="fcm-l">Fundamento (opcional)</span><input id="fcm-fu" value="'+E(c.fundamento)+'" placeholder="Ex.: Lei 9.455/1997, art. 1º, § 5º">'
+     +(o.concursos?'<span class="fcm-l">Concurso</span><select id="fcm-co"><option value="">Todos os concursos</option>'+o.concursos.map(function(x){return '<option value="'+E(x.id)+'"'+(String(c.concurso_id||'')===String(x.id)?' selected':'')+'>'+E(x.nome)+'</option>'}).join('')+'</select>':'')
+     +'<div class="fcm-prev" id="fcm-prev"></div>'
+     +'<div id="fcm-conf"></div>'
+     +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">'
+     +'<button class="fcm-b ouro" style="flex:2;min-width:150px;padding:12px" onclick="FC.salvar(false)">'+(o.card?'Salvar alteracoes':'Salvar flashcard')+'</button>'
+     +((!o.card&&o.lote)?'<button class="fcm-b" style="flex:1;min-width:150px;padding:12px;border-color:var(--ouro);color:var(--ouro)" onclick="FC.salvar(true)">Salvar e criar outro</button>':'')
+     +'</div>'
+     +'<div id="fcm-msg" style="font-size:12.5px;margin-top:10px;text-align:center"></div>'
+    FC.prever()
+  },
+
+  prever:function(){
+    const c=FC._st.c,el=document.getElementById('fcm-prev'); if(!el)return
+    const temF=String(c.frente||'').trim()
+    el.innerHTML='<div class="lado">Pre-visualizacao — frente</div><div class="fc-v-main" style="font-size:15px">'+(temF?FC.frenteHTML(c):'<span style="color:var(--tx4)">O aluno ve isto primeiro.</span>')+'</div>'
+      +'<div class="lado" style="margin-top:12px">Verso</div>'+((temF||c.verso)?FC.versoHTML(c):'<span style="color:var(--tx4);font-size:13px">A resposta aparece depois que ele tenta lembrar.</span>')
+    const r=FC.conferir(c), cf=document.getElementById('fcm-conf')
+    if(cf)cf.innerHTML=r.dicas.length?'<div style="background:rgba(232,176,75,.08);border:1px solid #e8b04b;border-radius:10px;padding:9px 12px;margin-top:10px;color:#e8b04b;font-size:12.5px;line-height:1.5">💡 '+r.dicas.join('<br>💡 ')+'</div>':''
+  },
+
+  salvar:async function(outro){
+    FC.ler()
+    const st=FC._st,c=st.c,o=st.opts
+    const r=FC.conferir(c)
+    if(r.erros.length){FC.msg(r.erros.join('<br>'),'#f07171');return}
+    const reg={tipo:c.tipo,frente:String(c.frente).trim(),verso:String(c.verso||'').trim()||null,
+      gabarito:c.tipo==='ce'?String(c.gabarito).toUpperCase():null,disciplina:c.disciplina,assunto:c.assunto||null,
+      fundamento:c.fundamento||null,atualizado_em:new Date().toISOString()}
+    if(o.concursos)reg.concurso_id=c.concurso_id||null
+    FC.msg('Salvando...')
+    let res
+    if(o.card&&o.card.id){
+      res=await _supabase.from('flashcards').update(reg).eq('id',o.card.id).select().maybeSingle()
+    }else{
+      reg.autor_tipo=o.autor==='mentor'?'mentor':'aluno'
+      reg.aluno_id=o.autor==='mentor'?null:o.alunoId
+      if(c.questao_id)reg.questao_id=String(c.questao_id)
+      res=await _supabase.from('flashcards').insert(reg).select().maybeSingle()
+    }
+    if(res.error){
+      const falta=/relation|does not exist|schema cache/i.test(res.error.message)
+      FC.msg(falta?'Os flashcards ainda nao foram ativados no banco de dados. '+(o.autor==='mentor'?'Rode o arquivo atualizacao-flashcards.sql no Supabase.':'Avise o seu mentor.'):'Nao foi possivel salvar: '+FC.esc(res.error.message),'#f07171')
+      return
+    }
+    const salvo=res.data||Object.assign({},o.card||{},reg)
+    st.salvos++
+    if(o.onSalvo)o.onSalvo(salvo)
+    if(outro){
+      // mantem modelo, disciplina, assunto e concurso para agilizar
+      st.c=Object.assign({},c,{frente:'',verso:'',gabarito:'',fundamento:'',questao_id:null})
+      FC.render()
+      FC.msg('✅ '+st.salvos+' flashcard(s) salvos nesta sequencia. Pode escrever o proximo.','#6ddba0')
+      setTimeout(function(){const f=document.getElementById('fcm-fr');if(f)f.focus()},60)
+    }else{
+      FC.fechar()
+    }
+  }
+}
+FC.montar()
+
+
+let _alunoId=null,_mentor=false,_limiteBloq=20,_meusConc=[]
+let _cards=[],_prog={},_orig='todos',_discSel=[],_abertos={}
+let _fila=[],_pos=0,_virada=false,_ceResp=null,_sessao=null
+const HOJE=function(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function addDias(k,n){const d=new Date(k+'T12:00:00');d.setDate(d.getDate()+n);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function esc(s){return FC.esc(s)}
+function toast(t){const el=document.getElementById('toast');el.textContent=t;el.classList.add('on');clearTimeout(window._tt);window._tt=setTimeout(function(){el.classList.remove('on')},2600)}
+
+function trocarTema(){
+  const c=document.documentElement.getAttribute('data-tema')==='claro'
+  document.documentElement.setAttribute('data-tema',c?'escuro':'claro')
+  localStorage.setItem('tema',c?'escuro':'claro')
+  document.getElementById('btn-tema').textContent=c?'🌙':'☀️'
+}
+function iniciarTema(){
+  const t=localStorage.getItem('tema')||'escuro'
+  document.documentElement.setAttribute('data-tema',t)
+  document.getElementById('btn-tema').textContent=t==='claro'?'☀️':'🌙'
+}
+async function ehAdmin(uid){
+  try{const r=await _supabase.rpc('eh_admin');if(!r.error)return !!r.data}catch(e){}
+  const { data:x }=await _supabase.from('alunos').select('id').eq('id',uid).maybeSingle()
+  return !x
+}
+function ir(url){
+  if(_mentor){
+    if(url.indexOf('ranking.html')===0){location.href='ranking.html?admin=1';return}
+    const p=url.split('#')
+    location.href=p[0]+'?aluno='+_alunoId+(p[1]?'#'+p[1]:'')
+    return
+  }
+  location.href=url
+}
+async function sair(){
+  if(_mentor){sessionStorage.setItem('alunoFoco',_alunoId);location.href='admin.html';return}
+  await _supabase.auth.signOut();location.href='index.html'
+}
+async function registrarAcesso(){
+  if(_mentor)return
+  try{
+    const chave='acesso_'+_alunoId,ultimo=localStorage.getItem(chave),agora=Date.now()
+    if(ultimo&&(agora-parseInt(ultimo))<1800000)return
+    localStorage.setItem(chave,String(agora))
+    await _supabase.from('alunos').update({ultimo_acesso:new Date().toISOString()}).eq('id',_alunoId)
+  }catch(e){}
+}
+async function carregarMarca(){
+  try{
+    const { data:m }=await _supabase.from('config_marca').select('*').eq('id',1).maybeSingle()
+    if(!m)return
+    if(m.dias_bloqueio)_limiteBloq=m.dias_bloqueio
+    if(m.cor_primaria&&String(m.cor_primaria).charAt(0)==='#')document.documentElement.style.setProperty('--ouro',m.cor_primaria)
+    const nome=m.nome_marca||'Patrulheiros de Elite',p=nome.split(' ')
+    const lt=document.querySelector('.logo-t'); if(lt)lt.innerHTML=esc(p[0])+'<span>'+esc(p.length>1?p.slice(1).join(' '):(m.slogan||''))+'</span>'
+    if(m.logo_url){const li=document.querySelector('.logo-i');if(li){li.innerHTML='<img src="'+esc(m.logo_url)+'" style="width:100%;height:100%;object-fit:cover">';li.style.background='transparent'}}
+  }catch(e){}
+}
+
+// busca em paginas de 1000 (o Supabase devolve no maximo 1000 por vez)
+async function todas(fab){
+  let out=[],de=0
+  for(let g=0;g<50;g++){
+    const r=await fab().range(de,de+999)
+    if(r.error)throw r.error
+    out=out.concat(r.data||[])
+    if(!r.data||r.data.length<1000)break
+    de+=1000
+  }
+  return out
+}
+
+async function init(){
+  iniciarTema()
+  const { data:{user} }=await _supabase.auth.getUser()
+  if(!user){location.href='index.html';return}
+  _alunoId=user.id
+  const alvo=new URLSearchParams(location.search).get('aluno')
+  if(alvo&&alvo!==user.id){
+    if(!(await ehAdmin(user.id))){location.href='flashcards.html';return}
+    _mentor=true;_alunoId=alvo
+  }
+  await carregarMarca()
+  const { data:al }=await _supabase.from('alunos').select('*').eq('id',_alunoId).maybeSingle()
+  if(!al&&!_mentor&&(await ehAdmin(user.id))){location.href='flashcards-admin.html';return}
+  if(_mentor&&al){
+    const b=document.getElementById('mentor-bar')
+    b.innerHTML='<div style="font-size:22px">👁️</div><div style="flex:1;min-width:200px;color:#f3e2a8;font-size:13px;line-height:1.45"><b style="color:var(--ouro)">MODO MENTOR</b> — flashcards de <b style="color:var(--ouro)">'+esc(al.nome)+'</b>. O que voce revisar aqui conta para o aluno.</div>'
+      +'<button class="btn btn-ouro" onclick="location.href=\'flashcards-admin.html\'">Gerenciar flashcards do Jota</button>'
+    b.style.display='flex'
+    const ns=document.getElementById('nav-sair'); if(ns)ns.innerHTML='<span class="nav-ic">↩️</span>Voltar ao painel'
+  }
+  if(!_mentor&&al){
+    const diasSem=al.ultimo_acesso?Math.floor((Date.now()-new Date(al.ultimo_acesso).getTime())/86400000):0
+    let pausado=false
+    if(!al.bloqueado_inatividade&&diasSem>=_limiteBloq){
+      try{const { data:pz }=await _supabase.from('config_cronograma').select('pausado_em').eq('aluno_id',_alunoId);pausado=(pz||[]).some(function(c){return !!c.pausado_em})}catch(e){}
+    }
+    if(al.bloqueado_inatividade||(diasSem>=_limiteBloq&&!pausado)){location.href='cronograma.html';return}
+    if(al.data_expiracao){const h=new Date();h.setHours(0,0,0,0);if(h>new Date(al.data_expiracao+'T00:00:00')){location.href='cronograma.html';return}}
+    registrarAcesso()
+  }
+  // concursos do aluno (os cartoes do Jota de outro concurso nao aparecem)
+  try{
+    const { data:vin }=await _supabase.from('aluno_concursos').select('concurso_id').eq('aluno_id',_alunoId)
+    _meusConc=(vin||[]).map(function(v){return String(v.concurso_id)})
+  }catch(e){}
+  if(al&&al.concurso_id&&_meusConc.indexOf(String(al.concurso_id))<0)_meusConc.push(String(al.concurso_id))
+
+  try{
+    const cs=await todas(function(){return _supabase.from('flashcards').select('*').order('disciplina').order('assunto').order('criado_em')})
+    _cards=cs.filter(function(c){
+      if(c.autor_tipo==='mentor')return c.ativo!==false&&(!c.concurso_id||_meusConc.indexOf(String(c.concurso_id))>=0)
+      return c.aluno_id===_alunoId
+    })
+    const ps=await todas(function(){return _supabase.from('flashcard_progresso').select('*').eq('aluno_id',_alunoId)})
+    _prog={};ps.forEach(function(p){_prog[p.flashcard_id]=p})
+  }catch(e){
+    document.getElementById('loading').style.display='none'
+    const falta=/relation|does not exist|schema cache/i.test(e.message||'')
+    document.getElementById('erro').style.display='block'
+    document.getElementById('erro').innerHTML='<div class="painel vazio"><div style="font-size:40px;margin-bottom:10px">🗂️</div>'
+      +'<div style="color:var(--ouro);font-weight:800;font-size:16px">'+(falta?'Flashcards ainda nao ativados':'Nao foi possivel carregar')+'</div>'
+      +'<p style="margin-top:8px;font-size:13px">'+(falta?(_mentor?'Rode o arquivo atualizacao-flashcards.sql no Supabase.':'Avise o seu mentor.'):esc(e.message||''))+'</p></div>'
+    return
+  }
+  document.getElementById('loading').style.display='none'
+  const h=location.hash.replace('#','')
+  voltarInicio()
+  if(h==='novo')novoCartao()
+}
+
+/* ---------- estado de cada cartao ---------- */
+function estado(c){
+  const p=_prog[c.id], hj=HOJE()
+  if(!p)return 'novo'
+  if(p.suspenso)return 'oculto'
+  if(!p.proxima||p.proxima<=hj)return 'hoje'
+  return (p.intervalo||0)>=21?'dominado':'aprendendo'
+}
+function limiteNovos(){const v=parseInt(localStorage.getItem('fc_novos_'+_alunoId));return isNaN(v)?20:v}
+function novosHoje(){const hj=HOJE();return Object.keys(_prog).filter(function(k){return _prog[k].primeira_vez===hj}).length}
+function filtrados(){
+  return _cards.filter(function(c){
+    if(_orig==='jota'&&c.autor_tipo!=='mentor')return false
+    if(_orig==='meus'&&c.autor_tipo==='mentor')return false
+    if(_discSel.length&&_discSel.indexOf(c.disciplina)<0)return false
+    return true
+  })
+}
+
+/* ---------- tela inicial ---------- */
+function mostrar(v){
+  ;['v-inicio','v-estudo','v-meus'].forEach(function(x){document.getElementById(x).style.display=x===v?'block':'none'})
+  document.getElementById('topbar').style.display=v==='v-estudo'?'none':'flex'
+  window.scrollTo({top:0})
+}
+function voltarInicio(){
+  if(!document.getElementById('loading')||document.getElementById('loading').style.display!=='none')return
+  if(document.getElementById('erro').style.display==='block')return
+  mostrar('v-inicio');renderInicio()
+}
+
+function renderInicio(){
+  const base=filtrados()
+  let hoje=0,novos=0,apr=0,dom=0
+  base.forEach(function(c){const e=estado(c);if(e==='hoje')hoje++;else if(e==='novo')novos++;else if(e==='aprendendo')apr++;else if(e==='dominado')dom++})
+  const resta=Math.max(0,limiteNovos()-novosHoje())
+  const novosSessao=Math.min(novos,resta)
+  const total=hoje+novosSessao
+  const revHoje=Object.keys(_prog).filter(function(k){return String(_prog[k].ultima_em||'').slice(0,10)===HOJE()}).length
+  document.getElementById('hero').innerHTML=
+    '<div><div class="hero-n">'+total+'</div><div style="color:var(--tx3);font-size:12px;font-weight:700;margin-top:4px">CARTOES PARA HOJE</div></div>'
+   +'<div class="hero-t">'
+   +(total?('<div style="font-weight:800;font-size:16px">'+(hoje?hoje+' para revisar':'Nada para revisar')+(novosSessao?' + '+novosSessao+' novo(s)':'')+'</div>'
+      +'<div style="color:var(--tx3);font-size:12.5px;margin-top:3px;line-height:1.5">10 a 20 minutos por dia valem mais do que 2 horas no fim de semana.</div>')
+     :('<div style="font-weight:800;font-size:16px">'+(base.length?'Tudo em dia! 💪':'Nenhum flashcard ainda')+'</div>'
+      +'<div style="color:var(--tx3);font-size:12.5px;margin-top:3px;line-height:1.5">'+(base.length?(novos&&!resta?'Voce ja comecou '+limiteNovos()+' cartoes novos hoje. Os proximos entram amanha.':'Os cartoes voltam no dia certo para voce nao esquecer. Volte amanha.'):'Crie o seu primeiro cartao ou peca ao mentor os flashcards do seu concurso.')+'</div>'))
+   +(revHoje?'<div style="color:#6ddba0;font-size:12px;font-weight:700;margin-top:6px">✓ '+revHoje+' cartao(oes) revisados hoje</div>':'')
+   +'</div>'
+   +'<div style="display:flex;flex-direction:column;gap:7px;min-width:180px">'
+   +'<button class="btn btn-ouro" style="padding:14px 20px;font-size:15px" '+(total?'':'disabled ')+'onclick="iniciar()">▶ Comecar revisao</button>'
+   +'<button class="btn" style="font-size:12px" onclick="ajustarNovos()">Novos por dia: <strong>'+limiteNovos()+'</strong> ✎</button>'
+   +'</div>'
+  document.getElementById('est').innerHTML=
+    [[hoje,'Para revisar','#f07171'],[novos,'Novos','#5bb3f0'],[apr,'Aprendendo','#e8b04b'],[dom,'Dominados','#6ddba0']]
+    .map(function(x){return '<div class="est-c"><div class="est-n" style="color:'+x[2]+'">'+x[0]+'</div><div class="est-l">'+x[1]+'</div></div>'}).join('')
+  const nJ=_cards.filter(function(c){return c.autor_tipo==='mentor'}).length, nM=_cards.length-nJ
+  document.getElementById('ch-orig').innerHTML=[['todos','Todos ('+_cards.length+')'],['jota','🛡️ Do Jota ('+nJ+')'],['meus','✍️ Meus ('+nM+')']]
+    .map(function(x){return '<div class="chip'+(_orig===x[0]?' on':'')+'" onclick="setOrig(\''+x[0]+'\')">'+x[1]+'</div>'}).join('')
+  const ds={};_cards.forEach(function(c){ds[c.disciplina]=1})
+  document.getElementById('ch-disc').innerHTML=Object.keys(ds).sort().map(function(d){
+    return '<div class="dchip'+(_discSel.indexOf(d)>=0?' on':'')+'" data-d="'+esc(d)+'" onclick="toggleDisc(this.dataset.d)">'+esc(d)+'</div>'}).join('')||'<span style="color:var(--tx4);font-size:12.5px">Nenhuma disciplina ainda.</span>'
+  renderDecks(base)
+  const ocultos=_cards.filter(function(c){return estado(c)==='oculto'}).length
+  document.getElementById('rodape').innerHTML=ocultos?'<div style="text-align:center;color:var(--tx4);font-size:12.5px">'+ocultos+' cartao(oes) ocultado(s). <a style="color:var(--ouro);cursor:pointer;text-decoration:underline" onclick="reexibirOcultos()">Mostrar de novo</a></div>':''
+}
+function setOrig(o){_orig=o;renderInicio()}
+function toggleDisc(d){const i=_discSel.indexOf(d);if(i>=0)_discSel.splice(i,1);else _discSel.push(d);renderInicio()}
+function ajustarNovos(){
+  const v=prompt('Quantos cartoes NOVOS voce quer comecar por dia?\n\nSugestao: 10 a 20. Mais que isso acumula revisoes nos proximos dias.',String(limiteNovos()))
+  if(v===null)return
+  const n=Math.max(0,Math.min(200,parseInt(v)||0))
+  try{localStorage.setItem('fc_novos_'+_alunoId,String(n))}catch(e){}
+  renderInicio()
+}
+
+function renderDecks(base){
+  const box=document.getElementById('decks')
+  if(!base.length){
+    box.innerHTML='<div class="painel vazio" style="padding:30px 20px"><div style="font-size:38px;margin-bottom:8px">🗂️</div>'
+      +'<div style="font-weight:700;color:var(--tx2)">'+(_cards.length?'Nenhum cartao com este filtro.':'Ainda nao ha flashcards para voce.')+'</div>'
+      +'<p style="font-size:12.5px;margin-top:6px;line-height:1.6">Crie cartoes aqui ou direto da aba <strong>Questoes</strong>: depois de responder, toque em <strong>"🗂️ Virar flashcard"</strong>.</p></div>'
+    return
+  }
+  const porD={}
+  base.forEach(function(c){
+    const d=c.disciplina||'Sem disciplina', a=c.assunto||'Geral'
+    porD[d]=porD[d]||{}; porD[d][a]=porD[d][a]||[]; porD[d][a].push(c)
+  })
+  box.innerHTML=Object.keys(porD).sort().map(function(d,i){
+    const ass=porD[d], todos=[].concat.apply([],Object.values(ass))
+    const cnt=contar(todos)
+    const k='d'+i
+    return '<div class="disc'+(_abertos[d]?' on':'')+'" id="'+k+'">'
+      +'<div class="disc-h" data-d="'+esc(d)+'" onclick="abrirDisc(this.dataset.d,\''+k+'\')">'
+      +'<div class="disc-n">'+esc(d)+'</div>'
+      +(cnt.hoje?'<span class="cnt dev">'+cnt.hoje+'</span>':'')+(cnt.novo?'<span class="cnt nov">'+cnt.novo+'</span>':'')+'<span class="cnt tot">'+todos.length+'</span>'
+      +'<span style="color:var(--tx4);font-size:18px">›</span></div>'
+      +'<div class="disc-b">'
+      +Object.keys(ass).sort().map(function(a){
+        const c2=contar(ass[a])
+        return '<div class="deck"><div class="deck-n">'+esc(a)+'</div>'
+          +(c2.hoje?'<span class="cnt dev">'+c2.hoje+'</span>':'')+(c2.novo?'<span class="cnt nov">'+c2.novo+'</span>':'')+'<span class="cnt tot">'+ass[a].length+'</span>'
+          +'<button class="btn'+((c2.hoje||c2.novo)?' btn-ouro':'')+'" style="padding:7px 13px" data-d="'+esc(d)+'" data-a="'+esc(a)+'" onclick="estudarDeck(this.dataset.d,this.dataset.a)">'+((c2.hoje||c2.novo)?'Estudar':'Treinar')+'</button></div>'
+      }).join('')
+      +'</div></div>'
+  }).join('')
+}
+function contar(lista){const r={hoje:0,novo:0};lista.forEach(function(c){const e=estado(c);if(e==='hoje')r.hoje++;else if(e==='novo')r.novo++});return r}
+function abrirDisc(d,k){_abertos[d]=!_abertos[d];document.getElementById(k).classList.toggle('on',!!_abertos[d])}
+
+/* ---------- sessao de estudo ---------- */
+function embaralhar(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));const t=a[i];a[i]=a[j];a[j]=t}return a}
+function montarFila(lista,ignorarLimite){
+  const dev=embaralhar(lista.filter(function(c){return estado(c)==='hoje'}))
+  let nov=lista.filter(function(c){return estado(c)==='novo'})
+  const resta=ignorarLimite?Math.min(nov.length,30):Math.max(0,limiteNovos()-novosHoje())
+  nov=nov.slice(0,resta)
+  // intercala: a cada 3 revisoes entra 1 novo
+  const fila=[];let i=0,j=0
+  while(i<dev.length||j<nov.length){
+    for(let k=0;k<3&&i<dev.length;k++)fila.push(dev[i++])
+    if(j<nov.length)fila.push(nov[j++])
+  }
+  return fila
+}
+function iniciar(){
+  const f=montarFila(filtrados(),false)
+  if(!f.length){toast('Nada para revisar agora.');return}
+  comecar(f,false,'Revisao do dia')
+}
+function estudarDeck(d,a){
+  const lista=_cards.filter(function(c){return (c.disciplina||'Sem disciplina')===d&&(c.assunto||'Geral')===a&&estado(c)!=='oculto'})
+  let f=montarFila(lista,true)
+  if(f.length){comecar(f,false,a);return}
+  // tudo em dia: treino livre (nao mexe no agendamento)
+  if(!confirm('Este baralho esta em dia: nao ha cartoes para hoje.\n\nQuer fazer um TREINO LIVRE com todos os '+lista.length+' cartoes? (nao muda as datas de revisao)'))return
+  comecar(embaralhar(lista.slice()),true,a+' — treino livre')
+}
+function comecar(fila,livre,titulo){
+  _fila=fila.slice();_pos=0;_sessao={livre:livre,titulo:titulo,feitos:0,acertos:0,erros:0,ini:Date.now(),vistos:{}}
+  mostrar('v-estudo');renderCarta()
+}
+function pararEstudo(){
+  if(_sessao&&_sessao.feitos&&_pos<_fila.length&&!confirm('Sair agora? O que voce ja revisou fica salvo.'))return
+  _sessao=null;voltarInicio()
+}
+
+// agenda (repeticao espacada no estilo Anki)
+function agendar(c,nota){
+  const p=_prog[c.id]||{repeticoes:0,facilidade:2.5,intervalo:0}
+  let rep=p.repeticoes||0,fac=p.facilidade||2.5,int=p.intervalo||0
+  if(nota===1){rep=0;int=0;fac=Math.max(1.3,fac-0.2)}
+  else if(nota===2){int=rep===0?1:Math.max(int+1,Math.round(int*1.2));fac=Math.max(1.3,fac-0.15);rep++}
+  else if(nota===3){int=rep===0?2:Math.max(int+1,Math.round(int*fac));rep++}
+  else{int=rep===0?4:Math.max(int+2,Math.round(int*fac*1.3));fac=Math.min(3.2,fac+0.15);rep++}
+  int=Math.min(int,180)
+  return {repeticoes:rep,facilidade:Math.round(fac*100)/100,intervalo:int,proxima:addDias(HOJE(),int)}
+}
+function rotulo(d){
+  if(d<=0)return 'agora'
+  if(d===1)return '1 dia'
+  if(d<15)return d+' dias'
+  if(d<45)return Math.round(d/7)+' sem'
+  if(d<365)return Math.round(d/30)+' mes'+(Math.round(d/30)>1?'es':'')
+  return '1 ano'
+}
+
+function renderCarta(){
+  if(_pos>=_fila.length){fimSessao();return}
+  const c=_fila[_pos]
+  _virada=false;_ceResp=null
+  const tot=_fila.length
+  document.getElementById('bar').style.width=Math.round(_pos/tot*100)+'%'
+  document.getElementById('cont').textContent=(_pos+1)+' / '+tot+(_sessao.livre?' · treino livre':'')
+  const e=estado(c)
+  document.getElementById('carta').innerHTML=
+    '<div class="carta">'
+    +'<div class="carta-h">'+FC.selo(c)
+    +'<span class="carta-d">'+esc(c.disciplina)+'</span>'+(c.assunto?'<span class="carta-a">› '+esc(c.assunto)+'</span>':'')
+    +(e==='novo'?'<span class="cnt nov" style="margin-left:auto">NOVO</span>':'')+'</div>'
+    +(c.tipo==='ce'?'<div style="color:var(--tx3);font-size:11.5px;font-weight:800;letter-spacing:.5px;margin-bottom:8px">JULGUE O ITEM</div>':'')
+    +(c.tipo==='lacuna'?'<div style="color:var(--tx3);font-size:11.5px;font-weight:800;letter-spacing:.5px;margin-bottom:8px">COMPLETE A LACUNA</div>':'')
+    +'<div class="carta-f">'+FC.frenteHTML(c)+'</div>'
+    +'<div id="verso"></div>'
+    +'</div>'
+  if(c.tipo==='ce'){
+    document.getElementById('acoes').innerHTML='<div class="ce2"><button class="c" onclick="julgar(\'C\')">✔ CERTO</button><button class="e" onclick="julgar(\'E\')">✖ ERRADO</button></div>'
+    document.getElementById('dica-tecla').textContent='No computador: tecla C ou E'
+  }else{
+    document.getElementById('acoes').innerHTML='<button class="btn btn-ouro rev" onclick="virar()">Mostrar resposta</button>'
+      +'<div style="text-align:center;color:var(--tx3);font-size:12px;margin-top:8px">Tente lembrar a resposta antes de virar. E isso que fixa.</div>'
+    document.getElementById('dica-tecla').textContent='No computador: barra de espaco vira o cartao'
+  }
+}
+
+function julgar(g){
+  const c=_fila[_pos]; if(_virada)return
+  _ceResp=g
+  const ok=g===String(c.gabarito||'').toUpperCase()
+  virar(ok)
+}
+
+function virar(okCE){
+  const c=_fila[_pos]; if(_virada)return
+  _virada=true
+  let topo=''
+  if(c.tipo==='ce')topo='<div class="resp-ce '+(okCE?'ok':'no')+'">'+(okCE?'✅ Voce acertou: marcou '+(_ceResp==='C'?'CERTO':'ERRADO'):'❌ Voce errou: marcou '+(_ceResp==='C'?'CERTO':'ERRADO'))+'</div>'
+  document.getElementById('verso').innerHTML='<div class="carta-v">'+topo+FC.versoHTML(c)+'</div>'
+  const ops=[1,2,3,4].map(function(n){return agendar(c,n).intervalo})
+  let h
+  if(c.tipo==='ce'&&!okCE){
+    h='<button class="btn rev" style="border-color:#f07171;color:#f07171" onclick="notar(1)">Continuar <small style="color:var(--tx3);font-weight:600">(volta daqui a pouco)</small></button>'
+  }else if(c.tipo==='ce'){
+    h='<div class="notas tres">'
+      +'<button class="nota n2" onclick="notar(2)"><b>Na duvida</b><small>'+rotulo(ops[1])+'</small></button>'
+      +'<button class="nota n3" onclick="notar(3)"><b>Sabia</b><small>'+rotulo(ops[2])+'</small></button>'
+      +'<button class="nota n4" onclick="notar(4)"><b>Facil</b><small>'+rotulo(ops[3])+'</small></button></div>'
+  }else{
+    h='<div style="text-align:center;color:var(--tx3);font-size:12px;margin-bottom:8px">Como foi para lembrar?</div><div class="notas">'
+      +'<button class="nota n1" onclick="notar(1)"><b>Errei</b><small>'+rotulo(ops[0])+'</small></button>'
+      +'<button class="nota n2" onclick="notar(2)"><b>Dificil</b><small>'+rotulo(ops[1])+'</small></button>'
+      +'<button class="nota n3" onclick="notar(3)"><b>Acertei</b><small>'+rotulo(ops[2])+'</small></button>'
+      +'<button class="nota n4" onclick="notar(4)"><b>Facil</b><small>'+rotulo(ops[3])+'</small></button></div>'
+  }
+  if(_sessao.livre)h+='<div style="text-align:center;color:var(--tx4);font-size:11.5px;margin-top:8px">Treino livre: as datas de revisao nao mudam.</div>'
+  h+='<div style="display:flex;justify-content:center;gap:16px;margin-top:12px;flex-wrap:wrap">'
+    +((c.autor_tipo==='aluno')?'<a style="color:var(--tx3);font-size:12px;cursor:pointer;text-decoration:underline" onclick="editarDaSessao()">✎ Editar este cartao</a>':'')
+    +'<a style="color:var(--tx4);font-size:12px;cursor:pointer;text-decoration:underline" onclick="ocultar()">🚫 Nao mostrar mais</a></div>'
+  document.getElementById('acoes').innerHTML=h
+  document.getElementById('dica-tecla').textContent=(c.tipo==='ce'&&!okCE)?'No computador: Enter continua':'No computador: teclas 1 a 4'
+}
+
+async function notar(n){
+  const c=_fila[_pos]; if(!c||!_virada)return
+  _sessao.feitos++
+  if(n===1)_sessao.erros++;else _sessao.acertos++
+  if(!_sessao.livre){
+    const ag=agendar(c,n), ant=_prog[c.id]
+    const reg=Object.assign({aluno_id:_alunoId,flashcard_id:c.id,ultima_em:new Date().toISOString(),
+      acertos:(ant?ant.acertos||0:0)+(n>1?1:0),erros:(ant?ant.erros||0:0)+(n===1?1:0),suspenso:false,
+      primeira_vez:ant&&ant.primeira_vez?ant.primeira_vez:HOJE()},ag)
+    _prog[c.id]=Object.assign({},ant||{},reg)
+    _supabase.from('flashcard_progresso').upsert(reg,{onConflict:'aluno_id,flashcard_id'}).then(function(r){
+      if(r&&r.error)toast('Nao foi possivel salvar o progresso: '+r.error.message)
+    })
+  }
+  // errou: o cartao volta nesta mesma sessao, 3 cartoes depois
+  if(n===1&&!_sessao.vistos[c.id+'_r2']){
+    _sessao.vistos[c.id+'_r'+(_sessao.vistos[c.id+'_r1']?'2':'1')]=1
+    _fila.splice(Math.min(_fila.length,_pos+4),0,c)
+  }
+  _pos++
+  renderCarta()
+}
+
+async function ocultar(){
+  const c=_fila[_pos]; if(!c)return
+  if(!confirm('Nao mostrar mais este cartao?\n\nVoce pode trazer de volta depois, no fim da tela de flashcards.'))return
+  const ant=_prog[c.id]
+  const reg={aluno_id:_alunoId,flashcard_id:c.id,suspenso:true,primeira_vez:ant&&ant.primeira_vez?ant.primeira_vez:HOJE()}
+  _prog[c.id]=Object.assign({},ant||{},reg)
+  await _supabase.from('flashcard_progresso').upsert(reg,{onConflict:'aluno_id,flashcard_id'})
+  _fila=_fila.filter(function(x,i){return i<=_pos||x.id!==c.id})
+  _pos++;renderCarta();toast('Cartao ocultado.')
+}
+async function reexibirOcultos(){
+  const ids=Object.keys(_prog).filter(function(k){return _prog[k].suspenso})
+  for(let i=0;i<ids.length;i++){
+    _prog[ids[i]].suspenso=false
+    await _supabase.from('flashcard_progresso').update({suspenso:false}).eq('aluno_id',_alunoId).eq('flashcard_id',ids[i])
+  }
+  renderInicio();toast('Cartoes de volta aos baralhos.')
+}
+
+function fimSessao(){
+  const s=_sessao, min=Math.max(1,Math.round((Date.now()-s.ini)/60000))
+  const pct=s.feitos?Math.round(s.acertos/s.feitos*100):0
+  const amanha=addDias(HOJE(),1)
+  const prox=_cards.filter(function(c){const p=_prog[c.id];return p&&!p.suspenso&&p.proxima===amanha}).length
+  document.getElementById('bar').style.width='100%'
+  document.getElementById('cont').textContent='Concluido'
+  document.getElementById('carta').innerHTML='<div class="carta" style="text-align:center;align-items:center;justify-content:center">'
+    +'<div style="font-size:52px">🏆</div>'
+    +'<div style="font-size:21px;font-weight:900;margin-top:8px">Missao cumprida, patrulheiro!</div>'
+    +'<div style="color:var(--tx3);font-size:13.5px;margin-top:6px">'+esc(s.titulo)+'</div>'
+    +'<div style="display:flex;gap:22px;justify-content:center;margin-top:18px;flex-wrap:wrap">'
+    +'<div><div style="font-size:26px;font-weight:900;color:var(--ouro)">'+s.feitos+'</div><div style="color:var(--tx3);font-size:11.5px">revisoes</div></div>'
+    +'<div><div style="font-size:26px;font-weight:900;color:#6ddba0">'+pct+'%</div><div style="color:var(--tx3);font-size:11.5px">de acerto</div></div>'
+    +'<div><div style="font-size:26px;font-weight:900">'+min+' min</div><div style="color:var(--tx3);font-size:11.5px">de estudo</div></div></div>'
+    +(prox&&!s.livre?'<div style="color:var(--tx2);font-size:13px;margin-top:16px">Amanha voltam <strong>'+prox+'</strong> cartao(oes). Constancia vence talento.</div>':'')
+    +'</div>'
+  document.getElementById('acoes').innerHTML='<button class="btn btn-ouro rev" onclick="_sessao=null;voltarInicio()">Voltar aos flashcards</button>'
+  document.getElementById('dica-tecla').textContent=''
+}
+
+document.addEventListener('keydown',function(e){
+  if(document.getElementById('v-estudo').style.display!=='block')return
+  if(document.getElementById('fcm')&&document.getElementById('fcm').classList.contains('on'))return
+  if(/input|textarea|select/i.test((e.target||{}).tagName||''))return
+  const c=_fila[_pos]; if(!c)return
+  if(!_virada){
+    if(c.tipo==='ce'){if(e.key==='c'||e.key==='C')julgar('C');else if(e.key==='e'||e.key==='E')julgar('E')}
+    else if(e.key===' '||e.key==='Enter'){e.preventDefault();virar()}
+    return
+  }
+  const okCE=c.tipo!=='ce'||_ceResp===String(c.gabarito||'').toUpperCase()
+  if(!okCE){if(e.key==='Enter'||e.key===' '){e.preventDefault();notar(1)}return}
+  const n=parseInt(e.key)
+  if(n>=1&&n<=4){if(c.tipo==='ce'&&n===1)return;notar(n)}
+})
+
+/* ---------- criar / editar / meus cartoes ---------- */
+function listasForm(){
+  const d={},a={}
+  _cards.forEach(function(c){if(c.disciplina)d[c.disciplina]=1;if(c.assunto)a[c.assunto]=1})
+  return {disciplinas:Object.keys(d).sort(),assuntos:Object.keys(a).sort()}
+}
+function novoCartao(pre){
+  const l=listasForm()
+  if(!pre&&_discSel.length===1)pre={disciplina:_discSel[0]}
+  FC.abrir({autor:'aluno',alunoId:_alunoId,disciplinas:l.disciplinas,assuntos:l.assuntos,pre:pre,lote:true,
+    onSalvo:function(c){_cards.push(c);if(document.getElementById('v-meus').style.display==='block')renderMeus();else renderInicio();toast('✅ Flashcard salvo!')}})
+}
+function editarCartao(id){
+  const c=_cards.find(function(x){return x.id===id}); if(!c)return
+  const l=listasForm()
+  FC.abrir({autor:'aluno',alunoId:_alunoId,card:c,disciplinas:l.disciplinas,assuntos:l.assuntos,
+    onSalvo:function(n){Object.assign(c,n);if(document.getElementById('v-meus').style.display==='block')renderMeus();else renderInicio();toast('✅ Cartao atualizado.')}})
+}
+function editarDaSessao(){
+  const c=_fila[_pos]; if(!c)return
+  const l=listasForm()
+  FC.abrir({autor:'aluno',alunoId:_alunoId,card:c,disciplinas:l.disciplinas,assuntos:l.assuntos,
+    onSalvo:function(n){Object.assign(c,n);const o=_cards.find(function(x){return x.id===c.id});if(o)Object.assign(o,n);renderCarta()}})
+}
+function verMeus(){mostrar('v-meus');renderMeus()}
+function renderMeus(){
+  const b=String(document.getElementById('busca-meus').value||'').toLowerCase()
+  const lista=_cards.filter(function(c){return c.autor_tipo==='aluno'&&(!b||(c.frente+' '+(c.verso||'')+' '+c.disciplina+' '+(c.assunto||'')).toLowerCase().indexOf(b)>=0)})
+  const box=document.getElementById('lista-meus')
+  if(!lista.length){box.innerHTML='<div class="painel vazio" style="padding:30px">'+(b?'Nada encontrado.':'Voce ainda nao criou cartoes. Toque em <strong>+ Criar</strong> ou crie a partir das questoes.')+'</div>';return}
+  box.innerHTML='<div style="color:var(--tx3);font-size:12px;margin-bottom:8px">'+lista.length+' cartao(oes) seus</div>'+lista.map(function(c){
+    const p=_prog[c.id]
+    return '<div class="meu"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px">'
+      +'<span style="color:var(--ouro);font-size:11.5px;font-weight:800">'+esc(c.disciplina)+'</span>'+(c.assunto?'<span style="color:var(--tx3);font-size:11.5px">› '+esc(c.assunto)+'</span>':'')
+      +'<span class="cnt tot">'+esc(FC.TIPOS[c.tipo]||c.tipo)+'</span>'
+      +'<span style="margin-left:auto;color:var(--tx4);font-size:11px">'+(p&&p.proxima?'revisao: '+new Date(p.proxima+'T12:00:00').toLocaleDateString('pt-BR'):'novo')+'</span></div>'
+      +'<div style="font-size:14px;line-height:1.5;white-space:pre-wrap">'+FC.frenteHTML(c)+'</div>'
+      +'<div style="color:var(--tx3);font-size:12.5px;margin-top:4px;white-space:pre-wrap">'+(c.tipo==='ce'?'Gabarito: '+(c.gabarito==='C'?'Certo':'Errado')+'. ':'')+esc(c.verso||'')+'</div>'
+      +'<div style="display:flex;gap:7px;margin-top:9px"><button class="btn" style="padding:6px 12px;font-size:12px" onclick="editarCartao(\''+c.id+'\')">✎ Editar</button>'
+      +'<button class="btn" style="padding:6px 12px;font-size:12px;color:#f07171" onclick="apagarCartao(\''+c.id+'\')">Excluir</button></div></div>'
+  }).join('')
+}
+async function apagarCartao(id){
+  if(!confirm('Excluir este cartao? Isso nao pode ser desfeito.'))return
+  const r=await _supabase.from('flashcards').delete().eq('id',id)
+  if(r.error){toast('Erro: '+r.error.message);return}
+  _cards=_cards.filter(function(c){return c.id!==id});delete _prog[id]
+  renderMeus();toast('Cartao excluido.')
+}
+
+function abrirGuia(){
+  FC.montar()
+  document.getElementById('fcm-c').innerHTML=
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:10px">'
+    +'<div><div style="color:var(--ouro);font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase">Metodo do Jota</div>'
+    +'<div style="font-size:18px;font-weight:800;margin-top:2px">Como fazer um bom flashcard</div></div>'
+    +'<button class="fcm-b" onclick="FC.fechar()" style="padding:6px 11px">✕</button></div>'
+    +'<ul class="guia">'
+    +'<li><strong>Um cartao, uma informacao.</strong> Cartao com tres perguntas embutidas nao ensina nada.</li>'
+    +'<li><strong>Use para "decoreba" de alto valor:</strong> prazos, penas, competencias, quoruns, excecoes e artigos-chave. Conceito que exige entendimento rende mais com autoexplicacao.</li>'
+    +'<li><strong>Pergunta direta na frente, resposta seca no verso.</strong> Ex.: "Prazo do IP com o indiciado preso?" → "10 dias (CPP, art. 10)".</li>'
+    +'<li><strong>Complete a lacuna</strong> e otimo para lei seca: esconda so a palavra que a banca troca (o prazo, o "inafiancavel", o "privativo").</li>'
+    +'<li><strong>Certo ou Errado</strong> treina a pegadinha: escreva a afirmacao do jeito que a banca cobraria e explique em uma linha por que esta certa ou errada.</li>'
+    +'<li><strong>Errou uma questao? Vire flashcard.</strong> Na aba Questoes, depois de responder, toque em "🗂️ Virar flashcard". Criar o cartao ja e estudo.</li>'
+    +'<li><strong>Seja honesto na nota.</strong> "Errei" faz o cartao voltar logo; "Facil" empurra para longe. O sistema decide o dia certo de rever.</li>'
+    +'<li><strong>10 a 20 minutos por dia.</strong> Constancia vale mais do que maratona no fim de semana.</li>'
+    +'</ul>'
+    +'<button class="fcm-b ouro" style="width:100%;padding:12px;margin-top:8px" onclick="FC.fechar();novoCartao()">Criar meu primeiro cartao</button>'
+  document.getElementById('fcm').classList.add('on')
+}
+
+init()
+</script>
+</body>
+</html>
