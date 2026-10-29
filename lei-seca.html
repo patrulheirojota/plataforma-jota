@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Lei seca — Patrulheiros de Elite</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0a1420">
+<link rel="apple-touch-icon" href="/icone-192.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>document.documentElement.setAttribute("data-tema",localStorage.getItem("tema")||"escuro")</script>
+<style>
+  :root{--ouro:#C9A83C;--bg:#0a1420;--bg2:#0c1826;--card:#101d2c;--card2:#0d1a28;--btn:#132030;--bd:#1b2c40;--bd2:#24384f;--tx:#e8edf4;--tx2:#8fa5bd;--tx3:#63809e;--tx4:#4d6684;--hov:#16283c;--ok:#6ddba0;--erro:#f07171;--alerta:#e8b04b;--info:#5bb3f0;--fs:15px}
+  [data-tema="claro"]{--bg:#eef1f6;--bg2:#fff;--card:#fff;--card2:#f7f9fc;--btn:#fff;--bd:#dde4ed;--bd2:#c6d2e0;--tx:#0f1b2a;--tx2:#4a5f78;--tx3:#66809b;--tx4:#8fa2b8;--hov:#eaf0f8;--ok:#1f9d61;--erro:#d24646;--alerta:#b9800f}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--tx);min-height:100vh}
+  .wrap{max-width:820px;margin:0 auto;padding:16px 14px 90px}
+  .card{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:16px;margin-bottom:12px}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 14px;border-radius:11px;border:1px solid var(--bd2);background:var(--btn);color:var(--tx);font-size:13.5px;font-weight:600;cursor:pointer;font-family:inherit;text-decoration:none}
+  .btn-ouro{background:var(--ouro);border-color:var(--ouro);color:#0a1420;font-weight:800}
+  .h1{font-size:21px;font-weight:800}
+  .sub{color:var(--tx3);font-size:13px;margin-top:3px}
+  .barra{height:7px;border-radius:5px;background:var(--bd);overflow:hidden;margin-top:6px}
+  .barra>div{height:100%;background:var(--ouro)}
+  .topo{position:sticky;top:0;z-index:30;background:var(--bg2);border-bottom:1px solid var(--bd);padding:10px 14px}
+  .topo-l{display:flex;gap:8px;align-items:center;max-width:820px;margin:0 auto}
+  .filtro{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
+  .filtro button{padding:7px 11px;border-radius:9px;border:1px solid var(--bd2);background:var(--card2);color:var(--tx3);font-size:12.5px;cursor:pointer;font-family:inherit}
+  .filtro button.on{border-color:var(--ouro);color:var(--ouro);font-weight:700}
+  .art{background:var(--card);border:1px solid var(--bd);border-left:4px solid var(--bd2);border-radius:12px;padding:13px 14px;margin-bottom:9px}
+  .art.lido{border-left-color:var(--ok)}
+  .art.revog{opacity:.55}
+  .art-t{font-size:var(--fs);line-height:1.75;white-space:pre-wrap}
+  .art-t b{color:var(--ouro)}
+  .art-a{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;align-items:center}
+  .art-a button{padding:6px 11px;border-radius:9px;border:1px solid var(--bd2);background:var(--card2);color:var(--tx3);font-size:12.5px;cursor:pointer;font-family:inherit;font-weight:600}
+  .art-a button.on-l{border-color:var(--ok);color:var(--ok);background:rgba(109,219,160,.1)}
+  .art-a button.on-i{border-color:var(--ouro);color:var(--ouro);background:rgba(201,168,60,.1)}
+  .art-a button.on-d{border-color:var(--info);color:var(--info);background:rgba(91,179,240,.1)}
+  .fogo{font-size:11px;font-weight:800;color:#f07171;border:1px solid #f07171;border-radius:8px;padding:2px 7px}
+  .sec{font-size:12px;font-weight:800;letter-spacing:.6px;color:var(--ouro);text-transform:uppercase;margin:18px 2px 8px}
+  .lei-c{display:flex;gap:12px;align-items:center;cursor:pointer}
+  input.busca{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--bd2);background:var(--card2);color:var(--tx);font-size:14px;font-family:inherit}
+  mark{background:rgba(201,168,60,.35);color:inherit;border-radius:3px}
+  .estado{text-align:center;padding:60px 20px;color:var(--tx3)}
+</style>
+</head>
+<body>
+<div id="app"><div class="wrap"><div class="estado">Carregando...</div></div></div>
+
+<script src="config.js"></script>
+<script src="comum.js"></script>
+<script src="lei-parser.js"></script>
+<script src="pomodoro.js"></script>
+<script>
+let _alunoId=null,_mentor=false,_leis=[],_leit={},_lei=null,_dados=null,_filtro='todos',_busca='',_salvarT=null
+const $=function(id){return document.getElementById(id)}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function app(h){$('app').innerHTML=h}
+function ir(url){location.href=url+(_mentor?(url.indexOf('?')>=0?'&':'?')+'aluno='+_alunoId:'')}
+
+async function init(){
+  const { data:{user} }=await _supabase.auth.getUser()
+  if(!user){location.href='index.html';return}
+  _alunoId=user.id
+  const alvo=new URLSearchParams(location.search).get('aluno')
+  if(alvo&&alvo!==user.id){let adm=false;try{const r=await _supabase.rpc('eh_admin');adm=!!r.data}catch(e){};if(!adm){location.href='lei-seca.html';return};_mentor=true;_alunoId=alvo}
+  try{const fs=localStorage.getItem('lei_fs');if(fs)document.documentElement.style.setProperty('--fs',fs+'px')}catch(e){}
+  const ra=await _supabase.from('alunos').select('id,nome,concurso_id,bloqueado_inatividade').eq('id',_alunoId).maybeSingle()
+  const al=ra.data||{}
+  if(!_mentor&&al.bloqueado_inatividade){location.href='cronograma.html';return}
+  let cids=[]
+  try{const v=await _supabase.from('aluno_concursos').select('concurso_id').eq('aluno_id',_alunoId);cids=(v.data||[]).map(function(x){return String(x.concurso_id)})}catch(e){}
+  if(al.concurso_id)cids.push(String(al.concurso_id))
+  const rl=await _supabase.from('leis').select('*').eq('ativo',true).order('ordem').order('titulo')
+  if(rl.error){app('<div class="wrap"><div class="estado">A lei seca ainda nao foi ativada pelo mentor.<br><br><button class="btn" onclick="ir(\'cronograma.html\')">Voltar</button></div></div>');return}
+  _leis=(rl.data||[]).filter(function(l){return !l.concurso_id||cids.indexOf(String(l.concurso_id))>=0})
+  const rr=await _supabase.from('lei_leituras').select('*').eq('aluno_id',_alunoId)
+  ;(rr.data||[]).forEach(function(x){_leit[x.lei_id]=x})
+  // leitura que ficou guardada neste aparelho quando a internet caiu
+  if(!_mentor){_leis.forEach(function(l){try{const p=JSON.parse(localStorage.getItem('lei_pend_'+l.id)||'null');if(p&&p.aluno_id===_alunoId){_leit[l.id]=Object.assign(_leit[l.id]||{},p);_supabase.from('lei_leituras').upsert(p,{onConflict:'aluno_id,lei_id'}).then(function(r){if(!r.error)localStorage.removeItem('lei_pend_'+l.id)})}}catch(e){}})}
+  const id=new URLSearchParams(location.search).get('id')
+  if(id&&_leis.find(function(l){return l.id===id}))abrirLei(id); else lista()
+}
+
+function progresso(l){
+  const d=lerLei(l.texto), arts=d.artigos.filter(function(a){return !a.revogado}), x=_leit[l.id]||{}
+  const lidos=(x.lidos||[]).filter(function(k){return arts.some(function(a){return a.chave===k})}).length
+  return {total:arts.length,lidos:lidos,voltas:x.voltas||0,pct:arts.length?Math.round(lidos/arts.length*100):0}
+}
+function lista(){
+  _lei=null
+  history.replaceState(null,'','lei-seca.html'+(_mentor?'?aluno='+_alunoId:''))
+  let h='<div class="wrap"><button class="btn" onclick="ir(\'cronograma.html\')" style="margin-bottom:14px">‹ Cronograma</button>'
+    +'<div class="h1">⚖️ Lei seca</div><div class="sub" style="margin-bottom:14px">Leia a lei artigo por artigo. Na CEBRASPE, quem le a letra da lei varias vezes ganha pontos facil.</div>'
+  if(!_leis.length)h+='<div class="card estado" style="padding:30px">Seu mentor ainda nao publicou leis para a sua turma.</div>'
+  h+=_leis.map(function(l){
+    const p=progresso(l)
+    return '<div class="card lei-c" onclick="abrirLei(\''+l.id+'\')"><div style="font-size:28px">📜</div><div style="flex:1;min-width:0">'
+      +'<div style="font-weight:800;font-size:15px">'+esc(l.sigla?l.sigla+' — ':'')+esc(l.titulo)+'</div>'
+      +'<div class="sub">'+p.lidos+' de '+p.total+' artigos lidos'+(p.voltas?' · <strong style="color:var(--ok)">'+p.voltas+' leitura(s) completa(s)</strong>':'')+((l.destaques||[]).length?' · 🔥 '+l.destaques.length+' que mais caem':'')+'</div>'
+      +'<div class="barra"><div style="width:'+p.pct+'%"></div></div></div><div style="color:var(--tx3);font-size:20px">›</div></div>'
+  }).join('')
+  app(h+'</div>')
+}
+
+function abrirLei(id){
+  _lei=_leis.find(function(l){return l.id===id}); if(!_lei)return
+  _dados=lerLei(_lei.texto)
+  if(!_leit[id])_leit[id]={lei_id:id,lidos:[],marcas:{},voltas:0}
+  _filtro='todos';_busca=''
+  history.replaceState(null,'','lei-seca.html?id='+id+(_mentor?'&aluno='+_alunoId:''))
+  app('<div class="topo"><div class="topo-l"><button class="btn" onclick="lista()">‹</button>'
+    +'<div style="flex:1;min-width:0"><div style="font-weight:800;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(_lei.sigla||_lei.titulo)+'</div><div id="lei-prog" style="font-size:11.5px;color:var(--tx3)"></div><div class="barra" style="margin-top:4px"><div id="lei-bar"></div></div></div>'
+    +'<button class="btn" title="Letra menor" onclick="fonte(-1)">A−</button><button class="btn" title="Letra maior" onclick="fonte(1)">A+</button>'
+    +(_mentor?'':'<button class="btn" title="Estudar com Pomodoro" onclick="pomoAbrir({titulo:\'Lei seca: \'+(_lei.sigla||_lei.titulo)})">🍅</button>')+'</div></div>'
+    +'<div class="wrap" style="padding-top:12px"><input class="busca" placeholder="🔎 Buscar na lei (ex.: reclusao, servidor publico)" oninput="_busca=this.value;renderArts()">'
+    +'<div class="filtro" id="lei-filtro"></div>'
+    +'<div id="lei-acoes" style="margin-bottom:8px"></div>'
+    +'<div id="lei-arts"></div></div>')
+  renderArts()
+}
+function fonte(d){
+  const at=parseInt(getComputedStyle(document.documentElement).getPropertyValue('--fs'))||15, n=Math.max(12,Math.min(22,at+d))
+  document.documentElement.style.setProperty('--fs',n+'px');try{localStorage.setItem('lei_fs',n)}catch(e){}
+}
+function formatar(t){
+  // destaca o "Art. Xo", os paragrafos e incisos
+  let h=esc(t)
+  h=h.replace(/^(Art(?:igo)?\.?\s*\d+[^\s]*)/,'<b>$1</b>')
+  h=h.replace(/\n(§\s*\d+[ºo°]?|Par[aá]grafo [úu]nico\.?)/g,'\n<b>$1</b>')
+  h=h.replace(/\n((?:[IVXLC]+)\s*[-–])/g,'\n<b>$1</b>')
+  if(_busca.trim().length>=3){const q=_busca.trim().replace(/[.*+?^${}()|[\]\\]/g,'\\$&');h=h.replace(new RegExp('('+q+')','gi'),'<mark>$1</mark>')}
+  return h
+}
+function sem(s){return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase()}
+function renderArts(){
+  const x=_leit[_lei.id], lidos=x.lidos||[], marcas=x.marcas||{}, dest=(_lei.destaques||[]).map(String)
+  const arts=_dados.artigos.filter(function(a){return !a.revogado})
+  const nl=arts.filter(function(a){return lidos.indexOf(a.chave)>=0}).length
+  $('lei-prog').textContent=nl+' de '+arts.length+' artigos lidos'+(x.voltas?' · '+x.voltas+' volta(s) completa(s)':'')
+  $('lei-bar').style.width=(arts.length?Math.round(nl/arts.length*100):0)+'%'
+  const cont={todos:arts.length,nao:arts.length-nl,fogo:arts.filter(function(a){return dest.indexOf(a.chave)>=0}).length,imp:arts.filter(function(a){return marcas[a.chave]==='importante'}).length,duv:arts.filter(function(a){return marcas[a.chave]==='duvida'}).length}
+  $('lei-filtro').innerHTML=[['todos','Todos'],['nao','Nao lidos'],['fogo','🔥 Mais cobrados'],['imp','⭐ Meus destaques'],['duv','❓ Duvidas']]
+    .filter(function(f){return f[0]==='todos'||f[0]==='nao'||cont[f[0]]})
+    .map(function(f){return '<button class="'+(_filtro===f[0]?'on':'')+'" onclick="_filtro=\''+f[0]+'\';renderArts()">'+f[1]+' ('+cont[f[0]]+')</button>'}).join('')
+  $('lei-acoes').innerHTML=(nl&&nl<arts.length&&!_mentor&&_filtro==='todos'&&!_busca?'<button class="btn" style="width:100%" onclick="continuar()">▶ Continuar de onde parei</button>':'')
+    +(nl===arts.length&&arts.length&&!_mentor?'<div class="card" style="text-align:center;border-color:var(--ok)"><div style="font-size:30px">🏁</div><div style="font-weight:800;color:var(--ok)">Voce leu a lei inteira!</div><div class="sub">Releitura fixa a letra da lei. Comece a proxima volta: o contador guarda quantas vezes voce ja leu.</div><button class="btn btn-ouro" style="margin-top:10px" onclick="novaVolta()">Comecar a volta '+((x.voltas||0)+2)+'</button></div>':'')
+  const q=sem(_busca.trim())
+  let h='', secPend=null
+  _dados.unidades.forEach(function(u){
+    if(u.tipo==='secao'){secPend=u.texto;return}
+    if(u.revogado&&_filtro!=='todos')return
+    const lido=lidos.indexOf(u.chave)>=0, m=marcas[u.chave], fogo=dest.indexOf(u.chave)>=0
+    if(_filtro==='nao'&&lido)return
+    if(_filtro==='fogo'&&!fogo)return
+    if(_filtro==='imp'&&m!=='importante')return
+    if(_filtro==='duv'&&m!=='duvida')return
+    if(q.length>=3&&sem(u.texto).indexOf(q)<0)return
+    if(secPend){h+='<div class="sec">'+esc(secPend)+'</div>';secPend=null}
+    h+='<div class="art'+(lido?' lido':'')+(u.revogado?' revog':'')+'" id="art-'+esc(u.chave)+'">'
+      +(fogo?'<div style="margin-bottom:6px"><span class="fogo">🔥 CAI MUITO EM PROVA</span></div>':'')
+      +'<div class="art-t">'+formatar(u.texto)+'</div>'
+      +(u.revogado?'':'<div class="art-a">'
+        +'<button class="'+(lido?'on-l':'')+'" '+(_mentor?'disabled':'')+' onclick="marcarLido(\''+u.chave+'\')">'+(lido?'✓ Lido':'Marcar como lido')+'</button>'
+        +'<button class="'+(m==='importante'?'on-i':'')+'" '+(_mentor?'disabled':'')+' onclick="marca(\''+u.chave+'\',\'importante\')">⭐</button>'
+        +'<button class="'+(m==='duvida'?'on-d':'')+'" '+(_mentor?'disabled':'')+' onclick="marca(\''+u.chave+'\',\'duvida\')">❓ Duvida</button></div>')
+      +'</div>'
+  })
+  $('lei-arts').innerHTML=h||'<div class="estado" style="padding:30px">Nada encontrado.</div>'
+}
+function marcarLido(k){
+  const x=_leit[_lei.id]; x.lidos=x.lidos||[]
+  const i=x.lidos.indexOf(k); if(i>=0)x.lidos.splice(i,1); else x.lidos.push(k)
+  salvar();renderArts()
+}
+function marca(k,t){const x=_leit[_lei.id];x.marcas=x.marcas||{};if(x.marcas[k]===t)delete x.marcas[k];else x.marcas[k]=t;salvar();renderArts()}
+function continuar(){
+  const x=_leit[_lei.id], a=_dados.artigos.find(function(a){return !a.revogado&&(x.lidos||[]).indexOf(a.chave)<0})
+  if(!a)return
+  const el=document.getElementById('art-'+a.chave); if(el)el.scrollIntoView({behavior:'smooth',block:'center'})
+}
+function novaVolta(){const x=_leit[_lei.id];x.voltas=(x.voltas||0)+1;x.lidos=[];salvar(true);renderArts();window.scrollTo({top:0,behavior:'smooth'})}
+function salvar(agora){
+  if(_mentor)return
+  clearTimeout(_salvarT)
+  _salvarT=setTimeout(async function(){
+    const x=_leit[_lei.id]
+    const linha={aluno_id:_alunoId,lei_id:_lei.id,lidos:x.lidos||[],marcas:x.marcas||{},voltas:x.voltas||0,atualizado_em:new Date().toISOString()}
+    try{const r=await _supabase.from('lei_leituras').upsert(linha,{onConflict:'aluno_id,lei_id'});if(r.error)throw r.error}
+    catch(e){try{localStorage.setItem('lei_pend_'+_lei.id,JSON.stringify(linha))}catch(e2){}}
+  },agora?0:700)
+}
+init()
+</script>
+</body>
+</html>
