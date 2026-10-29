@@ -41,14 +41,15 @@ async function carregarCentralAgora() {
   ])
   _central = {
     reportes: rr.error ? null : (rr.data || []),
+    todosReportes: rr.error ? null : (rr.data || []),
     erros: re.error ? null : (re.data || []),
     comentarios: rc.error ? null : (rc.data || []).length
   }
   renderCentral()
 }
 
-function montarGrupos() {
-  const alunos = window._todosAlunos || [], al = window._alertasAluno || {}, ci = window._ciclos || {}
+function montarGrupos(soTurma) {
+  const alunos = (window._todosAlunos || []).filter(function (a) { return typeof alunoNaTurma !== 'function' || alunoNaTurma(a, soTurma) }), al = window._alertasAluno || {}, ci = window._ciclos || {}
   const pausados = window._pausados || {}
   const h = hojeLocal()
   const g = { sumidos: [], vencendo: [], vencidos: [], ciclos: [], mexeu: [], pausaVencida: [], bloqueados: [] }
@@ -81,15 +82,22 @@ function montarGrupos() {
 function renderCentral() {
   const box = document.getElementById('central-conteudo'); if (!box) return
   const g = montarGrupos(), c = _central || {}
+  // erros reportados: so os dos alunos da turma escolhida
+  if (c.reportes && typeof turmaAtual === 'function' && turmaAtual()) {
+    const ids = {}; (window._todosAlunos || []).forEach(function (a) { if (alunoNaTurma(a)) ids[a.id] = 1 })
+    c.reportes = (_central.todosReportes || c.reportes).filter(function (r) { return ids[r.aluno_id] })
+  } else if (_central && _central.todosReportes) c.reportes = _central.todosReportes
   const nRep = c.reportes ? c.reportes.length : 0, nErr = c.erros ? c.erros.length : 0
   const total = g.sumidos.length + g.vencendo.length + g.vencidos.length + g.ciclos.length + g.mexeu.length + g.pausaVencida.length + nRep
   const kpi = function (n, l, cor) { return '<div class="kpi"><div class="kpi-n" style="color:' + cor + '">' + n + '</div><div class="kpi-l">' + l + '</div></div>' }
-  let h = '<div class="kpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px">'
+  let h = (typeof htmlSeletorTurma === 'function' ? htmlSeletorTurma() : '')
+  h += '<div class="kpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px">'
     + kpi(total, 'acoes para hoje', total ? 'var(--ouro)' : 'var(--ok)')
     + kpi(g.sumidos.length, 'sem estudar 3+ dias', g.sumidos.length ? 'var(--erro)' : 'var(--tx3)')
     + kpi(g.vencendo.length + g.vencidos.length, 'renovacoes', (g.vencendo.length + g.vencidos.length) ? 'var(--alerta)' : 'var(--tx3)')
     + kpi(nRep, 'erros reportados', nRep ? 'var(--erro)' : 'var(--tx3)')
     + '</div>'
+  if (typeof htmlResumoTurmas === 'function' && typeof turmaAtual === 'function' && !turmaAtual()) h += htmlResumoTurmas()
   if (!total) h += '<div class="card" style="text-align:center;border-color:var(--ok)"><div style="font-size:36px">✅</div><div style="font-weight:800;color:var(--ok);margin-top:6px">Tudo em dia por aqui!</div><div style="color:var(--tx3);font-size:13px;margin-top:4px">Nenhuma pendencia com os alunos hoje.</div></div>'
 
   h += grupo('sumidos', '🚨', 'Sem estudar ha 3 dias ou mais', 'var(--erro)', g.sumidos, function (x) {
@@ -272,3 +280,34 @@ async function copiarMsgCentral() {
   const pn = document.getElementById('painel-admin')
   if (ab && ab.style.display !== 'none' && pn && pn.style.display !== 'none' && !_central) carregarCentral()
 })()
+
+/* ---------------- TURMAS (alunos agrupados por concurso) ---------------- */
+function htmlSeletorTurma () {
+  const t = turmaAtual()
+  return '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">'
+    + '<span style="color:var(--tx3);font-size:13px;font-weight:600">Turma:</span>'
+    + '<select class="filtro-turma" onchange="definirTurma(this.value)" style="width:auto;min-width:200px;margin:0">' + opcoesTurmaHTML(t) + '</select>'
+    + (t ? '<button class="btn-acao btn-editar" style="padding:8px 12px" onclick="definirTurma(\'\')">Ver todas</button>' : '')
+    + '</div>'
+}
+function htmlResumoTurmas () {
+  const cs = (window._concursos || []).map(function (c) {
+    const al = (window._todosAlunos || []).filter(function (a) { return alunoNaTurma(a, String(c.id)) })
+    if (!al.length) return null
+    const g = montarGrupos(String(c.id))
+    const ativos = al.length - g.bloqueados.length - g.vencidos.length
+    return { c: c, n: al.length, ativos: ativos, sum: g.sumidos.length, ren: g.vencendo.length + g.vencidos.length, cic: g.ciclos.length }
+  }).filter(Boolean)
+  if (cs.length < 2) return ''
+  return '<div class="card"><div style="font-weight:800;font-size:14px;margin-bottom:10px">👥 Suas turmas</div>'
+    + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px">'
+    + cs.map(function (x) {
+      return '<div onclick="definirTurma(\'' + x.c.id + '\')" style="cursor:pointer;background:var(--card2);border:1px solid var(--bd);border-radius:12px;padding:11px 12px">'
+        + '<div style="font-weight:800;color:var(--ouro);font-size:14px">' + escC(x.c.nome) + '</div>'
+        + '<div style="font-size:12px;color:var(--tx3);margin-top:2px">' + x.ativos + ' ativo(s) de ' + x.n + '</div>'
+        + '<div style="display:flex;gap:10px;margin-top:6px;font-size:12px;flex-wrap:wrap">'
+        + '<span style="color:' + (x.sum ? 'var(--erro)' : 'var(--tx4)') + '">🚨 ' + x.sum + ' sumido(s)</span>'
+        + '<span style="color:' + (x.ren ? 'var(--alerta)' : 'var(--tx4)') + '">⏳ ' + x.ren + ' renov.</span>'
+        + '<span style="color:' + (x.cic ? 'var(--alerta)' : 'var(--tx4)') + '">🗓️ ' + x.cic + ' relat.</span></div></div>'
+    }).join('') + '</div><div style="font-size:11.5px;color:var(--tx4);margin-top:8px">Toque numa turma para ver so as pendencias dela.</div></div>'
+}
