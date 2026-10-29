@@ -325,11 +325,13 @@ async function carregarAlunos() {
       <option value="expira-breve">Acesso expirando primeiro</option>
       <option value="bloqueados">Bloqueados por inatividade</option>
     </select>
+    <select class="filtro-turma" onchange="definirTurma(this.value)" style="margin:0;width:auto;min-width:170px">${opcoesTurmaHTML(turmaAtual())}</select>
     <button onclick="exportarAlunosCSV()" class="btn-acao btn-editar" style="padding:10px 16px;white-space:nowrap">Exportar CSV</button>
   </div>
   <div id="lista-alunos-inner"></div>`
 
   window._todosAlunos = alunos
+  await carregarVinculosTurma()
   window._pagAl = 0
   // mostra a lista na hora; os alertas (ultimo estudo, ciclos) completam os cartoes em seguida
   filtrarAlunos()
@@ -342,6 +344,40 @@ async function carregarAlunos() {
   filtrarAlunos(true)
 }
 
+/* ---------- TURMAS: alunos agrupados por concurso ---------- */
+// um aluno e da turma pelo concurso principal ou por um vinculo extra (aluno_concursos)
+async function carregarVinculosTurma() {
+  const m = {}
+  try {
+    const vs = await todasLinhasA(function(){ return _supabase.from('aluno_concursos').select('aluno_id,concurso_id').order('aluno_id') })
+    vs.forEach(function(v){ if(!v.concurso_id) return; (m[v.aluno_id] = m[v.aluno_id] || []).push(String(v.concurso_id)) })
+  } catch(e) {}
+  window._vincTurma = m
+}
+function turmaAtual() { try { return localStorage.getItem('turma_mentor') || '' } catch(e) { return '' } }
+function alunoNaTurma(a, t) {
+  if (t === undefined) t = turmaAtual()
+  if (!t) return true
+  if (String(a.concurso_id || '') === String(t)) return true
+  return ((window._vincTurma || {})[a.id] || []).indexOf(String(t)) >= 0
+}
+function opcoesTurmaHTML(sel) {
+  const al = window._todosAlunos || []
+  let h = '<option value="">Todas as turmas (' + al.length + ')</option>'
+  ;(window._concursos || []).forEach(function(c){
+    const n = al.filter(function(a){ return alunoNaTurma(a, String(c.id)) }).length
+    if (!n && String(sel) !== String(c.id)) return
+    h += '<option value="' + c.id + '"' + (String(sel) === String(c.id) ? ' selected' : '') + '>' + String(c.nome).replace(/</g,'&lt;') + ' (' + n + ')</option>'
+  })
+  return h
+}
+function definirTurma(v) {
+  try { localStorage.setItem('turma_mentor', v || '') } catch(e) {}
+  document.querySelectorAll('.filtro-turma').forEach(function(s){ s.innerHTML = opcoesTurmaHTML(v || '') })
+  filtrarAlunos()
+  if (typeof renderCentral === 'function' && typeof _central !== 'undefined' && _central) renderCentral()
+}
+
 const POR_PAGINA_ALUNOS = 10
 function filtrarAlunos(manterPagina) {
   if (!window._todosAlunos) return
@@ -350,7 +386,7 @@ function filtrarAlunos(manterPagina) {
   if (manterPagina !== true) window._pagAl = 0
 
   let filtrados = window._todosAlunos.filter(a =>
-    String(a.nome||'').toLowerCase().includes(termo) || String(a.email||'').toLowerCase().includes(termo)
+    (String(a.nome||'').toLowerCase().includes(termo) || String(a.email||'').toLowerCase().includes(termo)) && alunoNaTurma(a)
   )
 
   filtrados = [...filtrados].sort((a, b) => {
