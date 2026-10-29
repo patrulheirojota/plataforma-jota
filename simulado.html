@@ -80,6 +80,7 @@
 
 <script src="config.js"></script>
 <script src="comum.js"></script>
+<script src="explicacao.js"></script>
 <script>
 const LETRAS='ABCDE'
 let _uid=null,_alunoId=null,_mentor=false,_aluno=null,_sim=null,_res=null,_itens=[],_resp={},_tempo={},_rev={},_risc={},_atual=0
@@ -399,6 +400,7 @@ function renderCorrecao(){
       +(pt!=null?'<span style="color:var(--tx3)">👥 '+pt+'% da turma acertou</span>':'')
       +'<span style="color:var(--tx3)">⏱️ '+tempoTxt(_tempo[q.id]||0)+(e&&e.tempo_medio?' (media '+e.tempo_medio+'s)':'')+'</span></div>'
       +(q.comentario?'<div style="border-top:1px solid var(--bd);padding-top:10px;margin-top:4px"><div style="color:var(--ouro);font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;margin-bottom:5px">Comentario do Jota</div><div style="font-size:14px;line-height:1.7;color:var(--tx2);white-space:pre-wrap">'+esc(q.comentario)+'</div></div>':'')
+      +(q.explicacao_url&&typeof htmlExplicacao==='function'?htmlExplicacao(q.explicacao_url):'')
       +'</div>'
   }).join('')||'<div class="estado">Nada neste filtro.</div>'
   h+='</div>'
