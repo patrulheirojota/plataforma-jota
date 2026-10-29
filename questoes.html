@@ -303,6 +303,7 @@
 </div>
 
 <script src="config.js"></script>
+<script src="comum.js"></script>
 <script>
 let _alunoId=null,_concursos=[],_discSel=[],_assSel=[],_status='todas',_pag=0,_qs=[],_resp={},_matTipo=''
 let _metaDia=30,_respHoje=0,_assuntos={},_errosVelhos=[]
@@ -654,6 +655,7 @@ function renderQ(q){
     +(q.assunto?'<span style="color:var(--tx3);font-size:12px">› '+esc(q.assunto)+'</span>':'')
     +'<span style="margin-left:auto;color:var(--tx4);font-size:11px">'+esc(q.banca||'')+(q.ano?' · '+q.ano:'')+(q.orgao?' · '+esc(q.orgao):'')+'</span>'
     +(r?'<span class="tag" style="background:'+(r.correta?'rgba(109,219,160,.15);color:#6ddba0;border:1px solid #6ddba0':'rgba(240,113,113,.15);color:#f07171;border:1px solid #f07171')+'">'+(r.correta?'ACERTOU':'ERROU')+'</span>':'')
+    +'<button class="btn" title="Achou um erro nesta questao? Avise o mentor" style="padding:4px 9px;font-size:11.5px;color:var(--tx3)" onclick="abrirReporte(\''+q.id+'\')">⚑ Reportar erro</button>'
     +'</div>'
     +(q.texto_apoio?'<div class="q-ap">'+esc(q.texto_apoio)+'</div>':'')
     +'<div class="q-tx">'+esc(q.enunciado)+'</div>'
@@ -1175,11 +1177,66 @@ async function carregarComentarios(id){
    +'<div style="margin-top:14px">'
    +((cs&&cs.length)?cs.map(function(c){
       return '<div class="cmt"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:5px">'
-        +'<strong style="color:var(--ouro);font-size:12.5px">'+esc(c.alunos?c.alunos.nome:'Aluno')+'</strong>'
-        +'<span style="color:var(--tx4);font-size:11px">'+new Date(c.criado_em).toLocaleDateString('pt-BR')+'</span></div>'
+        +'<strong style="color:var(--ouro);font-size:12.5px">'+esc(c.aluno_id===_alunoId?'Voce':(c.alunos?c.alunos.nome:'Aluno'))+'</strong>'
+        +'<span style="color:var(--tx4);font-size:11px">'+new Date(c.criado_em).toLocaleDateString('pt-BR')
+        +(c.aluno_id===_alunoId?' · <a style="color:#f07171;cursor:pointer;text-decoration:underline" onclick="excluirComentario(\''+c.id+'\',\''+id+'\')">excluir</a>':'')+'</span></div>'
         +'<div style="font-size:13px;line-height:1.6;color:var(--tx2);white-space:pre-wrap">'+esc(c.texto)+'</div></div>'
     }).join(''):'<div style="color:var(--tx4);font-size:12.5px;padding:8px">Nenhum comentario ainda. Seja o primeiro a deixar um bizu!</div>')
    +'</div>'
+}
+
+
+/* ---------- excluir o proprio comentario ---------- */
+async function excluirComentario(cid,qid){
+  if(!confirm('Excluir o seu comentario?'))return
+  const r=await _supabase.from('questao_comentarios').delete().eq('id',cid).eq('aluno_id',_alunoId)
+  if(r.error){alert('Nao foi possivel excluir: '+r.error.message);return}
+  carregarComentarios(qid)
+}
+
+/* ---------- reportar erro na questao ---------- */
+const MOTIVOS_REP=[['gabarito','Gabarito errado'],['enunciado','Erro no enunciado ou nas alternativas'],['desatualizada','Questao desatualizada (a lei mudou)'],['incompleta','Texto cortado ou falta imagem'],['outro','Outro problema']]
+let _repQ=null,_repMot=''
+function abrirReporte(qid){
+  _repQ=qid;_repMot=''
+  let ov=document.getElementById('rep-ov')
+  if(!ov){
+    ov=document.createElement('div');ov.id='rep-ov'
+    ov.style.cssText='position:fixed;inset:0;background:rgba(5,10,18,.7);z-index:300;display:flex;align-items:flex-start;justify-content:center;padding:40px 12px;overflow-y:auto'
+    ov.onclick=function(e){if(e.target===ov)fecharReporte()}
+    document.body.appendChild(ov)
+  }
+  ov.style.display='flex'
+  renderReporte()
+}
+function fecharReporte(){const ov=document.getElementById('rep-ov');if(ov)ov.style.display='none'}
+function escolherMotivo(m){_repMot=m;const t=document.getElementById('rep-txt');const v=t?t.value:'';renderReporte();const t2=document.getElementById('rep-txt');if(t2)t2.value=v}
+function renderReporte(){
+  const q=_qs.find(function(x){return x.id===_repQ})||(typeof _simQs!=='undefined'?_simQs.find(function(x){return x.id===_repQ}):null)||{}
+  document.getElementById('rep-ov').innerHTML='<div style="background:var(--bg2);border:1px solid var(--bd2);border-radius:16px;padding:18px;width:100%;max-width:480px">'
+    +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px"><div><div style="color:var(--ouro);font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase">Reportar erro</div>'
+    +'<div style="font-size:17px;font-weight:800;margin-top:2px">O que esta errado nesta questao?</div></div>'
+    +'<button class="btn" style="padding:5px 11px" onclick="fecharReporte()">✕</button></div>'
+    +(q.enunciado?'<div style="color:var(--tx3);font-size:12.5px;margin:8px 0 4px;line-height:1.5;max-height:60px;overflow:hidden">'+esc(String(q.enunciado).slice(0,180))+'...</div>':'')
+    +'<div style="display:flex;flex-direction:column;gap:6px;margin-top:10px">'
+    +MOTIVOS_REP.map(function(m){const on=_repMot===m[0];return '<button class="btn" style="text-align:left;padding:11px 13px;'+(on?'background:var(--hov);border-color:var(--ouro);color:var(--ouro);font-weight:700':'')+'" onclick="escolherMotivo(\''+m[0]+'\')">'+(on?'● ':'○ ')+m[1]+'</button>'}).join('')
+    +'</div>'
+    +'<label style="color:var(--tx3);font-size:12px;font-weight:700;display:block;margin:12px 0 5px">Explique (opcional, mas ajuda muito)</label>'
+    +'<textarea id="rep-txt" maxlength="1000" class="inp" style="min-height:80px;resize:vertical;font-family:inherit" placeholder="Ex.: o gabarito diz C, mas o art. 5º diz o contrario..."></textarea>'
+    +'<button class="btn btn-ouro" style="width:100%;padding:12px;margin-top:12px" onclick="enviarReporte()">Enviar para o mentor</button>'
+    +'<div id="rep-msg" style="font-size:12.5px;margin-top:8px;text-align:center"></div></div>'
+}
+async function enviarReporte(){
+  const m=document.getElementById('rep-msg')
+  if(!_repMot){m.style.color='#f07171';m.textContent='Escolha o tipo do problema.';return}
+  const txt=(document.getElementById('rep-txt').value||'').trim()
+  m.style.color='var(--tx3)';m.textContent='Enviando...'
+  const r=await _supabase.from('questao_reportes').insert({questao_id:String(_repQ),aluno_id:_alunoId,motivo:_repMot,texto:txt||null})
+  if(r.error){m.style.color='#f07171';m.textContent=/relation|does not exist/i.test(r.error.message)?'Ainda nao disponivel. Avise o seu mentor.':'Nao foi possivel enviar: '+r.error.message;return}
+  document.getElementById('rep-ov').innerHTML='<div style="background:var(--bg2);border:1px solid #6ddba0;border-radius:16px;padding:24px;width:100%;max-width:420px;text-align:center">'
+    +'<div style="font-size:42px">✅</div><div style="font-size:17px;font-weight:800;margin-top:6px">Obrigado, patrulheiro!</div>'
+    +'<div style="color:var(--tx3);font-size:13px;margin-top:6px;line-height:1.55">O mentor vai conferir esta questao. Voce ajudou a turma toda.</div>'
+    +'<button class="btn btn-ouro" style="width:100%;padding:11px;margin-top:16px" onclick="fecharReporte()">Fechar</button></div>'
 }
 
 async function comentar(id){
@@ -1593,6 +1650,7 @@ async function finalizarSimulado(){
          +(q.bizu?'<div class="bizu"><div class="bizu-h"><span style="font-size:15px">📓</span><span class="bizu-t">Para o caderno de erros</span></div>'
             +'<div style="font-size:13.5px;line-height:1.65;color:var(--tx)">'+esc(q.bizu)+'</div></div>':'')
          +barraFlash(q.id,ok,true)
+         +'<div style="text-align:right;margin-top:8px"><button class="btn" style="padding:5px 10px;font-size:11.5px;color:var(--tx3)" onclick="abrirReporte(\''+q.id+'\')">⚑ Reportar erro nesta questao</button></div>'
          +'</div>'
      }).join('')
   window.scrollTo({top:0,behavior:'smooth'})
