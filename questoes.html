@@ -199,6 +199,7 @@
     <!-- SIMULADOS -->
     <section class="sec" id="sec-simulados">
       <div id="sim-inicio">
+        <div id="lista-sim" style="margin-bottom:18px"></div>
         <div class="painel" style="margin-bottom:16px">
           <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
             <div style="font-size:26px">🎯</div>
@@ -241,8 +242,6 @@
           <p id="sim-msg" style="display:none;margin-top:10px;font-size:13px"></p>
         </div>
 
-        <div style="font-size:13px;font-weight:700;color:var(--ouro);margin-bottom:10px">Simulados do mentor</div>
-        <div id="lista-sim"></div>
 
         <div id="hist-sim" style="margin-top:22px"></div>
       </div>
@@ -1314,31 +1313,35 @@ function filtrarMat(t){_matTipo=t;carregarMateriais()}
 async function carregarSimulados(){
   const box=document.getElementById('lista-sim')
   box.innerHTML='<div class="vazio">Carregando...</div>'
-  const cids=_concursos.map(function(c){return c.id})
-  const { data:ss }=await _supabase.from('simulados').select('*, concursos(nome)').eq('ativo',true).order('criado_em',{ascending:false})
-  const lista=(ss||[]).filter(function(s){return !s.concurso_id||cids.indexOf(s.concurso_id)>=0})
+  const cids=_concursos.map(function(c){return String(c.id)})
+  const rs=await _supabase.from('sim_banca').select('*').eq('publicado',true).order('criado_em',{ascending:false})
+  if(rs.error){box.innerHTML='';return}
+  const lista=(rs.data||[]).filter(function(s){return !s.concurso_id||cids.indexOf(String(s.concurso_id))>=0})
   if(!lista.length){
     box.innerHTML='<div class="painel vazio"><div style="font-size:44px;margin-bottom:12px">🎯</div>'
-      +'<div style="color:var(--ouro);font-weight:700;font-size:17px">Nenhum simulado disponivel</div>'
+      +'<div style="color:var(--ouro);font-weight:700;font-size:17px">Nenhum simulado da banca disponivel</div>'
       +'<p style="color:var(--tx3);font-size:13px;margin-top:10px;max-width:400px;margin-left:auto;margin-right:auto;line-height:1.7">'
-      +'Seu mentor ainda nao publicou simulados para o seu concurso. Enquanto isso, treine pelo banco de questoes.</p>'
-      +'<button class="btn btn-ouro" style="margin-top:16px" onclick="irSecao(\'questoes\')">Ir para as questoes</button></div>'
+      +'Quando o seu mentor publicar um simulado, ele aparece aqui. Enquanto isso, monte o seu simulado logo abaixo.</p></div>'
     return
   }
-  const { data:ts }=await _supabase.from('simulado_tentativas').select('simulado_id,acertos,total,finalizado_em').eq('aluno_id',_alunoId)
-  const feito={}
-  ;(ts||[]).forEach(function(t){if(t.finalizado_em)feito[t.simulado_id]=t})
-  box.innerHTML=lista.map(function(s){
-    const t=feito[s.id]
-    const pct=t&&t.total?Math.round(t.acertos/t.total*100):null
-    return '<div class="mat"><div style="font-size:24px">🎯</div>'
+  const rr=await _supabase.from('sim_resultados').select('simulado_id,nota,nota_max,finalizado_em,iniciado_em').eq('aluno_id',_alunoId)
+  const meu={};(rr.data||[]).forEach(function(r){meu[r.simulado_id]=r})
+  const agora=Date.now()
+  const dt=function(i){return new Date(i).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}
+  box.innerHTML='<div style="font-size:13px;font-weight:700;color:var(--ouro);margin-bottom:10px">🧪 Simulados da banca</div>'+lista.map(function(s){
+    const r=meu[s.id], url='simulado.html?id='+s.id+(_mentor?'&aluno='+_alunoId:'')
+    const abre=s.abre_em&&new Date(s.abre_em).getTime()>agora, fechou=s.fecha_em&&new Date(s.fecha_em).getTime()<agora
+    let st='',bt=''
+    if(r&&r.finalizado_em){const p=r.nota_max?Math.max(0,Math.round(r.nota/r.nota_max*100)):0;st='<span style="color:'+(p>=70?'#6ddba0':p>=50?'#e8b04b':'#f07171')+'">feito · nota '+String(r.nota).replace('.',',')+' ('+p+'%)</span>';bt='<a class="btn" href="'+url+'" style="text-decoration:none">Ver resultado</a>'}
+    else if(r){st='<span style="color:#e8b04b">em andamento</span>';bt='<a class="btn btn-ouro" href="'+url+'" style="text-decoration:none">Continuar</a>'}
+    else if(abre){st='abre em '+dt(s.abre_em);bt='<a class="btn" href="'+url+'" style="text-decoration:none">Ver</a>'}
+    else if(fechou){st='encerrado';bt=''}
+    else{st=s.fecha_em?'disponivel ate '+dt(s.fecha_em):'disponivel';bt=_mentor?'':'<a class="btn btn-ouro" href="'+url+'" style="text-decoration:none">Fazer</a>'}
+    return '<div class="mat"><div style="font-size:24px">🧪</div>'
       +'<div style="flex:1;min-width:160px"><div style="font-size:14.5px;font-weight:700">'+esc(s.nome)+'</div>'
       +(s.descricao?'<div style="color:var(--tx3);font-size:12.5px;margin-top:3px">'+esc(s.descricao)+'</div>':'')
-      +'<div style="color:var(--tx4);font-size:11.5px;margin-top:3px">'+(s.concursos?esc(s.concursos.nome)+' · ':'')+s.tempo_minutos+' min'
-      +(t?' · <span style="color:'+(pct>=70?'#6ddba0':pct>=50?'#e8b04b':'#f07171')+'">ja feito: '+pct+'%</span>':'')+'</div></div>'
-      +'<span class="btn" style="opacity:.6">Em breve</span></div>'
+      +'<div style="color:var(--tx4);font-size:11.5px;margin-top:3px">'+(s.banca?esc(s.banca)+' · ':'')+s.tempo_minutos+' min · '+st+'</div></div>'+bt+'</div>'
   }).join('')
-  box.innerHTML+='<p style="color:var(--tx4);font-size:12px;text-align:center;margin-top:12px">A resolucao de simulados cronometrados chega na proxima atualizacao.</p>'
 }
 
 /* ============ REFAZER OS ERROS (repeticao espacada) ============ */
