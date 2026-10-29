@@ -6,9 +6,10 @@
   <title>Meu Edital — Patrulheiros de Elite</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="stylesheet" href="style.css">
+  <script>document.documentElement.setAttribute("data-tema",localStorage.getItem("tema")||"escuro")</script>
   <style>
     .edital-disc {
-      background: #1a2f45; border-radius: 12px;
+      background: var(--card); border-radius: 12px;
       margin-bottom: 12px; overflow: hidden;
     }
     .edital-disc-header {
@@ -16,35 +17,55 @@
       padding: 14px 16px; cursor: pointer;
       transition: background 0.2s;
     }
-    .edital-disc-header:hover { background: #1e3550; }
+    .edital-disc-header:hover { background: var(--hov); }
     .edital-disc-nome { flex: 1; font-size: 15px; font-weight: bold; }
-    .edital-disc-stats { font-size: 12px; color: #aaa; }
+    .edital-disc-stats { font-size: 12px; color: var(--tx3); }
     .edital-disc-body { display: none; padding: 0 16px 14px; }
     .edital-disc-body.aberto { display: block; }
-    .barra-disc { height: 6px; border-radius: 3px; background: #0d1b2a; margin: 8px 0; overflow: hidden; }
+    .barra-disc { height: 6px; border-radius: 3px; background: var(--bg); margin: 8px 0; overflow: hidden; }
     .barra-disc-fill { height: 100%; border-radius: 3px; transition: width 0.5s; }
     .topico-item {
       display: flex; align-items: flex-start; gap: 10px;
-      padding: 8px 0; border-bottom: 1px solid #2a4a6a;
+      padding: 8px 0; border-bottom: 1px solid var(--bd2);
     }
     .topico-item:last-child { border-bottom: none; }
     .topico-check { width: 20px; height: 20px; accent-color: #C9A83C; flex-shrink: 0; margin-top: 2px; cursor: pointer; }
     .topico-texto { flex: 1; font-size: 13px; line-height: 1.4; }
-    .topico-texto.concluido { text-decoration: line-through; color: #aaa; }
+    .topico-texto.concluido { text-decoration: line-through; color: var(--tx3); }
     .prioridade-badge { font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: bold; flex-shrink: 0; }
     .prioridade-alta { background: #e5737322; color: #e57373; border: 1px solid #e57373; }
     .prioridade-media { background: #ffb74d22; color: #ffb74d; border: 1px solid #ffb74d; }
     .prioridade-baixa { background: #4a8ab522; color: #4a8ab5; border: 1px solid #4a8ab5; }
-    .topico-nota { font-size: 11px; color: #aaa; margin-top: 3px; cursor: pointer; }
+    .topico-nota { font-size: 11px; color: var(--tx3); margin-top: 3px; cursor: pointer; }
     .resumo-geral {
-      background: linear-gradient(135deg, #1a3a5c, #0d1b2a);
+      background: linear-gradient(135deg, rgba(201,168,60,.10), var(--card)); border-color: rgba(201,168,60,.4) !important;
       border-radius: 12px; padding: 20px; margin-bottom: 20px;
-      border: 1px solid #2a4a6a;
+      border: 1px solid var(--bd2);
     }
     .filtros-edital { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
-    .filtro-e { width: auto; padding: 6px 12px; font-size: 12px; background: #1a2f45; color: #aaa; border: 1px solid #2a4a6a; border-radius: 8px; font-weight: normal; }
-    .filtro-e.ativo { background: #C9A83C; color: #0d1b2a; border-color: #C9A83C; }
-    .nota-input { width: 100%; padding: 6px; border-radius: 6px; border: 1px solid #2a4a6a; background: #0d1b2a; color: #fff; font-size: 12px; margin-top: 4px; resize: none; }
+    .filtro-e { width: auto; padding: 6px 12px; font-size: 12px; background: var(--card); color: var(--tx3); border: 1px solid var(--bd2); border-radius: 8px; font-weight: normal; }
+    .filtro-e.ativo { background: var(--ouro); color: #0a1420; border-color: var(--ouro); font-weight:700 }
+    .nota-input { width: 100%; padding: 6px; border-radius: 6px; border: 1px solid var(--bd2); background: var(--bg); color: var(--tx); font-size: 12px; margin-top: 4px; resize: none; }
+
+    .e-shell{display:flex;min-height:100vh}
+    .e-side{width:236px;background:var(--bg2);border-right:1px solid var(--bd);padding:20px 14px;display:flex;flex-direction:column;position:fixed;top:0;bottom:0;left:0;overflow-y:auto;z-index:30}
+    .e-logo{display:flex;align-items:center;gap:10px;padding:0 8px 22px}
+    .e-logo-i{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--ouro),#8a6f1e);display:flex;align-items:center;justify-content:center;font-size:18px}
+    .e-logo-t{font-size:14px;font-weight:800;line-height:1.2}.e-logo-t span{color:var(--ouro);display:block;font-size:11px;font-weight:600}
+    .e-nav{display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:11px;color:var(--tx2);font-size:14px;cursor:pointer;margin-bottom:3px;border:1px solid transparent;font-weight:500}
+    .e-nav:hover{background:var(--btn);color:var(--tx)}
+    .e-nav.on{background:var(--hov);color:var(--ouro);border-color:var(--bd2);font-weight:600}
+    .e-ic{width:19px;text-align:center;font-size:15px;flex-shrink:0}
+    .e-sep{height:1px;background:var(--bd);margin:10px 6px}
+    .e-main{flex:1;margin-left:236px;min-width:0}
+    .e-main header{display:flex !important}
+    @media(max-width:860px){
+      .e-side{position:static;width:100%;flex-direction:row;overflow-x:auto;padding:10px;border-right:none;border-bottom:1px solid var(--bd);gap:5px;align-items:center}
+      .e-logo,.e-sep{display:none}
+      .e-nav{margin-bottom:0;white-space:nowrap;padding:9px 13px;font-size:13px}
+      .e-shell{flex-direction:column}
+      .e-main{margin-left:0}
+    }
   </style>
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#0a1420">
@@ -55,16 +76,29 @@
 <script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){})})}</script>
 </head>
 <body>
+<div class="e-shell">
+<aside class="e-side">
+  <div class="e-logo"><div class="e-logo-i">🛡️</div><div class="e-logo-t">Patrulheiros<span>de Elite</span></div></div>
+  <div class="e-nav" onclick="irE('cronograma.html')"><span class="e-ic">📅</span>Meu Cronograma</div>
+  <div class="e-nav" onclick="irE('questoes.html')"><span class="e-ic">❓</span>Questoes</div>
+  <div class="e-nav" onclick="irE('questoes.html#simulados')"><span class="e-ic">🎯</span>Simulados</div>
+  <div class="e-nav" onclick="irE('ranking.html')"><span class="e-ic">🏆</span>Ranking</div>
+  <div class="e-nav on"><span class="e-ic">📖</span>Edital</div>
+  <div class="e-sep"></div>
+  <div class="e-nav" onclick="irE('flashcards.html')"><span class="e-ic">🗂️</span>Flashcards</div>
+  <div class="e-nav" onclick="irE('questoes.html#mapas')"><span class="e-ic">🧠</span>Mapas mentais</div>
+</aside>
+<main class="e-main">
 <div class="container">
   <header>
     <div>
       <h2>Meu Edital 📋</h2>
-      <div id="edital-concurso-nome" style="color:#aaa;font-size:13px;margin-top:2px"></div>
+      <div id="edital-concurso-nome" style="color:var(--tx3);font-size:13px;margin-top:2px"></div>
     </div>
-    <button onclick="if(history.length>1){history.back()}else{window.location.href='dashboard.html'}" style="width:auto;padding:8px 16px">Voltar</button>
+    <button onclick="irE('cronograma.html')" style="width:auto;padding:8px 16px;background:var(--card);color:var(--tx2);border:1px solid var(--bd2)">← Cronograma</button>
   </header>
 
-  <div id="loading-edital" style="text-align:center;padding:40px;color:#aaa">Carregando edital...</div>
+  <div id="loading-edital" style="text-align:center;padding:40px;color:var(--tx3)">Carregando edital...</div>
 
   <div id="conteudo-edital" style="display:none">
 
@@ -73,30 +107,30 @@
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
         <div>
           <div style="color:#C9A83C;font-size:16px;font-weight:bold">Progresso Geral</div>
-          <div id="resumo-texto" style="color:#aaa;font-size:13px;margin-top:2px"></div>
+          <div id="resumo-texto" style="color:var(--tx3);font-size:13px;margin-top:2px"></div>
         </div>
         <div id="resumo-pct" style="color:#C9A83C;font-size:36px;font-weight:bold"></div>
       </div>
-      <div style="background:#0d1b2a;border-radius:20px;height:10px;overflow:hidden">
+      <div style="background:var(--bg);border-radius:20px;height:10px;overflow:hidden">
         <div id="barra-geral" style="height:100%;border-radius:20px;background:#C9A83C;transition:width 1s;width:0%"></div>
       </div>
       <div style="display:flex;gap:16px;margin-top:14px;flex-wrap:wrap">
         <div style="display:flex;align-items:center;gap:6px;font-size:12px">
           <div style="width:10px;height:10px;border-radius:2px;background:#e57373"></div>
-          <span style="color:#aaa">Alta prioridade</span>
+          <span style="color:var(--tx3)">Alta prioridade</span>
         </div>
         <div style="display:flex;align-items:center;gap:6px;font-size:12px">
           <div style="width:10px;height:10px;border-radius:2px;background:#ffb74d"></div>
-          <span style="color:#aaa">Media prioridade</span>
+          <span style="color:var(--tx3)">Media prioridade</span>
         </div>
         <div style="display:flex;align-items:center;gap:6px;font-size:12px">
           <div style="width:10px;height:10px;border-radius:2px;background:#4a8ab5"></div>
-          <span style="color:#aaa">Baixa prioridade</span>
+          <span style="color:var(--tx3)">Baixa prioridade</span>
         </div>
       </div>
     </div>
 
-    <div style="background:#10283a;border:1px solid #2a4a6a;border-radius:10px;padding:11px 14px;margin-bottom:12px;color:#c5d3e0;font-size:13px;line-height:1.55">
+    <div style="background:var(--card2);border:1px solid var(--bd2);border-radius:10px;padding:11px 14px;margin-bottom:12px;color:var(--tx2);font-size:13px;line-height:1.55">
       📗 <b style="color:#81c784">Ja estudou algum tema?</b> Marque aqui. A <b>teoria</b> desse tema sai do seu cronograma, e as <b>questoes e a revisao continuam</b>.
     </div>
     <div id="aviso-cron"></div>
@@ -118,11 +152,14 @@
   <div id="sem-edital" style="display:none;text-align:center;padding:40px">
     <div style="font-size:40px;margin-bottom:12px">📋</div>
     <p style="color:#C9A83C;font-weight:bold;font-size:16px">Edital ainda nao cadastrado</p>
-    <p style="color:#aaa;font-size:13px;margin-top:6px">Seu mentor ainda nao cadastrou o edital do seu concurso. Em breve ele estara disponivel aqui!</p>
+    <p style="color:var(--tx3);font-size:13px;margin-top:6px">Seu mentor ainda nao cadastrou o edital do seu concurso. Em breve ele estara disponivel aqui!</p>
   </div>
 </div>
 
+</main>
+</div>
 <script src="config.js"></script>
+<script src="comum.js"></script>
 <script>
 let _alunoId = null
 let _concursoId = null
@@ -131,6 +168,10 @@ let _progresso = {}
 let _filtroAtual = 'todos'
 let _teoriaPend = {}   // topico_id -> qtde de sessoes de teoria pendentes no cronograma
 let _mentorAluno = null
+function irE(url) {
+  if (_mentorAluno) { const p = url.split('#'); location.href = p[0] + '?aluno=' + _mentorAluno + (p[1] ? '#' + p[1] : ''); return }
+  location.href = url
+}
 
 async function init() {
   const { data: { user } } = await _supabase.auth.getUser()
@@ -242,11 +283,11 @@ function renderizarEdital() {
             <div style="color:${corBarra};font-size:16px;font-weight:bold">${pct}%</div>
             <div class="edital-disc-stats">${concluidos}/${topicos.length} topicos</div>
           </div>
-          <div style="color:#aaa;font-size:18px;margin-left:8px">›</div>
+          <div style="color:var(--tx3);font-size:18px;margin-left:8px">›</div>
         </div>
         <div class="edital-disc-body" id="${divId}">
-          ${concluidos < topicos.length ? `<div style="text-align:right;margin:2px 0 6px"><button onclick="marcarDisciplina('${encodeURIComponent(disc).replace(/'/g,'%27')}')" style="width:auto;margin:0;padding:6px 11px;font-size:12px;background:#1a2f45;color:#81c784;border:1px solid #3d7a50;border-radius:8px;font-weight:normal">✓ Ja estudei a disciplina toda</button></div>` : ''}
-          ${topicosFiltrados.length === 0 ? '<p style="color:#aaa;font-size:13px;padding:8px 0">Nenhum topico encontrado com este filtro.</p>' :
+          ${concluidos < topicos.length ? `<div style="text-align:right;margin:2px 0 6px"><button onclick="marcarDisciplina('${encodeURIComponent(disc).replace(/'/g,'%27')}')" style="width:auto;margin:0;padding:6px 11px;font-size:12px;background:var(--card);color:#81c784;border:1px solid #3d7a50;border-radius:8px;font-weight:normal">✓ Ja estudei a disciplina toda</button></div>` : ''}
+          ${topicosFiltrados.length === 0 ? '<p style="color:var(--tx3);font-size:13px;padding:8px 0">Nenhum topico encontrado com este filtro.</p>' :
             topicosFiltrados.map(t => {
               const prog = _progresso[t.id]
               const concluido = prog?.concluido || false
@@ -334,8 +375,8 @@ function atualizarAvisoCron() {
   if (!ids.length) { box.innerHTML = ''; return }
   const n = ids.reduce((a, id) => a + _teoriaPend[id], 0)
   const url = 'cronograma.html?' + (_mentorAluno ? 'aluno=' + _mentorAluno + '&' : '') + 'teoria=1'
-  box.innerHTML = '<div style="background:#14301f;border:1px solid #81c784;border-radius:10px;padding:12px 14px;margin-bottom:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">'
-    + '<div style="flex:1;min-width:200px;color:#c8e6c9;font-size:13px;line-height:1.5"><b style="color:#81c784">' + ids.length + ' tema(s) marcados</b> ainda tem ' + n + ' sessao(oes) de teoria no cronograma. '
+  box.innerHTML = '<div style="background:rgba(129,199,132,.10);border:1px solid #81c784;border-radius:10px;padding:12px 14px;margin-bottom:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">'
+    + '<div style="flex:1;min-width:200px;color:var(--tx2);font-size:13px;line-height:1.5"><b style="color:#81c784">' + ids.length + ' tema(s) marcados</b> ainda tem ' + n + ' sessao(oes) de teoria no cronograma. '
     + 'Abra o cronograma para tira-las (questoes e revisao continuam).</div>'
     + '<button onclick="location.href=\'' + url + '\'" style="width:auto;margin:0;padding:10px 16px;background:#81c784;color:#0d1b2a;border:none;border-radius:8px;font-weight:bold">Tirar do cronograma</button></div>'
 }
