@@ -285,6 +285,7 @@
     <div class="nav-i" onclick="ir('questoes.html#materiais')"><span class="nav-ic">📁</span>Materiais</div>
     <div class="nav-i" onclick="ir('flashcards.html')"><span class="nav-ic">🗂️</span>Flashcards</div>
     <div class="nav-i" onclick="ir('questoes.html#mapas')"><span class="nav-ic">🧠</span>Mapas mentais</div>
+    <div class="nav-i" onclick="ir('lei-seca.html')"><span class="nav-ic">⚖️</span>Lei seca</div>
     <div class="nav-i" onclick="ir('ranking.html')"><span class="nav-ic">🏆</span>Ranking</div>
     <div class="nav-i" onclick="ir('edital.html')"><span class="nav-ic">📖</span>Edital</div>
     <div class="side-sep"></div>
@@ -449,6 +450,7 @@
     <button class="btn" style="padding:6px 11px" onclick="fecharCaderno()">✕</button>
   </div>
   <div class="cd-tabs">
+    <div class="cd-tab" id="tab-rev" onclick="modoCaderno('rev')">🔁 Revisar</div>
     <div class="cd-tab on" id="tab-ler" onclick="modoCaderno('ler')">Leitura</div>
     <div class="cd-tab" id="tab-edit" onclick="modoCaderno('edit')">Editar</div>
   </div>
@@ -465,6 +467,8 @@
 <script src="comum.js"></script>
 <script src="desempenho.js"></script>
 <script src="relatorio-ciclo.js"></script>
+<script src="caderno-revisao.js"></script>
+<script src="pomodoro.js"></script>
 <script>
 const WD=['Seg','Ter','Qua','Qui','Sex','Sab','Dom']
 const CURTO=['Dom','Seg','Ter','Qua','Qui','Sex','Sab']
@@ -649,6 +653,7 @@ async function init(){
   _refSem=parseD(dRef); _refMes=parseD(dRef)
   desenhar()
   carregarMetasDia()
+  contarRevisaoCaderno()
   checarAvisos()
   const qs=new URLSearchParams(location.search)
   if(qs.get('pausa')==='1')setTimeout(abrirPausa,500)
@@ -1257,6 +1262,7 @@ function abrirSessao(id){
    +'<span class="pill">'+dur(s.tempo_minutos)+'</span>'
    +'<span class="pill">'+parseD(s.data).toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit'})+'</span>'
    +(s.meta_questoes?'<span class="pill">meta '+s.meta_questoes+'q</span>':'')+'</div>'
+   +((!s.concluida&&!_mentor)?'<button class="btn" style="width:100%;padding:12px;margin-bottom:8px;border-color:var(--ouro);color:var(--ouro);font-weight:700" onclick="fecharModal();pomoSessao(\''+id+'\')">🍅 Estudar esta sessao com Pomodoro</button>':'')
    +'<button class="btn '+(s.concluida?'':'btn-ouro')+'" style="width:100%;padding:12px" onclick="toggleSessao(\''+id+'\');fecharModal()">'
    +(s.concluida?'Desmarcar conclusao':'Marcar como concluida')+'</button>'
    +((!s.concluida&&s.tipo==='teoria')?
@@ -1283,6 +1289,19 @@ function abrirSessao(id){
   document.getElementById('modal').classList.add('on')
 }
 function fecharModal(){document.getElementById('modal').classList.remove('on');_fd=null}
+
+/* ---------- POMODORO ---------- */
+function pomoSessao(id){
+  const s=_sessoes.find(function(x){return x.id===id})
+  pomoAbrir({sessaoId:id,titulo:s?(s.disciplina+' · '+s.topico):''})
+}
+// chamado pelo Pomodoro ao terminar: registra o tempo estudado e conclui a sessao
+window.pomoRegistrarSessao=async function(id,min){
+  const s=_sessoes.find(function(x){return x.id===id}); if(!s)return
+  try{await _supabase.from('sessoes_estudo').update({tempo_minutos:min}).eq('id',id);s.tempo_minutos=min}catch(e){}
+  if(!s.concluida)await toggleSessao(id); else desenhar()
+  toast('🍅 '+min+' min de foco registrados em '+s.disciplina+'.')
+}
 
 async function salvarTempoSessao(id){
   const v=parseInt(document.getElementById('ms-num').value)||60
@@ -2359,10 +2378,13 @@ async function jaEstudeiTema(id){
 /* ---------- CADERNO DE ERROS ---------- */
 let _notas=[],_modoCd='ler',_editando=null,_cdCarregado=false
 
-function abrirCaderno(){
+async function abrirCaderno(modo){
   document.getElementById('cd').classList.add('on')
   document.getElementById('cd-ov').classList.add('on')
-  if(!_cdCarregado)carregarNotas(); else renderCaderno()
+  if(!_cdCarregado)await carregarNotas()
+  // abre direto na revisao quando ha anotacoes vencendo hoje
+  const m=modo||(typeof crVencidas==='function'&&crVencidas(_notas).length?'rev':_modoCd)
+  modoCaderno(m)
 }
 function fecharCaderno(){
   document.getElementById('cd').classList.remove('on')
@@ -2371,6 +2393,8 @@ function fecharCaderno(){
 }
 function modoCaderno(m){
   _modoCd=m;_editando=null
+  if(m==='rev'&&typeof crIniciar==='function')crIniciar()
+  const tr=document.getElementById('tab-rev'); if(tr)tr.classList.toggle('on',m==='rev')
   document.getElementById('tab-ler').classList.toggle('on',m==='ler')
   document.getElementById('tab-edit').classList.toggle('on',m==='edit')
   renderCaderno()
@@ -2393,6 +2417,7 @@ function discsDisponiveis(){
 
 function renderCaderno(){
   const box=document.getElementById('cd-body')
+  if(_modoCd==='rev'&&typeof renderRevisaoCaderno==='function'){renderRevisaoCaderno(box);return}
   if(_modoCd==='ler'){
     if(!_notas.length){
       box.innerHTML='<div style="text-align:center;padding:40px 10px">'
@@ -2596,6 +2621,7 @@ function renderHoje(){
   })
   if(feitas<tot){
     h+='<div class="hoje-f" style="margin:4px 0 6px">'
+      +(!_mentor?'<button class="btn" style="border-color:var(--ouro);color:var(--ouro)" onclick="pomoAbrir({titulo:\'Missao de hoje\'})">🍅 Pomodoro</button>':'')
       +'<button class="btn" onclick="fecharDia(\''+hj+'\',\'hoje\')">🌙 Fechar o dia</button>'
       +(tot-feitas>1?'<button class="btn" onclick="concluirTudo(\''+hj+'\')">✅ Conclui tudo de hoje</button>':'')
       +'</div>'
@@ -2606,8 +2632,8 @@ function renderHoje(){
     +metaLinha(qOk,'❓','Questoes',_metas.q===null?'contando...':q+' de '+_metaQ+' questoes'+(qOk?' — meta batida!':''),pctQ,
       '<button class="btn" style="padding:7px 12px" onclick="ir(\'questoes.html\')">Resolver</button>')
   h+='<div class="metas-t" style="margin-top:12px">3 · Caderno de erros</div>'
-    +metaLinha(cOk,'📓','Caderno de erros',cOk?'Lido hoje':'Releia suas anotacoes e marque como lido',null,
-      '<button class="btn" style="padding:7px 12px" onclick="abrirCaderno()">Abrir</button><button class="btn" style="padding:7px 12px" onclick="marcarCadernoHoje()">✓ Li</button>')
+    +metaLinha(cOk,'📓','Caderno de erros',cOk?'Lido hoje':(_crPendentes?_crPendentes+' anotacao(oes) para revisar hoje':'Releia suas anotacoes e marque como lido'),null,
+      (_crPendentes?'<button class="btn btn-ouro" style="padding:7px 12px" onclick="abrirCaderno(\'rev\')">🔁 Revisar</button>':'<button class="btn" style="padding:7px 12px" onclick="abrirCaderno(\'ler\')">Abrir</button>')+'<button class="btn" style="padding:7px 12px" onclick="marcarCadernoHoje()">✓ Li</button>')
 
   // extra opcional: flashcards
   if(!fcOculto()&&_metas.fc!==null){
