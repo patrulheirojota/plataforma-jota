@@ -22,6 +22,7 @@
     ['Conteudo'],
     ['📄','Importar Prova','importador.html'],
     ['❓','Questoes','questoes-admin.html'],
+    ['🧪','Simulados','simulados-admin.html'],
     ['🗂️','Flashcards','flashcards-admin.html'],
     ['📖','Editais','edital-admin.html'],
     ['Acompanhamento'],
