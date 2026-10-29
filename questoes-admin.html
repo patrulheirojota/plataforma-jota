@@ -132,6 +132,8 @@
       <textarea id="man-com" rows="3" style="margin:0"></textarea>
       <label class="ml">Bizu (regra pratica para o caderno de erros)</label>
       <textarea id="man-bizu" rows="2" style="margin:0"></textarea>
+      <label class="ml">Explicacao gravada (opcional): video ou audio seu explicando a questao</label>
+      <div id="man-expl-box"></div>
 
       <div class="mg" style="margin-top:4px">
         <div><label class="ml">Banca</label><input type="text" id="man-banca" placeholder="Ex: CEBRASPE" style="margin:0"></div>
@@ -426,6 +428,7 @@ Para MULTIPLA ESCOLHA, use o botao Baixar planilha modelo: ela tem a coluna alte
 </div>
 
 <script src="config.js"></script>
+<script src="explicacao.js"></script>
 <script>
 const PROMPT=`Voce e especialista em questoes para concursos policiais. Vou te enviar questoes que criei.
 
@@ -486,6 +489,7 @@ async function init(){
     d.addEventListener('drop',function(e){e.preventDefault();d.classList.remove('dentro');if(e.dataTransfer.files[0])lerArquivo(e.dataTransfer.files[0])})
   }
   manRenderAlts()
+  const eb=document.getElementById('man-expl-box'); if(eb&&typeof campoExplicacaoHTML==='function')eb.innerHTML=campoExplicacaoHTML('man-expl','')
   carregarListasMan()
   resumoTopo()
   contarReportes()
@@ -1295,6 +1299,7 @@ function manValidar(d){
   return null
 }
 
+let editouExpl=false
 async function manSalvar(){
   const d=manDados()
   const erro=manValidar(d)
@@ -1312,6 +1317,9 @@ async function manSalvar(){
   }
   btn.disabled=false
   if(r.error){manMsg('Erro ao salvar: '+r.error.message,'var(--erro)');return}
+  // explicacao gravada (separado: se a coluna ainda nao existir, o resto ja foi salvo)
+  const ex=document.getElementById('man-expl')
+  if(ex&&id&&(ex.value.trim()||editouExpl)){try{const re=await _supabase.from('questoes').update({explicacao_url:ex.value.trim()||null}).eq('id',id);if(re.error&&/column|schema cache/i.test(re.error.message))manMsg('Questao salva. Para guardar a explicacao, rode o atualizacao-lote-c.sql.','var(--alerta)')}catch(e){}}
   if(conc&&id){
     const { data:ja }=await _supabase.from('questao_concursos').select('questao_id').eq('questao_id',id).eq('concurso_id',conc).maybeSingle()
     if(!ja){try{await _supabase.from('questao_concursos').insert({questao_id:id,concurso_id:conc})}catch(e){}}
@@ -1329,7 +1337,9 @@ async function manSalvar(){
 
 // limpa o formulario. completo=false mantem disciplina/assunto/banca/ano/orgao/origem/concurso
 function manLimpar(completo){
-  ['man-apoio','man-enun','man-com','man-bizu'].forEach(function(id){document.getElementById(id).value=''})
+  ;['man-apoio','man-enun','man-com','man-bizu','man-expl'].forEach(function(id){const e=document.getElementById(id);if(e)e.value=''})
+  const ep=document.getElementById('man-expl-prev'); if(ep)ep.innerHTML=''
+  editouExpl=false
   if(completo)['man-disc','man-ass','man-banca','man-ano','man-orgao'].forEach(function(id){document.getElementById(id).value=''})
   manRenderAlts([])
   manTipo(_manTipo)
@@ -1358,7 +1368,7 @@ async function manEditar(id){
   manTipo(q.tipo==='multipla'?'multipla':'certo_errado')
   const set=function(k,v){document.getElementById(k).value=v==null?'':v}
   set('man-disc',q.disciplina);set('man-ass',q.assunto);set('man-apoio',q.texto_apoio);set('man-enun',q.enunciado)
-  set('man-com',q.comentario);set('man-bizu',q.bizu);set('man-banca',q.banca);set('man-ano',q.ano);set('man-orgao',q.orgao)
+  set('man-com',q.comentario);set('man-bizu',q.bizu);if(document.getElementById('man-expl')){set('man-expl',q.explicacao_url);editouExpl=!!q.explicacao_url}set('man-banca',q.banca);set('man-ano',q.ano);set('man-orgao',q.orgao)
   set('man-orig',q.origem==='prova'?'prova':'autoral');set('man-concurso','')
   const g=String(q.gabarito||'').toUpperCase()
   if(q.tipo==='multipla'){
