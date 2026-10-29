@@ -6,7 +6,7 @@
    A cada atualizacao, troque a VERSAO abaixo.
    ===================================================================== */
 (function () {
-  var VERSAO = '2026.10.28-b'
+  var VERSAO = '2026.10.29-a'
   window.VERSAO_PLATAFORMA = VERSAO
 
   var pagina = (location.pathname.split('/').pop() || 'index.html').toLowerCase()
@@ -95,7 +95,7 @@
   function aviso () {
     if (!podeMostrar() || document.getElementById('app-inst')) return
     // espera outra janela da pagina fechar (ex.: fechamento do dia)
-    var modal = document.querySelector('.modal.on, #modal.on, .fcm-ov.on')
+    var modal = document.querySelector('.modal.on, #modal.on, .fcm-ov.on, .rc-ov.on')
     if (modal) { setTimeout(aviso, 6000); return }
     var passos
     if (evento) {
