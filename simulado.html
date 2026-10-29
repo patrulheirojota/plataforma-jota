@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Simulado — Patrulheiros de Elite</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0a1420">
+<link rel="apple-touch-icon" href="/icone-192.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>document.documentElement.setAttribute("data-tema",localStorage.getItem("tema")||"escuro")</script>
+<style>
+  :root{--ouro:#C9A83C;--bg:#0a1420;--bg2:#0c1826;--card:#101d2c;--card2:#0d1a28;--btn:#132030;--bd:#1b2c40;--bd2:#24384f;--tx:#e8edf4;--tx2:#8fa5bd;--tx3:#63809e;--tx4:#4d6684;--hov:#16283c;--ok:#6ddba0;--erro:#f07171;--alerta:#e8b04b;--info:#5bb3f0}
+  [data-tema="claro"]{--bg:#eef1f6;--bg2:#fff;--card:#fff;--card2:#f7f9fc;--btn:#fff;--bd:#dde4ed;--bd2:#c6d2e0;--tx:#0f1b2a;--tx2:#4a5f78;--tx3:#66809b;--tx4:#8fa2b8;--hov:#eaf0f8;--ok:#1f9d61;--erro:#d24646;--alerta:#b9800f}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--tx);min-height:100vh}
+  .wrap{max-width:820px;margin:0 auto;padding:16px 14px 110px}
+  .card{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:18px;margin-bottom:14px}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:11px 16px;border-radius:11px;border:1px solid var(--bd2);background:var(--btn);color:var(--tx);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;text-decoration:none}
+  .btn:disabled{opacity:.45;cursor:default}
+  .btn-ouro{background:var(--ouro);border-color:var(--ouro);color:#0a1420;font-weight:800}
+  .h1{font-size:21px;font-weight:800}
+  .sub{color:var(--tx3);font-size:13px;margin-top:3px}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:14px 0}
+  .kpi{background:var(--card2);border:1px solid var(--bd);border-radius:12px;padding:12px;text-align:center}
+  .kpi-n{font-size:22px;font-weight:800}
+  .kpi-l{font-size:11.5px;color:var(--tx3);margin-top:2px}
+  /* barra da prova */
+  .topo{position:sticky;top:0;z-index:40;background:var(--bg2);border-bottom:1px solid var(--bd);padding:10px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  @media(max-width:480px){.topo{flex-wrap:nowrap;gap:7px;padding:9px 10px}.topo .btn{padding:9px 10px;font-size:13px}.relogio{font-size:17px!important}}
+  .relogio{font-size:20px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:.5px}
+  .relogio.pouco{color:var(--erro)}
+  .salvo{font-size:11px;color:var(--tx3)}
+  .q-num{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+  .q-n{background:var(--ouro);color:#0a1420;font-weight:800;border-radius:9px;padding:4px 10px;font-size:14px}
+  .apoio{background:var(--card2);border:1px solid var(--bd);border-radius:12px;padding:12px 14px;font-size:14px;line-height:1.7;color:var(--tx2);white-space:pre-wrap;margin-bottom:12px;max-height:360px;overflow-y:auto}
+  .enun{font-size:15.5px;line-height:1.7;white-space:pre-wrap;margin-bottom:14px}
+  .ce{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .ce button{padding:16px;border-radius:13px;border:2px solid var(--bd2);background:var(--card2);color:var(--tx);font-size:16px;font-weight:800;cursor:pointer;font-family:inherit}
+  .ce button.on-C{border-color:var(--ok);background:rgba(109,219,160,.14);color:var(--ok)}
+  .ce button.on-E{border-color:var(--erro);background:rgba(240,113,113,.14);color:var(--erro)}
+  .alt{display:flex;gap:11px;align-items:flex-start;padding:12px 13px;border:1.5px solid var(--bd2);border-radius:12px;margin-bottom:8px;cursor:pointer;background:var(--card2)}
+  .alt .lt{width:30px;height:30px;border-radius:50%;border:1.5px solid var(--bd2);display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0;color:var(--tx2)}
+  .alt .tx{flex:1;font-size:14.5px;line-height:1.6}
+  .alt.on{border-color:var(--ouro);background:var(--hov)}
+  .alt.on .lt{background:var(--ouro);border-color:var(--ouro);color:#0a1420}
+  .alt.risc .tx{text-decoration:line-through;opacity:.45}
+  .risca{background:none;border:0;color:var(--tx4);font-size:15px;cursor:pointer;padding:2px 4px}
+  .nav-q{position:fixed;left:0;right:0;bottom:0;z-index:40;background:var(--bg2);border-top:1px solid var(--bd);padding:10px 14px calc(10px + env(safe-area-inset-bottom));display:flex;gap:8px;justify-content:center}
+  .nav-q .btn{flex:1;max-width:220px}
+  /* folha de respostas */
+  .ov{position:fixed;inset:0;background:rgba(5,10,18,.86);z-index:80;display:none;align-items:flex-start;justify-content:center;padding:14px 10px;overflow-y:auto}
+  .ov.on{display:flex}
+  .ov-c{background:var(--bg2);border:1px solid var(--bd2);border-radius:16px;padding:16px;width:100%;max-width:760px}
+  .folha{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
+  .fl{display:flex;align-items:center;gap:5px;padding:5px 7px;border-radius:9px;border:1px solid var(--bd);background:var(--card2)}
+  .fl.atual{border-color:var(--ouro)}
+  .fl .fn{font-weight:800;font-size:12.5px;width:30px;cursor:pointer;color:var(--tx2)}
+  .fl .fn.rev{color:var(--alerta)}
+  .bol{width:25px;height:25px;border-radius:50%;border:1.5px solid var(--bd2);background:transparent;color:var(--tx3);font-size:11px;font-weight:800;cursor:pointer;font-family:inherit;padding:0}
+  .bol.on{background:var(--ouro);border-color:var(--ouro);color:#0a1420}
+  .filtro{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
+  .filtro button{padding:7px 12px;border-radius:9px;border:1px solid var(--bd2);background:var(--card2);color:var(--tx3);font-size:12.5px;cursor:pointer;font-family:inherit}
+  .filtro button.on{border-color:var(--ouro);color:var(--ouro);font-weight:700}
+  .barra{height:7px;border-radius:5px;background:var(--bd);overflow:hidden;margin-top:5px}
+  .barra>div{height:100%}
+  .cor-item{border-left:4px solid var(--bd2)}
+  table.rk{width:100%;border-collapse:collapse;font-size:13px}
+  table.rk td,table.rk th{padding:8px 6px;border-bottom:1px solid var(--bd);text-align:left}
+  table.rk th{color:var(--tx3);font-weight:600;font-size:12px}
+  table.rk tr.eu td{background:var(--hov);font-weight:700}
+  .estado{text-align:center;padding:60px 20px;color:var(--tx3)}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="wrap"><div class="estado">Carregando simulado...</div></div>
+</div>
+<div class="ov" id="ov-folha"><div class="ov-c" id="ov-folha-c"></div></div>
+
+<script src="config.js"></script>
+<script src="comum.js"></script>
+<script>
+const LETRAS='ABCDE'
+let _uid=null,_alunoId=null,_mentor=false,_aluno=null,_sim=null,_res=null,_itens=[],_resp={},_tempo={},_rev={},_risc={},_atual=0
+let _relogio=null,_fimMs=0,_ativoDesde=null,_filaSalvar={},_salvando=false,_wake=null,_gab=null,_est=null,_rank=null,_filtroCor='todas',_filtroFolha='todas'
+const $=function(id){return document.getElementById(id)}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function app(h){$('app').innerHTML=h;window.scrollTo(0,0)}
+function tempoTxt(s){s=Math.max(0,Math.round(s||0));const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return (h?h+'h ':'')+(h||m?m+'min ':'')+(h?'':x+'s')}
+function relogioTxt(ms){const s=Math.max(0,Math.floor(ms/1000));return String(Math.floor(s/3600)).padStart(2,'0')+':'+String(Math.floor(s%3600/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')}
+function dtBR(iso){return iso?new Date(iso).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):''}
+function gabTxt(q,g){if(!g)return '—';return q.tipo==='multipla'?g:(g==='C'?'Certo':'Errado')}
+function voltar(){location.href='questoes.html'+(_mentor?'?aluno='+_alunoId:'')+'#simulados'}
+function chaveLocal(){return 'sim_'+(_sim&&_sim.id)+'_'+_alunoId}
+
+async function init(){
+  const qs=new URLSearchParams(location.search), id=qs.get('id')
+  if(!id){voltar();return}
+  const { data:{user} }=await _supabase.auth.getUser()
+  if(!user){location.href='index.html';return}
+  _uid=user.id;_alunoId=user.id
+  const alvo=qs.get('aluno')
+  if(alvo&&alvo!==user.id){
+    let adm=false;try{const r=await _supabase.rpc('eh_admin');adm=!!r.data}catch(e){}
+    if(!adm){location.href='simulado.html?id='+id;return}
+    _mentor=true;_alunoId=alvo
+  }
+  const ra=await _supabase.from('alunos').select('id,nome,bloqueado_inatividade,data_expiracao').eq('id',_alunoId).maybeSingle()
+  _aluno=ra.data||{nome:''}
+  if(!_mentor&&_aluno.bloqueado_inatividade){location.href='cronograma.html';return}
+  const rs=await _supabase.from('sim_banca').select('*').eq('id',id).maybeSingle()
+  if(rs.error||!rs.data){app('<div class="wrap"><div class="estado">Simulado nao encontrado ou ainda nao publicado.<br><br><button class="btn" onclick="voltar()">Voltar</button></div></div>');return}
+  _sim=rs.data
+  const rr=await _supabase.from('sim_resultados').select('*').eq('simulado_id',id).eq('aluno_id',_alunoId).maybeSingle()
+  _res=rr.data||null
+  if(_mentor){ if(_res&&_res.finalizado_em)telaResultado(); else app('<div class="wrap"><div class="estado">Este aluno ainda nao entregou o simulado.<br><br><button class="btn" onclick="voltar()">Voltar</button></div></div>'); return }
+  if(_res&&_res.finalizado_em){telaResultado();return}
+  if(_res){ // prova em andamento
+    if(Date.now()>=new Date(_res.iniciado_em).getTime()+_sim.tempo_minutos*60000){await entregar(true);return}
+    await abrirProva();return
+  }
+  telaIntro()
+}
+
+/* ---------------- INTRO ---------------- */
+function telaIntro(){
+  const agora=Date.now()
+  const abre=_sim.abre_em&&new Date(_sim.abre_em).getTime()>agora
+  const fechou=_sim.fecha_em&&new Date(_sim.fecha_em).getTime()<agora
+  const regra=_sim.penaliza?'<strong>Cada errada anula uma certa.</strong> Deixar em branco nao desconta: na duvida, voce decide se arrisca.':'Cada acerto vale 1 ponto. Nao ha desconto por erro.'
+  app('<div class="wrap">'
+    +'<button class="btn" onclick="voltar()" style="margin-bottom:14px">‹ Voltar</button>'
+    +'<div class="card"><div style="font-size:40px">🧪</div><div class="h1" style="margin-top:6px">'+esc(_sim.nome)+'</div>'
+    +'<div class="sub">'+(_sim.banca?esc(_sim.banca)+' · ':'')+'<span id="n-itens">...</span> questoes · '+_sim.tempo_minutos+' minutos</div>'
+    +(_sim.descricao?'<p style="color:var(--tx2);font-size:14px;margin-top:10px;line-height:1.6">'+esc(_sim.descricao)+'</p>':'')
+    +'<div style="background:var(--card2);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-top:14px;font-size:14px;line-height:1.75;color:var(--tx2)">'
+    +'⏱️ O cronometro comeca quando voce tocar em <strong>Comecar</strong> e <strong>nao para</strong> (igual a prova). Se o tempo acabar, a prova e entregue sozinha.<br>'
+    +'📋 Voce pode marcar pela questao ou direto na <strong>folha de respostas</strong>, e trocar quantas vezes quiser ate entregar.<br>'
+    +'💾 Cada marcacao fica salva. Se a internet cair ou o celular desligar, e so abrir de novo que continua de onde parou.<br>'
+    +'⚖️ '+regra+'<br>'
+    +'🏆 Depois de entregar voce ve a nota, a correcao comentada e sua posicao no ranking'+(_sim.gabarito_quando==='apos_fechamento'&&_sim.fecha_em?' (liberados em '+dtBR(_sim.fecha_em)+')':'')+'.'
+    +(_sim.fecha_em?'<br>📅 Disponivel ate <strong>'+dtBR(_sim.fecha_em)+'</strong>.':'')
+    +'</div>'
+    +(_sim.instrucoes?'<div style="border:1px solid var(--ouro);border-radius:12px;padding:12px 14px;margin-top:12px;font-size:14px;line-height:1.6;white-space:pre-wrap">'+esc(_sim.instrucoes)+'</div>':'')
+    +'<div style="border:1px solid var(--info);background:rgba(91,179,240,.07);border-radius:12px;padding:12px 14px;margin-top:12px;font-size:13.5px;line-height:1.6">'
+    +'<strong style="color:var(--info)">🔕 Antes de comecar: ative o "Nao perturbe"</strong><br>Notificacao no meio da prova e o que mais tira o foco. No celular, puxe a barra de cima e ative <strong>Nao perturbe</strong> (Android) ou <strong>Foco</strong> (iPhone). No computador, feche WhatsApp e redes sociais.'
+    +'<label style="display:flex;gap:9px;align-items:center;margin-top:10px;cursor:pointer;font-weight:700"><input type="checkbox" id="ck-foco" style="width:20px;height:20px" onchange="$(\'bt-comecar\').disabled=!this.checked||'+(abre||fechou)+'"> Ja ativei o Nao perturbe e estou pronto</label></div>'
+    +(abre?'<div style="color:var(--alerta);font-weight:700;margin-top:14px">Este simulado abre em '+dtBR(_sim.abre_em)+'.</div>':'')
+    +(fechou?'<div style="color:var(--erro);font-weight:700;margin-top:14px">Este simulado ja foi encerrado.</div>':'')
+    +'<button class="btn btn-ouro" id="bt-comecar" style="width:100%;padding:16px;font-size:16px;margin-top:14px" disabled onclick="comecar()">Comecar simulado</button>'
+    +'</div></div>')
+  _supabase.from('sim_itens').select('id').eq('simulado_id',_sim.id).limit(2000).then(function(r){const e=$('n-itens');if(e)e.textContent=(r.data||[]).length})
+}
+async function comecar(){
+  const b=$('bt-comecar');b.disabled=true;b.textContent='Preparando...'
+  const r=await _supabase.rpc('sim_iniciar',{p_sim:_sim.id})
+  if(r.error){alert('Nao foi possivel comecar: '+r.error.message);b.disabled=false;b.textContent='Comecar simulado';return}
+  _res=Array.isArray(r.data)?r.data[0]:r.data
+  await abrirProva()
+}
+
+/* ---------------- PROVA ---------------- */
+async function abrirProva(){
+  app('<div class="wrap"><div class="estado">Abrindo a prova...</div></div>')
+  const [ri,rr]=await Promise.all([
+    _supabase.from('sim_itens').select('*').eq('simulado_id',_sim.id).order('numero').limit(2000),
+    _supabase.from('sim_respostas').select('item_id,resposta,tempo_seg,revisar').eq('simulado_id',_sim.id).eq('aluno_id',_alunoId).limit(2000)
+  ])
+  _itens=ri.data||[]
+  ;(rr.data||[]).forEach(function(x){if(x.resposta)_resp[x.item_id]=x.resposta;_tempo[x.item_id]=x.tempo_seg||0;if(x.revisar)_rev[x.item_id]=true})
+  // copia local (se a internet caiu antes de salvar)
+  try{const l=JSON.parse(localStorage.getItem(chaveLocal())||'null');if(l){Object.keys(l.resp||{}).forEach(function(k){if(!_resp[k]&&l.resp[k]){_resp[k]=l.resp[k];_filaSalvar[k]=1}});_risc=l.risc||{};if(typeof l.atual==='number')_atual=l.atual}}catch(e){}
+  if(!_itens.length){app('<div class="wrap"><div class="estado">Este simulado ainda nao tem questoes.</div></div>');return}
+  _fimMs=new Date(_res.iniciado_em).getTime()+_sim.tempo_minutos*60000
+  if(_atual>=_itens.length)_atual=0
+  $('app').innerHTML='<div class="topo">'
+    +'<div><div class="relogio" id="relogio">--:--:--</div><div class="salvo" id="salvo">✓ salvo</div></div>'
+    +'<div style="flex:1;min-width:90px;text-align:center;font-size:13px;color:var(--tx2)"><strong id="cont-resp">0</strong>/'+_itens.length+' respondidas<div class="barra"><div id="barra-resp" style="background:var(--ouro);width:0"></div></div></div>'
+    +'<button class="btn" onclick="abrirFolha()">📋 Folha</button>'
+    +'<button class="btn btn-ouro" onclick="entregar(false)">Entregar</button></div>'
+    +'<div class="wrap" id="q-box"></div>'
+    +'<div class="nav-q"><button class="btn" id="bt-ant" onclick="irQ(_atual-1)">‹ Anterior</button><button class="btn" id="bt-rev" onclick="alternarRevisar()">⚑ Revisar</button><button class="btn btn-ouro" id="bt-prox" onclick="irQ(_atual+1)">Proxima ›</button></div>'
+  renderQ()
+  _ativoDesde=Date.now()
+  clearInterval(_relogio)
+  _relogio=setInterval(tique,1000);tique()
+  manterTelaLigada()
+  if(window._provaLigada)return
+  window._provaLigada=true
+  setInterval(function(){if(_res&&!_res.finalizado_em){contarTempo();salvarPendentes()}},20000)
+  document.addEventListener('visibilitychange',function(){if(!_res||_res.finalizado_em)return;if(document.hidden){contarTempo();salvarPendentes(true);_ativoDesde=null}else{_ativoDesde=Date.now();manterTelaLigada()}})
+  window.addEventListener('beforeunload',function(e){contarTempo();guardarLocal();if(_res&&!_res.finalizado_em){e.preventDefault();e.returnValue=''}})
+}
+async function manterTelaLigada(){try{if('wakeLock' in navigator&&!document.hidden)_wake=await navigator.wakeLock.request('screen')}catch(e){}}
+function tique(){
+  const r=_fimMs-Date.now(), el=$('relogio'); if(!el)return
+  el.textContent=relogioTxt(r)
+  el.classList.toggle('pouco',r<10*60000)
+  if(r<=0){clearInterval(_relogio);alert('O tempo acabou! Sua prova sera entregue agora.');entregar(true)}
+}
+function contarTempo(){
+  if(_ativoDesde==null||!_itens[_atual])return
+  const id=_itens[_atual].id, s=Math.round((Date.now()-_ativoDesde)/1000)
+  if(s>0&&s<3600){_tempo[id]=(_tempo[id]||0)+s;_filaSalvar[id]=1}
+  _ativoDesde=Date.now()
+}
+function guardarLocal(){try{localStorage.setItem(chaveLocal(),JSON.stringify({resp:_resp,risc:_risc,atual:_atual}))}catch(e){}}
+async function salvarPendentes(rapido){
+  const ids=Object.keys(_filaSalvar); if(!ids.length||_salvando)return
+  _salvando=true;_filaSalvar={}
+  const linhas=ids.map(function(id){return {simulado_id:_sim.id,aluno_id:_alunoId,item_id:id,resposta:_resp[id]||null,tempo_seg:_tempo[id]||0,revisar:!!_rev[id],atualizado_em:new Date().toISOString()}})
+  const s=$('salvo'); if(s)s.textContent='salvando...'
+  try{
+    const r=await _supabase.from('sim_respostas').upsert(linhas,{onConflict:'simulado_id,aluno_id,item_id'})
+    if(r.error)throw r.error
+    if(s){s.textContent='✓ salvo';s.style.color=''}
+  }catch(e){
+    ids.forEach(function(id){_filaSalvar[id]=1})
+    if(s){s.textContent='⚠ sem conexao, tentando...';s.style.color='var(--alerta)'}
+    if(!rapido)setTimeout(salvarPendentes,5000)
+  }
+  _salvando=false
+  if(Object.keys(_filaSalvar).length&&!rapido)setTimeout(salvarPendentes,800)
+}
+function contarRespondidas(){
+  const n=_itens.filter(function(q){return _resp[q.id]}).length
+  const c=$('cont-resp'),b=$('barra-resp'); if(c)c.textContent=n; if(b)b.style.width=Math.round(n/_itens.length*100)+'%'
+  return n
+}
+function marcar(id,v){
+  if(_resp[id]===v)delete _resp[id]; else _resp[id]=v
+  _filaSalvar[id]=1;guardarLocal();contarRespondidas()
+  salvarPendentes()
+}
+function limparResp(id){delete _resp[id];_filaSalvar[id]=1;guardarLocal();renderQ();salvarPendentes()}
+function riscar(id,l,ev){ev.stopPropagation();const k=id+l;_risc[k]=!_risc[k];guardarLocal();renderQ()}
+function alternarRevisar(){const id=_itens[_atual].id;_rev[id]=!_rev[id];_filaSalvar[id]=1;renderQ();salvarPendentes()}
+function irQ(i){
+  if(i<0||i>=_itens.length)return
+  contarTempo();_atual=i;guardarLocal();renderQ();window.scrollTo(0,0)
+}
+function renderQ(){
+  const q=_itens[_atual], r=_resp[q.id]
+  const ant=_atual>0?_itens[_atual-1]:null
+  const mesmoApoio=ant&&ant.texto_apoio&&ant.texto_apoio===q.texto_apoio
+  let h='<div class="card"><div class="q-num"><span class="q-n">'+q.numero+'</span><span style="color:var(--tx3);font-size:13px">'+esc(q.disciplina||'')+'</span>'
+    +(_rev[q.id]?'<span style="color:var(--alerta);font-size:12px;font-weight:700">⚑ para revisar</span>':'')+'<span style="margin-left:auto;color:var(--tx4);font-size:12px">'+(_atual+1)+' de '+_itens.length+'</span></div>'
+  if(q.texto_apoio)h+='<div class="apoio">'+(mesmoApoio?'<div style="font-size:11px;color:var(--tx4);margin-bottom:4px">(mesmo texto da questao anterior)</div>':'')+esc(q.texto_apoio)+'</div>'
+  h+='<div class="enun">'+esc(q.enunciado)+'</div>'
+  if(q.tipo==='multipla'){
+    h+=(q.alternativas||[]).map(function(a,i){const l=LETRAS[i]
+      return '<div class="alt'+(r===l?' on':'')+(_risc[q.id+l]?' risc':'')+'" onclick="marcar(\''+q.id+'\',\''+l+'\');renderQ()"><div class="lt">'+l+'</div><div class="tx">'+esc(a)+'</div><button class="risca" title="Riscar alternativa" onclick="riscar(\''+q.id+'\',\''+l+'\',event)">✂️</button></div>'}).join('')
+  }else{
+    h+='<div class="ce"><button class="'+(r==='C'?'on-C':'')+'" onclick="marcar(\''+q.id+'\',\'C\');renderQ()">C · Certo</button><button class="'+(r==='E'?'on-E':'')+'" onclick="marcar(\''+q.id+'\',\'E\');renderQ()">E · Errado</button></div>'
+  }
+  h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;flex-wrap:wrap;gap:8px">'
+    +(r?'<button class="btn" style="padding:7px 12px;font-size:12.5px" onclick="limparResp(\''+q.id+'\')">Deixar em branco</button>':'<span style="color:var(--tx4);font-size:12.5px">Em branco</span>')
+    +'<span style="color:var(--tx4);font-size:12px">⏱️ '+tempoTxt(_tempo[q.id]||0)+' nesta questao</span></div></div>'
+  $('q-box').innerHTML=h
+  $('bt-ant').disabled=_atual===0
+  $('bt-prox').textContent=_atual===_itens.length-1?'Folha ›':'Proxima ›'
+  $('bt-prox').onclick=_atual===_itens.length-1?abrirFolha:function(){irQ(_atual+1)}
+  $('bt-rev').innerHTML=_rev[q.id]?'⚑ Marcada':'⚑ Revisar'
+  $('bt-rev').style.color=_rev[q.id]?'var(--alerta)':''
+  contarRespondidas()
+}
+function abrirFolha(){contarTempo();renderFolha();$('ov-folha').classList.add('on')}
+function fecharFolha(){$('ov-folha').classList.remove('on')}
+function folhaFiltro(f){_filtroFolha=f;renderFolha()}
+function folhaMarcar(id,v){marcar(id,v);renderFolha();if(_itens[_atual]&&_itens[_atual].id===id)renderQ()}
+function renderFolha(){
+  const nb=_itens.filter(function(q){return !_resp[q.id]}).length, nr=_itens.filter(function(q){return _rev[q.id]}).length
+  let lista=_itens
+  if(_filtroFolha==='branco')lista=_itens.filter(function(q){return !_resp[q.id]})
+  if(_filtroFolha==='rev')lista=_itens.filter(function(q){return _rev[q.id]})
+  $('ov-folha-c').innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div><div style="font-weight:800;font-size:16px">📋 Folha de respostas</div><div class="sub">Toque na bolinha para marcar · toque no numero para abrir a questao</div></div><button class="btn" onclick="fecharFolha()">✕</button></div>'
+    +'<div class="filtro"><button class="'+(_filtroFolha==='todas'?'on':'')+'" onclick="folhaFiltro(\'todas\')">Todas ('+_itens.length+')</button><button class="'+(_filtroFolha==='branco'?'on':'')+'" onclick="folhaFiltro(\'branco\')">Em branco ('+nb+')</button><button class="'+(_filtroFolha==='rev'?'on':'')+'" onclick="folhaFiltro(\'rev\')">⚑ Para revisar ('+nr+')</button></div>'
+    +'<div class="folha">'+lista.map(function(q){const i=_itens.indexOf(q),r=_resp[q.id]
+      const ops=q.tipo==='multipla'?LETRAS.slice(0,(q.alternativas||[]).length||5).split(''):['C','E']
+      return '<div class="fl'+(i===_atual?' atual':'')+'"><span class="fn'+(_rev[q.id]?' rev':'')+'" onclick="fecharFolha();irQ('+i+')">'+q.numero+(_rev[q.id]?'⚑':'')+'</span>'
+        +ops.map(function(l){return '<button class="bol'+(r===l?' on':'')+'" onclick="folhaMarcar(\''+q.id+'\',\''+l+'\')">'+l+'</button>'}).join('')+'</div>'}).join('')
+    +(lista.length?'':'<div style="color:var(--tx3);font-size:13px;padding:12px">Nada aqui.</div>')+'</div>'
+    +'<button class="btn btn-ouro" style="width:100%;margin-top:14px;padding:14px" onclick="entregar(false)">Entregar prova</button>'
+}
+async function entregar(automatico){
+  if(!automatico){
+    contarTempo()
+    const nb=_itens.filter(function(q){return !_resp[q.id]}).length, nr=_itens.filter(function(q){return _rev[q.id]}).length
+    if(!confirm('Entregar a prova agora?'+(nb?'\n\n'+nb+' questao(oes) em branco.':'')+(nr?'\n'+nr+' marcada(s) para revisar.':'')+'\n\nDepois de entregar nao da para mudar as respostas.'))return
+  }
+  clearInterval(_relogio)
+  app('<div class="wrap"><div class="estado">Entregando e corrigindo...</div></div>')
+  fecharFolha()
+  // garante que tudo foi salvo
+  for(let i=0;i<4&&Object.keys(_filaSalvar).length;i++){await salvarPendentes(true);if(Object.keys(_filaSalvar).length)await new Promise(function(ok){setTimeout(ok,1200)})}
+  if(Object.keys(_filaSalvar).length&&!automatico){
+    if(!confirm('Algumas respostas ainda nao chegaram ao servidor (internet instavel). Se entregar agora elas contam como branco. Entregar mesmo assim?')){await abrirProva();return}
+  }
+  const r=await _supabase.rpc('sim_finalizar',{p_sim:_sim.id})
+  if(r.error){app('<div class="wrap"><div class="card"><div style="color:var(--erro);font-weight:700">Nao consegui entregar: '+esc(r.error.message)+'</div><p class="sub" style="margin-top:6px">Suas respostas estao salvas. Verifique a internet e tente de novo.</p><button class="btn btn-ouro" style="margin-top:12px" onclick="entregar(true)">Tentar de novo</button></div></div>');return}
+  _res=Array.isArray(r.data)?r.data[0]:r.data
+  try{localStorage.removeItem(chaveLocal())}catch(e){}
+  try{if(_wake)_wake.release()}catch(e){}
+  // historico geral (relatorio de 21 dias)
+  try{await _supabase.from('simulado_tentativas').insert({aluno_id:_alunoId,simulado_id:null,tipo:'banca',nome:_sim.nome,acertos:_res.certas,total:_res.total,tempo_segundos:_res.tempo_seg,detalhes:_res.por_disciplina,finalizado_em:_res.finalizado_em})}catch(e){}
+  telaResultado(true)
+}
+
+/* ---------------- RESULTADO ---------------- */
+function liberado(){return _sim.gabarito_quando!=='apos_fechamento'||!_sim.fecha_em||Date.now()>new Date(_sim.fecha_em).getTime()}
+async function telaResultado(acabou){
+  const r=_res, pct=r.nota_max?Math.max(0,Math.round(r.nota/r.nota_max*100)):0
+  const cor=pct>=70?'var(--ok)':pct>=50?'var(--alerta)':'var(--erro)'
+  const lib=liberado()
+  let rk=null
+  if(lib){try{const x=await _supabase.rpc('sim_ranking',{p_sim:_sim.id});rk=x.data||[]}catch(e){}}
+  _rank=rk
+  const eu=rk?rk.find(function(x){return _mentor?false:x.eu}):null
+  const nTot=_itens.length||r.total
+  const disc=r.por_disciplina||{}
+  let h='<div class="wrap"><button class="btn" onclick="voltar()" style="margin-bottom:14px">‹ Simulados</button>'
+    +'<div class="card" style="text-align:center">'
+    +(acabou?'<div style="font-size:13px;color:var(--ok);font-weight:700;margin-bottom:4px">✓ Prova entregue</div>':'')
+    +'<div class="sub" style="margin:0">'+esc(_sim.nome)+(_mentor?' · '+esc(_aluno.nome):'')+'</div>'
+    +'<div style="font-size:46px;font-weight:900;color:'+cor+';margin-top:8px">'+String(r.nota).replace('.',',')+'<span style="font-size:20px;color:var(--tx3)"> / '+r.nota_max+'</span></div>'
+    +'<div style="color:var(--tx2);font-size:14px">'+(_sim.penaliza?'nota liquida (certas − erradas)':'pontos')+' · '+pct+'%</div>'
+    +(eu?'<div style="margin-top:10px;font-size:16px;font-weight:800;color:var(--ouro)">🏆 '+eu.posicao+'º lugar de '+rk.length+'</div>':'')
+    +'<div class="kpis"><div class="kpi"><div class="kpi-n" style="color:var(--ok)">'+r.certas+'</div><div class="kpi-l">certas</div></div>'
+    +'<div class="kpi"><div class="kpi-n" style="color:var(--erro)">'+r.erradas+'</div><div class="kpi-l">erradas</div></div>'
+    +'<div class="kpi"><div class="kpi-n">'+r.brancas+'</div><div class="kpi-l">em branco</div></div>'
+    +'<div class="kpi"><div class="kpi-n" style="font-size:18px">'+tempoTxt(r.tempo_seg)+'</div><div class="kpi-l">'+(nTot?Math.round((r.tempo_seg||0)/nTot)+'s por questao':'tempo')+'</div></div></div>'
+    +(r.anuladas?'<div class="sub">'+r.anuladas+' questao(oes) anulada(s): ponto para todos.</div>':'')
+    +'</div>'
+  if(Object.keys(disc).length){
+    h+='<div class="card"><div style="font-weight:800;margin-bottom:10px">Por disciplina</div>'
+      +Object.keys(disc).sort().map(function(d){const x=disc[d],t=x.total||1,p=Math.round(((x.certas||0)+(x.anuladas||0))/t*100),c=p>=70?'var(--ok)':p>=50?'var(--alerta)':'var(--erro)'
+        return '<div style="margin-bottom:11px"><div style="display:flex;justify-content:space-between;font-size:13.5px;gap:8px"><span>'+esc(d)+'</span><span style="color:var(--tx3)">'+x.certas+' ✓ · '+x.erradas+' ✗ · '+x.brancas+' em branco · <strong style="color:'+c+'">'+p+'%</strong></span></div><div class="barra"><div style="width:'+p+'%;background:'+c+'"></div></div></div>'}).join('')
+      +'</div>'
+  }
+  if(!lib){
+    h+='<div class="card" style="border-color:var(--info);text-align:center"><div style="font-size:30px">🔒</div><div style="font-weight:800;margin-top:4px">Gabarito, correcao e ranking em '+dtBR(_sim.fecha_em)+'</div><div class="sub">Quando o simulado fechar para todos, volte aqui.</div></div>'
+  }else{
+    h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px"><button class="btn btn-ouro" style="padding:15px" onclick="telaCorrecao()">📝 Correcao comentada</button><button class="btn" style="padding:15px" onclick="telaRanking()">🏆 Ranking completo</button></div>'
+    if(rk&&rk.length){
+      h+='<div class="card"><div style="font-weight:800;margin-bottom:8px">Top 5</div><table class="rk">'+rk.slice(0,5).map(function(x){return '<tr class="'+(x.eu&&!_mentor?'eu':'')+'"><td>'+(x.posicao<=3?['🥇','🥈','🥉'][x.posicao-1]:x.posicao+'º')+'</td><td>'+esc(x.nome)+(x.eu&&!_mentor?' (voce)':'')+'</td><td style="text-align:right"><strong>'+String(x.nota).replace('.',',')+'</strong></td></tr>'}).join('')+'</table></div>'
+    }
+  }
+  h+='</div>'
+  app(h)
+}
+async function carregarCorrecao(){
+  if(_gab)return
+  const [ri,rr,rg,re]=await Promise.all([
+    _itens.length?Promise.resolve({data:_itens}):_supabase.from('sim_itens').select('*').eq('simulado_id',_sim.id).order('numero').limit(2000),
+    _supabase.from('sim_respostas').select('item_id,resposta,tempo_seg').eq('simulado_id',_sim.id).eq('aluno_id',_alunoId).limit(2000),
+    _supabase.rpc('sim_gabarito',{p_sim:_sim.id}),
+    _supabase.rpc('sim_estat_itens',{p_sim:_sim.id})
+  ])
+  _itens=ri.data||[];_resp={};_tempo={}
+  ;(rr.data||[]).forEach(function(x){if(x.resposta)_resp[x.item_id]=x.resposta;_tempo[x.item_id]=x.tempo_seg||0})
+  _gab={};(rg.data||[]).forEach(function(x){_gab[x.item_id]=x.gabarito})
+  _est={};(re.data||[]).forEach(function(x){_est[x.item_id]=x})
+}
+function statusItem(q){
+  if(q.anulada)return 'anulada'
+  const r=_resp[q.id], g=_gab[q.id]
+  if(!r)return 'branca'
+  return r===g?'certa':'errada'
+}
+async function telaCorrecao(){
+  app('<div class="wrap"><div class="estado">Carregando correcao...</div></div>')
+  await carregarCorrecao()
+  renderCorrecao()
+}
+function corFiltro(f){_filtroCor=f;renderCorrecao()}
+function renderCorrecao(){
+  const cont={todas:_itens.length,errada:0,branca:0,certa:0}
+  _itens.forEach(function(q){const s=statusItem(q);if(cont[s]!=null)cont[s]++})
+  const lista=_itens.filter(function(q){return _filtroCor==='todas'||statusItem(q)===_filtroCor})
+  const C={certa:['✓','var(--ok)','Certa'],errada:['✗','var(--erro)','Errada'],branca:['○','var(--tx3)','Em branco'],anulada:['—','var(--alerta)','Anulada']}
+  let h='<div class="wrap"><button class="btn" onclick="telaResultado()" style="margin-bottom:12px">‹ Resultado</button>'
+    +'<div class="h1">Correcao comentada</div><div class="filtro">'
+    +[['todas','Todas'],['errada','Erradas'],['branca','Em branco'],['certa','Certas']].map(function(f){return '<button class="'+(_filtroCor===f[0]?'on':'')+'" onclick="corFiltro(\''+f[0]+'\')">'+f[1]+' ('+cont[f[0]]+')</button>'}).join('')
+    +'</div>'
+    +(!_mentor&&cont.errada?'<button class="btn" style="width:100%;margin-bottom:12px;border-color:var(--erro);color:var(--erro)" onclick="salvarErrosCaderno(this)">📓 Salvar as '+cont.errada+' erradas no caderno de erros</button>':'')
+  h+=lista.map(function(q){
+    const s=statusItem(q), c=C[s], g=_gab[q.id], r=_resp[q.id], e=_est&&_est[q.id]
+    const pt=e&&e.respostas?Math.round(e.acertos/e.respostas*100):null
+    return '<div class="card cor-item" style="border-left-color:'+c[1]+'">'
+      +'<div class="q-num"><span class="q-n">'+q.numero+'</span><span style="color:'+c[1]+';font-weight:800">'+c[0]+' '+c[2]+'</span><span style="color:var(--tx3);font-size:12.5px">'+esc(q.disciplina||'')+(q.assunto?' · '+esc(q.assunto):'')+'</span></div>'
+      +(q.texto_apoio?'<details style="margin-bottom:8px"><summary style="cursor:pointer;color:var(--tx3);font-size:12.5px">Ver texto de apoio</summary><div class="apoio" style="margin-top:6px">'+esc(q.texto_apoio)+'</div></details>':'')
+      +'<div class="enun" style="font-size:14.5px">'+esc(q.enunciado)+'</div>'
+      +(q.tipo==='multipla'?(q.alternativas||[]).map(function(a,i){const l=LETRAS[i],ok=l===g,mi=l===r
+        return '<div class="alt" style="cursor:default;'+(ok?'border-color:var(--ok);background:rgba(109,219,160,.10)':mi?'border-color:var(--erro);background:rgba(240,113,113,.08)':'')+'"><div class="lt" style="'+(ok?'background:var(--ok);border-color:var(--ok);color:#0a1420':mi?'background:var(--erro);border-color:var(--erro);color:#fff':'')+'">'+l+'</div><div class="tx">'+esc(a)+'</div></div>'}).join(''):'')
+      +'<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:13.5px;margin:8px 0">'
+      +'<span>Gabarito: <strong style="color:var(--ok)">'+gabTxt(q,g)+'</strong></span>'
+      +'<span>Sua resposta: <strong style="color:'+c[1]+'">'+(r?gabTxt(q,r):'em branco')+'</strong></span>'
+      +(pt!=null?'<span style="color:var(--tx3)">👥 '+pt+'% da turma acertou</span>':'')
+      +'<span style="color:var(--tx3)">⏱️ '+tempoTxt(_tempo[q.id]||0)+(e&&e.tempo_medio?' (media '+e.tempo_medio+'s)':'')+'</span></div>'
+      +(q.comentario?'<div style="border-top:1px solid var(--bd);padding-top:10px;margin-top:4px"><div style="color:var(--ouro);font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;margin-bottom:5px">Comentario do Jota</div><div style="font-size:14px;line-height:1.7;color:var(--tx2);white-space:pre-wrap">'+esc(q.comentario)+'</div></div>':'')
+      +'</div>'
+  }).join('')||'<div class="estado">Nada neste filtro.</div>'
+  h+='</div>'
+  app(h)
+}
+async function salvarErrosCaderno(b){
+  const err=_itens.filter(function(q){return statusItem(q)==='errada'})
+  if(!err.length)return
+  b.disabled=true;b.textContent='Salvando...'
+  const linhas=err.map(function(q){return {aluno_id:_alunoId,disciplina:q.disciplina||null,titulo:(q.assunto||q.disciplina||'Questao')+' — errei no '+_sim.nome,
+    conteudo:(q.texto_apoio?'TEXTO:\n'+q.texto_apoio+'\n\n':'')+'QUESTAO '+q.numero+':\n'+q.enunciado+(q.tipo==='multipla'?'\n'+(q.alternativas||[]).map(function(a,i){return LETRAS[i]+') '+a}).join('\n'):'')+'\n\nGABARITO: '+gabTxt(q,_gab[q.id])+' (marquei '+gabTxt(q,_resp[q.id])+')'+(q.comentario?'\n\nCOMENTARIO:\n'+q.comentario:''),
+    atualizado_em:new Date().toISOString()}})
+  const r=await _supabase.from('caderno_erros').insert(linhas)
+  if(r.error){b.disabled=false;b.textContent='Erro: '+r.error.message;return}
+  b.textContent='✓ '+err.length+' questao(oes) no seu caderno de erros';b.style.color='var(--ok)';b.style.borderColor='var(--ok)'
+}
+async function telaRanking(){
+  if(!_rank){try{const x=await _supabase.rpc('sim_ranking',{p_sim:_sim.id});_rank=x.data||[]}catch(e){_rank=[]}}
+  const rk=_rank.slice().sort(function(a,b){return a.posicao-b.posicao})
+  app('<div class="wrap"><button class="btn" onclick="telaResultado()" style="margin-bottom:12px">‹ Resultado</button>'
+    +'<div class="h1">🏆 Ranking</div><div class="sub" style="margin-bottom:12px">'+esc(_sim.nome)+' · '+rk.length+' participante(s) · desempate pelo menor tempo</div>'
+    +'<div class="card" style="padding:8px 10px"><table class="rk"><tr><th>#</th><th>Nome</th><th>Nota</th><th>✓</th><th>✗</th><th>Tempo</th></tr>'
+    +rk.map(function(x){return '<tr class="'+(x.eu&&!_mentor?'eu':'')+'"><td>'+(x.posicao<=3?['🥇','🥈','🥉'][x.posicao-1]:x.posicao+'º')+'</td><td>'+esc(x.nome)+(x.eu&&!_mentor?' (voce)':'')+'</td><td><strong>'+String(x.nota).replace('.',',')+'</strong></td><td style="color:var(--ok)">'+x.certas+'</td><td style="color:var(--erro)">'+x.erradas+'</td><td style="color:var(--tx3)">'+tempoTxt(x.tempo_seg)+'</td></tr>'}).join('')
+    +'</table></div></div>')
+}
+init()
+</script>
+</body>
+</html>
