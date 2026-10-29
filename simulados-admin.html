@@ -180,6 +180,7 @@
 <script src="config.js"></script>
 <script src="simulado-parser.js"></script>
 <script src="leitor-arquivos.js"></script>
+<script src="explicacao.js"></script>
 <script>
 const LETRAS='ABCDE'
 let _concursos=[],_sims=[],_sim=null,_itens=[],_gab={},_nRes=0,_previa=null,_res=[],_nomes={}
@@ -538,6 +539,7 @@ function editarItem(id){
     +'<label class="ml">Enunciado</label><textarea id="ei-enun" rows="4">'+esc(q.enunciado||'')+'</textarea>'
     +'<div id="ei-alts" style="display:'+(q.tipo==='multipla'?'block':'none')+'">'+alts.map(function(a,i){return '<label class="ml">Alternativa '+LETRAS[i]+'</label><input type="text" class="ei-alt" value="'+esc(a)+'">'}).join('')+'</div>'
     +'<label class="ml">Comentario (aparece na correcao)</label><textarea id="ei-com" rows="4">'+esc(q.comentario||'')+'</textarea>'
+    +'<label class="ml">Explicacao gravada (opcional)</label>'+(typeof campoExplicacaoHTML==='function'?campoExplicacaoHTML('ei-expl',q.explicacao_url||''):'')
     +'<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><button onclick="salvarItem('+(id?'\''+id+'\'':'null')+')" style="width:auto;padding:10px 16px;margin:0">Salvar</button>'
     +(id?'<button onclick="excluirItem(\''+id+'\')" class="btn-acao btn-excluir" style="padding:10px 14px">Excluir questao</button>':'')+'</div>'
     +'<p id="msg-item" style="display:none;margin-top:8px;font-size:13px"></p>'
@@ -558,6 +560,8 @@ async function salvarItem(id){
   if(id){const r=await _supabase.from('sim_itens').update(linha).eq('id',id);if(r.error){msgEl('msg-item',esc(r.error.message),'var(--erro)');return}}
   else{iid=uuid();linha.id=iid;linha.simulado_id=_sim.id;const r=await _supabase.from('sim_itens').insert(linha);if(r.error){msgEl('msg-item',esc(r.error.message),'var(--erro)');return}}
   if(g){const r=await _supabase.from('sim_gabaritos').upsert({item_id:iid,simulado_id:_sim.id,gabarito:g},{onConflict:'item_id'});if(r.error){msgEl('msg-item','Gabarito: '+esc(r.error.message),'var(--erro)');return}}
+  const ex=document.getElementById('ei-expl')
+  if(ex){try{await _supabase.from('sim_itens').update({explicacao_url:ex.value.trim()||null}).eq('id',iid)}catch(e){}}
   fecharItem();await carregarItens()
 }
 async function excluirItem(id){
