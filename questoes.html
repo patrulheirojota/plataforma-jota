@@ -162,6 +162,8 @@
     <section class="sec on" id="sec-questoes" style="display:none">
       <div id="meta-dia"></div>
       <div class="est" id="est"></div>
+      <div style="text-align:right;margin:-6px 0 12px"><a onclick="ir('cronograma.html#desempenho')" style="color:var(--ouro);font-size:12.5px;font-weight:700;cursor:pointer">📈 Ver meu desempenho por assunto →</a></div>
+      <div id="treinar-aviso"></div>
       <div class="painel" style="margin-bottom:16px">
         <div style="font-size:13px;font-weight:700;color:var(--ouro);margin-bottom:12px">Filtros</div>
         <div class="chips" id="ch-status"></div>
@@ -424,6 +426,7 @@ async function init(){
   document.getElementById('loading').style.display='none'
   document.getElementById('sec-questoes').style.display='block'
   renderEstat()
+  aplicarTreinar()
   buscar()
   const hs=String(location.hash||'').replace('#','')
   if(hs==='flashcards'){ir('flashcards.html');return}
@@ -470,6 +473,35 @@ async function carregarFacetas(){
   Object.keys(b).sort().forEach(function(x){ sb.innerHTML+='<option value="'+esc(x)+'">'+esc(x)+'</option>' })
   const sa=document.getElementById('f-ano')
   Object.keys(a).sort().reverse().forEach(function(x){ sa.innerHTML+='<option value="'+x+'">'+x+'</option>' })
+}
+
+// atalho vindo do "Desempenho por assunto": questoes.html?treinar=Disciplina||Assunto&st=errei
+function aplicarTreinar(){
+  const qs=new URLSearchParams(location.search), t=qs.get('treinar')
+  if(!t)return
+  const pp=t.split('||'), d=pp[0]||'', a=pp[1]||''
+  const st=qs.get('st')
+  if(d){
+    document.querySelectorAll('#ch-disc .chip').forEach(function(e){e.classList.toggle('on',e.dataset.d===d)})
+    _discSel=Array.from(document.querySelectorAll('#ch-disc .chip.on')).map(function(e){return e.dataset.d})
+    renderAssuntos()
+    if(a){
+      document.querySelectorAll('#ch-assunto .chip').forEach(function(e){if(e.dataset.a===a)e.classList.add('on')})
+      _assSel=Array.from(document.querySelectorAll('#ch-assunto .chip.on')).map(function(e){return e.dataset.a})
+    }
+  }
+  if(st&&['nao','errei','acertei','resolvidas','todas'].indexOf(st)>=0){
+    _status=st
+    document.querySelectorAll('#ch-status .chip').forEach(function(e){e.classList.toggle('on',e.dataset.st===st)})
+  }
+  const box=document.getElementById('treinar-aviso')
+  if(box&&d){
+    const nst={errei:'so as que voce errou',nao:'so as que voce ainda nao fez',acertei:'so as que acertou',resolvidas:'as ja resolvidas',todas:'todas'}[st||'todas']
+    box.innerHTML='<div class="painel" style="margin-bottom:14px;border-color:var(--ouro);display:flex;gap:10px;align-items:center;flex-wrap:wrap">'
+      +'<div style="font-size:22px">🎯</div><div style="flex:1;min-width:180px"><div style="font-weight:800;font-size:14px">Treino focado: '+esc(a||d)+'</div>'
+      +'<div style="color:var(--tx3);font-size:12.5px">'+esc(d)+' · mostrando '+nst+'. Se acabar, troque o filtro para "Todas".</div></div>'
+      +'<button class="btn" onclick="document.getElementById(\'treinar-aviso\').innerHTML=\'\';limpar()">Limpar filtro</button></div>'
+  }
 }
 
 function renderAssuntos(){
