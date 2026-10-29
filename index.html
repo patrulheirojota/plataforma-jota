@@ -6,6 +6,10 @@
   <title>Patrulheiros de Elite — Login</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#0a1420">
+  <link rel="apple-touch-icon" href="/icone-192.png">
+  <script>document.documentElement.setAttribute("data-tema",localStorage.getItem("tema")||"escuro")</script>
 </head>
 <body>
   <div class="login-box">
@@ -21,5 +25,6 @@
   </div>
   <script src="config.js"></script>
   <script src="auth.js"></script>
+  <script src="comum.js"></script>
 </body>
 </html>
