@@ -322,6 +322,10 @@
         <button class="btn" onclick="ir('edital.html')">📖 Marcar o que ja estudei</button>
         <button class="btn" onclick="ir('questoes.html#simulados')">🎯 Fazer um simulado</button>
       </div>
+      <div id="vazio-des" style="display:none;max-width:760px;margin:26px auto 0;text-align:left" class="painel">
+        <div style="font-size:14px;font-weight:700;color:var(--ouro);margin-bottom:10px">Seu desempenho por assunto</div>
+        <div id="vazio-des-c"></div>
+      </div>
     </div>
 
     <div id="app" style="display:none">
@@ -383,6 +387,22 @@
           <button class="btn" onclick="exportarPDF()">Exportar PDF</button>
         </div>
         <div class="cards4" id="kpis"></div>
+        <div class="painel" style="margin-bottom:16px">
+          <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+            <div><div style="font-size:14px;font-weight:700;color:var(--ouro)">Desempenho por assunto</div>
+            <div style="color:var(--tx3);font-size:12px;margin-top:2px">Onde voce esta forte e onde precisa treinar mais</div></div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              <button class="btn" id="des-f-banco" onclick="renderDesAssuntos('banco')" style="padding:6px 12px;font-size:12px">Banco da plataforma</button>
+              <button class="btn" id="des-f-sessoes" onclick="renderDesAssuntos('sessoes')" style="padding:6px 12px;font-size:12px">Registradas no cronograma</button>
+            </div>
+          </div>
+          <div id="des-assuntos"><div style="color:var(--tx3);font-size:13px">Carregando...</div></div>
+        </div>
+        <div class="painel" style="margin-bottom:16px">
+          <div style="font-size:14px;font-weight:700;color:var(--ouro);margin-bottom:4px">Relatorios de 21 dias</div>
+          <div style="color:var(--tx3);font-size:12px;margin-bottom:12px">A cada 21 dias voce recebe um balanco do seu ciclo</div>
+          <div id="rc-historico"></div>
+        </div>
         <div class="painel">
           <div style="font-size:14px;font-weight:700;color:var(--ouro);margin-bottom:6px">Acerto por disciplina</div>
           <div style="color:var(--tx3);font-size:12px;margin-bottom:16px">Baseado nas questoes registradas nas sessoes</div>
@@ -443,6 +463,8 @@
 
 <script src="config.js"></script>
 <script src="comum.js"></script>
+<script src="desempenho.js"></script>
+<script src="relatorio-ciclo.js"></script>
 <script>
 const WD=['Seg','Ter','Qua','Qui','Sex','Sab','Dom']
 const CURTO=['Dom','Seg','Ter','Qua','Qui','Sex','Sab']
@@ -535,6 +557,7 @@ async function init(){
     alert('Aluno nao encontrado. Contate o mentor.');return
   }
   _nome=aluno.nome
+  _rcAluno=aluno
   if(_mentor)_email=aluno.email||''
   _diretrizes=aluno.diretrizes||null
   _metaQ=aluno.meta_questoes_dia||30
@@ -576,6 +599,12 @@ async function init(){
     document.getElementById('vazio').style.display='block'
     _concursoId=aluno.concurso_id
     checarAvisos()
+    // mesmo sem cronograma: desempenho por assunto e relatorio do ciclo
+    try{
+      const rows=await buscarDesempenhoAssuntos(_alunoId)
+      if(rows.length){document.getElementById('vazio-des').style.display='block';document.getElementById('vazio-des-c').innerHTML=htmlDesempenhoAssuntos(rows)}
+    }catch(e){}
+    if(!_mentor)setTimeout(function(){verificarRelatorioCiclo(aluno)},500)
     return
   }
 
@@ -629,7 +658,12 @@ async function init(){
   else if(qs.get('teoria')==='1')setTimeout(abrirJaVistas,500)
   else if(['desempenho','avisos','perfil','sequencia'].indexOf(location.hash.replace('#',''))>=0)irSecao(location.hash.replace('#',''))
   else if(checarJaVistas()){}
-  else if(!_mentor)setTimeout(checarDiaAnterior,700)
+  else if(!_mentor){
+    // o relatorio de 21 dias vem ANTES do fechamento do dia e da Missao de hoje
+    setTimeout(function(){
+      verificarRelatorioCiclo(aluno,checarDiaAnterior).then(function(mostrou){if(!mostrou)checarDiaAnterior()})
+    },500)
+  }
 }
 
 /* ---------- MODO MENTOR ---------- */
@@ -968,7 +1002,32 @@ function statsDisc(){
   return p
 }
 
+let _desFonte=null,_desBanco=null
+async function renderDesAssuntos(fonte){
+  const box=document.getElementById('des-assuntos'); if(!box)return
+  if(!_desBanco){
+    box.innerHTML='<div style="color:var(--tx3);font-size:13px">Carregando...</div>'
+    try{_desBanco=await buscarDesempenhoAssuntos(_alunoId)}catch(e){_desBanco=[]}
+  }
+  // questoes que o aluno registra nas sessoes (feitas fora da plataforma), por tema
+  const g={}
+  _sessoes.concat(_sessoesOutros||[]).forEach(function(s){
+    if(!s.questoes_feitas)return
+    const d=s.disciplina||'Sem disciplina', a=String(s.topico||'').trim()||'Geral', k=d+'||'+a
+    if(!g[k])g[k]={disciplina:d,assunto:a,feitas:0,certas:0,ultima:null}
+    g[k].feitas+=s.questoes_feitas; g[k].certas+=Math.min(s.questoes_certas||0,s.questoes_feitas)
+    if(!g[k].ultima||s.data>g[k].ultima)g[k].ultima=s.data+'T12:00:00'
+  })
+  const sess=Object.keys(g).map(function(k){return g[k]})
+  _desFonte=fonte||_desFonte||(_desBanco.length||!sess.length?'banco':'sessoes')
+  ;['banco','sessoes'].forEach(function(f){const b=document.getElementById('des-f-'+f);if(b){b.style.borderColor=f===_desFonte?'var(--ouro)':'';b.style.color=f===_desFonte?'var(--ouro)':'';b.style.fontWeight=f===_desFonte?'700':''}})
+  if(_desFonte==='sessoes'&&!sess.length){box.innerHTML='<div style="color:var(--tx3);font-size:13px;padding:14px;text-align:center">Nenhuma questao registrada nas sessoes ainda. Ao concluir uma sessao, informe quantas questoes fez e quantas acertou.</div>';return}
+  box.innerHTML=htmlDesempenhoAssuntos(_desFonte==='banco'?_desBanco:sess,_desFonte==='banco'?{}:{rotulo:'registradas nas sessoes (feitas fora da plataforma)'})
+}
+
 function renderDesempenho(){
+  renderDesAssuntos()
+  const hc=document.getElementById('rc-historico'); if(hc&&_rcAluno)hc.innerHTML=htmlHistoricoCiclos(_rcAluno)
   const st=calcStreak()
   const total=_sessoes.length, feitas=_sessoes.filter(function(s){return s.concluida}).length
   const q=_sessoes.reduce(function(a,s){return a+(s.questoes_feitas||0)},0)
