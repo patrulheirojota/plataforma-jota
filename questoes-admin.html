@@ -81,6 +81,8 @@
     <button class="aba-btn" onclick="aba('a-vin')">Reaproveitar</button>
     <button class="aba-btn" onclick="aba('a-mat')">Materiais</button>
     <button class="aba-btn" onclick="aba('a-map')">🧠 Mapas mentais</button>
+    <button class="aba-btn" onclick="aba('a-rep')">⚑ Erros reportados <span id="bd-rep" style="display:none;background:var(--erro);color:#fff;border-radius:9px;padding:0 6px;font-size:11px;margin-left:4px"></span></button>
+    <button class="aba-btn" onclick="aba('a-com')">💬 Comentarios</button>
   </div>
 
   <!-- IMPORTAR -->
@@ -328,6 +330,28 @@ Para MULTIPLA ESCOLHA, use o botao Baixar planilha modelo: ela tem a coluna alte
     </div>
   </div>
 
+  <div id="a-rep" class="aba-conteudo" style="display:none">
+    <div class="card">
+      <h3>Erros reportados pelos alunos</h3>
+      <p style="color:var(--tx3);font-size:13px;margin-bottom:10px">Confira a questao, corrija se precisar e marque como resolvido. Se a questao nao tiver salvacao, desative (ela some para os alunos, nada e apagado).</p>
+      <div class="modo">
+        <button class="on" id="rp-f-aberto" onclick="repFiltro('aberto')">Abertos</button>
+        <button id="rp-f-resolvido" onclick="repFiltro('resolvido')">Resolvidos</button>
+        <button id="rp-f-descartado" onclick="repFiltro('descartado')">Descartados</button>
+      </div>
+      <div id="rp-lista"></div>
+    </div>
+  </div>
+
+  <div id="a-com" class="aba-conteudo" style="display:none">
+    <div class="card">
+      <h3>Comentarios dos alunos nas questoes</h3>
+      <p style="color:var(--tx3);font-size:13px;margin-bottom:10px">Os mais recentes primeiro. Apague o que estiver errado, ofensivo ou fora do assunto.</p>
+      <input type="text" id="cm-busca" placeholder="Buscar por texto ou nome do aluno..." oninput="renderComentariosAdm()">
+      <div id="cm-lista"></div>
+    </div>
+  </div>
+
   <div id="a-map" class="aba-conteudo" style="display:none">
     <div class="card">
       <h3 id="mp-titulo-card">Publicar mapa mental</h3>
@@ -426,6 +450,8 @@ function aba(id){
   if(id==='a-vin')prepararVinculo()
   if(id==='a-mat')listarMateriais()
   if(id==='a-map')mpListar()
+  if(id==='a-rep')carregarReportes()
+  if(id==='a-com')carregarComentariosAdm()
 }
 
 let _concursos=[],_lote=null
@@ -445,6 +471,10 @@ async function init(){
   manRenderAlts()
   carregarListasMan()
   resumoTopo()
+  contarReportes()
+  const hq=(location.hash||'').replace('#','')
+  if(hq==='reportes')abrirAba('a-rep')
+  else if(hq==='comentarios')abrirAba('a-com')
   const mpd=document.getElementById('mp-drop')
   if(mpd){
     mpd.addEventListener('dragover',function(e){e.preventDefault();mpd.classList.add('dentro')})
@@ -800,6 +830,122 @@ async function importar(){
   _lote=null
 }
 
+
+// ================= ERROS REPORTADOS =================
+const MOTIVOS_REP_ADM={gabarito:'Gabarito errado',enunciado:'Erro no enunciado ou alternativas',desatualizada:'Questao desatualizada (lei mudou)',incompleta:'Texto cortado ou falta imagem',outro:'Outro problema'}
+let _repFiltro='aberto',_reps=[],_repQs={},_nomesAl={}
+async function nomesAlunos(){
+  if(Object.keys(_nomesAl).length)return
+  try{
+    for(let i=0;i<20;i++){
+      const r=await _supabase.from('alunos').select('id,nome').range(i*1000,i*1000+999)
+      ;(r.data||[]).forEach(function(a){_nomesAl[a.id]=a.nome})
+      if(!r.data||r.data.length<1000)break
+    }
+  }catch(e){}
+}
+function repFiltro(f){_repFiltro=f;['aberto','resolvido','descartado'].forEach(function(x){const b=document.getElementById('rp-f-'+x);if(b)b.classList.toggle('on',x===f)});carregarReportes()}
+async function contarReportes(){
+  try{
+    const r=await _supabase.from('questao_reportes').select('id').eq('status','aberto').limit(999)
+    const n=(r.data||[]).length, b=document.getElementById('bd-rep')
+    if(b){b.textContent=n;b.style.display=n?'inline-block':'none'}
+  }catch(e){}
+}
+async function carregarQs(ids,campos){
+  for(let i=0;i<ids.length;i+=100){
+    const q=await _supabase.from('questoes').select(campos).in('id',ids.slice(i,i+100))
+    ;(q.data||[]).forEach(function(x){_repQs[x.id]=Object.assign({},_repQs[x.id]||{},x)})
+  }
+}
+async function carregarReportes(){
+  const box=document.getElementById('rp-lista')
+  box.innerHTML='<p style="color:var(--tx3);font-size:13px">Carregando...</p>'
+  const r=await _supabase.from('questao_reportes').select('*').eq('status',_repFiltro).order('criado_em',{ascending:false}).limit(300)
+  if(r.error){box.innerHTML='<p style="color:var(--erro);font-size:13px">'+(/relation|does not exist|schema cache/i.test(r.error.message)?'Rode o arquivo atualizacao-central-mentor.sql no Supabase para ativar os reportes.':esc(r.error.message))+'</p>';return}
+  _reps=r.data||[]
+  await nomesAlunos()
+  await carregarQs(_reps.map(function(x){return x.questao_id}).filter(function(x,i,a){return x&&a.indexOf(x)===i}),'*')
+  contarReportes()
+  if(!_reps.length){box.innerHTML='<p style="color:var(--tx3);font-size:13px;text-align:center;padding:20px">'+(_repFiltro==='aberto'?'Nenhum erro reportado em aberto. Tudo certo! ✅':'Nada por aqui ainda.')+'</p>';return}
+  const porQ={},ordem=[]
+  _reps.forEach(function(x){if(!porQ[x.questao_id]){porQ[x.questao_id]=[];ordem.push(x.questao_id)}porQ[x.questao_id].push(x)})
+  box.innerHTML=ordem.map(function(qid){
+    const q=_repQs[qid], lst=porQ[qid]
+    const g=q?String(q.gabarito||'').toUpperCase():''
+    let alts=''
+    if(q&&q.tipo==='multipla'&&Array.isArray(q.alternativas))alts='<div style="font-size:12.5px;color:var(--tx2);line-height:1.6">'+q.alternativas.map(function(a,i){const L='ABCDE'[i];return '<div style="'+(L===g?'color:var(--ok);font-weight:700':'')+'">'+L+') '+esc(a)+'</div>'}).join('')+'</div>'
+    return '<div class="qa" style="border-left-color:var(--erro)">'
+      +'<div class="qa-h"><span class="tag" style="background:rgba(240,113,113,.13);color:var(--erro);border:1px solid var(--erro)">'+lst.length+(lst.length>1?' alunos reportaram':' reporte')+'</span>'
+      +(q?'<span style="color:var(--ouro);font-size:12px;font-weight:700">'+esc(q.disciplina)+'</span><span style="color:var(--tx3);font-size:12px">'+esc(q.assunto||'')+'</span>'
+        +(q.ativo===false?'<span class="tag" style="color:var(--erro);border:1px solid var(--erro)">DESATIVADA</span>':'')
+        :'<span style="color:var(--erro);font-size:12px">questao nao encontrada (foi apagada?)</span>')+'</div>'
+      +(q?(q.texto_apoio?'<div style="font-size:12px;color:var(--tx3);white-space:pre-wrap;max-height:120px;overflow:auto;margin:4px 0;border-left:2px solid var(--bd2);padding-left:8px">'+esc(q.texto_apoio)+'</div>':'')
+        +'<div style="font-size:13.5px;line-height:1.6;white-space:pre-wrap;margin:6px 0">'+esc(q.enunciado)+'</div>'+alts
+        +'<div style="font-size:12.5px;margin-top:6px">Gabarito cadastrado: <strong style="color:var(--ok)">'+(q.tipo==='certo_errado'?(g==='C'?'CERTO':'ERRADO'):esc(g))+'</strong></div>'
+        +(q.comentario?'<details style="margin-top:6px;font-size:12.5px;color:var(--tx2)"><summary style="cursor:pointer;color:var(--tx3)">Ver comentario da questao</summary><div style="white-space:pre-wrap;margin-top:4px">'+esc(q.comentario)+'</div></details>':''):'')
+      +'<div style="margin-top:10px;display:flex;flex-direction:column;gap:6px">'+lst.map(function(x){
+        return '<div style="background:var(--card);border:1px solid var(--bd);border-radius:9px;padding:9px 11px;font-size:12.5px">'
+          +'<strong style="color:var(--erro)">'+esc(MOTIVOS_REP_ADM[x.motivo]||x.motivo)+'</strong> · <span style="color:var(--tx3)">'+esc(_nomesAl[x.aluno_id]||'Aluno')+' · '+new Date(x.criado_em).toLocaleDateString('pt-BR')+'</span>'
+          +(x.texto?'<div style="color:var(--tx2);margin-top:4px;white-space:pre-wrap">'+esc(x.texto)+'</div>':'')
+          +(x.resposta?'<div style="color:var(--tx4);margin-top:4px">Obs.: '+esc(x.resposta)+'</div>':'')+'</div>'
+      }).join('')+'</div>'
+      +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">'
+      +(q?'<button class="btn-acao btn-editar" onclick="manEditar(\''+qid+'\')">✏️ Corrigir questao</button>':'')
+      +(_repFiltro==='aberto'?'<button class="btn-acao" style="background:var(--ok);color:#0a1420;border:1px solid var(--ok)" onclick="resolverReporte(\''+qid+'\',\'resolvido\')">✓ Ja corrigi</button>'
+        +'<button class="btn-acao btn-editar" onclick="resolverReporte(\''+qid+'\',\'descartado\')">Descartar (questao esta certa)</button>':'')
+      +(q&&q.ativo!==false?'<button class="btn-acao btn-excluir" onclick="desativarQuestaoRep(\''+qid+'\')">Desativar questao</button>':'')
+      +'</div></div>'
+  }).join('')
+}
+async function resolverReporte(qid,st){
+  const r=await _supabase.from('questao_reportes').update({status:st,resolvido_em:new Date().toISOString()}).eq('questao_id',qid).eq('status','aberto')
+  if(r.error){alert('Erro: '+r.error.message);return}
+  carregarReportes()
+}
+async function desativarQuestaoRep(qid){
+  if(!confirm('Desativar esta questao? Ela some para os alunos, mas nada e apagado (da para reativar em Gerenciar).'))return
+  const r=await _supabase.from('questoes').update({ativo:false}).eq('id',qid)
+  if(r.error){alert('Erro: '+r.error.message);return}
+  await _supabase.from('questao_reportes').update({status:'resolvido',resolvido_em:new Date().toISOString(),resposta:'questao desativada'}).eq('questao_id',qid).eq('status','aberto')
+  if(_repQs[qid])_repQs[qid].ativo=false
+  carregarReportes()
+}
+
+// ================= MODERACAO DE COMENTARIOS =================
+let _comAdm=[]
+async function carregarComentariosAdm(){
+  const box=document.getElementById('cm-lista')
+  box.innerHTML='<p style="color:var(--tx3);font-size:13px">Carregando...</p>'
+  const r=await _supabase.from('questao_comentarios').select('*').order('criado_em',{ascending:false}).limit(300)
+  if(r.error){box.innerHTML='<p style="color:var(--erro);font-size:13px">'+esc(r.error.message)+'</p>';return}
+  _comAdm=r.data||[]
+  await nomesAlunos()
+  await carregarQs(_comAdm.map(function(x){return x.questao_id}).filter(function(x,i,a){return x&&a.indexOf(x)===i&&!(_repQs[x]&&_repQs[x].enunciado)}),'id,disciplina,assunto,enunciado')
+  renderComentariosAdm()
+}
+function renderComentariosAdm(){
+  const box=document.getElementById('cm-lista'), b=(document.getElementById('cm-busca').value||'').toLowerCase()
+  const l=_comAdm.filter(function(c){return !b||String(c.texto||'').toLowerCase().indexOf(b)>=0||String(_nomesAl[c.aluno_id]||'').toLowerCase().indexOf(b)>=0})
+  if(!l.length){box.innerHTML='<p style="color:var(--tx3);font-size:13px;text-align:center;padding:20px">Nenhum comentario.</p>';return}
+  box.innerHTML='<p style="color:var(--tx3);font-size:12px;margin:8px 0">'+l.length+' comentario(s)</p>'+l.map(function(c){
+    const q=_repQs[c.questao_id]||{}
+    return '<div class="qa"><div class="qa-h"><strong style="color:var(--ouro);font-size:13px">'+esc(_nomesAl[c.aluno_id]||'Aluno')+'</strong>'
+      +'<span style="color:var(--tx4);font-size:11.5px">'+new Date(c.criado_em).toLocaleString('pt-BR')+'</span>'
+      +'<button class="btn-acao btn-excluir" style="margin-left:auto;padding:6px 11px" onclick="apagarComentarioAdm(\''+c.id+'\')">Apagar</button></div>'
+      +'<div style="font-size:13.5px;line-height:1.6;white-space:pre-wrap">'+esc(c.texto)+'</div>'
+      +(q.enunciado?'<div style="color:var(--tx3);font-size:12px;margin-top:6px;border-top:1px solid var(--bd);padding-top:6px">Na questao: <strong>'+esc(q.disciplina||'')+'</strong> — '+esc(String(q.enunciado).slice(0,140))+(String(q.enunciado).length>140?'...':'')+'</div>':'')
+      +'</div>'
+  }).join('')
+}
+async function apagarComentarioAdm(id){
+  if(!confirm('Apagar este comentario? Isso nao pode ser desfeito.'))return
+  const r=await _supabase.from('questao_comentarios').delete().eq('id',id).select()
+  if(r.error){alert('Erro: '+r.error.message);return}
+  if(r.data&&!r.data.length){alert('O banco nao deixou apagar. Rode o arquivo atualizacao-central-mentor.sql.');return}
+  _comAdm=_comAdm.filter(function(c){return c.id!==id});renderComentariosAdm()
+}
+
 // ================= MAPAS MENTAIS =================
 let _mpHtml=null, _mpEdit=null
 function mpMsg(t,c){const m=document.getElementById('msg-mp');m.style.display='block';m.style.color=c;m.innerHTML=t}
@@ -1102,6 +1248,8 @@ function abrirAba(id){
   document.querySelectorAll('.aba-btn').forEach(function(e){e.classList.toggle('ativa',(e.getAttribute('onclick')||'').indexOf("'"+id+"'")>=0)})
   document.getElementById(id).style.display='block'
   if(id==='a-ger'){stats();listar()}
+  if(id==='a-rep')carregarReportes()
+  if(id==='a-com')carregarComentariosAdm()
 }
 
 async function manEditar(id){
