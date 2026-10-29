@@ -65,6 +65,7 @@
 
   .painel{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:18px}
   .layout{display:grid;grid-template-columns:1fr 268px;gap:16px;align-items:start}
+  .layout>*{min-width:0}  /* o calendario rola dentro do quadro, sem empurrar a pagina para o lado */
 
   .nav-r{display:flex;align-items:center;gap:10px;margin-bottom:14px}
   .nav-b{width:32px;height:32px;border-radius:8px;border:1px solid var(--bd2);background:var(--btn);color:#9fb2c7;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center}
@@ -315,7 +316,12 @@
     <div id="vazio" class="estado" style="display:none">
       <div style="font-size:46px;margin-bottom:12px">🗓️</div>
       <div style="color:var(--ouro);font-weight:700;font-size:17px">Cronograma ainda nao gerado</div>
-      <p style="color:var(--tx3);font-size:13px;margin-top:6px">Seu mentor ainda nao montou seu plano por tema.</p>
+      <p style="color:var(--tx3);font-size:13px;margin-top:6px;line-height:1.6">Seu mentor esta montando o seu plano. Enquanto isso, ja da para estudar:</p>
+      <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:14px">
+        <button class="btn btn-ouro" onclick="ir('questoes.html')">❓ Resolver questoes</button>
+        <button class="btn" onclick="ir('edital.html')">📖 Marcar o que ja estudei</button>
+        <button class="btn" onclick="ir('questoes.html#simulados')">🎯 Fazer um simulado</button>
+      </div>
     </div>
 
     <div id="app" style="display:none">
@@ -436,6 +442,7 @@
 </div>
 
 <script src="config.js"></script>
+<script src="comum.js"></script>
 <script>
 const WD=['Seg','Ter','Qua','Qui','Sex','Sab','Dom']
 const CURTO=['Dom','Seg','Ter','Qua','Qui','Sex','Sab']
@@ -620,6 +627,7 @@ async function init(){
   else if(qs.get('dias')==='1')setTimeout(abrirDias,500)
   else if(qs.get('carga')==='1')setTimeout(abrirCarga,500)
   else if(qs.get('teoria')==='1')setTimeout(abrirJaVistas,500)
+  else if(['desempenho','avisos','perfil','sequencia'].indexOf(location.hash.replace('#',''))>=0)irSecao(location.hash.replace('#',''))
   else if(checarJaVistas()){}
   else if(!_mentor)setTimeout(checarDiaAnterior,700)
 }
@@ -758,7 +766,7 @@ function renderStrip(){
   const tT=_sessoes.filter(function(s){return s.tipo==='teoria'}).length
   const tF=_sessoes.filter(function(s){return s.tipo==='teoria'&&s.concluida}).length
   const pct=tT?Math.round(tF/tT*100):Math.round(feitas/total*100)
-  const pd=_cfg?_cfg.sessoes_por_dia:Math.round(total/Math.max(datas.length,1))
+  const pd=(_cfg&&_cfg.sessoes_por_dia)||Math.round(total/Math.max(datas.length,1))
   const fim=datas.length?parseD(datas[datas.length-1]).toLocaleDateString('pt-BR'):'--'
   document.getElementById('strip').innerHTML=
     '<div class="strip-c"><div class="strip-l">Turma</div><div class="strip-v">'+esc(_concursoNome||'Meu plano')+'</div></div>'
@@ -2486,28 +2494,9 @@ function metasCumpridas(){
   return sess.length>0&&sess.every(function(s){return s.concluida})&&questoesHoje()>=_metaQ&&cadernoHoje()
 }
 async function marcarCadernoHoje(){await marcarCaderno(hojeStr(),true);renderHoje();toast('📓 Caderno de erros lido hoje. Boa!')}
-function metasHTML(feitas,tot){
-  const q=questoesHoje(), qOk=q>=_metaQ, cOk=cadernoHoje(), sOk=feitas===tot
-  const pq=Math.min(100,Math.round(q/Math.max(1,_metaQ)*100))
-  let h='<div class="metas"><div class="metas-t">Metas obrigatorias do dia</div>'
-  h+='<div class="meta'+(sOk?' ok':'')+'"><div class="meta-ic">'+(sOk?'✓':'📅')+'</div><div class="meta-tx"><div class="meta-n">Cronograma de estudos</div>'
-    +'<div class="meta-s">'+feitas+' de '+tot+' sessao(oes) concluida(s)</div></div></div>'
-  h+='<div class="meta'+(qOk?' ok':'')+'"><div class="meta-ic">'+(qOk?'✓':'❓')+'</div><div class="meta-tx"><div class="meta-n">Questoes do dia</div>'
-    +'<div class="meta-s">'+(_metas.q===null?'contando...':q+' de '+_metaQ+' questoes')+'</div><div class="meta-bar"><div style="width:'+pq+'%"></div></div></div>'
-    +(qOk?'':'<button class="btn" style="padding:7px 12px" onclick="ir(\'questoes.html\')">Resolver</button>')+'</div>'
-  h+='<div class="meta'+(cOk?' ok':'')+'"><div class="meta-ic">'+(cOk?'✓':'📓')+'</div><div class="meta-tx"><div class="meta-n">Caderno de erros</div>'
-    +'<div class="meta-s">'+(cOk?'Lido hoje':'Releia suas anotacoes e marque como lido')+'</div></div>'
-    +(cOk?'':'<button class="btn" style="padding:7px 12px" onclick="abrirCaderno()">Abrir</button><button class="btn" style="padding:7px 12px" onclick="marcarCadernoHoje()">✓ Li</button>')+'</div>'
-  if(!fcOculto()&&_metas.fc!==null){
-    h+='<div class="metas-t" style="margin-top:12px">Extra</div>'
-      +'<div class="meta opc"><div class="meta-ic">🗂️</div><div class="meta-tx"><div class="meta-n">Flashcards <span class="tag-opc">OPCIONAL</span></div>'
-      +'<div class="meta-s">'+(_metas.fc?_metas.fc+' cartao(oes) para revisar · use se a tecnica funciona para voce':'Nenhum cartao para hoje')+'</div></div>'
-      +(_metas.fc?'<button class="btn" style="padding:7px 12px" onclick="ir(\'flashcards.html\')">Revisar</button>':'')
-      +'<button class="btn" title="Nao uso flashcards" style="padding:7px 10px;color:var(--tx4)" onclick="alternarFlashMeta(true)">✕</button></div>'
-  }else if(fcOculto()){
-    h+='<div style="text-align:right;margin-top:4px"><a style="color:var(--tx4);font-size:11.5px;cursor:pointer;text-decoration:underline" onclick="alternarFlashMeta(false)">Mostrar flashcards (opcional)</a></div>'
-  }
-  return h+'</div>'
+function metaLinha(ok,ic,nome,sub,pct,botoes){
+  return '<div class="meta'+(ok?' ok':'')+'"><div class="meta-ic">'+(ok?'✓':ic)+'</div><div class="meta-tx"><div class="meta-n">'+nome+'</div>'
+    +'<div class="meta-s">'+sub+'</div>'+(pct===null?'':'<div class="meta-bar"><div style="width:'+pct+'%"></div></div>')+'</div>'+(ok?'':botoes||'')+'</div>'
 }
 
 function renderHoje(){
@@ -2522,13 +2511,20 @@ function renderHoje(){
     return
   }
   const feitas=sess.filter(function(s){return s.concluida}).length, tot=sess.length
-  const pct=Math.round(feitas/tot*100), tudo=metasCumpridas()
+  const q=questoesHoje(), cOk=cadernoHoje(), sOk=feitas===tot, qOk=q>=_metaQ
+  const nOk=(sOk?1:0)+(qOk?1:0)+(cOk?1:0), tudo=nOk===3
+  const pctS=Math.round(feitas/tot*100), pctQ=Math.min(100,Math.round(q/Math.max(1,_metaQ)*100))
+  const pct=Math.round((pctS+pctQ+(cOk?100:0))/3)
+
   let h='<div class="hoje-p'+(tudo?' feito':'')+'">'
     +'<div class="hoje-h"><div style="font-size:26px">'+(tudo?'🏆':'🎯')+'</div>'
     +'<div><div class="hoje-t">'+(tudo?'Missao de hoje cumprida!':'Missao de hoje')+'</div>'
-    +'<div class="hoje-s">'+(tudo?'Cronograma, questoes e caderno de erros em dia. Sua sequencia agradece.':feitas===tot?'Sessoes concluidas! Faltam as outras metas do dia abaixo.':'Terminou uma sessao? Toque em <strong style="color:var(--ouro)">Conclui</strong> na hora.')+'</div></div>'
-    +'<div class="hoje-n">'+feitas+'<small>/'+tot+'</small></div></div>'
+    +'<div class="hoje-s">'+(tudo?'Cronograma, questoes e caderno de erros em dia. Sua sequencia agradece.':'Cumpra as 3 metas do dia: cronograma, questoes e caderno de erros.')+'</div></div>'
+    +'<div class="hoje-n">'+nOk+'<small>/3 metas</small></div></div>'
     +'<div class="hoje-bar"><div style="width:'+pct+'%"></div></div>'
+
+  // 1) cronograma: as sessoes do dia
+  h+='<div class="metas-t">1 · Cronograma de estudos <span style="color:'+(sOk?'#6ddba0':'var(--tx3)')+'">'+feitas+'/'+tot+'</span></div>'
   sess.forEach(function(s){
     const c=corDe(s.disciplina)
     h+='<div class="hi'+(s.concluida?' ok':'')+'" style="--c:'+c+'">'
@@ -2539,12 +2535,30 @@ function renderHoje(){
       +(s.concluida?'<span class="hi-ok">✓ Feito</span>':'<button class="hi-b" onclick="toggleSessao(\''+s.id+'\')">✓ Conclui</button>')
       +'</div>'
   })
-  h+=metasHTML(feitas,tot)
   if(feitas<tot){
-    h+='<div class="hoje-f">'
+    h+='<div class="hoje-f" style="margin:4px 0 6px">'
       +'<button class="btn" onclick="fecharDia(\''+hj+'\',\'hoje\')">🌙 Fechar o dia</button>'
       +(tot-feitas>1?'<button class="btn" onclick="concluirTudo(\''+hj+'\')">✅ Conclui tudo de hoje</button>':'')
       +'</div>'
+  }
+
+  // 2) questoes e 3) caderno de erros
+  h+='<div class="metas-t" style="margin-top:14px">2 · Questoes do dia</div>'
+    +metaLinha(qOk,'❓','Questoes',_metas.q===null?'contando...':q+' de '+_metaQ+' questoes'+(qOk?' — meta batida!':''),pctQ,
+      '<button class="btn" style="padding:7px 12px" onclick="ir(\'questoes.html\')">Resolver</button>')
+  h+='<div class="metas-t" style="margin-top:12px">3 · Caderno de erros</div>'
+    +metaLinha(cOk,'📓','Caderno de erros',cOk?'Lido hoje':'Releia suas anotacoes e marque como lido',null,
+      '<button class="btn" style="padding:7px 12px" onclick="abrirCaderno()">Abrir</button><button class="btn" style="padding:7px 12px" onclick="marcarCadernoHoje()">✓ Li</button>')
+
+  // extra opcional: flashcards
+  if(!fcOculto()&&_metas.fc!==null){
+    h+='<div class="metas-t" style="margin-top:12px">Extra</div>'
+      +'<div class="meta opc"><div class="meta-ic">🗂️</div><div class="meta-tx"><div class="meta-n">Flashcards <span class="tag-opc">OPCIONAL</span></div>'
+      +'<div class="meta-s">'+(_metas.fc?_metas.fc+' cartao(oes) para revisar · use se a tecnica funciona para voce':'Nenhum cartao para hoje')+'</div></div>'
+      +(_metas.fc?'<button class="btn" style="padding:7px 12px" onclick="ir(\'flashcards.html\')">Revisar</button>':'')
+      +'<button class="btn" title="Nao uso flashcards" style="padding:7px 10px;color:var(--tx4)" onclick="alternarFlashMeta(true)">✕</button></div>'
+  }else if(fcOculto()){
+    h+='<div style="text-align:right;margin-top:6px"><a style="color:var(--tx4);font-size:11.5px;cursor:pointer;text-decoration:underline" onclick="alternarFlashMeta(false)">Mostrar flashcards (opcional)</a></div>'
   }
   h+='</div>'
   box.innerHTML=h
