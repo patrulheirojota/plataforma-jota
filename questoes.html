@@ -142,6 +142,7 @@
     <div class="side-sep"></div>
     <div class="nav-i" onclick="ir('flashcards.html')"><span class="nav-ic">🗂️</span>Flashcards<span class="nav-nv" style="background:var(--ouro);color:#0a1420">NOVO</span></div>
     <div class="nav-i" data-s="mapas" onclick="irSecao('mapas')"><span class="nav-ic">🧠</span>Mapas mentais</div>
+    <div class="nav-i" onclick="ir('lei-seca.html')"><span class="nav-ic">⚖️</span>Lei seca</div>
     <div class="side-sep"></div>
     <div class="nav-i" onclick="ir('cronograma.html#desempenho')"><span class="nav-ic">📊</span>Desempenho</div>
     <div class="side-b"><div class="nav-i" id="nav-sair" onclick="sair()"><span class="nav-ic">🚪</span>Sair</div></div>
@@ -305,6 +306,8 @@
 
 <script src="config.js"></script>
 <script src="comum.js"></script>
+<script src="explicacao.js"></script>
+<script src="pomodoro.js"></script>
 <script>
 let _alunoId=null,_concursos=[],_discSel=[],_assSel=[],_status='todas',_pag=0,_qs=[],_resp={},_matTipo=''
 let _metaDia=30,_respHoje=0,_assuntos={},_errosVelhos=[]
@@ -742,6 +745,7 @@ async function responder(id){
     +(q.comentario?'<div style="margin-top:11px;padding-top:11px;border-top:1px solid var(--bd)">'
       +'<div style="color:var(--ouro);font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;margin-bottom:6px">Comentario do Jota</div>'
       +'<div style="font-size:13.5px;line-height:1.7;color:var(--tx2);white-space:pre-wrap">'+esc(q.comentario)+'</div></div>':'')
+    +(q.explicacao_url&&typeof htmlExplicacao==='function'?htmlExplicacao(q.explicacao_url):'')
     +'</div>'
     +barraFlash(id,acertou)
     +painelCaderno(q,acertou)
