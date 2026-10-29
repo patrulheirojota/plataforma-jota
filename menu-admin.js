@@ -3,8 +3,13 @@
    Basta incluir <script src="menu-admin.js"></script> no fim da pagina.
    ===================================================================== */
 (function(){
+  // versao no rodape + registro de erros (comum.js) em todas as paginas do painel
+  if (!document.querySelector('script[src*="comum.js"]')) {
+    const sc = document.createElement('script'); sc.src = 'comum.js'; document.head.appendChild(sc)
+  }
   const ITENS = [
     ['Gestao'],
+    ['🎯','Central do dia','aba-central'],
     ['👥','Alunos','aba-alunos'],
     ['🏆','Concursos','aba-concursos'],
     ['🔔','Avisos','aba-avisos'],
