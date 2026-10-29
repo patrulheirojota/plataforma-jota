@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lei seca — Mentor</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="style.css">
+<script>document.documentElement.setAttribute("data-tema",localStorage.getItem("tema")||"escuro")</script>
+<style>
+  .mg{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+  .ml{color:var(--tx3);font-size:12px;display:block;margin:10px 0 4px}
+  .lei-c{background:var(--card2);border:1px solid var(--bd);border-radius:12px;padding:13px;margin-bottom:9px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  .tag{font-size:10.5px;padding:2px 8px;border-radius:10px;font-weight:700;border:1px solid var(--bd2);color:var(--tx3)}
+  .art{background:var(--card2);border:1px solid var(--bd);border-radius:10px;padding:10px 12px;margin-bottom:7px;font-size:12.5px;line-height:1.55;white-space:pre-wrap;display:flex;gap:10px;align-items:flex-start}
+  .art.fogo{border-color:#f07171}
+  .art button{width:auto;margin:0;padding:6px 10px;font-size:12px;flex-shrink:0}
+  textarea.big{width:100%;min-height:260px;padding:12px;border-radius:8px;border:1px solid var(--bd2);background:var(--card2);color:var(--tx);font-size:12.5px;line-height:1.55;font-family:inherit}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div><h2>Lei seca</h2><div style="color:var(--tx3);font-size:13px">Publique as leis do edital para o aluno ler artigo por artigo</div></div>
+    <button onclick="location.href='admin.html'" style="width:auto;padding:8px 14px">Painel Admin</button>
+  </header>
+
+  <div id="v-lista" class="card">
+    <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+      <h3 style="margin:0">Leis publicadas</h3>
+      <button onclick="editar(null)" style="width:auto;padding:10px 16px;margin:0">+ Nova lei</button>
+    </div>
+    <div id="lista"><p style="color:var(--tx3);font-size:13px">Carregando...</p></div>
+  </div>
+
+  <div id="v-edit" style="display:none">
+    <div class="card">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;flex-wrap:wrap">
+        <button onclick="voltar()" class="btn-acao btn-editar" style="padding:8px 14px">‹ Voltar</button>
+        <h3 id="ed-t" style="margin:0;flex:1"></h3>
+      </div>
+      <div class="mg">
+        <div><label class="ml">Nome da lei</label><input type="text" id="l-tit" placeholder="Ex.: Lei de Tortura"></div>
+        <div><label class="ml">Sigla / numero</label><input type="text" id="l-sig" placeholder="Ex.: Lei 9.455/97"></div>
+        <div><label class="ml">Turma</label><select id="l-turma"><option value="">Todas as turmas</option></select></div>
+        <div><label class="ml">Ordem na lista</label><input type="number" id="l-ord" value="0"></div>
+      </div>
+      <label class="ml">Texto da lei (copie do site do Planalto e cole aqui)</label>
+      <textarea class="big" id="l-txt" oninput="previa()" placeholder="Art. 1º ...&#10;§ 1º ...&#10;I - ...&#10;Art. 2º ..."></textarea>
+      <div style="color:var(--tx4);font-size:11.5px;margin-top:4px">Dica: no Planalto, o texto riscado (revogado) tambem e copiado. Apague antes de salvar, ou deixe: artigos "(Revogado)" e "(VETADO)" aparecem apagados para o aluno.</div>
+      <label style="display:flex;gap:9px;align-items:center;margin-top:12px;cursor:pointer;color:var(--tx2);font-size:13.5px"><input type="checkbox" id="l-ativo" checked style="width:18px;height:18px;margin:0"> Publicada (alunos veem)</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
+        <button onclick="salvar()" style="width:auto;padding:11px 18px;margin:0">💾 Salvar lei</button>
+        <button onclick="excluir()" id="bt-exc" class="btn-acao btn-excluir" style="padding:11px 16px">Excluir</button>
+      </div>
+      <p id="msg" style="display:none;margin-top:10px;font-size:13px"></p>
+    </div>
+    <div class="card">
+      <h3>Artigos encontrados <span id="n-arts" class="tag"></span></h3>
+      <p style="color:var(--tx3);font-size:12.5px;margin-bottom:10px">Toque em 🔥 nos artigos que mais caem em prova: o aluno ve o selo "CAI MUITO" e pode filtrar so esses.</p>
+      <div id="arts"></div>
+    </div>
+  </div>
+</div>
+<script src="config.js"></script>
+<script src="lei-parser.js"></script>
+<script>
+let _leis=[],_concursos=[],_lei=null,_dest=[],_tm=null
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function msg(t,c){const m=document.getElementById('msg');m.style.display='block';m.style.color=c||'var(--tx3)';m.innerHTML=t}
+async function init(){
+  const { data:{user} }=await _supabase.auth.getUser()
+  if(!user){location.href='index.html';return}
+  const { data:c }=await _supabase.from('concursos').select('id,nome').order('nome')
+  _concursos=c||[]
+  _concursos.forEach(function(x){document.getElementById('l-turma').innerHTML+='<option value="'+x.id+'">'+esc(x.nome)+'</option>'})
+  listar()
+}
+async function listar(){
+  const box=document.getElementById('lista')
+  const r=await _supabase.from('leis').select('*').order('ordem').order('titulo')
+  if(r.error){box.innerHTML='<p style="color:var(--erro);font-size:13px">'+(/relation|does not exist|schema cache/i.test(r.error.message)?'Rode o arquivo <strong>atualizacao-lote-c.sql</strong> no Supabase para ativar a lei seca.':esc(r.error.message))+'</p>';return}
+  _leis=r.data||[]
+  const rl=await _supabase.from('lei_leituras').select('lei_id,lidos,voltas').limit(20000)
+  const est={};(rl.data||[]).forEach(function(x){const e=est[x.lei_id]=est[x.lei_id]||{n:0,lidos:0,voltas:0};e.n++;e.lidos+=(x.lidos||[]).length;e.voltas+=x.voltas||0})
+  if(!_leis.length){box.innerHTML='<div style="text-align:center;color:var(--tx3);padding:22px"><div style="font-size:36px">⚖️</div>Nenhuma lei ainda. Toque em "+ Nova lei" e cole o texto.</div>';return}
+  box.innerHTML=_leis.map(function(l){
+    const n=lerLei(l.texto).artigos.length, c=_concursos.find(function(x){return String(x.id)===String(l.concurso_id)}), e=est[l.id]
+    return '<div class="lei-c"><div style="font-size:24px">📜</div><div style="flex:1;min-width:200px"><div style="font-weight:800">'+esc(l.sigla?l.sigla+' — ':'')+esc(l.titulo)+'</div>'
+      +'<div style="color:var(--tx3);font-size:12px;margin-top:3px">'+n+' artigos · '+(c?esc(c.nome):'Todas as turmas')+' · 🔥 '+(l.destaques||[]).length+'</div>'
+      +'<div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">'+(l.ativo?'<span class="tag" style="color:var(--ok);border-color:var(--ok)">publicada</span>':'<span class="tag">oculta</span>')
+      +(e?'<span class="tag" style="color:var(--ouro);border-color:var(--ouro)">'+e.n+' aluno(s) lendo · media '+Math.round(e.lidos/e.n/Math.max(n,1)*100)+'% · '+e.voltas+' volta(s)</span>':'')+'</div></div>'
+      +'<button onclick="editar(\''+l.id+'\')" style="width:auto;padding:9px 15px;margin:0">Editar</button></div>'
+  }).join('')
+}
+function voltar(){document.getElementById('v-edit').style.display='none';document.getElementById('v-lista').style.display='block';listar()}
+function editar(id){
+  _lei=id?_leis.find(function(l){return l.id===id}):null
+  _dest=_lei?(_lei.destaques||[]).map(String):[]
+  document.getElementById('v-lista').style.display='none';document.getElementById('v-edit').style.display='block'
+  document.getElementById('ed-t').textContent=_lei?'Editar lei':'Nova lei'
+  document.getElementById('l-tit').value=_lei?_lei.titulo:''
+  document.getElementById('l-sig').value=_lei?(_lei.sigla||''):''
+  document.getElementById('l-turma').value=_lei?(_lei.concurso_id||''):''
+  document.getElementById('l-ord').value=_lei?(_lei.ordem||0):0
+  document.getElementById('l-txt').value=_lei?_lei.texto:''
+  document.getElementById('l-ativo').checked=_lei?!!_lei.ativo:true
+  document.getElementById('bt-exc').style.display=_lei?'':'none'
+  document.getElementById('msg').style.display='none'
+  previa(true)
+}
+function previa(ja){
+  clearTimeout(_tm)
+  _tm=setTimeout(function(){
+    const d=lerLei(document.getElementById('l-txt').value)
+    document.getElementById('n-arts').textContent=d.artigos.length+' artigos'+(d.artigos.filter(function(a){return a.revogado}).length?' · '+d.artigos.filter(function(a){return a.revogado}).length+' revogados/vetados':'')
+    const box=document.getElementById('arts')
+    if(!d.artigos.length){box.innerHTML='<p style="color:var(--tx3);font-size:13px">Cole o texto da lei acima. Cada "Art. 1º", "Art. 2º"... vira um bloco.</p>';return}
+    box.innerHTML=d.unidades.map(function(u){
+      if(u.tipo==='secao')return '<div style="font-size:11.5px;font-weight:800;color:var(--ouro);margin:12px 2px 6px;text-transform:uppercase">'+esc(u.texto)+'</div>'
+      const f=_dest.indexOf(u.chave)>=0
+      return '<div class="art'+(f?' fogo':'')+'" style="'+(u.revogado?'opacity:.5':'')+'"><div style="flex:1">'+esc(u.texto.length>420?u.texto.slice(0,420)+'...':u.texto)+'</div>'
+        +(u.revogado?'':'<button onclick="fogo(\''+u.chave+'\')" style="'+(f?'background:#f07171;color:#fff;border:1px solid #f07171':'background:var(--card);color:var(--tx3);border:1px solid var(--bd2)')+'">🔥</button>')+'</div>'
+    }).join('')
+  },ja===true?0:500)
+}
+function fogo(k){const i=_dest.indexOf(k);if(i>=0)_dest.splice(i,1);else _dest.push(k);previa(true)}
+async function salvar(){
+  const txt=document.getElementById('l-txt').value.trim(), tit=document.getElementById('l-tit').value.trim()
+  if(!tit){msg('De um nome para a lei.','var(--erro)');return}
+  const d=lerLei(txt)
+  if(!d.artigos.length){msg('Nao encontrei nenhum "Art." no texto. Confira se colou a lei inteira.','var(--erro)');return}
+  const chaves=d.artigos.map(function(a){return a.chave})
+  const linha={titulo:tit,sigla:document.getElementById('l-sig').value.trim()||null,concurso_id:document.getElementById('l-turma').value||null,
+    ordem:parseInt(document.getElementById('l-ord').value)||0,texto:txt,destaques:_dest.filter(function(k){return chaves.indexOf(k)>=0}),
+    ativo:document.getElementById('l-ativo').checked,atualizado_em:new Date().toISOString()}
+  msg('Salvando...')
+  const r=_lei?await _supabase.from('leis').update(linha).eq('id',_lei.id).select().single():await _supabase.from('leis').insert(linha).select().single()
+  if(r.error){msg('Erro: '+esc(r.error.message),'var(--erro)');return}
+  _lei=r.data
+  msg('✓ Lei salva com '+d.artigos.length+' artigos.'+(linha.ativo?' Os alunos ja podem ler em Lei seca.':' Ela esta oculta para os alunos.'),'var(--ok)')
+  document.getElementById('bt-exc').style.display=''
+}
+async function excluir(){
+  if(!_lei)return
+  const r0=await _supabase.from('lei_leituras').select('id').eq('lei_id',_lei.id).limit(1)
+  if(r0.data&&r0.data.length){alert('Alunos ja estao lendo esta lei: para nao perder o progresso deles, ela nao pode ser excluida. Desmarque "Publicada" para esconder.');return}
+  if(!confirm('Excluir esta lei?'))return
+  const r=await _supabase.from('leis').delete().eq('id',_lei.id)
+  if(r.error){alert('Erro: '+r.error.message);return}
+  voltar()
+}
+init()
+</script>
+<script src="menu-admin.js"></script>
+</body>
+</html>
