@@ -22,7 +22,7 @@ async function login() {
   // mentor vai direto para o painel; aluno para a plataforma
   let admin = false
   try { const r = await _supabase.rpc('eh_admin'); admin = !r.error && !!r.data } catch (e) {}
-  window.location.href = admin ? 'admin.html' : 'dashboard.html'
+  window.location.href = admin ? 'admin.html' : 'cronograma.html'
 }
 
 // Enter no campo de senha (ou e-mail) ja entra
