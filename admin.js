@@ -25,6 +25,9 @@ async function entrarNoPainel() {
   try { await carregarAlunosParaCronograma() } catch(e) { console.error(e) }
   try { await carregarAlunos() } catch(e) { console.error(e) }
   const foco = sessionStorage.getItem('alunoFoco')
+  // abre na Central do dia (ou no aluno que voce estava vendo / na aba do endereco)
+  if (foco || abaHash === 'aba-alunos') mostrarAba('aba-alunos')
+  else if (!abaHash || !document.getElementById(abaHash)) mostrarAba('aba-central')
   if (foco) {
     sessionStorage.removeItem('alunoFoco')
     setTimeout(function(){
@@ -52,6 +55,7 @@ async function verificarSessao() {
 verificarSessao()
 
 const TITULOS = {
+  'aba-central':['Central do dia','O que precisa da sua atencao hoje'],
   'aba-alunos':['Alunos','Cadastro, acesso e acompanhamento'],
   'aba-concursos':['Concursos','Cadastro, data da prova e edicao'],
   'aba-avisos':['Avisos','Recados para a turma'],
@@ -79,6 +83,7 @@ function mostrarAba(id) {
   }
   window.scrollTo({top:0,behavior:'smooth'})
   if (id === 'aba-alunos' && !window._todosAlunos) carregarAlunos()
+  if (id === 'aba-central' && typeof carregarCentral === 'function') carregarCentral()
   if (id === 'aba-cronograma') carregarSelectsCronograma()
   if (id === 'aba-desempenho') carregarSelectDesempenho()
   if (id === 'aba-avisos') carregarSelectsAvisos()
@@ -749,6 +754,8 @@ function abrirEditarAluno(id, nome, email, concurso_id) {
   if (mq) mq.value = (a && a.meta_questoes_dia) ? a.meta_questoes_dia : 30
   const dz = document.getElementById('editar-aluno-diretrizes')
   if (dz) dz.value = (a && a.diretrizes) ? a.diretrizes : ''
+  const tf = document.getElementById('editar-aluno-telefone')
+  if (tf) tf.value = (a && a.telefone) ? a.telefone : ''
   document.getElementById('card-editar-aluno').scrollIntoView({ behavior:'smooth' })
   // Carrega senha atual como placeholder
   const senhaInput = document.getElementById('editar-aluno-senha')
@@ -790,8 +797,14 @@ async function salvarEdicaoAluno() {
               diretrizes_em: diretrizes?new Date().toISOString():null }).eq('id', id)
   if (error) { msg.style.color='var(--erro)'; msg.textContent='Erro: '+error.message; return }
 
+  // telefone (separado: se a coluna ainda nao existir, o resto ja foi salvo)
+  const telEl = document.getElementById('editar-aluno-telefone')
+  const telefone = telEl ? telEl.value.trim() : ''
+  if (telEl) { try { await _supabase.from('alunos').update({ telefone: telefone || null }).eq('id', id) } catch(e) {} }
+
   // Atualiza cache local
   const alunoCache = window._todosAlunos?.find(a => a.id === id)
+  if (alunoCache && telEl) alunoCache.telefone = telefone || null
   if (alunoCache) { alunoCache.data_expiracao = data_expiracao; alunoCache.meta_questoes_dia = meta; alunoCache.diretrizes = diretrizes }
 
   // Se digitou nova senha: troca DIRETO pelo painel (funcao segura no banco, so o mentor pode usar)
