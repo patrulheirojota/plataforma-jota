@@ -39,7 +39,8 @@
     </div>
 
     <div class="side-h">Gestao</div>
-    <div class="nav-i on" data-a="aba-alunos" onclick="mostrarAba('aba-alunos');fecharMenu()"><span class="nav-ic">👥</span>Alunos</div>
+    <div class="nav-i on" data-a="aba-central" onclick="mostrarAba('aba-central');fecharMenu()"><span class="nav-ic">🎯</span>Central do dia</div>
+    <div class="nav-i" data-a="aba-alunos" onclick="mostrarAba('aba-alunos');fecharMenu()"><span class="nav-ic">👥</span>Alunos</div>
     <div class="nav-i" data-a="aba-concursos" onclick="mostrarAba('aba-concursos');fecharMenu()"><span class="nav-ic">🏆</span>Concursos</div>
     <div class="nav-i" data-a="aba-avisos" onclick="mostrarAba('aba-avisos');fecharMenu()"><span class="nav-ic">🔔</span>Avisos</div>
     <div class="nav-i" data-a="aba-evolucao" onclick="mostrarAba('aba-evolucao');fecharMenu()"><span class="nav-ic">📝</span>Evolucao</div>
@@ -74,11 +75,19 @@
 
   <main class="main">
     <div style="margin-bottom:22px">
-      <div class="pag-t" id="pag-t">Alunos</div>
-      <div class="pag-s" id="pag-s">Cadastro, acesso e acompanhamento</div>
+      <div class="pag-t" id="pag-t">Central do dia</div>
+      <div class="pag-s" id="pag-s">O que precisa da sua atencao hoje</div>
     </div>
 
-    <div id="aba-alunos" class="aba-conteudo" style="display:block">
+    <div id="aba-central" class="aba-conteudo" style="display:block">
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:12px">
+        <button onclick="carregarCentral()" style="width:auto;padding:8px 14px;background:var(--card2);color:var(--tx2);border:1px solid var(--bd2);margin:0">↻ Atualizar</button>
+        <button onclick="mostrarAba('aba-alunos')" style="width:auto;padding:8px 14px;margin:0">+ Cadastrar aluno</button>
+      </div>
+      <div id="central-conteudo"><div class="card" style="text-align:center;color:var(--tx3)">Montando a sua central do dia...</div></div>
+    </div>
+
+    <div id="aba-alunos" class="aba-conteudo" style="display:none">
     <div id="aviso-ciclos" style="display:none"></div>
     <div class="card">
       <h3 onclick="toggleNovo()" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;margin-bottom:0">
@@ -123,6 +132,9 @@
 
       <label style="color:var(--tx3);font-size:12px;display:block;margin-top:10px;margin-bottom:4px">E-mail</label>
       <input type="email" id="editar-aluno-email" placeholder="E-mail do aluno">
+
+      <label style="color:var(--tx3);font-size:12px;display:block;margin-top:10px;margin-bottom:4px">WhatsApp (com DDD) — usado nas mensagens prontas da Central do dia</label>
+      <input type="tel" id="editar-aluno-telefone" placeholder="Ex.: 79 99999-9999">
 
       <label style="color:var(--tx3);font-size:12px;display:block;margin-top:10px;margin-bottom:4px">Concurso principal</label>
       <select id="editar-aluno-concurso"></select>
@@ -466,5 +478,7 @@ function trocarTema(){
 })()
 </script>
 <script src="admin.js"></script>
+<script src="central.js"></script>
+<script src="comum.js"></script>
 </body>
 </html>
