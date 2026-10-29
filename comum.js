@@ -6,7 +6,7 @@
    A cada atualizacao, troque a VERSAO abaixo.
    ===================================================================== */
 (function () {
-  var VERSAO = '2026.10.29-c'
+  var VERSAO = '2026.10.29-d'
   window.VERSAO_PLATAFORMA = VERSAO
 
   var pagina = (location.pathname.split('/').pop() || 'index.html').toLowerCase()
@@ -116,7 +116,7 @@
       + 'box-shadow:0 14px 40px rgba(0,0,0,.45);font-family:inherit;color:var(--tx,#e8edf4);animation:appInst .3s ease'
     b.innerHTML = '<style>@keyframes appInst{from{transform:translateY(30px);opacity:0}to{transform:none;opacity:1}}</style>'
       + '<div style="display:flex;gap:12px;align-items:flex-start">'
-      + '<img src="/icone-192.png" alt="" onerror="this.style.visibility=\hidden" style="width:48px;height:48px;border-radius:12px;flex-shrink:0;background:var(--card,#101d2c)">'
+      + '<img src="/icone-192.png" alt="" onerror="this.style.visibility=\'hidden\'" style="width:48px;height:48px;border-radius:12px;flex-shrink:0;background:var(--card,#101d2c)">'
       + '<div style="flex:1;min-width:0"><div style="font-weight:800;font-size:15px">Instale o app Patrulheiros</div>' + passos + '</div>'
       + '<button onclick="fecharAvisoApp(\'depois\')" aria-label="Fechar" style="background:none;border:0;color:var(--tx3,#63809e);font-size:18px;cursor:pointer;padding:0 2px">✕</button></div>'
       + '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">'
