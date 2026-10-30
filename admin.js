@@ -1799,6 +1799,19 @@ async function criarAviso() {
 
   msg.style.color='var(--ok)'
   msg.textContent='Aviso enviado para '+quem+'!'
+  // tambem no celular de quem ativou as notificacoes
+  const cbPush = document.getElementById('aviso-push')
+  if (cbPush && cbPush.checked) {
+    try {
+      const { data: ss } = await _supabase.auth.getSession()
+      const alvo = registro.aluno_id ? { tipo: 'aluno', id: registro.aluno_id } : registro.concurso_id ? { tipo: 'turma', id: registro.concurso_id } : { tipo: 'todos' }
+      const rp = await fetch('/api/push', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (ss && ss.session ? ss.session.access_token : '') },
+        body: JSON.stringify({ titulo: titulo, corpo: mensagem.slice(0, 200), alvo: alvo, url: '/cronograma.html#avisos' }) })
+      const jp = await rp.json()
+      msg.textContent += rp.ok ? ' 📱 Notificacao entregue em ' + jp.enviados + ' celular(es).' : ' (notificacao nao enviada: ' + (jp.erro || rp.status) + ')'
+    } catch (e) { msg.textContent += ' (notificacao nao enviada)' }
+    cbPush.checked = false
+  }
   document.getElementById('aviso-titulo').value=''
   document.getElementById('aviso-mensagem').value=''
   carregarAvisos()

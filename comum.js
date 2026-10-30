@@ -6,12 +6,12 @@
    A cada atualizacao, troque a VERSAO abaixo.
    ===================================================================== */
 (function () {
-  var VERSAO = '2026.10.29-d'
+  var VERSAO = '2026.10.30-c'
   window.VERSAO_PLATAFORMA = VERSAO
 
   var pagina = (location.pathname.split('/').pop() || 'index.html').toLowerCase()
   var PAGINAS_MENTOR = ['admin.html', 'overview.html', 'gerador.html', 'ajustar.html', 'temas.html', 'importador.html',
-    'questoes-admin.html', 'flashcards-admin.html', 'simulados-admin.html', 'leis-admin.html', 'edital-admin.html', 'relatorio.html', 'marca.html']
+    'questoes-admin.html', 'flashcards-admin.html', 'simulados-admin.html', 'leis-admin.html', 'vendas-admin.html', 'notificacoes-admin.html', 'edital-admin.html', 'relatorio.html', 'marca.html']
   function ehPaginaMentor () {
     return PAGINAS_MENTOR.indexOf(pagina) >= 0 || /[?&](aluno|admin)=/.test(location.search)
   }
@@ -22,7 +22,7 @@
     var d = document.createElement('div')
     d.id = 'versao-rodape'
     d.style.cssText = 'text-align:center;font-size:10.5px;color:var(--tx4,#4d6684);padding:18px 10px 84px;letter-spacing:.3px'
-    d.textContent = 'Patrulheiros de Elite · versao ' + VERSAO
+    d.textContent = 'Patrulheiros de Elite · versao ' + VERSAO + (typeof AMBIENTE !== 'undefined' && AMBIENTE !== 'producao' ? ' · ' + AMBIENTE : '')
     document.body.appendChild(d)
   }
 
@@ -127,8 +127,21 @@
     document.body.appendChild(b)
   }
 
+  /* ---------------- aviso de ambiente de teste ---------------- */
+  function faixaTeste () {
+    if (typeof AMBIENTE === 'undefined' || AMBIENTE === 'producao' || document.getElementById('faixa-teste')) return
+    var real = AMBIENTE === 'teste-banco-real'
+    var d = document.createElement('div')
+    d.id = 'faixa-teste'
+    d.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;text-align:center;font:700 11.5px/1.2 Arial,sans-serif;padding:4px 8px;pointer-events:none;'
+      + (real ? 'background:#d24646;color:#fff' : 'background:#e8b04b;color:#0a1420')
+    d.textContent = real ? '⚠️ SITE DE TESTE USANDO O BANCO REAL: o que voce mudar aqui muda para os alunos' : '🧪 AMBIENTE DE TESTE · banco de teste (pode mexer a vontade)'
+    document.body.appendChild(d)
+  }
+
   function iniciar () {
     rodape()
+    faixaTeste()
     if ('serviceWorker' in navigator) { try { navigator.serviceWorker.register('/sw.js').catch(function () {}) } catch (e) {} }
     if (celular && podeMostrar()) setTimeout(aviso, 3500)
   }

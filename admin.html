@@ -40,6 +40,8 @@
 
     <div class="side-h">Gestao</div>
     <div class="nav-i on" data-a="aba-central" onclick="mostrarAba('aba-central');fecharMenu()"><span class="nav-ic">🎯</span>Central do dia</div>
+    <div class="nav-i" onclick="fecharMenu();location.href='vendas-admin.html'"><span class="nav-ic">💰</span>Vendas e acesso<span class="nav-tag">NOVO</span></div>
+    <div class="nav-i" onclick="fecharMenu();location.href='notificacoes-admin.html'"><span class="nav-ic">📱</span>Notificacoes<span class="nav-tag">NOVO</span></div>
     <div class="nav-i" data-a="aba-alunos" onclick="mostrarAba('aba-alunos');fecharMenu()"><span class="nav-ic">👥</span>Alunos</div>
     <div class="nav-i" data-a="aba-concursos" onclick="mostrarAba('aba-concursos');fecharMenu()"><span class="nav-ic">🏆</span>Concursos</div>
     <div class="nav-i" data-a="aba-avisos" onclick="mostrarAba('aba-avisos');fecharMenu()"><span class="nav-ic">🔔</span>Avisos</div>
@@ -257,6 +259,7 @@
         <label style="color:var(--tx3);font-size:12px;display:block;margin-top:10px;margin-bottom:4px">Mensagem</label>
         <textarea id="aviso-mensagem" rows="5" placeholder="Escreva o recado..."></textarea>
 
+        <label style="display:flex;gap:9px;align-items:center;margin-top:12px;cursor:pointer;color:var(--tx2);font-size:13.5px"><input type="checkbox" id="aviso-push" style="width:18px;height:18px;margin:0"> 📱 Enviar tambem como notificacao no celular (para quem ativou)</label>
         <button onclick="criarAviso()" style="margin-top:12px">Publicar aviso</button>
         <p id="msg-aviso" style="display:none;margin-top:10px;font-size:13px"></p>
       </div>

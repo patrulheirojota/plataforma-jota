@@ -10,6 +10,8 @@
   const ITENS = [
     ['Gestao'],
     ['🎯','Central do dia','aba-central'],
+    ['💰','Vendas e acesso','vendas-admin.html'],
+    ['📱','Notificacoes','notificacoes-admin.html'],
     ['👥','Alunos','aba-alunos'],
     ['🏆','Concursos','aba-concursos'],
     ['🔔','Avisos','aba-avisos'],

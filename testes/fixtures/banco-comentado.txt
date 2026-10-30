@@ -1,0 +1,26 @@
+Lingua Portuguesa - Questoes Comentadas (exemplo de teste)
+TEMA 1 - CRASE (itens 1 a 3)
+1. Lingua Portuguesa - Crase - Antes de palavra masculina
+Julgue o item a seguir.
+Na frase "Fui a pe ate o quartel", o uso do acento grave em "a" seria obrigatorio.
+Certo
+Errado
+Gabarito: Errado
+Comentario
+O item esta errado. Nao ha crase antes de palavra masculina.
+2. Lingua Portuguesa - Crase - Locucao adverbial feminina
+Julgue o item a seguir.
+Na frase "Saiu as pressas", deveria haver acento grave em "as".
+Certo
+Errado
+Gabarito: Certo
+Comentario
+O item esta certo. Locucao adverbial feminina leva crase.
+3. Lingua Portuguesa - Crase - Antes de verbo
+Julgue o item a seguir.
+Em "Comecou a estudar", o "a" deve receber acento grave.
+Certo
+Errado
+Gabarito: Errado
+Comentario
+O item esta errado. Nao ha crase antes de verbo.

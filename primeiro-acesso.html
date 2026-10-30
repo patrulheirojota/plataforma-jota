@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Primeiro acesso — Patrulheiros de Elite</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0a1420">
+<link rel="apple-touch-icon" href="/icone-192.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>document.documentElement.setAttribute("data-tema",localStorage.getItem("tema")||"escuro")</script>
+<style>
+  :root{--ouro:#C9A83C;--bg:#0a1420;--bg2:#0c1826;--card:#101d2c;--card2:#0d1a28;--btn:#132030;--bd:#1b2c40;--bd2:#24384f;--tx:#e8edf4;--tx2:#8fa5bd;--tx3:#63809e;--tx4:#4d6684;--hov:#16283c;--ok:#6ddba0;--erro:#f07171;--alerta:#e8b04b;--info:#5bb3f0}
+  [data-tema="claro"]{--bg:#eef1f6;--bg2:#fff;--card:#fff;--card2:#f7f9fc;--btn:#fff;--bd:#dde4ed;--bd2:#c6d2e0;--tx:#0f1b2a;--tx2:#4a5f78;--tx3:#66809b;--tx4:#8fa2b8;--hov:#eaf0f8;--ok:#1f9d61;--erro:#d24646;--alerta:#b9800f}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--tx);min-height:100vh}
+  .wrap{max-width:480px;margin:0 auto;padding:26px 16px 60px}
+  .logo{display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:20px}
+  .logo-i{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--ouro),#8a6f1e);display:flex;align-items:center;justify-content:center;font-size:21px}
+  .logo-t{font-size:16px;font-weight:800;line-height:1.2}.logo-t span{color:var(--ouro);display:block;font-size:12px;font-weight:600}
+  .card{background:var(--card);border:1px solid var(--bd);border-radius:18px;padding:20px}
+  .h1{font-size:20px;font-weight:800;text-align:center}
+  .sub{color:var(--tx3);font-size:13.5px;text-align:center;margin-top:6px;line-height:1.55}
+  label{display:block;color:var(--tx3);font-size:12.5px;margin:12px 0 5px}
+  input,select,textarea{width:100%;padding:12px 13px;border-radius:11px;border:1px solid var(--bd2);background:var(--card2);color:var(--tx);font-size:15px;font-family:inherit}
+  textarea{min-height:70px;resize:vertical}
+  .btn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:14px;border-radius:12px;border:1px solid var(--bd2);background:var(--btn);color:var(--tx);font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;text-decoration:none;margin-top:10px}
+  .btn-ouro{background:var(--ouro);border-color:var(--ouro);color:#0a1420;font-weight:800}
+  .btn:disabled{opacity:.5;cursor:default}
+  .msg{font-size:13px;margin-top:10px;text-align:center;line-height:1.5}
+  .ck{display:flex;gap:9px;align-items:flex-start;color:var(--tx2);font-size:13px;line-height:1.5;margin-top:14px;cursor:pointer}
+  .ck input{width:19px;height:19px;flex-shrink:0;margin-top:1px}
+  .ck a{color:var(--ouro)}
+  .tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:16px 0 4px}
+  .tabs button{padding:11px;border-radius:10px;border:1px solid var(--bd2);background:var(--card2);color:var(--tx3);font-weight:700;font-size:13.5px;cursor:pointer;font-family:inherit}
+  .tabs button.on{border-color:var(--ouro);color:var(--ouro);background:var(--hov)}
+  .ic{font-size:46px;text-align:center;margin-bottom:6px}
+  .link{color:var(--ouro);font-size:13px;text-align:center;display:block;margin-top:12px;cursor:pointer;text-decoration:underline}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo"><div class="logo-i">🛡️</div><div class="logo-t">Patrulheiros<span>de Elite</span></div></div>
+  <div class="card" id="box"><div class="sub">Carregando...</div></div>
+</div>
+<script src="config.js"></script>
+<script>
+let _modo='criar', _wpp=null, _verif=null
+const $=function(id){return document.getElementById(id)}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function tela(h){$('box').innerHTML=h}
+function msg(t,cor){const m=$('msg');if(m){m.style.color=cor||'var(--tx3)';m.innerHTML=t}}
+function dataBR(d){return d?new Date(d+'T12:00:00').toLocaleDateString('pt-BR'):''}
+function soNum(t){return String(t||'').replace(/\D/g,'')}
+
+async function init(){
+  const { data:{session} }=await _supabase.auth.getSession()
+  if(session)return verificar()
+  telaCadastro()
+}
+
+/* ---------------- 1) criar conta / entrar ---------------- */
+function telaCadastro(){
+  tela('<div class="h1">Primeiro acesso</div>'
+    +'<div class="sub">Comprou a mentoria? Crie seu login com o <strong>mesmo e-mail da compra</strong>. Se comprou pela Kiwify, o acesso e liberado na hora.</div>'
+    +'<div class="tabs"><button id="t-criar" class="'+(_modo==='criar'?'on':'')+'" onclick="_modo=\'criar\';telaCadastro()">Criar meu acesso</button><button id="t-entrar" class="'+(_modo==='entrar'?'on':'')+'" onclick="_modo=\'entrar\';telaCadastro()">Ja tenho login</button></div>'
+    +(_modo==='criar'
+      ?'<label>Nome completo</label><input id="f-nome" autocomplete="name" placeholder="Seu nome">'
+       +'<label>E-mail (o mesmo da compra)</label><input id="f-email" type="email" autocomplete="email" placeholder="voce@email.com">'
+       +'<label>WhatsApp com DDD</label><input id="f-tel" type="tel" autocomplete="tel" placeholder="(79) 99999-9999">'
+       +'<label>Crie uma senha (minimo 6 caracteres)</label><input id="f-senha" type="password" autocomplete="new-password">'
+       +'<label>Repita a senha</label><input id="f-senha2" type="password" autocomplete="new-password">'
+       +'<label class="ck"><input type="checkbox" id="f-lgpd"><span>Li e aceito os <a href="privacidade.html" target="_blank">termos de uso e a politica de privacidade</a>. Meus dados sao usados so para o acompanhamento da mentoria.</span></label>'
+       +'<button class="btn btn-ouro" id="bt" onclick="criar()">Criar meu acesso</button>'
+      :'<label>E-mail</label><input id="f-email" type="email" autocomplete="email">'
+       +'<label>Senha</label><input id="f-senha" type="password" autocomplete="current-password">'
+       +'<button class="btn btn-ouro" id="bt" onclick="entrar()">Entrar</button>'
+       +'<a class="link" onclick="esqueci()">Esqueci minha senha</a>')
+    +'<div class="msg" id="msg"></div>')
+}
+async function criar(){
+  const nome=$('f-nome').value.trim(), email=$('f-email').value.trim().toLowerCase(), tel=$('f-tel').value.trim()
+  const s1=$('f-senha').value, s2=$('f-senha2').value
+  if(nome.split(' ').filter(Boolean).length<2)return msg('Escreva seu nome completo.','var(--erro)')
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))return msg('Confira o e-mail.','var(--erro)')
+  if(soNum(tel).length<10)return msg('Escreva o WhatsApp com DDD.','var(--erro)')
+  if(s1.length<6)return msg('A senha precisa ter pelo menos 6 caracteres.','var(--erro)')
+  if(s1!==s2)return msg('As duas senhas nao estao iguais.','var(--erro)')
+  if(!$('f-lgpd').checked)return msg('Marque que aceita os termos para continuar.','var(--erro)')
+  $('bt').disabled=true;msg('Criando seu acesso...')
+  try{localStorage.setItem('pa_dados',JSON.stringify({nome:nome,tel:tel,lgpd:new Date().toISOString()}))}catch(e){}
+  const r=await _supabase.auth.signUp({email:email,password:s1,options:{data:{nome:nome,telefone:tel,aceite_privacidade:new Date().toISOString()}}})
+  if(r.error){
+    $('bt').disabled=false
+    if(/already|registered|exist/i.test(r.error.message)){_modo='entrar';telaCadastro();$('f-email').value=email;return msg('Este e-mail ja tem login. Entre com a sua senha (ou toque em "Esqueci minha senha").','var(--alerta)')}
+    return msg('Nao foi possivel criar: '+esc(r.error.message),'var(--erro)')
+  }
+  if(!r.data.session){
+    const s=await _supabase.auth.signInWithPassword({email:email,password:s1})
+    if(s.error)return tela('<div class="ic">📧</div><div class="h1">Confirme seu e-mail</div><div class="sub">Enviamos um link para <strong>'+esc(email)+'</strong>. Abra o e-mail, confirme e volte para esta pagina.</div>')
+  }
+  verificar()
+}
+async function entrar(){
+  const email=$('f-email').value.trim().toLowerCase(), s=$('f-senha').value
+  if(!email||!s)return msg('Preencha e-mail e senha.','var(--erro)')
+  $('bt').disabled=true;msg('Entrando...')
+  const r=await _supabase.auth.signInWithPassword({email:email,password:s})
+  if(r.error){$('bt').disabled=false;return msg('E-mail ou senha incorretos.','var(--erro)')}
+  verificar()
+}
+async function esqueci(){
+  const email=($('f-email')||{}).value
+  if(!email)return msg('Escreva seu e-mail acima e toque de novo em "Esqueci minha senha".','var(--alerta)')
+  const r=await _supabase.auth.resetPasswordForEmail(email.trim(),{redirectTo:location.origin+'/nova-senha.html'})
+  msg(r.error?'Nao foi possivel enviar agora. Tente de novo em alguns minutos.':'Enviamos um link para criar uma nova senha. Confira a caixa de entrada e o spam.',r.error?'var(--erro)':'var(--ok)')
+}
+
+/* ---------------- 2) situacao do acesso ---------------- */
+async function verificar(){
+  tela('<div class="sub">Procurando a sua compra...</div>')
+  try{const a=await _supabase.rpc('eh_admin');if(a.data===true){location.href='admin.html';return}}catch(e){}
+  let dados={}
+  try{dados=JSON.parse(localStorage.getItem('pa_dados')||'{}')}catch(e){}
+  if(!dados.nome){const u=(await _supabase.auth.getUser()).data.user;if(u&&u.user_metadata){dados.nome=u.user_metadata.nome;dados.tel=u.user_metadata.telefone}}
+  try{const m=await _supabase.from('config_marca').select('whatsapp').eq('id',1).maybeSingle();if(m.data&&m.data.whatsapp)_wpp=soNum(m.data.whatsapp)}catch(e){}
+  const r=await _supabase.rpc('ativar_acesso',{p_nome:dados.nome||null,p_telefone:dados.tel||null})
+  if(r.error){
+    if(/function|schema cache/i.test(r.error.message))return tela('<div class="ic">🛠️</div><div class="h1">Quase la</div><div class="sub">O cadastro automatico ainda esta sendo ativado. Fale com o Jota para liberar seu acesso.</div>'+botaoWpp('Ola! Criei meu login na plataforma e preciso da liberacao.'))
+    return tela('<div class="sub" style="color:var(--erro)">Erro: '+esc(r.error.message)+'</div><button class="btn" onclick="verificar()">Tentar de novo</button>')
+  }
+  mostrar(r.data||{})
+}
+function botaoWpp(t){
+  return _wpp?'<a class="btn" style="border-color:#25d366;color:#25d366" href="https://wa.me/'+(_wpp.length<=11?'55':'')+_wpp+'?text='+encodeURIComponent(t)+'" target="_blank">💬 Falar com o Jota no WhatsApp</a>':''
+}
+function mostrar(d){
+  clearInterval(_verif)
+  const st=d.status
+  if(st==='ativo'){
+    try{localStorage.removeItem('pa_dados')}catch(e){}
+    return tela('<div class="ic">✅</div><div class="h1">Acesso liberado!</div><div class="sub">Bem-vindo(a) aos Patrulheiros de Elite. Seu acesso vai ate <strong>'+dataBR(d.expira)+'</strong>.</div>'
+      +'<a class="btn btn-ouro" href="cronograma.html">Entrar na plataforma</a>'
+      +'<div class="sub" style="margin-top:14px;font-size:12.5px">Dica: instale a plataforma na tela inicial do celular para abrir com um toque.</div>')
+  }
+  if(st==='pendente'){
+    _verif=setInterval(async function(){const r=await _supabase.rpc('meu_acesso');if(r.data&&r.data.status==='ativo')mostrar(r.data)},30000)
+    return tela('<div class="ic">⏳</div><div class="h1">Pedido enviado!</div><div class="sub">Assim que o Jota confirmar o seu pagamento, o acesso e liberado. Esta pagina atualiza sozinha.<br><br>Login: <strong>'+esc(d.email)+'</strong></div>'
+      +botaoWpp('Ola, Jota! Fiz o pagamento da mentoria e enviei o pedido de acesso na plataforma ('+d.email+').')
+      +'<button class="btn" onclick="verificar()">Verificar agora</button><a class="link" onclick="sair()">Sair</a>')
+  }
+  if(st==='configurando'){
+    _verif=setInterval(function(){verificar()},45000)
+    return tela('<div class="ic">🎉</div><div class="h1">Compra encontrada!</div><div class="sub">Sua compra na Kiwify foi confirmada. O Jota esta finalizando a configuracao da sua turma e o acesso sai em instantes. Esta pagina atualiza sozinha.</div>'
+      +botaoWpp('Ola! Comprei a mentoria pela Kiwify ('+d.email+') e estou aguardando a liberacao.')+'<button class="btn" onclick="verificar()">Verificar agora</button>')
+  }
+  // novo ou vencido: nao achou compra da Kiwify
+  const venc=st==='vencido'
+  tela('<div class="ic">'+(venc?'🔄':'🔎')+'</div><div class="h1">'+(venc?'Renovar o acesso':'Como voce pagou?')+'</div>'
+    +'<div class="sub">'+(venc?'Seu acesso venceu. Se ja renovou, envie o pedido abaixo.':'Nao encontramos compra na Kiwify com <strong>'+esc(d.email)+'</strong>.')+'</div>'
+    +'<button class="btn" onclick="verificar()">Comprei pela Kiwify agora: verificar de novo</button>'
+    +'<div class="sub" style="font-size:12px;margin-top:6px">A Kiwify pode levar ate 2 minutos para avisar. Se usou outro e-mail na compra, saia e crie o acesso com aquele e-mail.</div>'
+    +'<div style="border-top:1px solid var(--bd);margin:18px 0 4px"></div>'
+    +'<div style="font-weight:800;font-size:15px;text-align:center">Paguei por Pix, Mercado Pago ou outra forma</div>'
+    +'<label>Seu nome completo</label><input id="p-nome" value="'+esc((JSON.parse(localStorage.getItem('pa_dados')||'{}')||{}).nome||'')+'">'
+    +'<label>WhatsApp com DDD</label><input id="p-tel" type="tel" value="'+esc((JSON.parse(localStorage.getItem('pa_dados')||'{}')||{}).tel||'')+'">'
+    +'<label>Concurso / turma</label><select id="p-conc"><option value="">Carregando...</option></select>'
+    +'<label>Forma de pagamento</label><select id="p-forma"><option>Pix</option><option>Mercado Pago</option><option>Cartao (link)</option><option>Outro</option></select>'
+    +'<label>Observacao (opcional)</label><textarea id="p-obs" placeholder="Ex.: paguei R$ 497 no Pix hoje as 14h, plano de 6 meses"></textarea>'
+    +'<button class="btn btn-ouro" id="bt" onclick="pedir()">Enviar pedido de liberacao</button><div class="msg" id="msg"></div>'
+    +'<a class="link" onclick="sair()">Sair e usar outro e-mail</a>')
+  _supabase.from('concursos').select('id,nome').order('nome').then(function(r){
+    const s=$('p-conc'); if(!s)return
+    s.innerHTML='<option value="">Escolha</option>'+(r.data||[]).map(function(c){return '<option value="'+c.id+'">'+esc(c.nome)+'</option>'}).join('')+'<option value="">Nao sei / outro</option>'
+  })
+}
+async function pedir(){
+  const nome=$('p-nome').value.trim(), tel=$('p-tel').value.trim()
+  if(nome.split(' ').filter(Boolean).length<2)return msg('Escreva seu nome completo.','var(--erro)')
+  if(soNum(tel).length<10)return msg('Escreva o WhatsApp com DDD.','var(--erro)')
+  $('bt').disabled=true;msg('Enviando...')
+  const r=await _supabase.rpc('pedir_acesso',{p_nome:nome,p_telefone:tel,p_concurso:$('p-conc').value||null,p_forma:$('p-forma').value,p_obs:$('p-obs').value.trim()||null})
+  if(r.error){$('bt').disabled=false;return msg('Erro: '+esc(r.error.message),'var(--erro)')}
+  mostrar(r.data||{status:'pendente'})
+}
+async function sair(){clearInterval(_verif);await _supabase.auth.signOut();try{localStorage.removeItem('pa_dados')}catch(e){};_modo='criar';telaCadastro()}
+init()
+</script>
+</body>
+</html>

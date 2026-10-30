@@ -435,6 +435,8 @@
           <button class="btn btn-ouro" style="width:100%;margin-top:14px;padding:12px" onclick="trocarSenha()">Salvar nova senha</button>
           <div id="p-msg" style="font-size:13px;margin-top:10px;text-align:center"></div>
         </div>
+        <div class="painel" style="max-width:460px;margin-top:16px" id="perfil-notif"></div>
+        <div class="painel" style="max-width:460px;margin-top:16px" id="perfil-lgpd"></div>
       </section>
 
     </div>
@@ -469,6 +471,7 @@
 <script src="relatorio-ciclo.js"></script>
 <script src="caderno-revisao.js"></script>
 <script src="pomodoro.js"></script>
+<script src="notificacoes.js"></script>
 <script>
 const WD=['Seg','Ter','Qua','Qui','Sex','Sab','Dom']
 const CURTO=['Dom','Seg','Ter','Qua','Qui','Sex','Sab']
@@ -558,7 +561,8 @@ async function init(){
   const { data:aluno }=await _supabase.from('alunos').select('*').eq('id',_alunoId).maybeSingle()
   if(!aluno){
     if(!_mentor&&(await ehAdmin(user.id))){location.href='admin.html';return}
-    alert('Aluno nao encontrado. Contate o mentor.');return
+    // login sem ficha de aluno: vai para o primeiro acesso (Kiwify / pedido de liberacao)
+    location.href='primeiro-acesso.html';return
   }
   _nome=aluno.nome
   _rcAluno=aluno
@@ -742,7 +746,9 @@ function mostrarExpirado(d){
     '<div class="estado"><div style="font-size:52px;margin-bottom:14px">🔒</div>'
    +'<div style="color:var(--ouro);font-weight:800;font-size:20px">Acesso expirado</div>'
    +'<p style="color:var(--tx2);font-size:14px;margin-top:10px;line-height:1.6">Seu acesso terminou em <strong>'+parseD(d).toLocaleDateString('pt-BR')+'</strong>.<br>Fale com seu mentor para renovar e retomar seus estudos.</p>'
-   +'<button class="btn" style="margin-top:18px" onclick="sairDireto()">Sair</button></div>'
+   +'<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:18px"><a class="btn btn-ouro" href="primeiro-acesso.html" style="text-decoration:none">🔄 Ja renovei: liberar meu acesso</a>'
+   +'<button class="btn" onclick="sairDireto()">Sair</button></div>'
+   +'<p style="color:var(--tx4);font-size:12px;margin-top:10px">Comprou pela Kiwify? O acesso volta sozinho. Pagou por Pix ou Mercado Pago? Envie o pedido na tela seguinte.</p></div>'
 }
 
 function indexar(){
@@ -1208,6 +1214,8 @@ function renderPerfil(){
    +'<div><div style="font-size:16px;font-weight:700">'+esc(_nome)+'</div>'
    +'<div style="color:var(--tx3);font-size:13px">'+esc(_email)+'</div></div></div>'
    +(_concursoNome?'<div style="color:var(--tx3);font-size:13px;margin-top:8px">Concurso: <span style="color:var(--tx2)">'+esc(_concursoNome)+'</span></div>':'')
+  if(typeof renderNotificacoes==='function')renderNotificacoes()
+  if(typeof renderMeusDados==='function')renderMeusDados()
 }
 
 async function trocarSenha(){
@@ -2645,6 +2653,7 @@ function renderHoje(){
   }else if(fcOculto()){
     h+='<div style="text-align:right;margin-top:6px"><a style="color:var(--tx4);font-size:11.5px;cursor:pointer;text-decoration:underline" onclick="alternarFlashMeta(false)">Mostrar flashcards (opcional)</a></div>'
   }
+  if(typeof pushSugestaoHTML==='function')h+=pushSugestaoHTML()
   h+='</div>'
   box.innerHTML=h
 }

@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vendas e acesso — Mentor</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="style.css">
+<script>document.documentElement.setAttribute("data-tema",localStorage.getItem("tema")||"escuro")</script>
+<style>
+  .mg{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+  .ml{color:var(--tx3);font-size:12px;display:block;margin:10px 0 4px}
+  .tag{font-size:10.5px;padding:2px 8px;border-radius:10px;font-weight:700;border:1px solid var(--bd2);color:var(--tx3);white-space:nowrap}
+  .it{background:var(--card2);border:1px solid var(--bd);border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  .it .tx{flex:1;min-width:220px}
+  .it .nm{font-weight:800;font-size:14px}
+  .it .sb{color:var(--tx3);font-size:12px;margin-top:3px;line-height:1.5}
+  .modo{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+  .modo button{width:auto;margin:0;padding:8px 13px;font-size:12.5px;background:var(--card2);color:var(--tx3);border:1px solid var(--bd2);border-radius:9px;font-weight:600}
+  .modo button.on{background:var(--hov);color:var(--ouro);border-color:var(--ouro)}
+  .passo{background:var(--card2);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:10px;font-size:13.5px;line-height:1.65;color:var(--tx2)}
+  .passo b.n{display:inline-flex;width:24px;height:24px;border-radius:50%;background:var(--ouro);color:#0a1420;align-items:center;justify-content:center;font-size:12px;margin-right:6px}
+  .cp{display:flex;gap:6px;margin-top:8px}
+  .cp input{flex:1;margin:0;font-family:ui-monospace,Menlo,monospace;font-size:12.5px}
+  .cp button{width:auto;margin:0;padding:9px 13px}
+  .ov{position:fixed;inset:0;background:rgba(5,10,18,.82);z-index:300;display:none;align-items:center;justify-content:center;padding:16px}
+  .ov.on{display:flex}
+  .ov-c{background:var(--bg2);border:1px solid var(--ouro);border-radius:16px;padding:18px;width:100%;max-width:460px}
+  .pz{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  .pz button{margin:0;padding:10px 4px;font-size:12.5px;background:var(--card2);color:var(--tx2);border:1px solid var(--bd2)}
+  .pz button.on{border-color:var(--ouro);color:var(--ouro);background:var(--hov);font-weight:800}
+  pre{white-space:pre-wrap;font-size:11px;color:var(--tx3);max-height:220px;overflow:auto;background:var(--bg);border-radius:8px;padding:8px;margin-top:6px}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div><h2>Vendas e acesso</h2><div style="color:var(--tx3);font-size:13px">Kiwify libera sozinho · Pix e Mercado Pago voce aprova com 1 clique</div></div>
+    <button onclick="location.href='admin.html'" style="width:auto;padding:8px 14px">Painel Admin</button>
+  </header>
+  <div class="abas">
+    <button class="aba-btn ativa" data-t="pedidos" onclick="aba('pedidos')">⏳ Pedidos <span id="bd-ped" class="tag" style="margin-left:4px">0</span></button>
+    <button class="aba-btn" data-t="vendas" onclick="aba('vendas')">💰 Vendas</button>
+    <button class="aba-btn" data-t="produtos" onclick="aba('produtos')">📦 Produtos <span id="bd-prod" class="tag" style="margin-left:4px;display:none"></span></button>
+    <button class="aba-btn" data-t="config" onclick="aba('config')">⚙️ Configurar</button>
+    <button class="aba-btn" data-t="eventos" onclick="aba('eventos')">📡 Avisos da Kiwify</button>
+  </div>
+  <div id="aviso-sql"></div>
+
+  <div id="t-pedidos" class="card aba-t">
+    <h3>Pedidos de liberacao</h3>
+    <p style="color:var(--tx3);font-size:13px;margin-bottom:10px">Alunos que pagaram por Pix, Mercado Pago ou outra forma e criaram o login pelo link de primeiro acesso. Confira o pagamento e aprove.</p>
+    <div class="modo"><button class="on" id="pf-pendente" onclick="filtroPed('pendente')">Aguardando</button><button id="pf-aprovado" onclick="filtroPed('aprovado')">Aprovados</button><button id="pf-recusado" onclick="filtroPed('recusado')">Recusados</button></div>
+    <div id="l-pedidos"></div>
+  </div>
+
+  <div id="t-vendas" class="card aba-t" style="display:none">
+    <h3>Vendas</h3>
+    <input type="text" id="v-busca" placeholder="Buscar por nome ou e-mail..." oninput="renderVendas()">
+    <div id="l-vendas"></div>
+  </div>
+
+  <div id="t-produtos" class="card aba-t" style="display:none">
+    <h3>Produtos da Kiwify</h3>
+    <p style="color:var(--tx3);font-size:13px;margin-bottom:10px">Cada produto aparece aqui sozinho na primeira venda. Diga em qual turma o aluno entra e por quanto tempo. Compras que estavam esperando sao liberadas na hora em que voce salvar.</p>
+    <div id="l-produtos"></div>
+    <details style="margin-top:12px"><summary style="cursor:pointer;color:var(--tx3);font-size:13px">+ Cadastrar produto manualmente (antes da primeira venda)</summary>
+      <div class="mg" style="margin-top:8px"><div><label class="ml">ID do produto na Kiwify</label><input id="np-id" placeholder="copie da URL do produto"></div><div><label class="ml">Nome</label><input id="np-nome"></div></div>
+      <button onclick="novoProduto()" style="width:auto;padding:9px 15px;margin-top:8px">Adicionar</button></details>
+  </div>
+
+  <div id="t-config" class="card aba-t" style="display:none">
+    <h3>Configurar (so uma vez)</h3>
+    <div class="passo"><b class="n">1</b><strong>Crie uma senha secreta</strong> para o aviso da Kiwify. Toque em "Gerar", copie e guarde.
+      <div class="cp"><input id="c-seg" readonly><button onclick="gerarSegredo()">Gerar</button><button onclick="copiar('c-seg')">Copiar</button></div></div>
+    <div class="passo"><b class="n">2</b><strong>Na Vercel</strong> (vercel.com → seu projeto → Settings → Environment Variables), crie 3 variaveis:
+      <ul style="margin:6px 0 0 18px"><li><code>SUPABASE_URL</code> = <code>https://hlygwqftnfmywsmajvkz.supabase.co</code></li>
+      <li><code>SUPABASE_SERVICE_ROLE_KEY</code> = no Supabase: Project Settings → API Keys → chave <strong>secret</strong> (ou service_role). <span style="color:var(--erro)">Nunca coloque essa chave em arquivo do GitHub.</span></li>
+      <li><code>KIWIFY_SEGREDO</code> = a senha do passo 1</li></ul>
+      Depois va em Deployments → nos 3 pontinhos do ultimo → <strong>Redeploy</strong>.
+      <div style="margin-top:8px"><button onclick="testarApi()" style="width:auto;padding:9px 14px;margin:0">Testar se a Vercel esta pronta</button> <span id="c-api" style="font-size:13px"></span></div></div>
+    <div class="passo"><b class="n">3</b><strong>Na Kiwify</strong>: Apps → Webhooks → Criar webhook. Cole o link abaixo, escolha <strong>todos os produtos</strong> e marque os eventos <strong>Compra aprovada, Compra reembolsada e Chargeback</strong>.
+      <div class="cp"><input id="c-url" readonly><button onclick="copiar('c-url')">Copiar</button></div>
+      <div style="color:var(--tx4);font-size:12px;margin-top:6px">Depois de salvar, a Kiwify tem um botao para enviar um teste. O teste aparece na aba "Avisos da Kiwify".</div></div>
+    <div class="passo"><b class="n">4</b><strong>Na area de membros da Kiwify</strong>, no modulo de apresentacao (primeira aula), coloque este link com o texto: <em>"Crie agora o seu acesso a plataforma de estudos, usando o mesmo e-mail da compra"</em>. Envie o mesmo link para quem pagar por Pix ou Mercado Pago.
+      <div class="cp"><input id="c-link" readonly><button onclick="copiar('c-link')">Copiar</button></div></div>
+    <div class="passo"><b class="n">5</b>Em <strong>Produtos</strong>, configure a turma e o prazo de cada produto (aparecem sozinhos depois da primeira venda ou do teste).</div>
+  </div>
+
+  <div id="t-eventos" class="card aba-t" style="display:none">
+    <h3>Ultimos avisos recebidos da Kiwify</h3>
+    <p style="color:var(--tx3);font-size:13px;margin-bottom:10px">Tudo o que a Kiwify enviou. Se uma venda nao liberou, confira aqui o resultado.</p>
+    <div id="l-eventos"></div>
+  </div>
+</div>
+
+<div class="ov" id="ov-ap"><div class="ov-c" id="ov-ap-c"></div></div>
+
+<script src="config.js"></script>
+<script>
+let _conc=[],_peds=[],_comp=[],_prods=[],_nomes={},_filtroP='pendente',_apr=null
+const PRAZOS=[[90,'3 meses'],[180,'6 meses'],[365,'12 meses'],[0,'Outro']]
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function dt(i){return i?new Date(i).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}):''}
+function dBR(d){return d?new Date(String(d).slice(0,10)+'T12:00:00').toLocaleDateString('pt-BR'):''}
+function nomeConc(id){const c=_conc.find(function(x){return String(x.id)===String(id)});return c?c.nome:''}
+function wpp(t){t=String(t||'').replace(/\D/g,'');return t?'https://wa.me/'+(t.length<=11?'55':'')+t:''}
+function aba(t){
+  document.querySelectorAll('.aba-t').forEach(function(e){e.style.display='none'})
+  document.getElementById('t-'+t).style.display='block'
+  document.querySelectorAll('.abas .aba-btn').forEach(function(b){b.classList.toggle('ativa',b.dataset.t===t)})
+  history.replaceState(null,'','vendas-admin.html#'+t)
+  if(t==='eventos')carregarEventos()
+}
+async function init(){
+  const { data:{user} }=await _supabase.auth.getUser()
+  if(!user){location.href='index.html';return}
+  const c=await _supabase.from('concursos').select('id,nome').order('nome'); _conc=c.data||[]
+  document.getElementById('c-link').value=location.origin+'/primeiro-acesso.html'
+  try{const s=localStorage.getItem('kiwify_seg');if(s)document.getElementById('c-seg').value=s}catch(e){}
+  montarUrl()
+  const ap=new URLSearchParams(location.search).get('ap')
+  await carregar()
+  const h=(location.hash||'').replace('#','')
+  if(['pedidos','vendas','produtos','config','eventos'].indexOf(h)>=0)aba(h)
+  // vindo da Central do dia: abre direto a aprovacao
+  if(ap&&_peds.some(function(p){return p.id===ap&&p.status==='pendente'}))abrirAprovar(ap)
+}
+async function carregar(){
+  const [rp,rc,rpr]=await Promise.all([
+    _supabase.from('pedidos_acesso').select('*').neq('status','dados').order('criado_em',{ascending:false}).limit(500),
+    _supabase.from('compras').select('*').order('criado_em',{ascending:false}).limit(1000),
+    _supabase.from('produtos_acesso').select('*').order('criado_em',{ascending:false})
+  ])
+  if(rp.error){document.getElementById('aviso-sql').innerHTML='<div class="card" style="border-color:var(--erro);color:var(--erro);font-size:13px">'+(/relation|does not exist|schema cache/i.test(rp.error.message)?'Rode o arquivo <strong>atualizacao-vendas-acesso.sql</strong> no Supabase para ativar esta pagina.':esc(rp.error.message))+'</div>';return}
+  _peds=rp.data||[];_comp=rc.data||[];_prods=rpr.data||[]
+  const ids=_comp.map(function(c){return c.aluno_id}).filter(function(x){return x&&!_nomes[x]})
+  for(let i=0;i<ids.length;i+=100){const a=await _supabase.from('alunos').select('id,nome,data_expiracao').in('id',ids.slice(i,i+100));(a.data||[]).forEach(function(x){_nomes[x.id]=x})}
+  const np=_peds.filter(function(p){return p.status==='pendente'}).length
+  document.getElementById('bd-ped').textContent=np
+  const sp=_prods.filter(function(p){return !p.ativo}).length, bp=document.getElementById('bd-prod')
+  bp.textContent=sp+' a configurar';bp.style.display=sp?'inline':'none';bp.style.color='var(--erro)';bp.style.borderColor='var(--erro)'
+  renderPedidos();renderVendas();renderProdutos()
+}
+
+/* ---------- pedidos ---------- */
+function filtroPed(f){_filtroP=f;['pendente','aprovado','recusado'].forEach(function(x){document.getElementById('pf-'+x).classList.toggle('on',x===f)});renderPedidos()}
+function renderPedidos(){
+  const l=_peds.filter(function(p){return p.status===_filtroP}), box=document.getElementById('l-pedidos')
+  if(!l.length){box.innerHTML='<p style="color:var(--tx3);font-size:13px;text-align:center;padding:16px">'+(_filtroP==='pendente'?'Nenhum pedido aguardando. ✅':'Nada aqui.')+'</p>';return}
+  box.innerHTML=l.map(function(p){
+    return '<div class="it"><div class="tx"><div class="nm">'+esc(p.nome||'(sem nome)')+(p.tipo==='renovacao'?' <span class="tag" style="color:var(--info);border-color:var(--info)">renovacao</span>':'')+'</div>'
+      +'<div class="sb">'+esc(p.email||'')+' · '+esc(p.telefone||'sem telefone')+'<br>'+esc(p.forma_pagamento||'')+(p.concurso_id?' · turma: '+esc(nomeConc(p.concurso_id)):'')+' · '+dt(p.criado_em)+'</div>'
+      +(p.observacao?'<div class="sb" style="color:var(--tx2)">“'+esc(p.observacao)+'”</div>':'')+'</div>'
+      +(p.telefone?'<a href="'+wpp(p.telefone)+'" target="_blank" class="btn-acao btn-editar" style="padding:8px 12px;text-decoration:none">💬</a>':'')
+      +(p.status==='pendente'?'<button onclick="abrirAprovar(\''+p.id+'\')" style="width:auto;margin:0;padding:9px 15px;background:var(--ok);color:#0a1420;border:1px solid var(--ok);font-weight:800">✓ Aprovar</button>'
+        +'<button onclick="recusar(\''+p.id+'\')" class="btn-acao btn-excluir" style="padding:9px 12px">Recusar</button>':'<span class="tag">'+p.status+' '+dt(p.decidido_em)+'</span>')
+      +'</div>'
+  }).join('')
+}
+function abrirAprovar(id){
+  const p=_peds.find(function(x){return x.id===id}); if(!p)return
+  let pz=180; try{pz=parseInt(localStorage.getItem('vend_prazo'))||180}catch(e){}
+  _apr={id:id,dias:pz}
+  document.getElementById('ov-ap-c').innerHTML='<h3 style="margin:0 0 4px">Liberar acesso</h3><div style="color:var(--tx3);font-size:13px">'+esc(p.nome)+' · '+esc(p.email)+'</div>'
+    +'<label class="ml">Turma</label><select id="ap-conc"><option value="">Sem turma</option>'+_conc.map(function(c){return '<option value="'+c.id+'"'+(String(c.id)===String(p.concurso_id)?' selected':'')+'>'+esc(c.nome)+'</option>'}).join('')+'</select>'
+    +'<label class="ml">Prazo de acesso'+(p.tipo==='renovacao'?' (soma ao prazo atual)':'')+'</label><div class="pz" id="ap-pz">'+PRAZOS.map(function(x){return '<button class="'+(x[0]===pz?'on':'')+'" onclick="prazo('+x[0]+')">'+x[1]+'</button>'}).join('')+'</div>'
+    +'<div id="ap-outro" style="display:'+(PRAZOS.some(function(x){return x[0]===pz&&x[0]})?'none':'block')+'"><label class="ml">Quantos dias?</label><input type="number" id="ap-dias" value="'+pz+'" min="1" max="3650"></div>'
+    +'<div style="display:flex;gap:8px;margin-top:14px"><button onclick="aprovar()" id="ap-bt" style="flex:2;margin:0;background:var(--ok);color:#0a1420;border:1px solid var(--ok);font-weight:800">✓ Liberar acesso</button><button onclick="document.getElementById(\'ov-ap\').classList.remove(\'on\')" style="flex:1;margin:0;background:var(--card2);color:var(--tx2);border:1px solid var(--bd2)">Cancelar</button></div>'
+    +'<p id="ap-msg" style="font-size:13px;margin-top:8px"></p>'
+  document.getElementById('ov-ap').classList.add('on')
+}
+function prazo(d){
+  _apr.dias=d
+  document.querySelectorAll('#ap-pz button').forEach(function(b,i){b.classList.toggle('on',PRAZOS[i][0]===d)})
+  document.getElementById('ap-outro').style.display=d?'none':'block'
+}
+async function aprovar(){
+  let dias=_apr.dias||parseInt(document.getElementById('ap-dias').value)||0
+  if(dias<1){document.getElementById('ap-msg').textContent='Informe o prazo.';return}
+  document.getElementById('ap-bt').disabled=true
+  try{localStorage.setItem('vend_prazo',String(_apr.dias||dias))}catch(e){}
+  const r=await _supabase.rpc('aprovar_pedido',{p_pedido:_apr.id,p_concurso:document.getElementById('ap-conc').value||null,p_dias:dias})
+  if(r.error){document.getElementById('ap-bt').disabled=false;document.getElementById('ap-msg').innerHTML='<span style="color:var(--erro)">Erro: '+esc(r.error.message)+'</span>';return}
+  const p=_peds.find(function(x){return x.id===_apr.id})
+  document.getElementById('ov-ap-c').innerHTML='<div style="text-align:center"><div style="font-size:40px">✅</div><h3>Acesso liberado ate '+dBR(r.data)+'</h3>'
+    +'<p style="color:var(--tx3);font-size:13px">O aluno ja pode entrar com o e-mail e a senha que criou.</p>'
+    +(p&&p.telefone?'<a target="_blank" href="'+wpp(p.telefone)+'?text='+encodeURIComponent('Fala, '+String(p.nome||'').split(' ')[0]+'! Seu acesso a plataforma Patrulheiros de Elite foi liberado ate '+dBR(r.data)+'. Entre em '+location.origin+' com o e-mail '+p.email+'. Bora pra missao! 🛡️')+'" style="display:block;margin-top:10px;padding:12px;border-radius:10px;background:#25d366;color:#0a1420;font-weight:800;text-decoration:none">💬 Avisar no WhatsApp</a>':'')
+    +'<button onclick="document.getElementById(\'ov-ap\').classList.remove(\'on\')" style="margin-top:10px">Fechar</button></div>'
+  carregar()
+}
+async function recusar(id){
+  if(!confirm('Recusar este pedido? O aluno continua sem acesso (o login dele nao e apagado).'))return
+  const r=await _supabase.from('pedidos_acesso').update({status:'recusado',decidido_em:new Date().toISOString()}).eq('id',id)
+  if(r.error){alert('Erro: '+r.error.message);return}
+  carregar()
+}
+
+/* ---------- vendas ---------- */
+function renderVendas(){
+  const b=(document.getElementById('v-busca').value||'').toLowerCase(), box=document.getElementById('l-vendas')
+  const l=_comp.filter(function(c){return !b||String(c.email).toLowerCase().indexOf(b)>=0||String(c.nome||'').toLowerCase().indexOf(b)>=0})
+  if(!l.length){box.innerHTML='<p style="color:var(--tx3);font-size:13px;text-align:center;padding:16px">Nenhuma venda registrada ainda.</p>';return}
+  const COR={aprovada:'var(--ok)',reembolsada:'var(--alerta)',chargeback:'var(--erro)'}
+  box.innerHTML=l.map(function(c){
+    const al=c.aluno_id&&_nomes[c.aluno_id]
+    let sit=c.status!=='aprovada'?'<span class="tag" style="color:'+COR[c.status]+';border-color:'+COR[c.status]+'">'+c.status+'</span>'
+      :c.aluno_id?'<span class="tag" style="color:var(--ok);border-color:var(--ok)">acesso ate '+dBR(c.expira_aplicada)+'</span>'
+      :'<span class="tag" style="color:var(--alerta);border-color:var(--alerta)">aguardando '+(_prods.some(function(p){return p.produto_id===c.produto_id&&p.ativo})?'o aluno criar o login':'configurar o produto')+'</span>'
+    return '<div class="it"><div class="tx"><div class="nm">'+esc(c.nome||c.email)+' <span class="tag">'+(c.origem==='kiwify'?'Kiwify':'Pix/MP')+'</span></div>'
+      +'<div class="sb">'+esc(c.email)+(c.produto_nome?' · '+esc(c.produto_nome):'')+(c.valor?' · R$ '+Number(c.valor).toFixed(2).replace('.',','):'')+' · '+dt(c.criado_em)+(al?'<br>Aluno: '+esc(al.nome):'')+'</div></div>'+sit
+      +(c.status==='aprovada'&&!c.aluno_id?'<button class="btn-acao btn-editar" style="padding:8px 12px" onclick="reaplicar(\''+c.id+'\')">Tentar liberar</button>':'')+'</div>'
+  }).join('')
+}
+async function reaplicar(id){
+  const r=await _supabase.rpc('reaplicar_compra',{p_compra:id})
+  alert(r.error?'Erro: '+r.error.message:'Resultado: '+r.data+(r.data==='aguardando cadastro'?'\n\nO aluno ainda nao criou o login. Envie para ele o link do primeiro acesso.':''))
+  carregar()
+}
+
+/* ---------- produtos ---------- */
+function renderProdutos(){
+  const box=document.getElementById('l-produtos')
+  if(!_prods.length){box.innerHTML='<p style="color:var(--tx3);font-size:13px;text-align:center;padding:16px">Nenhum produto ainda. Ele aparece aqui na primeira venda (ou no teste da Kiwify).</p>';return}
+  box.innerHTML=_prods.map(function(p){
+    const esp=_comp.filter(function(c){return c.produto_id===p.produto_id&&c.status==='aprovada'&&!c.aluno_id}).length
+    return '<div class="it" style="'+(p.ativo?'':'border-color:var(--erro)')+'"><div class="tx" style="min-width:100%">'
+      +'<div class="nm">'+esc(p.produto_nome||'(sem nome)')+' '+(p.ativo?'<span class="tag" style="color:var(--ok);border-color:var(--ok)">liberando</span>':'<span class="tag" style="color:var(--erro);border-color:var(--erro)">configure</span>')+(esp?' <span class="tag" style="color:var(--alerta);border-color:var(--alerta)">'+esp+' compra(s) esperando</span>':'')+'</div>'
+      +'<div class="sb">ID Kiwify: '+esc(p.produto_id)+'</div>'
+      +'<div class="mg" style="margin-top:6px"><div><label class="ml">Turma</label><select id="pt-'+p.produto_id+'"><option value="">Sem turma</option>'+_conc.map(function(c){return '<option value="'+c.id+'"'+(String(c.id)===String(p.concurso_id)?' selected':'')+'>'+esc(c.nome)+'</option>'}).join('')+'</select></div>'
+      +'<div><label class="ml">Prazo de acesso (dias)</label><input type="number" id="pd-'+p.produto_id+'" value="'+(p.dias||365)+'" min="1"></div>'
+      +'<div style="display:flex;align-items:flex-end"><button onclick="salvarProduto(\''+esc(p.produto_id)+'\')" style="margin:0">'+(p.ativo?'Salvar':'Salvar e liberar')+'</button></div></div>'
+      +(p.ativo?'<a style="color:var(--tx4);font-size:12px;cursor:pointer;text-decoration:underline" onclick="pausarProduto(\''+esc(p.produto_id)+'\')">Pausar liberacao automatica deste produto</a>':'')
+      +'</div></div>'
+  }).join('')
+}
+async function salvarProduto(id){
+  const conc=document.getElementById('pt-'+id).value||null, dias=parseInt(document.getElementById('pd-'+id).value)||365
+  const r=await _supabase.from('produtos_acesso').update({concurso_id:conc,dias:dias,ativo:true}).eq('produto_id',id)
+  if(r.error){alert('Erro: '+r.error.message);return}
+  const ra=await _supabase.rpc('reaplicar_produto',{p_produto:id})
+  alert('Produto salvo.'+(ra.data?'\n'+ra.data+' compra(s) que estavam esperando foram liberadas.':''))
+  carregar()
+}
+async function pausarProduto(id){
+  if(!confirm('Pausar? Novas vendas deste produto ficam esperando voce liberar.'))return
+  await _supabase.from('produtos_acesso').update({ativo:false}).eq('produto_id',id);carregar()
+}
+async function novoProduto(){
+  const id=document.getElementById('np-id').value.trim(), nome=document.getElementById('np-nome').value.trim()
+  if(!id){alert('Informe o ID do produto.');return}
+  const r=await _supabase.from('produtos_acesso').insert({produto_id:id,produto_nome:nome||null,ativo:false})
+  if(r.error){alert('Erro: '+r.error.message);return}
+  document.getElementById('np-id').value='';document.getElementById('np-nome').value='';carregar()
+}
+
+/* ---------- configuracao ---------- */
+function gerarSegredo(){
+  const a=new Uint8Array(24);crypto.getRandomValues(a)
+  const s=Array.from(a).map(function(x){return 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'[x%56]}).join('')
+  document.getElementById('c-seg').value=s;try{localStorage.setItem('kiwify_seg',s)}catch(e){}
+  montarUrl()
+}
+function montarUrl(){const s=document.getElementById('c-seg').value;document.getElementById('c-url').value=location.origin+'/api/kiwify?segredo='+(s||'GERE_A_SENHA_NO_PASSO_1')}
+function copiar(id){const e=document.getElementById(id);e.select();try{navigator.clipboard.writeText(e.value)}catch(x){document.execCommand('copy')};e.blur()}
+async function testarApi(){
+  const s=document.getElementById('c-api');s.textContent='testando...';s.style.color='var(--tx3)'
+  try{const r=await fetch('/api/kiwify');const j=await r.json();s.textContent=j.configurado?'✓ Pronta e configurada':'⚠️ A funcao existe, mas faltam as variaveis (passo 2) ou o Redeploy';s.style.color=j.configurado?'var(--ok)':'var(--alerta)'}
+  catch(e){s.textContent='✗ Nao encontrei a funcao. Confira se o arquivo api/kiwify.js esta no GitHub (dentro da pasta api).';s.style.color='var(--erro)'}
+}
+
+/* ---------- eventos ---------- */
+async function carregarEventos(){
+  const box=document.getElementById('l-eventos')
+  const r=await _supabase.from('kiwify_eventos').select('*').order('recebido_em',{ascending:false}).limit(60)
+  const l=r.data||[]
+  if(!l.length){box.innerHTML='<p style="color:var(--tx3);font-size:13px;text-align:center;padding:16px">Nenhum aviso recebido ainda. Depois de configurar, use o botao de teste da Kiwify.</p>';return}
+  box.innerHTML=l.map(function(e,i){
+    const ok=/liberado|ja aplicada|aguardando cadastro/.test(e.resultado||''), ruim=/sem configuracao|nao encontrada/.test(e.resultado||'')
+    return '<div class="it" style="display:block"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span class="tag">'+esc(e.evento||'?')+'</span><strong style="font-size:13px">'+esc(e.email||'(sem e-mail)')+'</strong>'
+      +'<span style="margin-left:auto;font-size:12.5px;font-weight:700;color:'+(ok?'var(--ok)':ruim?'var(--alerta)':'var(--tx3)')+'">'+esc(e.resultado||'')+'</span></div>'
+      +'<div class="sb" style="color:var(--tx3);font-size:11.5px;margin-top:4px">'+dt(e.recebido_em)+' · pedido '+esc(e.pedido_id||'?')+' · <a style="cursor:pointer;color:var(--ouro)" onclick="var p=document.getElementById(\'pl-'+i+'\');p.style.display=p.style.display===\'none\'?\'block\':\'none\'">ver dados</a></div>'
+      +'<pre id="pl-'+i+'" style="display:none">'+esc(JSON.stringify(e.payload,null,1))+'</pre></div>'
+  }).join('')
+}
+init()
+</script>
+<script src="menu-admin.js"></script>
+</body>
+</html>

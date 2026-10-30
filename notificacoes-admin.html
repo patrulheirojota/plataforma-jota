@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Notificacoes — Mentor</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="style.css">
+<script>document.documentElement.setAttribute("data-tema",localStorage.getItem("tema")||"escuro")</script>
+<style>
+  .ml{color:var(--tx3);font-size:12px;display:block;margin:10px 0 4px}
+  .passo{background:var(--card2);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:10px;font-size:13.5px;line-height:1.65;color:var(--tx2)}
+  .passo b.n{display:inline-flex;width:24px;height:24px;border-radius:50%;background:var(--ouro);color:#0a1420;align-items:center;justify-content:center;font-size:12px;margin-right:6px}
+  .cp{display:flex;gap:6px;margin-top:6px}
+  .cp input{flex:1;margin:0;font-family:ui-monospace,Menlo,monospace;font-size:12px}
+  .cp button{width:auto;margin:0;padding:9px 13px}
+  .kp{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:6px}
+  .kp div{background:var(--card2);border:1px solid var(--bd);border-radius:10px;padding:10px;text-align:center}
+  .kp b{display:block;font-size:20px;color:var(--ouro)}
+  .kp span{font-size:11.5px;color:var(--tx3)}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div><h2>Notificacoes no celular</h2><div style="color:var(--tx3);font-size:13px">Lembrete da missao as 18h, recados e vencimento · gratuito</div></div>
+    <button onclick="location.href='admin.html'" style="width:auto;padding:8px 14px">Painel Admin</button>
+  </header>
+
+  <div class="card">
+    <h3>Situacao</h3>
+    <div class="kp" id="kp"><div><b>...</b><span>carregando</span></div></div>
+    <div id="st" style="font-size:13px;margin-top:6px"></div>
+  </div>
+
+  <div class="card">
+    <h3>Enviar uma notificacao agora</h3>
+    <p style="color:var(--tx3);font-size:13px;margin-bottom:6px">Use com moderacao: notificacao demais faz o aluno desativar. Para recados que ficam guardados, prefira os Avisos (la tambem da para mandar no celular).</p>
+    <label class="ml">Para quem</label>
+    <select id="n-alvo" onchange="document.getElementById('n-turma').style.display=this.value==='turma'?'block':'none'"><option value="todos">Todos os alunos com avisos ativados</option><option value="turma">Uma turma</option></select>
+    <select id="n-turma" style="display:none;margin-top:6px"></select>
+    <label class="ml">Titulo (curto)</label><input id="n-tit" maxlength="60" placeholder="Ex.: 🧪 Simulado 06 liberado!">
+    <label class="ml">Texto</label><textarea id="n-txt" rows="3" maxlength="200" placeholder="Ex.: Abra a plataforma e faca hoje, com o celular no Nao perturbe."></textarea>
+    <button onclick="enviar()" id="n-bt" style="width:auto;padding:11px 18px;margin-top:10px">📱 Enviar</button>
+    <p id="n-msg" style="font-size:13px;margin-top:8px"></p>
+  </div>
+
+  <div class="card">
+    <h3>Configurar (so uma vez)</h3>
+    <div class="passo"><b class="n">1</b><strong>Gere as chaves</strong> das notificacoes (ficam so com voce):
+      <button onclick="gerar()" style="width:auto;padding:9px 14px;margin:8px 0 0">Gerar chaves</button>
+      <label class="ml">VAPID_PUBLICA</label><div class="cp"><input id="k-pub" readonly><button onclick="copiar('k-pub')">Copiar</button></div>
+      <label class="ml">VAPID_PRIVADA <span style="color:var(--erro)">(secreta: so na Vercel)</span></label><div class="cp"><input id="k-pri" readonly type="password"><button onclick="copiar('k-pri')">Copiar</button></div>
+      <label class="ml">CRON_SECRET (protege o lembrete das 18h)</label><div class="cp"><input id="k-cron" readonly><button onclick="copiar('k-cron')">Copiar</button></div>
+      <div style="color:var(--tx4);font-size:12px;margin-top:6px">Gere uma vez so. Se gerar de novo e trocar na Vercel, os alunos precisam ativar os avisos de novo.</div></div>
+    <div class="passo"><b class="n">2</b><strong>Na Vercel</strong> → Settings → Environment Variables, crie <code>VAPID_PUBLICA</code>, <code>VAPID_PRIVADA</code> e <code>CRON_SECRET</code> com os valores acima. (<code>SUPABASE_URL</code> e <code>SUPABASE_SERVICE_ROLE_KEY</code> ja foram criadas para a Kiwify.) Depois: Deployments → ultimo → <strong>Redeploy</strong>.</div>
+    <div class="passo"><b class="n">3</b>Volte aqui e veja se a "Situacao" mostra <strong>configurado</strong>. Pronto: o aluno ativa em <em>Perfil → Avisos no celular</em> (aparece tambem uma sugestao discreta na Missao de hoje).</div>
+    <div class="passo"><b class="n">ℹ️</b>No iPhone, o aviso so funciona com a plataforma instalada na tela inicial (iOS 16.4 ou mais novo). O lembrete diario sai por volta das 18h.</div>
+  </div>
+</div>
+<script src="config.js"></script>
+<script>
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function b64(u8){return btoa(String.fromCharCode.apply(null,new Uint8Array(u8))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
+function copiar(id){const e=document.getElementById(id);const t=e.type;e.type='text';e.select();try{navigator.clipboard.writeText(e.value)}catch(x){document.execCommand('copy')};e.type=t}
+async function init(){
+  const { data:{user} }=await _supabase.auth.getUser()
+  if(!user){location.href='index.html';return}
+  const c=await _supabase.from('concursos').select('id,nome').order('nome')
+  document.getElementById('n-turma').innerHTML=(c.data||[]).map(function(x){return '<option value="'+x.id+'">'+esc(x.nome)+'</option>'}).join('')
+  try{const k=JSON.parse(localStorage.getItem('vapid_gerada')||'null');if(k){document.getElementById('k-pub').value=k.pub;document.getElementById('k-pri').value=k.pri;document.getElementById('k-cron').value=k.cron}}catch(e){}
+  situacao()
+}
+async function situacao(){
+  let api={configurado:false}
+  try{api=await (await fetch('/api/push')).json()}catch(e){api={erro:true}}
+  const r=await _supabase.from('push_inscricoes').select('aluno_id,ativo,prefs,aparelho')
+  const l=(r.data||[]).filter(function(x){return x.ativo})
+  const alunos=new Set(l.map(function(x){return x.aluno_id})).size
+  const cont=function(k){return l.filter(function(x){return !x.prefs||x.prefs[k]!==false}).length}
+  document.getElementById('kp').innerHTML='<div><b>'+alunos+'</b><span>alunos com avisos</span></div><div><b>'+l.length+'</b><span>aparelhos</span></div>'
+    +'<div><b>'+cont('diario')+'</b><span>lembrete das 18h</span></div><div><b>'+cont('avisos')+'</b><span>recebem recados</span></div>'
+  const st=document.getElementById('st')
+  if(r.error)st.innerHTML='<span style="color:var(--erro)">Rode o arquivo <strong>atualizacao-lgpd-notificacoes.sql</strong> no Supabase.</span>'
+  else if(api.erro)st.innerHTML='<span style="color:var(--erro)">Nao encontrei o servidor de notificacoes: confira se <strong>api/push.js</strong>, <strong>api/_push.js</strong> e <strong>package.json</strong> estao no GitHub.</span>'
+  else st.innerHTML=api.configurado?'<span style="color:var(--ok)">✓ Servidor configurado</span>':'<span style="color:var(--alerta)">⚠️ Falta configurar as chaves na Vercel (veja abaixo)</span>'
+}
+async function gerar(){
+  if(document.getElementById('k-pub').value&&!confirm('Ja existem chaves geradas. Gerar novas? (So troque na Vercel se ainda nao configurou.)'))return
+  const par=await crypto.subtle.generateKey({name:'ECDSA',namedCurve:'P-256'},true,['sign','verify'])
+  const pub=b64(await crypto.subtle.exportKey('raw',par.publicKey))
+  const jwk=await crypto.subtle.exportKey('jwk',par.privateKey)
+  const a=new Uint8Array(24);crypto.getRandomValues(a)
+  const k={pub:pub,pri:jwk.d,cron:b64(a)}
+  document.getElementById('k-pub').value=k.pub;document.getElementById('k-pri').value=k.pri;document.getElementById('k-cron').value=k.cron
+  try{localStorage.setItem('vapid_gerada',JSON.stringify(k))}catch(e){}
+}
+async function enviar(){
+  const tit=document.getElementById('n-tit').value.trim(), txt=document.getElementById('n-txt').value.trim(), m=document.getElementById('n-msg')
+  if(!tit){m.style.color='var(--erro)';m.textContent='Escreva o titulo.';return}
+  const alvo=document.getElementById('n-alvo').value==='turma'?{tipo:'turma',id:document.getElementById('n-turma').value}:{tipo:'todos'}
+  if(!confirm('Enviar esta notificacao agora?'))return
+  document.getElementById('n-bt').disabled=true;m.style.color='var(--tx3)';m.textContent='Enviando...'
+  try{
+    const { data:ss }=await _supabase.auth.getSession()
+    const r=await fetch('/api/push',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+(ss&&ss.session?ss.session.access_token:'')},body:JSON.stringify({titulo:tit,corpo:txt,alvo:alvo})})
+    const j=await r.json()
+    m.style.color=r.ok?'var(--ok)':'var(--erro)'
+    m.textContent=r.ok?'✓ Entregue em '+j.enviados+' aparelho(s)'+(j.falhas?' · '+j.falhas+' nao receberam (celular desinstalou ou bloqueou)':''):'Erro: '+(j.erro||r.status)
+  }catch(e){m.style.color='var(--erro)';m.textContent='Erro: '+e.message}
+  document.getElementById('n-bt').disabled=false
+}
+init()
+</script>
+<script src="menu-admin.js"></script>
+</body>
+</html>

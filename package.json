@@ -1,0 +1,8 @@
+{
+  "name": "plataforma-jota",
+  "private": true,
+  "description": "Patrulheiros de Elite - dependencias das funcoes do servidor (Vercel)",
+  "dependencies": {
+    "web-push": "3.6.7"
+  }
+}
