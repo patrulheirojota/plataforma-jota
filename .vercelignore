@@ -1,0 +1,4 @@
+# arquivos que existem so para o GitHub (testes e robos): nao vao para o site
+.github
+testes
+docs
