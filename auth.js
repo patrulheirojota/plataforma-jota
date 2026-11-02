@@ -15,7 +15,9 @@ async function login() {
     _entrando = false
     if (bt) { bt.disabled = false; bt.textContent = 'Entrar' }
     msg.style.display = 'block'
-    msg.textContent = 'E-mail ou senha incorretos.'
+    msg.textContent = /confirm/i.test(error.message || '')
+      ? 'Seu e-mail ainda nao foi confirmado. Procure o e-mail de confirmacao (veja tambem o spam) ou fale com o mentor.'
+      : 'E-mail ou senha incorretos. Se esqueceu a senha, toque em "Esqueci minha senha".'
     return
   }
 
