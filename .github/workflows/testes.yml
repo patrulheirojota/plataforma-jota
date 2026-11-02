@@ -1,0 +1,31 @@
+# Testes automaticos: rodam sozinhos a cada arquivo enviado ao GitHub.
+# Resultado: aba "Actions" do GitHub (✓ verde = tudo certo, ✗ vermelho = algo quebrou).
+name: Testes automaticos
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+# se voce subir varios arquivos seguidos, so o ultimo envio e testado
+concurrency:
+  group: testes-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  testes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Esperar 2 minutos (tempo de terminar de subir os arquivos)
+        if: github.event_name == 'push'
+        run: sleep 120
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Conferencia dos arquivos (sintaxe, arquivos faltando, leitores, Kiwify)
+        run: node testes/verificar.js
+      - name: Instalar o navegador de teste
+        run: |
+          npm install --no-save --no-package-lock playwright@1.48.2
+          npx playwright install --with-deps chromium
+      - name: Abrir todas as paginas (teste de fumaca)
+        run: node testes/fumaca.js
