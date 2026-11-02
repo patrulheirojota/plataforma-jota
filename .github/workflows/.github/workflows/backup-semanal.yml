@@ -1,0 +1,49 @@
+# Backup semanal do banco: todo domingo de madrugada (ou quando voce clicar em "Run workflow").
+# A copia sai CRIPTOGRAFADA com a sua senha e fica 90 dias guardada na aba "Actions".
+# Precisa de 2 segredos em Settings > Secrets and variables > Actions:
+#   SUPABASE_DB_URL  -> Supabase > Connect > "Session pooler" (com a senha do banco no lugar de [YOUR-PASSWORD])
+#   BACKUP_SENHA     -> uma senha forte so sua (sem ela a copia nao abre; guarde num lugar seguro)
+name: Backup semanal do banco
+on:
+  schedule:
+    - cron: '17 6 * * 0'   # domingo 03:17 (horario de Brasilia)
+  workflow_dispatch:
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Instalar o pg_dump
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y -qq postgresql-client-17
+      - name: Copiar o banco e criptografar
+        env:
+          BANCO_URL: ${{ secrets.SUPABASE_DB_URL }}
+          SENHA: ${{ secrets.BACKUP_SENHA }}
+        run: |
+          set -eo pipefail
+          if [ -z "$BANCO_URL" ] || [ -z "$SENHA" ]; then
+            echo "::error::Falta cadastrar SUPABASE_DB_URL e BACKUP_SENHA em Settings > Secrets and variables > Actions"
+            exit 1
+          fi
+          DATA=$(date -u +%Y-%m-%d)
+          PGD=/usr/lib/postgresql/17/bin/pg_dump
+          # dados dos alunos + logins; se o schema de login nao puder ser lido, copia ao menos os dados
+          if ! $PGD "$BANCO_URL" --no-owner --no-privileges --schema=public --schema=auth --format=custom --file=banco.dump; then
+            echo "::warning::Nao consegui copiar os logins (auth). Copiando so os dados da plataforma."
+            $PGD "$BANCO_URL" --no-owner --no-privileges --schema=public --format=custom --file=banco.dump
+          fi
+          TAM=$(stat -c %s banco.dump)
+          echo "Tamanho da copia: $TAM bytes"
+          if [ "$TAM" -lt 10000 ]; then echo "::error::Copia pequena demais, algo deu errado"; exit 1; fi
+          gpg --batch --yes --pinentry-mode loopback --passphrase "$SENHA" --symmetric --cipher-algo AES256 -o "backup-$DATA.dump.gpg" banco.dump
+          rm -f banco.dump
+          echo "### ✅ Backup de $DATA pronto ($TAM bytes, criptografado)" >> $GITHUB_STEP_SUMMARY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: backup-banco-${{ github.run_number }}
+          path: backup-*.dump.gpg
+          retention-days: 90
