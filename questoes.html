@@ -307,6 +307,7 @@
 <script src="config.js"></script>
 <script src="comum.js"></script>
 <script src="explicacao.js"></script>
+<script src="estrategia.js"></script>
 <script src="pomodoro.js"></script>
 <script>
 let _alunoId=null,_concursos=[],_discSel=[],_assSel=[],_status='todas',_pag=0,_qs=[],_resp={},_matTipo=''
@@ -416,6 +417,8 @@ async function init(){
   let rs=[]
   try{rs=await todasLinhas(function(){return _supabase.from('questao_respostas').select('questao_id,correta,respondido_em').eq('aluno_id',_alunoId).order('questao_id')})}catch(e){rs=[]}
   rs.forEach(function(r){_resp[r.questao_id]={correta:r.correta,em:r.respondido_em}})
+  // a coluna de confianca so existe depois de rodar atualizacao-metacognicao.sql
+  try{const tc=await _supabase.from('questao_respostas').select('confianca').limit(1);_temConf=!tc.error}catch(e){_temConf=false}
 
   if(al&&al.meta_questoes_dia)_metaDia=al.meta_questoes_dia
   // "hoje" no horario local (antes usava o horario de Londres e virava o dia as 21h)
@@ -700,7 +703,7 @@ function renderQ(q){
      }).join('')
     +'</div>'
     +'<div id="acao-'+q.id+'" style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">'
-    +'<button class="btn btn-ouro" onclick="responder(\''+q.id+'\')" style="padding:11px 26px">Responder</button>'
+    +(window.Estrategia?'<div style="width:100%;font-size:12.5px;color:var(--tx3)">Responder com:</div>'+Estrategia.botoesResponder(q.id,'responderConf'):'<button class="btn btn-ouro" onclick="responder(\''+q.id+'\')" style="padding:11px 26px">Responder</button>')
     +'<button class="btn btn-cad" data-d="'+esc(q.disciplina)+'" onclick="abrirCadernoQ(this.dataset.d)" style="padding:10px 14px">📓 Caderno de '+esc(q.disciplina)+'</button></div>'
     +'<div id="fb-'+q.id+'"></div>'
     +'</div>'
@@ -712,8 +715,11 @@ function marcar(id,letra){
   box.querySelectorAll('.alt').forEach(function(e){e.classList.toggle('sel',e.dataset.l===letra)})
 }
 
+let _temConf=false, _confQ={}
+function responderConf(id,k){_confQ[id]=k;responder(id)}
 async function responder(id){
   const q=_qs.find(function(x){return x.id===id}); if(!q)return
+  const conf=_confQ[id]||null
   const sel=document.querySelector('#alts-'+id+' .alt.sel')
   if(!sel){alert('Selecione uma alternativa antes de responder.');return}
   const letra=sel.dataset.l
@@ -731,9 +737,9 @@ async function responder(id){
   _respHoje++
   renderEstat();renderMeta()
 
-  await _supabase.from('questao_respostas').upsert({
-    aluno_id:_alunoId,questao_id:id,resposta:letra,correta:acertou,respondido_em:new Date().toISOString()
-  },{onConflict:'aluno_id,questao_id'})
+  const linhaR={aluno_id:_alunoId,questao_id:id,resposta:letra,correta:acertou,respondido_em:new Date().toISOString()}
+  if(_temConf)linhaR.confianca=conf
+  await _supabase.from('questao_respostas').upsert(linhaR,{onConflict:'aluno_id,questao_id'})
 
   document.getElementById('acao-'+id).innerHTML=''
   document.getElementById('fb-'+id).innerHTML=
@@ -741,7 +747,9 @@ async function responder(id){
     +'<div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap">'
     +'<span style="font-size:19px">'+(acertou?'✅':'❌')+'</span>'
     +'<strong style="color:'+(acertou?'#6ddba0':'#f07171')+';font-size:14px">'+(acertou?'Voce acertou!':'Voce errou')+'</strong>'
-    +'<span style="color:var(--tx3);font-size:13px">Gabarito: <strong style="color:var(--tx)">'+certa+'</strong></span></div>'
+    +'<span style="color:var(--tx3);font-size:13px">Gabarito: <strong style="color:var(--tx)">'+certa+'</strong></span>'
+    +(conf&&window.Estrategia?Estrategia.tag(conf):'')+'</div>'
+    +(conf&&window.Estrategia?Estrategia.recado(conf,acertou):'')
     +(q.comentario?'<div style="margin-top:11px;padding-top:11px;border-top:1px solid var(--bd)">'
       +'<div style="color:var(--ouro);font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;margin-bottom:6px">Comentario do Jota</div>'
       +'<div style="font-size:13.5px;line-height:1.7;color:var(--tx2);white-space:pre-wrap">'+esc(q.comentario)+'</div></div>':'')
@@ -1392,7 +1400,7 @@ async function simuladoErros(){
   const ord=[];let vazio=false
   while(!vazio){ vazio=true; filas.forEach(function(f){ if(f.length){ord.push(f.shift());vazio=false} }) }
 
-  _simQs=ord;_simResp={};_simAtual=0;_simIni=Date.now();_simTipoAtual='erros'
+  _simQs=ord;_simResp={};_simConf={};_simAtual=0;_simIni=Date.now();_simTipoAtual='erros'
   m.style.display='none'
   document.getElementById('sim-inicio').style.display='none'
   document.getElementById('sim-result').style.display='none'
@@ -1405,7 +1413,7 @@ async function simuladoErros(){
 /* ================== MEU SIMULADO ================== */
 let _simTipoAtual='proprio'
 
-let _simDisp={},_simQs=[],_simResp={},_simAtual=0,_simIni=null,_simTimer=null
+let _simDisp={},_simQs=[],_simResp={},_simConf={},_simAtual=0,_simIni=null,_simTimer=null
 
 async function prepararSimulado(){
   const sc=document.getElementById('sim-conc')
@@ -1525,7 +1533,7 @@ async function iniciarSimulado(){
     filas.forEach(function(f){ if(f.length){ ord.push(f.shift()); vazio=false } })
   }
 
-  _simQs=ord;_simResp={};_simAtual=0;_simIni=Date.now();_simTipoAtual='proprio'
+  _simQs=ord;_simResp={};_simConf={};_simAtual=0;_simIni=Date.now();_simTipoAtual='proprio'
   m.style.display='none'
   document.getElementById('sim-inicio').style.display='none'
   document.getElementById('sim-result').style.display='none'
@@ -1574,7 +1582,9 @@ function renderProva(){
     +'<div style="margin-top:14px">'+alts.map(function(a){
         return '<div class="alt'+(sel===a[0]?' sel':'')+'" onclick="marcarSim(\''+a[0]+'\')">'
           +'<div class="alt-l">'+a[0]+'</div><div class="alt-t">'+esc(a[1])+'</div></div>'
-      }).join('')+'</div></div>'
+      }).join('')+'</div>'
+    +(window.Estrategia?'<div id="conf-sim">'+Estrategia.botoes(q.id,_simConf[q.id],'confSim')+'</div>':'')
+    +'</div>'
 
     +'<div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:6px">'
     +'<button class="btn" onclick="irQ('+(_simAtual-1)+')" '+(_simAtual===0?'disabled style="opacity:.4"':'')+'>Anterior</button>'
@@ -1587,6 +1597,10 @@ function renderProva(){
   window.scrollTo({top:0,behavior:'smooth'})
 }
 
+function confSim(id,k){
+  _simConf[id]=_simConf[id]===k?null:k
+  const b=document.getElementById('conf-sim'); if(b)b.innerHTML=Estrategia.botoes(id,_simConf[id],'confSim')
+}
 function marcarSim(l){
   _simResp[_simQs[_simAtual].id]=l
   renderProva()
@@ -1619,7 +1633,7 @@ async function finalizarSimulado(){
     const d=q.disciplina||'?'
     if(!porD[d])porD[d]={t:0,a:0}
     porD[d].t++; if(ok)porD[d].a++
-    if(r)linhas.push({aluno_id:_alunoId,questao_id:q.id,resposta:r,correta:ok,respondido_em:new Date().toISOString()})
+    if(r){const ln={aluno_id:_alunoId,questao_id:q.id,resposta:r,correta:ok,respondido_em:new Date().toISOString()};if(_temConf)ln.confianca=_simConf[q.id]||null;linhas.push(ln)}
     _resp[q.id]={correta:ok,em:new Date().toISOString()}
   })
 
@@ -1662,6 +1676,8 @@ async function finalizarSimulado(){
          +'<span style="color:'+cc+';font-size:13px;font-weight:700">'+x.a+'/'+x.t+' · '+p+'%</span></div>'
          +'<div class="sim-bar"><div class="sim-bar-f" style="width:'+p+'%;background:'+cc+'"></div></div></div>'
      }).join('')+'</div>'
+    +(window.Estrategia?Estrategia.html(Estrategia.analisar(_simQs.map(function(q){const r=_simResp[q.id]||null
+        return {tipo:q.tipo==='certo_errado'?'ce':'me',conf:_simConf[q.id]||null,status:!r?'branca':(r===String(q.gabarito).toUpperCase()?'certa':'errada'),nAlt:(q.alternativas||[]).length||5}}),{penaliza:null})):'')
 
     +'<div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:18px">'
     +'<button class="btn btn-ouro" style="flex:1;min-width:150px" onclick="voltarSimulado()">Fazer outro simulado</button>'
@@ -1677,7 +1693,7 @@ async function finalizarSimulado(){
          +'<div class="q-h"><span style="color:var(--tx4);font-size:11.5px;font-weight:700">'+(i+1)+'</span>'
          +'<span style="color:var(--ouro);font-size:12px;font-weight:700">'+esc(q.disciplina)+'</span>'
          +'<span style="margin-left:auto" class="tag" style="background:'+(ok?'rgba(109,219,160,.15);color:#6ddba0;border:1px solid #6ddba0':'rgba(240,113,113,.15);color:#f07171;border:1px solid #f07171')+'">'
-         +(ok?'ACERTOU':(r?'ERROU':'EM BRANCO'))+'</span></div>'
+         +(ok?'ACERTOU':(r?'ERROU':'EM BRANCO'))+'</span>'+(_simConf[q.id]&&window.Estrategia?' '+Estrategia.tag(_simConf[q.id]):'')+'</div>'
          +(q.texto_apoio?'<div class="q-ap">'+esc(q.texto_apoio)+'</div>':'')
          +'<div class="q-tx">'+esc(q.enunciado)+'</div>'
          +'<div style="margin-top:10px;font-size:13px"><span style="color:var(--tx3)">Sua resposta: </span>'

@@ -81,9 +81,11 @@
 <script src="config.js"></script>
 <script src="comum.js"></script>
 <script src="explicacao.js"></script>
+<script src="estrategia.js"></script>
 <script>
 const LETRAS='ABCDE'
 let _uid=null,_alunoId=null,_mentor=false,_aluno=null,_sim=null,_res=null,_itens=[],_resp={},_tempo={},_rev={},_risc={},_atual=0
+let _conf={},_elim={},_temConf=false
 let _relogio=null,_fimMs=0,_ativoDesde=null,_filaSalvar={},_salvando=false,_wake=null,_gab=null,_est=null,_rank=null,_filtroCor='todas',_filtroFolha='todas'
 const $=function(id){return document.getElementById(id)}
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
@@ -113,6 +115,8 @@ async function init(){
   const rs=await _supabase.from('sim_banca').select('*').eq('id',id).maybeSingle()
   if(rs.error||!rs.data){app('<div class="wrap"><div class="estado">Simulado nao encontrado ou ainda nao publicado.<br><br><button class="btn" onclick="voltar()">Voltar</button></div></div>');return}
   _sim=rs.data
+  // a coluna de confianca so existe depois de rodar atualizacao-metacognicao.sql
+  try{const tc=await _supabase.from('sim_respostas').select('confianca').limit(1);_temConf=!tc.error}catch(e){_temConf=false}
   const rr=await _supabase.from('sim_resultados').select('*').eq('simulado_id',id).eq('aluno_id',_alunoId).maybeSingle()
   _res=rr.data||null
   if(_mentor){ if(_res&&_res.finalizado_em)telaResultado(); else app('<div class="wrap"><div class="estado">Este aluno ainda nao entregou o simulado.<br><br><button class="btn" onclick="voltar()">Voltar</button></div></div>'); return }
@@ -166,12 +170,12 @@ async function abrirProva(){
   app('<div class="wrap"><div class="estado">Abrindo a prova...</div></div>')
   const [ri,rr]=await Promise.all([
     _supabase.from('sim_itens').select('*').eq('simulado_id',_sim.id).order('numero').limit(2000),
-    _supabase.from('sim_respostas').select('item_id,resposta,tempo_seg,revisar').eq('simulado_id',_sim.id).eq('aluno_id',_alunoId).limit(2000)
+    _supabase.from('sim_respostas').select('item_id,resposta,tempo_seg,revisar'+(_temConf?',confianca':'')).eq('simulado_id',_sim.id).eq('aluno_id',_alunoId).limit(2000)
   ])
   _itens=ri.data||[]
-  ;(rr.data||[]).forEach(function(x){if(x.resposta)_resp[x.item_id]=x.resposta;_tempo[x.item_id]=x.tempo_seg||0;if(x.revisar)_rev[x.item_id]=true})
+  ;(rr.data||[]).forEach(function(x){if(x.resposta)_resp[x.item_id]=x.resposta;_tempo[x.item_id]=x.tempo_seg||0;if(x.revisar)_rev[x.item_id]=true;if(x.confianca)_conf[x.item_id]=x.confianca})
   // copia local (se a internet caiu antes de salvar)
-  try{const l=JSON.parse(localStorage.getItem(chaveLocal())||'null');if(l){Object.keys(l.resp||{}).forEach(function(k){if(!_resp[k]&&l.resp[k]){_resp[k]=l.resp[k];_filaSalvar[k]=1}});_risc=l.risc||{};if(typeof l.atual==='number')_atual=l.atual}}catch(e){}
+  try{const l=JSON.parse(localStorage.getItem(chaveLocal())||'null');if(l){Object.keys(l.resp||{}).forEach(function(k){if(!_resp[k]&&l.resp[k]){_resp[k]=l.resp[k];_filaSalvar[k]=1}});Object.keys(l.conf||{}).forEach(function(k){if(!_conf[k]&&l.conf[k]){_conf[k]=l.conf[k];_filaSalvar[k]=1}});_risc=l.risc||{};if(typeof l.atual==='number')_atual=l.atual}}catch(e){}
   if(!_itens.length){app('<div class="wrap"><div class="estado">Este simulado ainda nao tem questoes.</div></div>');return}
   _fimMs=new Date(_res.iniciado_em).getTime()+_sim.tempo_minutos*60000
   if(_atual>=_itens.length)_atual=0
@@ -206,11 +210,12 @@ function contarTempo(){
   if(s>0&&s<3600){_tempo[id]=(_tempo[id]||0)+s;_filaSalvar[id]=1}
   _ativoDesde=Date.now()
 }
-function guardarLocal(){try{localStorage.setItem(chaveLocal(),JSON.stringify({resp:_resp,risc:_risc,atual:_atual}))}catch(e){}}
+function guardarLocal(){try{localStorage.setItem(chaveLocal(),JSON.stringify({resp:_resp,risc:_risc,conf:_conf,atual:_atual}))}catch(e){}}
+function nElim(id){let n=0;Object.keys(_risc).forEach(function(k){if(_risc[k]&&k.indexOf(id)===0&&k.length===id.length+1)n++});return Math.min(n,4)}
 async function salvarPendentes(rapido){
   const ids=Object.keys(_filaSalvar); if(!ids.length||_salvando)return
   _salvando=true;_filaSalvar={}
-  const linhas=ids.map(function(id){return {simulado_id:_sim.id,aluno_id:_alunoId,item_id:id,resposta:_resp[id]||null,tempo_seg:_tempo[id]||0,revisar:!!_rev[id],atualizado_em:new Date().toISOString()}})
+  const linhas=ids.map(function(id){const l={simulado_id:_sim.id,aluno_id:_alunoId,item_id:id,resposta:_resp[id]||null,tempo_seg:_tempo[id]||0,revisar:!!_rev[id],atualizado_em:new Date().toISOString()};if(_temConf){l.confianca=_conf[id]||null;l.eliminadas=nElim(id)};return l})
   const s=$('salvo'); if(s)s.textContent='salvando...'
   try{
     const r=await _supabase.from('sim_respostas').upsert(linhas,{onConflict:'simulado_id,aluno_id,item_id'})
@@ -235,7 +240,13 @@ function marcar(id,v){
   salvarPendentes()
 }
 function limparResp(id){delete _resp[id];_filaSalvar[id]=1;guardarLocal();renderQ();salvarPendentes()}
-function riscar(id,l,ev){ev.stopPropagation();const k=id+l;_risc[k]=!_risc[k];guardarLocal();renderQ()}
+function riscar(id,l,ev){ev.stopPropagation();const k=id+l;_risc[k]=!_risc[k];if(_temConf)_filaSalvar[id]=1;guardarLocal();renderQ()}
+function confMarcar(id,k){
+  _conf[id]=_conf[id]===k?null:k
+  _filaSalvar[id]=1;guardarLocal()
+  const b=$('conf-q');if(b)b.innerHTML=Estrategia.botoes(id,_conf[id],'confMarcar')
+  salvarPendentes()
+}
 function alternarRevisar(){const id=_itens[_atual].id;_rev[id]=!_rev[id];_filaSalvar[id]=1;renderQ();salvarPendentes()}
 function irQ(i){
   if(i<0||i>=_itens.length)return
@@ -257,7 +268,8 @@ function renderQ(){
   }
   h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;flex-wrap:wrap;gap:8px">'
     +(r?'<button class="btn" style="padding:7px 12px;font-size:12.5px" onclick="limparResp(\''+q.id+'\')">Deixar em branco</button>':'<span style="color:var(--tx4);font-size:12.5px">Em branco</span>')
-    +'<span style="color:var(--tx4);font-size:12px">⏱️ '+tempoTxt(_tempo[q.id]||0)+' nesta questao</span></div></div>'
+    +'<span style="color:var(--tx4);font-size:12px">⏱️ '+tempoTxt(_tempo[q.id]||0)+' nesta questao</span></div>'
+    +(window.Estrategia&&_temConf?'<div id="conf-q">'+Estrategia.botoes(q.id,_conf[q.id],'confMarcar')+'</div>':'')+'</div>'
   $('q-box').innerHTML=h
   $('bt-ant').disabled=_atual===0
   $('bt-prox').textContent=_atual===_itens.length-1?'Folha ›':'Proxima ›'
@@ -340,8 +352,9 @@ async function telaResultado(acabou){
       +'</div>'
   }
   if(!lib){
-    h+='<div class="card" style="border-color:var(--info);text-align:center"><div style="font-size:30px">🔒</div><div style="font-weight:800;margin-top:4px">Gabarito, correcao e ranking em '+dtBR(_sim.fecha_em)+'</div><div class="sub">Quando o simulado fechar para todos, volte aqui.</div></div>'
+    h+='<div class="card" style="border-color:var(--info);text-align:center"><div style="font-size:30px">🔒</div><div style="font-weight:800;margin-top:4px">Gabarito, correcao, ranking e estrategia de chute em '+dtBR(_sim.fecha_em)+'</div><div class="sub">Quando o simulado fechar para todos, volte aqui.</div></div>'
   }else{
+    h+='<div id="estrat-box"></div>'
     h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px"><button class="btn btn-ouro" style="padding:15px" onclick="telaCorrecao()">📝 Correcao comentada</button><button class="btn" style="padding:15px" onclick="telaRanking()">🏆 Ranking completo</button></div>'
     if(rk&&rk.length){
       h+='<div class="card"><div style="font-weight:800;margin-bottom:8px">Top 5</div><table class="rk">'+rk.slice(0,5).map(function(x){return '<tr class="'+(x.eu&&!_mentor?'eu':'')+'"><td>'+(x.posicao<=3?['🥇','🥈','🥉'][x.posicao-1]:x.posicao+'º')+'</td><td>'+esc(x.nome)+(x.eu&&!_mentor?' (voce)':'')+'</td><td style="text-align:right"><strong>'+String(x.nota).replace('.',',')+'</strong></td></tr>'}).join('')+'</table></div>'
@@ -349,17 +362,26 @@ async function telaResultado(acabou){
   }
   h+='</div>'
   app(h)
+  if(lib&&window.Estrategia)montarEstrategia()
+}
+async function montarEstrategia(){
+  try{
+    await carregarCorrecao()
+    const box=$('estrat-box'); if(!box)return
+    const itens=_itens.map(function(q){return {tipo:q.tipo==='multipla'?'me':'ce',conf:_conf[q.id]||null,status:statusItem(q),nAlt:(q.alternativas||[]).length||5,elim:_elim[q.id]||0,tempo:_tempo[q.id]||0}})
+    box.innerHTML=Estrategia.html(Estrategia.analisar(itens,{penaliza:!!_sim.penaliza}),{penaliza:!!_sim.penaliza,nota:Number(_res&&_res.nota)||0})
+  }catch(e){}
 }
 async function carregarCorrecao(){
   if(_gab)return
   const [ri,rr,rg,re]=await Promise.all([
     _itens.length?Promise.resolve({data:_itens}):_supabase.from('sim_itens').select('*').eq('simulado_id',_sim.id).order('numero').limit(2000),
-    _supabase.from('sim_respostas').select('item_id,resposta,tempo_seg').eq('simulado_id',_sim.id).eq('aluno_id',_alunoId).limit(2000),
+    _supabase.from('sim_respostas').select('item_id,resposta,tempo_seg'+(_temConf?',confianca,eliminadas':'')).eq('simulado_id',_sim.id).eq('aluno_id',_alunoId).limit(2000),
     _supabase.rpc('sim_gabarito',{p_sim:_sim.id}),
     _supabase.rpc('sim_estat_itens',{p_sim:_sim.id})
   ])
-  _itens=ri.data||[];_resp={};_tempo={}
-  ;(rr.data||[]).forEach(function(x){if(x.resposta)_resp[x.item_id]=x.resposta;_tempo[x.item_id]=x.tempo_seg||0})
+  _itens=ri.data||[];_resp={};_tempo={};_conf={};_elim={}
+  ;(rr.data||[]).forEach(function(x){if(x.resposta)_resp[x.item_id]=x.resposta;_tempo[x.item_id]=x.tempo_seg||0;if(x.confianca)_conf[x.item_id]=x.confianca;if(x.eliminadas)_elim[x.item_id]=x.eliminadas})
   _gab={};(rg.data||[]).forEach(function(x){_gab[x.item_id]=x.gabarito})
   _est={};(re.data||[]).forEach(function(x){_est[x.item_id]=x})
 }
@@ -376,20 +398,20 @@ async function telaCorrecao(){
 }
 function corFiltro(f){_filtroCor=f;renderCorrecao()}
 function renderCorrecao(){
-  const cont={todas:_itens.length,errada:0,branca:0,certa:0}
-  _itens.forEach(function(q){const s=statusItem(q);if(cont[s]!=null)cont[s]++})
-  const lista=_itens.filter(function(q){return _filtroCor==='todas'||statusItem(q)===_filtroCor})
+  const cont={todas:_itens.length,errada:0,branca:0,certa:0,perigo:0}
+  _itens.forEach(function(q){const s=statusItem(q);if(cont[s]!=null)cont[s]++;if(s==='errada'&&_conf[q.id]==='certeza')cont.perigo++})
+  const lista=_itens.filter(function(q){return _filtroCor==='todas'||(_filtroCor==='perigo'?statusItem(q)==='errada'&&_conf[q.id]==='certeza':statusItem(q)===_filtroCor)})
   const C={certa:['✓','var(--ok)','Certa'],errada:['✗','var(--erro)','Errada'],branca:['○','var(--tx3)','Em branco'],anulada:['—','var(--alerta)','Anulada']}
   let h='<div class="wrap"><button class="btn" onclick="telaResultado()" style="margin-bottom:12px">‹ Resultado</button>'
     +'<div class="h1">Correcao comentada</div><div class="filtro">'
-    +[['todas','Todas'],['errada','Erradas'],['branca','Em branco'],['certa','Certas']].map(function(f){return '<button class="'+(_filtroCor===f[0]?'on':'')+'" onclick="corFiltro(\''+f[0]+'\')">'+f[1]+' ('+cont[f[0]]+')</button>'}).join('')
+    +[['todas','Todas'],['errada','Erradas'],['branca','Em branco'],['certa','Certas']].concat(cont.perigo?[['perigo','❗ Erros com certeza']]:[]).map(function(f){return '<button class="'+(_filtroCor===f[0]?'on':'')+'" onclick="corFiltro(\''+f[0]+'\')">'+f[1]+' ('+cont[f[0]]+')</button>'}).join('')
     +'</div>'
     +(!_mentor&&cont.errada?'<button class="btn" style="width:100%;margin-bottom:12px;border-color:var(--erro);color:var(--erro)" onclick="salvarErrosCaderno(this)">📓 Salvar as '+cont.errada+' erradas no caderno de erros</button>':'')
   h+=lista.map(function(q){
     const s=statusItem(q), c=C[s], g=_gab[q.id], r=_resp[q.id], e=_est&&_est[q.id]
     const pt=e&&e.respostas?Math.round(e.acertos/e.respostas*100):null
     return '<div class="card cor-item" style="border-left-color:'+c[1]+'">'
-      +'<div class="q-num"><span class="q-n">'+q.numero+'</span><span style="color:'+c[1]+';font-weight:800">'+c[0]+' '+c[2]+'</span><span style="color:var(--tx3);font-size:12.5px">'+esc(q.disciplina||'')+(q.assunto?' · '+esc(q.assunto):'')+'</span></div>'
+      +'<div class="q-num"><span class="q-n">'+q.numero+'</span><span style="color:'+c[1]+';font-weight:800">'+c[0]+' '+c[2]+'</span>'+(_conf[q.id]&&window.Estrategia?Estrategia.tag(_conf[q.id]):'')+'<span style="color:var(--tx3);font-size:12.5px">'+esc(q.disciplina||'')+(q.assunto?' · '+esc(q.assunto):'')+'</span></div>'
       +(q.texto_apoio?'<details style="margin-bottom:8px"><summary style="cursor:pointer;color:var(--tx3);font-size:12.5px">Ver texto de apoio</summary><div class="apoio" style="margin-top:6px">'+esc(q.texto_apoio)+'</div></details>':'')
       +'<div class="enun" style="font-size:14.5px">'+esc(q.enunciado)+'</div>'
       +(q.tipo==='multipla'?(q.alternativas||[]).map(function(a,i){const l=LETRAS[i],ok=l===g,mi=l===r

@@ -399,6 +399,11 @@
           </div>
           <div id="des-assuntos"><div style="color:var(--tx3);font-size:13px">Carregando...</div></div>
         </div>
+        <div class="painel" style="margin-bottom:16px" id="painel-metacog">
+          <div style="font-size:14px;font-weight:700;color:var(--ouro)">🧠 Certeza, duvida e chute</div>
+          <div style="color:var(--tx3);font-size:12px;margin:2px 0 6px">Voce sabe o que sabe? Quanto voce acerta em cada nivel de confianca e se o seu chute compensa</div>
+          <div id="metacog"><div style="color:var(--tx3);font-size:13px">Carregando...</div></div>
+        </div>
         <div class="painel" style="margin-bottom:16px">
           <div style="font-size:14px;font-weight:700;color:var(--ouro);margin-bottom:4px">Relatorios de 21 dias</div>
           <div style="color:var(--tx3);font-size:12px;margin-bottom:12px">A cada 21 dias voce recebe um balanco do seu ciclo</div>
@@ -468,6 +473,7 @@
 <script src="config.js"></script>
 <script src="comum.js"></script>
 <script src="desempenho.js"></script>
+<script src="estrategia.js"></script>
 <script src="relatorio-ciclo.js"></script>
 <script src="caderno-revisao.js"></script>
 <script src="pomodoro.js"></script>
@@ -1036,8 +1042,17 @@ async function renderDesAssuntos(fonte){
   box.innerHTML=htmlDesempenhoAssuntos(_desFonte==='banco'?_desBanco:sess,_desFonte==='banco'?{}:{rotulo:'registradas nas sessoes (feitas fora da plataforma)'})
 }
 
+async function renderMetacog(){
+  const box=document.getElementById('metacog'); if(!box||!window.Estrategia)return
+  try{
+    const r=await _supabase.rpc('metacognicao',{p_aluno:_mentor?_alunoId:null})
+    if(r.error){document.getElementById('painel-metacog').style.display='none';return}
+    box.innerHTML=Estrategia.htmlResumo(r.data,{mentor:_mentor})
+  }catch(e){document.getElementById('painel-metacog').style.display='none'}
+}
 function renderDesempenho(){
   renderDesAssuntos()
+  renderMetacog()
   const hc=document.getElementById('rc-historico'); if(hc&&_rcAluno)hc.innerHTML=htmlHistoricoCiclos(_rcAluno)
   const st=calcStreak()
   const total=_sessoes.length, feitas=_sessoes.filter(function(s){return s.concluida}).length
