@@ -79,6 +79,9 @@
   .col-h .dn{font-size:15px;font-weight:700;color:var(--tx);display:block;margin-top:1px}
   .col-h.hoje .dn{color:var(--bg)}
 
+  .scard.extra,.hi.extra{border-style:dashed;border-left-style:solid;background:rgba(185,138,224,.05)}
+  .pill-x{background:rgba(185,138,224,.15);color:#c9a9e8;font-weight:700}
+  .hi.extra .hi-b{background:transparent;border:1px solid #b98ae0;color:#c9a9e8}
   .scard{background:var(--card2);border:1px solid var(--c);border-left:3px solid var(--c);border-radius:9px;padding:9px 10px;margin-bottom:7px;cursor:pointer;transition:.15s}
   .scard:hover{background:var(--hov);transform:translateY(-1px)}
   .scard.ok{opacity:.42}
@@ -488,6 +491,7 @@ const LABEL={teoria:'Teoria',questoes:'Questoes',revisao:'Revisao'}
 let _alunoId=null,_nome='',_email='',_diretrizes=null,_diretrizesEm=null,_concursoId=null,_concursoNome='',_dataProva=null,_cfg=null
 let _sessoes=[],_porData={},_refSem=null,_refMes=null,_corDisc={},_graf=null,_secAtual='cronograma'
 let _dataExp=null,_pzDur='7',_pzPrevia=null
+let _extras=[],_extraNomes={},_banco=null
 let _mentor=false,_limiteBloq=20,_wpp=null,_fd=null,_saindo=false,_editalFeito={},_sessoesOutros=[]
 
 function ymd(d){const x=new Date(d);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')}
@@ -635,6 +639,9 @@ async function init(){
   if(!ativo&&aluno.concurso_id&&porConc[aluno.concurso_id])ativo=aluno.concurso_id
   if(!ativo)ativo=sess[sess.length-1].concurso_id
   _sessoes=sess.filter(function(x){return x.concurso_id===ativo})
+  // sessoes EXTRAS (disciplinas de outro concurso): ficam fora do plano principal e do replanejamento
+  _extras=_sessoes.filter(function(x){return x.extra})
+  _sessoes=_sessoes.filter(function(x){return !x.extra})
   _sessoesOutros=sess.filter(function(x){return x.concurso_id!==ativo})
   _concursoId=ativo
   if(_mentor){
@@ -646,6 +653,7 @@ async function init(){
   }
   const { data:conc }=await _supabase.from('concursos').select('nome, data_prova').eq('id',_concursoId).single()
   _concursoNome=conc?conc.nome:''
+  await nomesExtras()
   const { data:cfg }=await _supabase.from('config_cronograma').select('*')
     .eq('aluno_id',_alunoId).eq('concurso_id',_concursoId).maybeSingle()
   _cfg=cfg
@@ -664,6 +672,7 @@ async function init(){
   desenhar()
   carregarMetasDia()
   contarRevisaoCaderno()
+  carregarBanco().then(function(){renderHoje()})
   checarAvisos()
   const qs=new URLSearchParams(location.search)
   if(qs.get('pausa')==='1')setTimeout(abrirPausa,500)
@@ -862,12 +871,12 @@ function renderBoard(){
   const ini=inicioSemana(_refSem), hj=hojeStr()
   let html=''
   for(let i=0;i<7;i++){
-    const d=addDays(ini,i), key=ymd(d), sess=_porData[key]||[]
+    const d=addDays(ini,i), key=ymd(d), sess=_porData[key]||[], ext=extrasDoDia(key)
     html+='<div class="col"><div class="col-h'+(key===hj?' hoje':'')+'">'+CURTO[d.getDay()]+'<span class="dn">'+d.getDate()+'</span>'
       +'<span class="col-cfg" title="Ajustes do dia" onclick="event.stopPropagation();ajustesDoDia(\''+key+'\')">⋯</span></div>'
-    if(!sess.length){html+='<div class="vazio">—</div></div>';continue}
+    if(!sess.length&&!ext.length){html+='<div class="vazio">—</div></div>';continue}
     const co=sess.some(function(s){return s.caderno_erros_lido})
-    html+='<div class="cad'+(co?' ok':'')+'" onclick="marcarCaderno(\''+key+'\','+(!co)+')"><div class="cad-c'+(co?' on':'')+'">'+(co?'✓':'')+'</div><div class="cad-t">Caderno de erros</div></div>'
+    if(sess.length)html+='<div class="cad'+(co?' ok':'')+'" onclick="marcarCaderno(\''+key+'\','+(!co)+')"><div class="cad-c'+(co?' on':'')+'">'+(co?'✓':'')+'</div><div class="cad-t">Caderno de erros</div></div>'
     sess.forEach(function(s){
       const c=corDe(s.disciplina)
       html+='<div class="scard'+(s.concluida?' ok':'')+'" style="--c:'+c+'" onclick="abrirSessao(\''+s.id+'\')">'
@@ -877,6 +886,12 @@ function renderBoard(){
         +(s.continuacao_de?'<span class="pill" style="background:#2a2410;color:#e8b04b">continuacao</span>':'')
         +(s.parcial?'<span class="pill" style="background:#2a2410;color:#e8b04b">parcial</span>':'')
         +(s.questoes_feitas?'<span class="pill">'+s.questoes_feitas+'q</span>':'')+'</div></div>'
+    })
+    ext.forEach(function(s){
+      html+='<div class="scard extra'+(s.concluida?' ok':'')+'" style="--c:#b98ae0" onclick="abrirSessao(\''+s.id+'\')">'
+        +'<div class="sc-top"><div class="circ'+(s.concluida?' on':'')+'" onclick="event.stopPropagation();toggleSessao(\''+s.id+'\')">'+(s.concluida?'✓':'')+'</div>'
+        +'<div class="sc-d">'+esc(s.disciplina)+'</div></div><div class="sc-t">'+esc(s.topico)+'</div>'
+        +'<div class="sc-f"><span class="pill pill-x">➕ EXTRA</span><span class="pill pill-t">'+LABEL[s.tipo]+'</span><span class="pill">'+dur(s.tempo_minutos)+'</span></div></div>'
     })
     html+='</div>'
   }
@@ -1059,10 +1074,10 @@ function renderDesempenho(){
   const q=_sessoes.reduce(function(a,s){return a+(s.questoes_feitas||0)},0)
   const c=_sessoes.reduce(function(a,s){return a+(s.questoes_certas||0)},0)
   const pctQ=q?Math.round(c/q*100):0
-  const min=_sessoes.filter(function(s){return s.concluida}).reduce(function(a,s){return a+(s.tempo_minutos||0)},0)
+  const min=_sessoes.concat(_extras).filter(function(s){return s.concluida}).reduce(function(a,s){return a+(s.tempo_minutos||0)},0)
   const pctP=total?Math.round(feitas/total*100):0
   const diasCad={}, diasEst={}
-  _sessoes.forEach(function(s){ if(s.concluida)diasEst[s.data]=true; if(s.caderno_erros_lido)diasCad[s.data]=true })
+  _sessoes.concat(_extras).forEach(function(s){ if(s.concluida)diasEst[s.data]=true; if(s.caderno_erros_lido)diasCad[s.data]=true })
   const nEst=Object.keys(diasEst).length, nCad=Object.keys(diasCad).length
   const pctCad=nEst?Math.round(nCad/nEst*100):0
 
@@ -1247,14 +1262,93 @@ async function trocarSenha(){
 }
 
 /* ---------- SESSOES ---------- */
+/* ---------- SESSOES EXTRAS + LIGACAO COM O BANCO DE QUESTOES ---------- */
+function acharSessao(id){return _sessoes.find(function(x){return x.id===id})||_extras.find(function(x){return x.id===id})}
+function extrasDoDia(k){return _extras.filter(function(s){return s.data===k}).sort(function(a,b){return (a.ordem||0)-(b.ordem||0)})}
+function nomeExtra(s){return _extraNomes[s.concurso_extra]||'outro concurso'}
+async function nomesExtras(){
+  const ids=[];_extras.forEach(function(s){if(s.concurso_extra&&ids.indexOf(s.concurso_extra)<0)ids.push(s.concurso_extra)})
+  if(!ids.length)return
+  try{const r=await _supabase.from('concursos').select('id,nome').in('id',ids);(r.data||[]).forEach(function(c){_extraNomes[String(c.id)]=c.nome})}catch(e){}
+}
+// disciplinas e assuntos que existem no banco de questoes (guardado por 10 min)
+async function carregarBanco(){
+  try{const c=JSON.parse(sessionStorage.getItem('banco_facetas')||'null');if(c&&Date.now()-c.t<600000){_banco=c.d;return}}catch(e){}
+  try{
+    const rows=await todasLinhasC(function(){return _supabase.from('questoes').select('disciplina,assunto').eq('ativo',true).order('id')})
+    const d={}
+    ;(rows||[]).forEach(function(q){if(!q.disciplina)return;const x=d[q.disciplina]=d[q.disciplina]||{n:0,a:{}};x.n++;if(q.assunto)x.a[q.assunto]=(x.a[q.assunto]||0)+1})
+    _banco=d
+    try{sessionStorage.setItem('banco_facetas',JSON.stringify({t:Date.now(),d:d}))}catch(e){}
+  }catch(e){_banco={}}
+}
+const STOP_Q={de:1,da:1,do:1,das:1,dos:1,e:1,a:1,o:1,em:1,no:1,na:1,ao:1,as:1,os:1,para:1,com:1,lei:1,n:1,art:1,arts:1,sobre:1}
+function tokQ(v){return normTxt(v).split(' ').filter(function(t){return t&&!STOP_Q[t]&&!/^\d+$/.test(t)})}
+function casaQ(t,u,min){return t===u||(t.length>=min&&u.length>=min&&(u.indexOf(t)===0||t.indexOf(u)===0))}
+function simDisc(x,y){
+  if(normTxt(x)===normTxt(y))return 1
+  const A=tokQ(x),B=tokQ(y);if(!A.length||!B.length)return 0
+  let m=0;A.forEach(function(t){if(B.some(function(u){return casaQ(t,u,3)}))m++})
+  return m/Math.max(A.length,B.length)
+}
+function simAss(topico,assunto){
+  if(normTxt(topico)===normTxt(assunto))return 1
+  const A=tokQ(topico),B=tokQ(assunto);if(!A.length||!B.length)return 0
+  let m=0;B.forEach(function(t){if(A.some(function(u){return casaQ(t,u,4)}))m++})
+  return m/Math.min(A.length,B.length)
+}
+// qual disciplina/assunto do banco corresponde a esta sessao? (null = o banco ainda nao tem)
+function questoesDoTema(s){
+  if(!_banco||!s)return null
+  let d=null,ds=0
+  Object.keys(_banco).forEach(function(k){const v=simDisc(s.disciplina,k);if(v>ds){ds=v;d=k}})
+  if(!d||ds<0.6)return null
+  const tp=String(s.topico||'').replace(/\s*\((continua[cç]ao|cont\.?)[^)]*\)\s*$/i,'')
+  let as=null,av=0
+  Object.keys(_banco[d].a).forEach(function(k){const v=simAss(tp,k);if(v>av||(v===av&&v>0&&_banco[d].a[k]>_banco[d].a[as])){av=v;as=k}})
+  if(as&&av>=0.75)return {d:d,a:as,n:_banco[d].a[as],rot:as}
+  return {d:d,a:'',n:_banco[d].n,rot:d}
+}
+function abrirQuestoes(id){
+  const s=acharSessao(id), q=questoesDoTema(s); if(!q)return
+  let u='questoes.html?'+(_mentor?'aluno='+encodeURIComponent(_alunoId)+'&':'')+'treinar='+encodeURIComponent(q.d+(q.a?'||'+q.a:''))+'&st=nao'
+  if(!_mentor&&!s.concluida)u+='&sessao='+encodeURIComponent(id)
+  _saindo=true;location.href=u
+}
+function botaoQuestoes(s,grande){
+  if(s.tipo!=='questoes')return ''
+  const q=questoesDoTema(s); if(!q)return ''
+  return grande
+    ?'<button class="btn btn-ouro" style="width:100%;padding:13px;margin-bottom:8px;font-weight:800" onclick="fecharModal();abrirQuestoes(\''+s.id+'\')">❓ Resolver questoes agora<br><span style="font-size:11.5px;font-weight:600;opacity:.85">'+esc(q.rot)+' · '+q.n+' no banco</span></button>'
+    :'<button class="hi-b" onclick="event.stopPropagation();abrirQuestoes(\''+s.id+'\')">❓ Resolver</button>'
+}
+function itemHoje(s,extra){
+  const c=corDe(s.disciplina), bq=s.concluida?'':botaoQuestoes(s,false)
+  return '<div class="hi'+(s.concluida?' ok':'')+(extra?' extra':'')+'" style="--c:'+(extra?'#b98ae0':c)+'">'
+    +'<button class="hi-ck" title="'+(s.concluida?'Desmarcar':'Marcar como concluida')+'" onclick="toggleSessao(\''+s.id+'\')">'+(s.concluida?'✓':'')+'</button>'
+    +'<div class="hi-tx" onclick="abrirSessao(\''+s.id+'\')"><div class="hi-d">'+(extra?'➕ EXTRA · '+esc(nomeExtra(s))+' · ':'')+esc(s.disciplina)+' · '+LABEL[s.tipo]+'</div>'
+    +'<div class="hi-tp">'+esc(s.topico)+'</div>'
+    +'<div class="hi-m">'+dur(s.tempo_minutos||0)+(s.meta_questoes?' · meta '+s.meta_questoes+' questoes':'')+' · toque para detalhes</div></div>'
+    +(s.concluida?'<span class="hi-ok">✓ Feito</span>':(bq||'<button class="hi-b" onclick="toggleSessao(\''+s.id+'\')">✓ Conclui</button>'))
+    +'</div>'
+}
+function htmlExtrasHoje(k){
+  const ex=extrasDoDia(k); if(!ex.length)return ''
+  const f=ex.filter(function(s){return s.concluida}).length
+  return '<div class="metas-t" style="margin-top:14px">➕ Sessoes extras <span style="color:var(--tx3)">'+f+'/'+ex.length+'</span></div>'
+    +'<div style="color:var(--tx3);font-size:12px;margin:-2px 0 8px">Alem do seu horario: disciplinas de outro concurso. Nao contam na Missao de hoje.</div>'
+    +ex.map(function(s){return itemHoje(s,true)}).join('')
+}
+
 async function toggleSessao(id){
-  const s=_sessoes.find(function(x){return x.id===id}); if(!s)return
+  const s=acharSessao(id); if(!s)return
   s.concluida=!s.concluida
   desenhar()
   const r=await _supabase.from('sessoes_estudo').update({concluida:s.concluida}).eq('id',id)
   if(r.error){s.concluida=!s.concluida;desenhar();alert('Nao foi possivel salvar: '+r.error.message);return}
   if(s.tipo==='teoria'&&s.topico_id&&!s.parcial)await marcarEdital(s.topico_id,s.concluida)
   if(_mentor)logar(s.concluida?'concluiu':'desmarcou',(s.concluida?'Marcou como concluida: ':'Desmarcou: ')+s.topico+' ('+s.disciplina+')')
+  if(s.concluida&&s.extra){toast('➕ Sessao extra concluida! Bom reforco para '+(_extraNomes[s.concurso_extra]||'o outro concurso')+'.');return}
   if(s.concluida){
     const dia=_porData[s.data]||[]
     const falta=dia.filter(function(x){return !x.concluida}).length
@@ -1273,7 +1367,7 @@ async function marcarCaderno(data,val){
 }
 
 function abrirSessao(id){
-  const s=_sessoes.find(function(x){return x.id===id}); if(!s)return
+  const s=acharSessao(id); if(!s)return
   const c=corDe(s.disciplina)
   document.getElementById('modal-c').innerHTML=
     '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:14px">'
@@ -1284,11 +1378,13 @@ function abrirSessao(id){
    +'<span class="pill pill-t" style="--c:'+c+'">'+LABEL[s.tipo]+'</span>'
    +'<span class="pill">'+dur(s.tempo_minutos)+'</span>'
    +'<span class="pill">'+parseD(s.data).toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit'})+'</span>'
-   +(s.meta_questoes?'<span class="pill">meta '+s.meta_questoes+'q</span>':'')+'</div>'
+   +(s.meta_questoes?'<span class="pill">meta '+s.meta_questoes+'q</span>':'')+(s.extra?'<span class="pill pill-x">➕ EXTRA · '+esc(nomeExtra(s))+'</span>':'')+'</div>'
+   +(s.extra?'<div style="color:var(--tx3);font-size:12.5px;line-height:1.5;margin:-6px 0 12px">Sessao extra: disciplina de '+esc(nomeExtra(s))+', alem do seu horario. O plano principal continua sendo a prioridade.</div>':'')
+   +(!s.concluida?botaoQuestoes(s,true):'')
    +((!s.concluida&&!_mentor)?'<button class="btn" style="width:100%;padding:12px;margin-bottom:8px;border-color:var(--ouro);color:var(--ouro);font-weight:700" onclick="fecharModal();pomoSessao(\''+id+'\')">🍅 Estudar esta sessao com Pomodoro</button>':'')
    +'<button class="btn '+(s.concluida?'':'btn-ouro')+'" style="width:100%;padding:12px" onclick="toggleSessao(\''+id+'\');fecharModal()">'
    +(s.concluida?'Desmarcar conclusao':'Marcar como concluida')+'</button>'
-   +((!s.concluida&&s.tipo==='teoria')?
+   +((!s.concluida&&s.tipo==='teoria'&&!s.extra)?
       '<button class="btn" style="width:100%;padding:12px;margin-top:8px;border-color:#7d5fa8;color:#c9a9e8" onclick="naoFinalizei(\''+id+'\')">'
      +'Estudei, mas nao finalizei o assunto</button>'
      +'<div style="color:var(--tx4);font-size:11px;margin-top:6px;text-align:center;line-height:1.5">O dia conta como estudado e o tema volta na proxima vaga desta disciplina.</div>'
@@ -1315,12 +1411,12 @@ function fecharModal(){document.getElementById('modal').classList.remove('on');_
 
 /* ---------- POMODORO ---------- */
 function pomoSessao(id){
-  const s=_sessoes.find(function(x){return x.id===id})
+  const s=acharSessao(id)
   pomoAbrir({sessaoId:id,titulo:s?(s.disciplina+' · '+s.topico):''})
 }
 // chamado pelo Pomodoro ao terminar: registra o tempo estudado e conclui a sessao
 window.pomoRegistrarSessao=async function(id,min){
-  const s=_sessoes.find(function(x){return x.id===id}); if(!s)return
+  const s=acharSessao(id); if(!s)return
   try{await _supabase.from('sessoes_estudo').update({tempo_minutos:min}).eq('id',id);s.tempo_minutos=min}catch(e){}
   if(!s.concluida)await toggleSessao(id); else desenhar()
   toast('🍅 '+min+' min de foco registrados em '+s.disciplina+'.')
@@ -1333,7 +1429,7 @@ async function salvarTempoSessao(id){
   m.style.color='var(--tx3)';m.textContent='Salvando...'
   const r=await _supabase.from('sessoes_estudo').update({tempo_minutos:v}).eq('id',id)
   if(r.error){m.style.color='#f07171';m.textContent='Erro ao salvar.';return}
-  const s=_sessoes.find(function(x){return x.id===id})
+  const s=acharSessao(id)
   if(s)s.tempo_minutos=v
   m.style.color='#6ddba0';m.textContent='Tempo atualizado para '+dur(v)+'.'
   desenhar()
@@ -1346,7 +1442,7 @@ async function salvarQ(id){
   if(c>f){m.style.color='#f07171';m.textContent='Acertos nao podem passar do total.';return}
   const r=await _supabase.from('sessoes_estudo').update({questoes_feitas:f,questoes_certas:c}).eq('id',id)
   if(r.error){m.style.color='#f07171';m.textContent='Erro ao salvar.';return}
-  const s=_sessoes.find(function(x){return x.id===id})
+  const s=acharSessao(id)
   if(s){s.questoes_feitas=f;s.questoes_certas=c}
   m.style.color='#6ddba0';m.textContent=f>0?Math.round(c/f*100)+'% de acerto':'Salvo'
   renderBoard()
@@ -1368,7 +1464,7 @@ function tituloContinuacao(t){
 }
 
 async function naoFinalizei(id){
-  const s=_sessoes.find(function(x){return x.id===id}); if(!s)return
+  const s=acharSessao(id); if(!s)return
   const volta=_fd
 
   // proxima vaga da mesma disciplina
@@ -1467,7 +1563,8 @@ async function recarregar(){
   const fab=function(){let q=_supabase.from('sessoes_estudo').select('*').eq('aluno_id',_alunoId);if(_concursoId)q=q.eq('concurso_id',_concursoId);return q.order('data').order('ordem').order('id')}
   let data
   try{data=await todasLinhasC(fab)}catch(e){let q=_supabase.from('sessoes_estudo').select('*').eq('aluno_id',_alunoId);if(_concursoId)q=q.eq('concurso_id',_concursoId);data=(await q.order('data').order('ordem')).data}
-  _sessoes=data||[]
+  _sessoes=(data||[]).filter(function(x){return !x.extra})
+  _extras=(data||[]).filter(function(x){return x.extra})
   indexar();desenhar()
 }
 function proximaOrdem(k){
@@ -2389,7 +2486,7 @@ async function confirmarJaVistas(){
 
 // pela sessao: "ja estudei este assunto"
 async function jaEstudeiTema(id){
-  const s=_sessoes.find(function(x){return x.id===id}); if(!s||!s.topico_id)return
+  const s=acharSessao(id); if(!s||!s.topico_id)return
   if(!confirm('Marcar "'+s.topico+'" como ja estudado no Edital e tirar a teoria do cronograma?\n\nQuestoes e revisao deste tema continuam.'))return
   await marcarEdital(s.topico_id,true)
   _editalFeito[s.topico_id]=1
@@ -2610,6 +2707,10 @@ function renderHoje(){
   const box=document.getElementById('hoje-box'); if(!box)return
   if(planoPausado()){box.innerHTML='';return}
   const hj=hojeStr(), sess=(_porData[hj]||[]).slice().sort(function(a,b){return (a.ordem||0)-(b.ordem||0)})
+  if(!sess.length&&extrasDoDia(hj).length){
+    box.innerHTML='<div class="hoje-p">'+htmlExtrasHoje(hj).replace('margin-top:14px','margin-top:0')+'</div>'
+    return
+  }
   if(!sess.length){
     const px=proxima(ymd(addDays(new Date(),1)))
     box.innerHTML='<div class="hoje-p" style="padding:14px 18px"><div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">'
@@ -2632,16 +2733,7 @@ function renderHoje(){
 
   // 1) cronograma: as sessoes do dia
   h+='<div class="metas-t">1 · Cronograma de estudos <span style="color:'+(sOk?'#6ddba0':'var(--tx3)')+'">'+feitas+'/'+tot+'</span></div>'
-  sess.forEach(function(s){
-    const c=corDe(s.disciplina)
-    h+='<div class="hi'+(s.concluida?' ok':'')+'" style="--c:'+c+'">'
-      +'<button class="hi-ck" title="'+(s.concluida?'Desmarcar':'Marcar como concluida')+'" onclick="toggleSessao(\''+s.id+'\')">'+(s.concluida?'✓':'')+'</button>'
-      +'<div class="hi-tx" onclick="abrirSessao(\''+s.id+'\')"><div class="hi-d">'+esc(s.disciplina)+' · '+LABEL[s.tipo]+'</div>'
-      +'<div class="hi-tp">'+esc(s.topico)+'</div>'
-      +'<div class="hi-m">'+dur(s.tempo_minutos||0)+(s.meta_questoes?' · meta '+s.meta_questoes+' questoes':'')+' · toque para detalhes</div></div>'
-      +(s.concluida?'<span class="hi-ok">✓ Feito</span>':'<button class="hi-b" onclick="toggleSessao(\''+s.id+'\')">✓ Conclui</button>')
-      +'</div>'
-  })
+  sess.forEach(function(s){h+=itemHoje(s,false)})
   if(feitas<tot){
     h+='<div class="hoje-f" style="margin:4px 0 6px">'
       +(!_mentor?'<button class="btn" style="border-color:var(--ouro);color:var(--ouro)" onclick="pomoAbrir({titulo:\'Missao de hoje\'})">🍅 Pomodoro</button>':'')
@@ -2649,6 +2741,7 @@ function renderHoje(){
       +(tot-feitas>1?'<button class="btn" onclick="concluirTudo(\''+hj+'\')">✅ Conclui tudo de hoje</button>':'')
       +'</div>'
   }
+  h+=htmlExtrasHoje(hj)
 
   // 2) questoes e 3) caderno de erros
   h+='<div class="metas-t" style="margin-top:14px">2 · Questoes do dia</div>'
@@ -2743,7 +2836,7 @@ function baseAdiar(k){
 }
 
 async function fdAdiar(id){
-  const s=_sessoes.find(function(x){return x.id===id}); if(!s||!_fd)return
+  const s=acharSessao(id); if(!s||!_fd)return
   const f=_fd
   fdMsg('Reorganizando...','var(--tx3)')
   const de=s.data

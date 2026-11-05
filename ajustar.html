@@ -150,7 +150,7 @@ async function comparar(){
     _supabase.from('sessoes_estudo').select('*').eq('aluno_id',aluno).eq('concurso_id',conc),
     _supabase.from('edital_topicos').select('*').eq('concurso_id',conc).order('disciplina').order('ordem')
   ])
-  const sess=rs.data||[], tops=rt.data||[]
+  const sess=(rs.data||[]).filter(function(s){return !s.extra}), tops=rt.data||[]   // sessoes extras (outro concurso) ficam de fora
 
   if(!sess.length){msg('msg-a','Este aluno ainda nao tem cronograma neste concurso. Use o <a href="gerador.html" style="color:var(--ouro)">Gerador</a>.','var(--alerta)');document.getElementById('card-comp').style.display='none';return}
   if(!tops.length){msg('msg-a','Nenhum edital cadastrado para este concurso. Cadastre em <a href="edital-admin.html" style="color:var(--ouro)">Editais</a> primeiro.','var(--erro)');document.getElementById('card-comp').style.display='none';return}
@@ -261,7 +261,7 @@ async function aplicar(){
       _supabase.from('edital_topicos').select('*').eq('concurso_id',_comp.conc),
       _supabase.from('config_cronograma').select('*').eq('aluno_id',aid).eq('concurso_id',_comp.conc).maybeSingle()
     ])
-    const sess=rs.data||[], tops=rt.data||[], cfg=rc.data
+    const sess=(rs.data||[]).filter(function(s){return !s.extra}), tops=rt.data||[], cfg=rc.data
     if(!sess.length)continue
 
     const chaveEd={}
@@ -284,8 +284,9 @@ async function aplicar(){
 
     // 2) adiciona os temas novos nas vagas livres
     if(add){
-      const { data:atual }=await _supabase.from('sessoes_estudo').select('data,ordem,topico,tipo')
+      const { data:atual0 }=await _supabase.from('sessoes_estudo').select('*')
         .eq('aluno_id',aid).eq('concurso_id',_comp.conc)
+      const atual=(atual0||[]).filter(function(s){return !s.extra})
       const noPlano={}
       ;(atual||[]).forEach(function(s){ noPlano[norm(String(s.topico).replace(/\s*\(continuacao[^)]*\)\s*$/i,''))]=1 })
       const novos=tops.filter(function(t){ return !noPlano[norm(t.topico)] })
@@ -358,8 +359,9 @@ async function aplicar(){
 
     // 3) reordena os pendentes por prioridade
     if(reo){
-      const { data:pend2 }=await _supabase.from('sessoes_estudo').select('id,data,ordem,topico,tipo,concluida')
+      const { data:pend0 }=await _supabase.from('sessoes_estudo').select('*')
         .eq('aluno_id',aid).eq('concurso_id',_comp.conc).eq('concluida',false).gte('data',ymd(new Date()))
+      const pend2=(pend0||[]).filter(function(s){return !s.extra})
       if(pend2&&pend2.length){
         const prio={}
         tops.forEach(function(t){ prio[norm(t.topico)]=PESO[t.prioridade]===undefined?1:PESO[t.prioridade] })

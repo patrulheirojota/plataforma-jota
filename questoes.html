@@ -500,6 +500,19 @@ function aplicarTreinar(){
     document.querySelectorAll('#ch-status .chip').forEach(function(e){e.classList.toggle('on',e.dataset.st===st)})
   }
   const box=document.getElementById('treinar-aviso')
+  // veio de uma sessao de questoes do cronograma: mostra o placar da visita e o botao de concluir
+  const sid=qs.get('sessao')
+  if(box&&sid&&!_mentor){
+    _sessaoCron={id:sid,f:0,c:0}
+    box.innerHTML='<div class="painel" style="margin-bottom:14px;border-color:var(--ouro)">'
+      +'<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><div style="font-size:22px">📅</div>'
+      +'<div style="flex:1;min-width:180px"><div style="font-weight:800;font-size:14px">Sessao de questoes do cronograma: '+esc(a||d)+'</div>'
+      +'<div style="color:var(--tx3);font-size:12.5px">'+esc(d)+' · mostrando as que voce ainda nao fez. Nesta visita: <strong id="sc-n" style="color:var(--tx)">0</strong> respondida(s), <strong id="sc-c" style="color:#6ddba0">0</strong> acerto(s).</div></div></div>'
+      +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn btn-ouro" style="flex:1;min-width:200px;padding:11px" onclick="concluirSessaoCron()">✓ Concluir a sessao e voltar ao cronograma</button>'
+      +'<button class="btn" onclick="location.href=\'cronograma.html\'">Voltar sem concluir</button></div>'
+      +'<div id="sc-msg" style="font-size:12.5px;margin-top:6px"></div></div>'
+    return
+  }
   if(box&&d){
     const nst={errei:'so as que voce errou',nao:'so as que voce ainda nao fez',acertei:'so as que acertou',resolvidas:'as ja resolvidas',todas:'todas'}[st||'todas']
     box.innerHTML='<div class="painel" style="margin-bottom:14px;border-color:var(--ouro);display:flex;gap:10px;align-items:center;flex-wrap:wrap">'
@@ -715,7 +728,22 @@ function marcar(id,letra){
   box.querySelectorAll('.alt').forEach(function(e){e.classList.toggle('sel',e.dataset.l===letra)})
 }
 
-let _temConf=false, _confQ={}
+let _temConf=false, _confQ={}, _sessaoCron=null
+async function concluirSessaoCron(){
+  if(!_sessaoCron)return
+  const m=document.getElementById('sc-msg')
+  if(!_sessaoCron.f&&!confirm('Voce ainda nao respondeu nenhuma questao nesta visita. Concluir a sessao mesmo assim?'))return
+  if(m){m.style.color='var(--tx3)';m.textContent='Salvando...'}
+  const r=await _supabase.from('sessoes_estudo').update({concluida:true}).eq('id',_sessaoCron.id).eq('aluno_id',_alunoId)
+  if(r.error){if(m){m.style.color='var(--erro)';m.textContent='Nao foi possivel concluir: '+r.error.message};return}
+  location.href='cronograma.html'
+}
+function contarSessaoCron(acertou){
+  if(!_sessaoCron)return
+  _sessaoCron.f++;if(acertou)_sessaoCron.c++
+  const n=document.getElementById('sc-n'),c=document.getElementById('sc-c')
+  if(n)n.textContent=_sessaoCron.f;if(c)c.textContent=_sessaoCron.c
+}
 function responderConf(id,k){_confQ[id]=k;responder(id)}
 async function responder(id){
   const q=_qs.find(function(x){return x.id===id}); if(!q)return
@@ -735,6 +763,7 @@ async function responder(id){
 
   _resp[id]={correta:acertou,visto:true,em:new Date().toISOString()}
   _respHoje++
+  contarSessaoCron(acertou)
   renderEstat();renderMeta()
 
   const linhaR={aluno_id:_alunoId,questao_id:id,resposta:letra,correta:acertou,respondido_em:new Date().toISOString()}

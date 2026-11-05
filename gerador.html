@@ -223,6 +223,30 @@
     <p id="msg-salvar" style="display:none;margin-top:8px;font-size:13px"></p>
   </div>
 
+  <!-- 5. EXTRAS DE OUTRO CONCURSO -->
+  <div class="card" id="card-extra" style="display:none">
+    <h3>5. Disciplinas extras de outro concurso</h3>
+    <p style="color:var(--tx3);font-size:13px;line-height:1.55;margin-bottom:10px">Para o aluno que foca <strong>neste</strong> concurso mas pensa em fazer outro. As disciplinas <strong>especificas</strong> do outro edital (ex.: Historia da Bahia, Legislacao da PM) entram como <strong>sessoes extras</strong>, alem do horario diario. O plano principal nao muda e continua sendo a prioridade.</p>
+    <div id="ex-aviso"></div>
+    <div class="cfg-grid">
+      <div class="cfg-item"><label>Outro concurso</label><select id="ex-conc" onchange="carregarExtra()" style="margin:0"><option value="">Escolha o concurso</option></select></div>
+      <div class="cfg-item"><label>Inicio das extras</label><input type="date" id="ex-inicio" style="margin:0"></div>
+      <div class="cfg-item"><label>Ate (data da prova principal)</label><input type="date" id="ex-fim" style="margin:0"></div>
+      <div class="cfg-item"><label>Sessoes extras por dia</label><input type="number" id="ex-sess" value="1" min="1" max="4" style="margin:0"></div>
+      <div class="cfg-item"><label>Tempo de cada sessao (min)</label><input type="number" id="ex-tempo" value="60" min="15" step="15" style="margin:0"></div>
+    </div>
+    <div style="margin-top:12px">
+      <label style="color:var(--tx3);font-size:12px">Em quais dias entram as extras</label>
+      <div class="dias-row" id="ex-dias"></div>
+    </div>
+    <div id="ex-discs" style="margin-top:14px"></div>
+    <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+      <button onclick="gerarExtras()" style="flex:1;min-width:180px">Gerar sessoes extras</button>
+    </div>
+    <div id="ex-prev" style="margin-top:12px"></div>
+    <p id="ex-msg" style="display:none;margin-top:8px;font-size:13px"></p>
+  </div>
+
 </div>
 
 <script src="config.js"></script>
@@ -267,7 +291,7 @@ function montarDias(){
 }
 
 function diasSelecionados(){
-  return Array.from(document.querySelectorAll('.dia-chip.on')).map(el => parseInt(el.dataset.d))
+  return Array.from(document.querySelectorAll('#g-dias .dia-chip.on')).map(el => parseInt(el.dataset.d))
 }
 
 function modosAtivos(){
@@ -386,7 +410,7 @@ function ligarListeners(){
     const el = document.getElementById(id)
     if (el) { el.addEventListener('input', atualizarCapacidade); el.addEventListener('change', atualizarCapacidade) }
   })
-  document.querySelectorAll('.dia-chip').forEach(function(el){
+  document.querySelectorAll('#g-dias .dia-chip').forEach(function(el){
     el.addEventListener('click', function(){ setTimeout(atualizarCapacidade, 10) })
   })
 }
@@ -398,6 +422,7 @@ async function aoTrocarAluno(){
   document.getElementById('card-config').style.display='none'
   document.getElementById('card-temas').style.display='none'
   document.getElementById('card-preview').style.display='none'
+  document.getElementById('card-extra').style.display='none'
   if (!aluno_id) return
   const { data: vinc } = await _supabase.from('aluno_concursos').select('concurso_id, concursos(nome)').eq('aluno_id', aluno_id)
   if (!vinc || !vinc.length) { sc.innerHTML = '<option value="">Aluno sem concurso vinculado</option>'; return }
@@ -432,12 +457,13 @@ async function carregarTemas(){
     })
     sincronizarSemTeoria()
     const dias = String(cfg.dias_semana||'').split(',').map(n=>parseInt(n))
-    document.querySelectorAll('.dia-chip').forEach(el => {
+    document.querySelectorAll('#g-dias .dia-chip').forEach(el => {
       if (dias.indexOf(parseInt(el.dataset.d)) >= 0) el.classList.add('on'); else el.classList.remove('on')
     })
   }
 
   checarOutrosConcursos()
+  prepararExtra()
 
   // sessoes ja existentes
   const { data: existentes } = await _supabase.from('sessoes_estudo').select('id,concluida').eq('aluno_id',aluno_id).eq('concurso_id',concurso_id)
@@ -897,6 +923,7 @@ async function salvarCronograma(){
   // limpa o plano anterior
   let del = _supabase.from('sessoes_estudo').delete().eq('aluno_id',aluno_id).eq('concurso_id',concurso_id)
   if (manter) del = del.eq('concluida', false)
+  if (await colunaExtra()) del = del.eq('extra', false)   // as sessoes extras (outro concurso) ficam
   const r0 = await del
   if (r0.error) { msg.style.color='var(--erro)'; msg.textContent='Erro ao limpar plano anterior: '+r0.error.message; return }
 
@@ -957,6 +984,177 @@ async function salvarCronograma(){
   msg.textContent='Cronograma salvo! '+inseridos+' sessoes distribuidas em '+_plano.calendario.length+' dias.'+(idsOutros.length?' O plano antigo ('+idsOutros.length+' sessoes pendentes) foi removido.':'')
   checarOutrosConcursos()
   document.getElementById('msg-existente').style.display='none'
+}
+
+// ---------- DISCIPLINAS EXTRAS DE OUTRO CONCURSO ----------
+// Ficam no mesmo plano (concurso principal), marcadas como extra=true, com o concurso de origem em concurso_extra.
+let _temExtra = null, _exTops = [], _exDiscs = [], _exPlano = null, _exNomes = {}
+const STOP_G = { de:1, da:1, do:1, das:1, dos:1, e:1, a:1, o:1, em:1, no:1, na:1, ao:1, as:1, os:1, para:1, com:1, lingua:1, nocoes:1, conhecimentos:1, basicos:1, basicas:1 }
+function normG(v){ return String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim() }
+function tokensG(v){ return normG(v).split(' ').filter(function(t){ return t && !STOP_G[t] }) }
+// 0 a 1: quanto dois nomes de disciplina se parecem ("Dir. Constitucional" x "Direito Constitucional")
+function parecido(x, y){
+  if (normG(x) === normG(y)) return 1
+  const A = tokensG(x), B = tokensG(y); if (!A.length || !B.length) return 0
+  let m = 0
+  A.forEach(function(t){ if (B.some(function(u){ return u===t || (t.length>=3 && u.length>=3 && (u.indexOf(t)===0 || t.indexOf(u)===0)) })) m++ })
+  return m / Math.max(A.length, B.length)
+}
+async function colunaExtra(){
+  if (_temExtra !== null) return _temExtra
+  try { const r = await _supabase.from('sessoes_estudo').select('extra').limit(1); _temExtra = !r.error } catch(e) { _temExtra = false }
+  return _temExtra
+}
+function exDiasSel(){ return Array.from(document.querySelectorAll('#ex-dias .dia-chip.on')).map(function(el){ return parseInt(el.dataset.d) }) }
+function exMsg(t, cor){ const m = document.getElementById('ex-msg'); m.style.display = t ? 'block' : 'none'; m.style.color = cor || 'var(--tx3)'; m.innerHTML = t || '' }
+
+async function prepararExtra(){
+  const card = document.getElementById('card-extra')
+  const aluno_id = document.getElementById('g-aluno').value, concurso_id = document.getElementById('g-concurso').value
+  if (!aluno_id || !concurso_id) { card.style.display = 'none'; return }
+  card.style.display = 'block'
+  _exPlano = null; document.getElementById('ex-prev').innerHTML = ''; exMsg('')
+  const dx = document.getElementById('ex-dias')
+  if (!dx.children.length) {
+    for (let i=0;i<7;i++) dx.innerHTML += '<div class="dia-chip'+((i===0||i===6)?' on':'')+'" data-d="'+i+'" onclick="this.classList.toggle(\'on\')">'+CURTO_DIA[i]+'</div>'
+  }
+  if (!document.getElementById('ex-inicio').value) document.getElementById('ex-inicio').value = ymd(new Date())
+  const pv = document.getElementById('g-prova').value
+  if (pv) document.getElementById('ex-fim').value = pv
+  const av = document.getElementById('ex-aviso')
+  if (!(await colunaExtra())) {
+    av.innerHTML = '<div style="background:rgba(240,113,113,.08);border:1px solid var(--erro);border-radius:10px;padding:12px;font-size:13px;color:var(--erro);margin-bottom:10px">Rode o arquivo <strong>atualizacao-cronograma-extras.sql</strong> no Supabase para liberar esta funcao.</div>'
+    return
+  }
+  // concursos para escolher (todos, menos o principal)
+  const { data: cs } = await _supabase.from('concursos').select('id,nome').order('nome')
+  _exNomes = {}; (cs||[]).forEach(function(c){ _exNomes[c.id] = c.nome })
+  const sel = document.getElementById('ex-conc'), atual = sel.value
+  sel.innerHTML = '<option value="">Escolha o concurso</option>' + (cs||[]).filter(function(c){ return String(c.id) !== String(concurso_id) })
+    .map(function(c){ return '<option value="'+c.id+'">'+esc(c.nome)+'</option>' }).join('')
+  if (atual) sel.value = atual
+  resumoExtras()
+  if (sel.value) carregarExtra()
+  else document.getElementById('ex-discs').innerHTML = ''
+}
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') }
+
+// extras que o aluno ja tem (por concurso de origem), com opcao de remover as pendentes
+async function resumoExtras(){
+  const aluno_id = document.getElementById('g-aluno').value, concurso_id = document.getElementById('g-concurso').value
+  const av = document.getElementById('ex-aviso')
+  const { data } = await _supabase.from('sessoes_estudo').select('id,concurso_extra,concluida').eq('aluno_id',aluno_id).eq('concurso_id',concurso_id).eq('extra',true)
+  const por = {}
+  ;(data||[]).forEach(function(s){ const k = s.concurso_extra||'?'; por[k] = por[k] || { t:0, f:0 }; por[k].t++; if (s.concluida) por[k].f++ })
+  const ks = Object.keys(por)
+  av.innerHTML = ks.length ? '<div style="background:var(--card2);border:1px solid var(--info);border-radius:10px;padding:12px;margin-bottom:12px;font-size:13px;line-height:1.6">'
+    + '<strong style="color:var(--info)">Extras que este aluno ja tem:</strong><br>'
+    + ks.map(function(k){ return '• '+esc(_exNomes[k]||'outro concurso')+': '+por[k].t+' sessoes ('+por[k].f+' feitas) '
+        + (por[k].t>por[k].f ? '<button onclick="removerExtras(\''+k+'\')" style="width:auto;margin:4px 0 0 4px;padding:5px 10px;font-size:12px;background:var(--card);color:var(--erro);border:1px solid var(--erro)">Remover as '+(por[k].t-por[k].f)+' pendentes</button>' : '') }).join('<br>')
+    + '<div style="color:var(--tx4);font-size:11.5px;margin-top:6px">Gerar de novo para o mesmo concurso substitui as extras pendentes dele. As ja feitas ficam como historico.</div></div>' : ''
+}
+
+async function carregarExtra(){
+  const conc = document.getElementById('ex-conc').value, box = document.getElementById('ex-discs')
+  _exPlano = null; document.getElementById('ex-prev').innerHTML = ''; exMsg('')
+  if (!conc) { box.innerHTML = ''; return }
+  box.innerHTML = '<p style="color:var(--tx3);font-size:13px">Carregando o edital...</p>'
+  const concurso_id = document.getElementById('g-concurso').value
+  const [r1, r2] = await Promise.all([
+    _supabase.from('edital_topicos').select('*').eq('concurso_id', conc).order('disciplina').order('ordem'),
+    _supabase.from('edital_topicos').select('disciplina').eq('concurso_id', concurso_id)
+  ])
+  _exTops = r1.data || []
+  if (!_exTops.length) { box.innerHTML = '<p style="color:var(--erro);font-size:13px">Este concurso ainda nao tem edital cadastrado. Cadastre em "Editais" primeiro.</p>'; return }
+  const principais = []
+  ;(r2.data||[]).forEach(function(t){ if (principais.indexOf(t.disciplina) < 0) principais.push(t.disciplina) })
+  const porD = {}
+  _exTops.forEach(function(t){ porD[t.disciplina] = (porD[t.disciplina]||0) + 1 })
+  _exDiscs = Object.keys(porD).sort().map(function(d){
+    let melhor = 0, igual = ''
+    principais.forEach(function(p){ const s = parecido(d, p); if (s > melhor) { melhor = s; igual = p } })
+    const comum = melhor >= 0.7
+    return { nome:d, n:porD[d], comum:comum, igual:comum?igual:'', incluir:!comum }
+  })
+  renderExDiscs()
+}
+function renderExDiscs(){
+  const esp = _exDiscs.filter(function(d){ return !d.comum }), com = _exDiscs.filter(function(d){ return d.comum })
+  const linha = function(d){
+    const i = _exDiscs.indexOf(d)
+    return '<label style="display:flex;gap:10px;align-items:center;padding:9px 10px;border:1px solid var(--bd2);border-radius:8px;margin-bottom:6px;cursor:pointer;background:var(--card2)">'
+      + '<input type="checkbox" '+(d.incluir?'checked':'')+' onchange="_exDiscs['+i+'].incluir=this.checked;_exPlano=null;document.getElementById(\'ex-prev\').innerHTML=\'\'" style="width:18px;height:18px;margin:0;accent-color:var(--ouro)">'
+      + '<span style="flex:1;font-size:13.5px">'+esc(d.nome)+' <span style="color:var(--tx4);font-size:12px">· '+d.n+' tema(s)</span>'
+      + (d.comum?'<br><span style="color:var(--ok);font-size:11.5px">ja esta no plano principal como "'+esc(d.igual)+'"</span>':'')+'</span></label>'
+  }
+  document.getElementById('ex-discs').innerHTML =
+    '<p style="color:var(--ouro);font-size:13px;font-weight:bold;margin-bottom:6px">Disciplinas especificas deste concurso ('+esp.length+')</p>'
+    + (esp.length ? esp.map(linha).join('') : '<p style="color:var(--tx3);font-size:13px">Nenhuma: todas as disciplinas ja estao no plano principal.</p>')
+    + (com.length ? '<details style="margin-top:8px"><summary style="cursor:pointer;color:var(--tx3);font-size:12.5px">Disciplinas em comum com o concurso principal ('+com.length+') — normalmente ja sao estudadas no plano principal</summary><div style="margin-top:8px">'+com.map(linha).join('')+'</div></details>' : '')
+}
+
+function gerarExtras(){
+  const conc = document.getElementById('ex-conc').value
+  const inicio = document.getElementById('ex-inicio').value, fim = document.getElementById('ex-fim').value
+  const dias = exDiasSel(), porDia = parseInt(document.getElementById('ex-sess').value)||1, tempo = parseInt(document.getElementById('ex-tempo').value)||60
+  if (!conc) return exMsg('Escolha o outro concurso.', 'var(--erro)')
+  if (!inicio || !fim || parseD(fim) <= parseD(inicio)) return exMsg('Confira as datas: o fim precisa ser depois do inicio.', 'var(--erro)')
+  if (!dias.length) return exMsg('Escolha pelo menos um dia para as extras.', 'var(--erro)')
+  const discs = _exDiscs.filter(function(d){ return d.incluir }).map(function(d){ return d.nome })
+  if (!discs.length) return exMsg('Marque pelo menos uma disciplina.', 'var(--erro)')
+  const temas = _exTops.filter(function(t){ return discs.indexOf(t.disciplina) >= 0 && String(t.topico||'').trim() })
+    .map(function(t,i){ return { key:'x'+i, disciplina:t.disciplina, topico:t.topico, topico_id:t.id, prioridade:t.prioridade||'media', incluir:true, status:'ativo' } })
+  const base = { inicio:inicio, prova:fim, dias:dias, porDia:porDia, dq:parseInt(document.getElementById('g-dq').value)||5, dr:parseInt(document.getElementById('g-dr').value)||15, etapas:montarEtapas(), tempo:tempo }
+  let plano = montarPlano(temas, Object.assign({ nivel:0 }, base))
+  for (let n=1; n<=5 && plano.naoAlocados>0; n++) { const t = montarPlano(temas, Object.assign({ nivel:n }, base)); if (t.naoAlocados < plano.naoAlocados) plano = t }
+  _exPlano = plano
+  let nS = 0; plano.calendario.forEach(function(d){ nS += d.sessoes.length })
+  const prim = plano.calendario.slice(0, 4).map(function(d){
+    return '<div class="dia-card"><strong style="color:var(--ouro);font-size:13px">'+CURTO_DIA[parseD(d.data).getDay()]+', '+fmtBR(d.data)+'</strong>'
+      + d.sessoes.map(function(s){ return '<div style="font-size:12.5px;margin-top:4px">➕ '+esc(s.disciplina)+' · '+esc(s.topico)+' <span style="color:var(--tx4)">('+(s.tipo==='teoria'?'teoria':s.tipo==='questoes'?'questoes':'revisao')+', '+s.min+'min)</span></div>' }).join('')+'</div>'
+  }).join('')
+  document.getElementById('ex-prev').innerHTML =
+    '<div class="resumo-box"><div class="resumo-c"><div class="resumo-n" style="color:var(--ouro)">'+nS+'</div><div class="resumo-l">sessoes extras</div></div>'
+    + '<div class="resumo-c"><div class="resumo-n">'+plano.calendario.length+'</div><div class="resumo-l">dias com extras</div></div>'
+    + '<div class="resumo-c"><div class="resumo-n">'+temas.length+'</div><div class="resumo-l">temas</div></div></div>'
+    + (plano.naoAlocados ? '<div style="background:var(--card2);border:1px solid var(--alerta);border-radius:8px;padding:10px;margin:8px 0;font-size:13px;color:var(--alerta)">'+plano.naoAlocados+' tema(s) nao couberam ate a data final. Acrescente dias ou sessoes extras por dia.</div>' : '')
+    + prim + (plano.calendario.length > 4 ? '<p style="color:var(--tx3);font-size:12.5px;text-align:center">... e mais '+(plano.calendario.length-4)+' dia(s)</p>' : '')
+    + '<button onclick="salvarExtras()" style="margin-top:10px;background:var(--card2);color:var(--ok);border:1px solid var(--ok)">Salvar extras para o aluno</button>'
+  exMsg('')
+}
+
+async function salvarExtras(){
+  if (!_exPlano) return exMsg('Gere as extras primeiro.', 'var(--erro)')
+  if (!(await colunaExtra())) return exMsg('Rode o arquivo atualizacao-cronograma-extras.sql no Supabase primeiro.', 'var(--erro)')
+  const aluno_id = document.getElementById('g-aluno').value, concurso_id = document.getElementById('g-concurso').value
+  const conc = document.getElementById('ex-conc').value, nome = _exNomes[conc] || 'outro concurso'
+  const metaQ = parseInt(document.getElementById('g-mq').value)||20
+  if (!confirm('Salvar as sessoes extras de '+nome+'?\n\nO plano principal nao muda. Se o aluno ja tinha extras de '+nome+', as pendentes sao substituidas (as feitas ficam).')) return
+  exMsg('Salvando...')
+  const r0 = await _supabase.from('sessoes_estudo').delete().eq('aluno_id',aluno_id).eq('concurso_id',concurso_id).eq('extra',true).eq('concurso_extra',String(conc)).eq('concluida',false)
+  if (r0.error) return exMsg('Erro ao limpar extras antigas: '+esc(r0.error.message), 'var(--erro)')
+  const linhas = []
+  _exPlano.calendario.forEach(function(d){
+    d.sessoes.forEach(function(s,i){
+      linhas.push({ aluno_id:aluno_id, concurso_id:concurso_id, data:d.data, tipo:s.tipo, disciplina:s.disciplina, topico:s.topico, topico_id:s.topico_id||null,
+        tempo_minutos:s.min, meta_questoes:s.tipo==='questoes'?metaQ:0, ordem:100+i, extra:true, concurso_extra:String(conc) })
+    })
+  })
+  for (let i=0;i<linhas.length;i+=400){
+    const r = await _supabase.from('sessoes_estudo').insert(linhas.slice(i,i+400))
+    if (r.error) return exMsg('Erro ao salvar: '+esc(r.error.message), 'var(--erro)')
+  }
+  exMsg('✓ '+linhas.length+' sessoes extras de '+esc(nome)+' salvas. O aluno ja ve no cronograma, marcadas como EXTRA.', 'var(--ok)')
+  _exPlano = null; document.getElementById('ex-prev').innerHTML = ''
+  resumoExtras()
+}
+
+async function removerExtras(conc){
+  const aluno_id = document.getElementById('g-aluno').value, concurso_id = document.getElementById('g-concurso').value
+  if (!confirm('Remover as sessoes extras PENDENTES de '+(_exNomes[conc]||'outro concurso')+'? As ja feitas ficam como historico.')) return
+  const r = await _supabase.from('sessoes_estudo').delete().eq('aluno_id',aluno_id).eq('concurso_id',concurso_id).eq('extra',true).eq('concurso_extra',conc).eq('concluida',false)
+  if (r.error) { alert('Erro: '+r.error.message); return }
+  resumoExtras()
 }
 
 init()
