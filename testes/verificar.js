@@ -48,7 +48,7 @@ const assinaturas = {
   'leitor-arquivos.js': 'lerArquivoParagrafos', 'caderno-revisao.js': 'renderRevisaoCaderno', 'admin.js': 'function carregarAlunos',
   'api/kiwify.js': 'kiwify_registrar', 'config.js': 'createClient',
   'notificacoes.js': 'ativarNotificacoes', 'api/push.js': 'ehMentor', 'api/_push.js': 'sendNotification', 'api/lembretes.js': 'lembretes_do_dia',
-  'sw.js': 'notificationclick', 'primeiro-acesso.html': 'ativar_acesso', 'vendas-admin.html': 'aprovar_pedido'
+  'sw.js': 'notificationclick', 'estrategia.js': 'window.Estrategia', 'primeiro-acesso.html': 'ativar_acesso', 'vendas-admin.html': 'aprovar_pedido'
 }
 Object.keys(assinaturas).forEach(f => {
   if (!existe(f)) { ok(false, 'arquivo obrigatorio faltando: ' + f); return }
