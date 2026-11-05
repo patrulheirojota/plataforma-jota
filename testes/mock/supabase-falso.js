@@ -5,7 +5,7 @@ const qs=[],rs=[]
 const temas=[['Leg. Penal','Tortura',0.3],['Leg. Penal','Drogas',0.9],['Leg. Penal','Abuso de autoridade',0.65],['Portugues','Crase',0.4],['Portugues','Concordancia',0.85],['Const.','Direitos fundamentais',0.7],['Const.','Seguranca publica',0.5]]
 let n=1
 temas.forEach(([d,a,p],ti)=>{for(let i=0;i<8;i++){const id='q'+(n++);qs.push({id,disciplina:d,assunto:a,tipo:'multipla',enunciado:'Questao '+id+' sobre '+a+'. '+'Texto '.repeat(30),alternativas:['alt A','alt B','alt C','alt D'],gabarito:'A',ativo:true,origem:'prova'})
- if(i<7){const ok=((i*37+ti*11)%100)/100<p;rs.push({aluno_id:'al1',questao_id:id,resposta:ok?'A':'B',correta:ok,respondido_em:D(-(i*3+1))})
+ if(i<7){const ok=((i*37+ti*11)%100)/100<p;rs.push({aluno_id:'al1',questao_id:id,resposta:ok?'A':'B',correta:ok,respondido_em:D(-(i*3+1)),confianca:['certeza','duvida','chute',null][(i+ti)%4]})
   rs.push({aluno_id:'al2',questao_id:id,resposta:ok&&i%2?'A':'C',correta:ok&&i%2,respondido_em:D(-2)})}}})
 // questao com gabarito suspeito: quase todos marcam C
 for(let k=0;k<9;k++)rs.push({aluno_id:'x'+k,questao_id:'q2',resposta:'C',correta:false,respondido_em:D(-1)})
@@ -100,6 +100,10 @@ R.sim_finalizar=function(a){const r=T('sim_resultados').find(x=>x.simulado_id===
 R.sim_recalcular=function(a){const l=T('sim_resultados').filter(x=>x.simulado_id===a.p_sim&&x.finalizado_em);l.forEach(x=>corrigir(a.p_sim,x.aluno_id));return l.length}
 R.sim_gabarito=function(a){return T('sim_gabaritos').filter(x=>x.simulado_id===a.p_sim).map(x=>({item_id:x.item_id,gabarito:x.gabarito}))}
 R.sim_ranking=function(a){const l=T('sim_resultados').filter(x=>x.simulado_id===a.p_sim&&x.finalizado_em).sort((x,y)=>y.nota-x.nota||x.tempo_seg-y.tempo_seg);return l.map((x,i)=>({posicao:i+1,nome:((T('alunos').find(z=>z.id===x.aluno_id)||{}).nome||'Aluno').split(' ')[0],nota:x.nota,certas:x.certas,erradas:x.erradas,brancas:x.brancas,tempo_seg:x.tempo_seg,eu:x.aluno_id===U()}))}
+R.metacognicao=function(a){const al=(a&&a.p_aluno)||U();const qs=T('questoes');const rows=T('questao_respostas').filter(r=>r.aluno_id===al).map(r=>{const q=qs.find(x=>String(x.id)===String(r.questao_id))||{};return {tipo:q.tipo==='certo_errado'?'ce':'me',n_alt:(q.alternativas||[]).length||5,conf:r.confianca,ok:!!r.correta,d:q.disciplina||'Sem disciplina',as:q.assunto||'Geral'}})
+ const m=rows.filter(r=>r.conf),niv={};m.forEach(r=>{const k=r.tipo+'|'+r.conf;niv[k]=niv[k]||{tipo:r.tipo,confianca:r.conf,n:0,certas:0,sorte:0};niv[k].n++;if(r.ok)niv[k].certas++;niv[k].sorte+=r.tipo==='ce'?0.5:1/r.n_alt})
+ const top=f=>{const g={};m.filter(f).forEach(r=>{const k=r.d+'|'+r.as;g[k]=g[k]||{disciplina:r.d,assunto:r.as,n:0};g[k].n++});return Object.values(g).sort((x,y)=>y.n-x.n).slice(0,6)}
+ return {marcadas:m.length,sem_marcacao:rows.length-m.length,niveis:Object.values(niv),erros_com_certeza:top(r=>r.conf==='certeza'&&!r.ok),acertos_no_chute:top(r=>r.conf==='chute'&&r.ok)}}
 R.sim_estat_itens=function(a){const fin=T('sim_resultados').filter(x=>x.simulado_id===a.p_sim&&x.finalizado_em).map(x=>x.aluno_id);return T('sim_itens').filter(i=>i.simulado_id===a.p_sim).map(i=>{const g=(T('sim_gabaritos').find(x=>x.item_id===i.id)||{}).gabarito;let n=0,ac=0,bl=0,tm=0,tn=0;const d={};fin.forEach(al=>{n++;const x=T('sim_respostas').find(y=>y.item_id===i.id&&y.aluno_id===al);if(!x||!x.resposta){bl++;return}d[x.resposta]=(d[x.resposta]||0)+1;if(x.resposta===g)ac++;if(x.tempo_seg){tm+=x.tempo_seg;tn++}});return {item_id:i.id,respostas:n,acertos:ac,brancas:bl,tempo_medio:tn?Math.round(tm/tn):0,dist:d}})}
 })();
 ;(function(){
