@@ -92,6 +92,16 @@ if (SP) {
   r = lerSimulado(fx('banco-comentado.txt').split('\n'))
   ok(r.modo === 'comentado' && r.itens.length === 3 && r.itens.map(q => q.gabarito).join('') === 'ECE' && !!r.itens[0].comentario, 'leitor: banco comentado (gabarito e comentario dentro da questao)')
   ok(JSON.stringify(lerParesGabarito('1 2 3 4\nC E C X')) === '{"1":"C","2":"E","3":"C","4":"X"}', 'leitor: gabarito em tabela')
+  // gabarito comentado separado: gabarito rapido + comentario + BIZU
+  const { lerGabaritoComentado } = SP
+  if (lerGabaritoComentado) {
+    let g = lerGabaritoComentado(fx('gab-com-tabela.txt').split('\n'))
+    ok(JSON.stringify(g.gab) === '{"1":"C","2":"E","3":"C","4":"E","5":"X"}' && g.nCom === 5 && g.nBizu === 4 && /DATA = dados/.test(g.itens[4].bizu) && !/BIZU/.test(g.itens[4].comentario), 'gabarito comentado: tabela + Item N — CERTO + BIZU', JSON.stringify(g.gab))
+    g = lerGabaritoComentado(fx('gab-com-linha.txt').split('\n'))
+    ok(g.gab[3] === 'C' && g.conflitos.join() === '3' && g.nBizu === 3 && /O item esta errado|O item está errado/.test(g.itens[1].comentario), 'gabarito comentado: linha "1-E 2-C" + itens com enunciado (avisa divergencia)')
+    g = lerGabaritoComentado(fx('gab-com-grade.txt').split('\n'))
+    ok(JSON.stringify(g.gab) === '{"1":"B","2":"D","3":"A","4":"E"}' && g.nCom === 4 && g.nBizu === 2 && /Ato administrativo/.test(g.itens[1].bizu), 'gabarito comentado: grade de multipla escolha + Justificativa/BIZU', JSON.stringify(g.gab))
+  } else ok(false, 'simulado-parser.js sem o leitor de gabarito comentado')
 }
 const LP = existe('lei-parser.js') && carregar('lei-parser.js')
 if (LP) {
