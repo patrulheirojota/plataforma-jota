@@ -165,20 +165,23 @@ async function lerPdf (file) {
         l.partes.sort(function (a, b) { return a.x - b.x })
         var t = '', fimX = null
         l.partes.forEach(function (p) { if (fimX != null && p.x - fimX > 1.5) t += ' '; t += p.s; fimX = p.x + p.w })
-        linhasTodas.push({ t: t.replace(/\s+/g, ' ').trim(), y: l.y, h: l.h, pg: pg, x: l.partes[0].x })
+        linhasTodas.push({ t: t.replace(/\s+/g, ' ').trim(), y: l.y, h: l.h, pg: pg, x: l.partes[0].x, ph: vp.height })
       })
     })
   }
   // tira cabecalho/rodape repetido e numero de pagina
+  // cabecalho/rodape: a mesma linha na borda (topo ou pe) de muitas paginas
   var freq = {}
-  linhasTodas.forEach(function (l) { var k = l.t.replace(/\d+/g, '#'); freq[k] = (freq[k] || 0) + 1 })
+  linhasTodas.forEach(function (l) { if (l.ph && !(l.y > l.ph * 0.9 || l.y < l.ph * 0.1)) return; var k = l.t.replace(/\d+/g, '#'); freq[k] = (freq[k] || 0) + 1 })
   var lim = Math.max(3, Math.floor(pdf.numPages * 0.6))
   linhasTodas = linhasTodas.filter(function (l) {
     var k = l.t.replace(/\d+/g, '#')
-    return !(freq[k] >= lim && pdf.numPages >= 3) && !/^(p[aá]gina\s*)?\d+\s*(de\s*\d+)?$/i.test(l.t) && !/^[–-]?\s*\d+\s*[–-]?$/.test(l.t) || /^\d{1,3}\s*[.)-]/.test(l.t)
+    // so e cabecalho/rodape se estiver na borda da pagina ("Item 1 — CERTO" repetido no meio da pagina e conteudo)
+    var borda = !l.ph || l.y > l.ph * 0.9 || l.y < l.ph * 0.1
+    return !(freq[k] >= lim && pdf.numPages >= 3 && borda) && !/^(p[aá]gina\s*)?\d+\s*(de\s*\d+)?$/i.test(l.t) && !/^[–-]?\s*\d+\s*[–-]?$/.test(l.t) || /^\d{1,3}\s*[.)-]/.test(l.t)
   })
   // junta linhas em paragrafos
-  var INICIO = /^\s*((quest[aã]o|item)\s*\d+|\d{1,3}\s*[.)\-–—]|\d{1,3}\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ"“(]|\(?[A-Ea-e]\s*[).\-–]\s|gabarito|coment[aá]rio|certo$|errado$|texto\s|julgue|considere|acerca|com base)/i
+  var INICIO = /^\s*((quest[aã]o|item)\s*\d+|\d{1,3}\s*[.)\-–—]|\d{1,3}\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ"“(]|\(?[A-Ea-e]\s*[).\-–]\s|gabarito|coment[aá]rio|justificativa|resposta\s*:|alternativa\s+correta|\W{0,3}\s*bizu|certo$|errado$|texto\s|julgue|considere|acerca|com base)/i
   var paras = [], atual = null, ant = null
   linhasTodas.forEach(function (l) {
     var maius = l.t.replace(/[^A-Za-zÀ-ÿ]/g, ''); maius = maius.length >= 4 && maius === maius.toUpperCase()

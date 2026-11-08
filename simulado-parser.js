@@ -23,6 +23,26 @@
   var RX_TEMA = /^\s*tema\s*\d*\s*[-–:]\s*(.+?)\s*(?:\(.*\))?\s*$/i
   var RX_APOIO = /^\s*(texto\s|texto$|textos\s|com base n|julgue|considere|acerca d|a respeito d|no que se refere|no que concerne|em rela[cç][aã]o|tendo como refer|tendo em vista|leia |levando em conta|considerando|a partir d|quanto a|quanto ao|com rela[cç][aã]o)/i
   var LETRAS = 'ABCDE'
+  // "BIZU: ...", "💡 Bizu do Jota:", "**BIZU**"
+  var RX_BIZU = /^\s*(?:[^\wÀ-ÿ\s]{1,3}\s*)?\**\s*bizu(?:\s+do\s+jota)?\s*\**\s*[:\-–—]?\s*(.*)$/i
+  var RX_ROT_COM = /^\s*(?:coment[aá]rios?(?:\s+do\s+(?:professor|jota))?|justificativa|fundamenta[cç][aã]o|resolu[cç][aã]o|explica[cç][aã]o)\s*[:\-–—]?\s*(.*)$/i
+  var RX_SEC_COM = /^\s*(?:gabarito\s+comentado|gabaritos\s+comentados|coment[aá]rios?\s+(?:das|dos|aos)\s+(?:quest[oõ]es|itens)|quest[oõ]es\s+comentadas|itens\s+comentados|resolu[cç][aã]o\s+comentada|corre[cç][aã]o\s+comentada)\b.{0,60}$/i
+  var RX_ITEM_C = /^\s*(?:quest[aã]o|item|n[º°o]\.?)?\s*0*(\d{1,3})\s*(?:[.)\-–—:º°]+\s*|\s+|$)(.*)$/i
+  var RX_GAB_TXT = /^\s*(?:gabarito|resposta|alternativa\s+correta)\s*(?:oficial|preliminar|definitivo|correto|correta)?\s*[:\-–—]?\s*(certo|errado|anulad[ao]|[A-E])(?![A-Za-zÀ-ÿ])\s*[.\-–—:)]*\s*(.*)$/i
+  var RX_GAB_INI = /^\s*[\-–—:]*\s*[(\[]?\s*(CERTO|ERRADO|ANULAD[AO]|Certo|Errado|Anulad[ao]|certo|errado|anulad[ao]|[A-E])\s*[)\]]?(?![A-Za-zÀ-ÿ])\s*[.\-–—:)]*\s*(.*)$/
+  var RX_LINHA_PARES = /^[\s\d.\-–—:|()\[\]]*(?:(?:certo|errado|anulad[ao]|[A-Ea-eXx])(?![A-Za-zÀ-ÿ])[\s\d.\-–—:|()\[\]]*)*$/i
+
+  // separa o BIZU do resto do comentario
+  function separarBizu (texto) {
+    if (!texto) return { com: texto || null, bizu: null }
+    var ls = String(texto).split('\n'), ib = -1
+    for (var i = 0; i < ls.length; i++) { if (RX_BIZU.test(ls[i])) { ib = i; break } }
+    if (ib < 0) return { com: texto, bizu: null }
+    var m = ls[ib].match(RX_BIZU)
+    var bz = [m[1]].concat(ls.slice(ib + 1)).join('\n').trim()
+    var com = ls.slice(0, ib).join('\n').trim()
+    return { com: com || null, bizu: bz || null }
+  }
 
   function limpa (s) { return String(s == null ? '' : s).replace(/ /g, ' ').replace(/[ \t]+/g, ' ').trim() }
   function maiusculo (s) {
@@ -104,6 +124,8 @@
         apoioAtivo: (cur.faixa ? (cur.numero >= cur.faixa[0] && cur.numero <= cur.faixa[1]) : (tipo === 'certo_errado' || cur.novoAtivo)) ? cur.ativo.slice() : [],
         gabarito: cur.gab || null, comentario: cur.com.length ? cur.com.join('\n').trim() : null
       })
+      var sb = separarBizu(itens[itens.length - 1].comentario)
+      itens[itens.length - 1].comentario = sb.com; itens[itens.length - 1].bizu = sb.bizu
       cur = null
     }
     var esperado = 1
@@ -171,7 +193,12 @@
       q.texto_apoio = apoio.length ? apoio.join('\n\n') : null
       delete q.apoioLocal; delete q.apoioAtivo
       var gc = gabComentado[q.numero]
-      if (gc) { if (gc.gab) q.gabarito = gc.gab; if (gc.com && !q.comentario) q.comentario = gc.com }
+      if (gc) {
+        if (gc.gab) q.gabarito = gc.gab
+        var sg = separarBizu(gc.com)
+        if (sg.com && !q.comentario) q.comentario = sg.com
+        if (sg.bizu && !q.bizu) q.bizu = sg.bizu
+      }
       if (gabPares[q.numero]) q.gabarito = gabPares[q.numero]
       if (q.gabarito === 'X') { q.gabarito = q.tipo === 'multipla' ? 'A' : 'C'; q.anulada = true }
       if (!q.disciplina) q.disciplina = 'Geral'
@@ -188,7 +215,80 @@
     return { itens: itens, avisos: avisos, modo: modoComentado ? 'comentado' : 'caderno' }
   }
 
+  /* GABARITO COMENTADO (arquivo do simulado com o gabarito)
+     Le o gabarito rapido do comeco (1 C 2 E..., tabela) e, item por item, o comentario e o BIZU.
+     Devolve { gab:{n:'C'}, itens:{n:{gab,comentario,bizu}}, conflitos:[n], avisos:[] } */
+  function lerGabaritoComentado (paragrafos) {
+    var ps = paragrafos.map(limpa).filter(function (x) { return x })
+    var avisos = []
+    var iCom = -1
+    for (var i = 0; i < ps.length; i++) { if (RX_SEC_COM.test(ps[i])) { iCom = i; break } }
+    var corpo = iCom >= 0 ? ps.slice(iCom + 1) : ps
+    // 1) blocos numerados em sequencia (1, 2, 3...)
+    var blocos = [], cur = null, esperado = null
+    corpo.forEach(function (p, k) {
+      var m = p.match(RX_ITEM_C)
+      if (m) {
+        var n = parseInt(m[1], 10), resto = limpa(m[2])
+        var ok = esperado == null ? n <= 3 : (n === esperado || (n > esperado && n <= esperado + 3))
+        // o gabarito rapido numerado ("1 C", "2 E"...) terminou e os comentarios recomecam do 1
+        if (!ok && n === 1 && blocos.length && blocos.every(function (b) { return b.ls.join(' ').length < 15 })) { ok = true; esperado = null }
+        if (ok && !resto && esperado != null && n !== esperado) ok = false
+        // "1 C" ou "1 - Certo" sozinho: e linha do gabarito rapido, vira bloco curto
+        if (ok) { cur = { n: n, ls: resto ? [resto] : [], idx: k }; blocos.push(cur); esperado = n + 1; return }
+      }
+      if (cur) cur.ls.push(p)
+    })
+    // 2) gabarito rapido: linhas so com numeros e letras antes do primeiro comentario de verdade
+    var fimTopo = iCom >= 0 ? iCom : ps.length
+    var res = {}, conflitos = []
+    blocos.forEach(function (b) {
+      var ls = b.ls.slice(), g = null, ig = -1, resto = ''
+      for (var j = 0; j < ls.length; j++) { var mg = ls[j].match(RX_GAB_TXT); if (mg) { g = mg[1]; ig = j; resto = mg[2]; break } }
+      if (!g && ls.length) { var mi = ls[0].match(RX_GAB_INI); if (mi && (!mi[2] || !/^[a-zà-ú]/.test(mi[2]))) { g = mi[1]; ig = 0; resto = mi[2] } }
+      var ib = -1
+      for (var t = 0; t < ls.length; t++) { if (RX_BIZU.test(ls[t])) { ib = t; break } }
+      var bizu = null
+      if (ib >= 0) { var mb = ls[ib].match(RX_BIZU); bizu = [mb[1]].concat(ls.slice(ib + 1)).join('\n').trim() || null }
+      var fim = ib >= 0 ? ib : ls.length, ic = -1
+      for (var u = 0; u < fim; u++) { if (RX_ROT_COM.test(ls[u])) { ic = u; break } }
+      var pareLike = ls.length > 1 && ls.every(function (l) { return RX_LINHA_PARES.test(l) })
+      if (pareLike) { g = null; ig = -1 }
+      var com
+      if (ic >= 0) com = [ls[ic].match(RX_ROT_COM)[1]].concat(ls.slice(ic + 1, fim))
+      else if (ig >= 0) com = [resto].concat(ls.slice(ig + 1, fim))
+      else com = ls.slice(0, fim)
+      com = com.join('\n').trim()
+      if (!/[A-Za-zÀ-ÿ]{4,}/.test(com)) com = ''
+      var gn = g ? (/^anulad/i.test(g) ? 'X' : gabNorm(g)) : null
+      var curto = (com.length < 12 && !bizu)
+      if (!res[b.n]) res[b.n] = { gab: null, comentario: null, bizu: null }
+      if (gn && !res[b.n].gab) res[b.n].gab = gn
+      if (!curto) { res[b.n].comentario = com || null; res[b.n].bizu = bizu; b.temCom = true }
+    })
+    // primeiro bloco com comentario de verdade marca o fim do gabarito rapido
+    if (iCom < 0) {
+      var prim = blocos.filter(function (b) { return b.temCom })[0]
+      fimTopo = prim ? prim.idx : ps.length
+    }
+    var linhas = ps.slice(0, fimTopo).filter(function (p) { return RX_LINHA_PARES.test(p) && /[\dA-Ea-eXx]/.test(p) })
+    var gab = linhas.length ? lerParesGabarito(linhas.join(' ')) : {}
+    // junta: gabarito rapido manda; o do comentario completa
+    Object.keys(res).forEach(function (n) {
+      var r = res[n]
+      if (gab[n] && r.gab && gab[n] !== r.gab) conflitos.push(parseInt(n, 10))
+      if (!gab[n] && r.gab) gab[n] = r.gab
+    })
+    var nGab = Object.keys(gab).length, nCom = Object.keys(res).filter(function (n) { return res[n].comentario }).length
+    var nBiz = Object.keys(res).filter(function (n) { return res[n].bizu }).length
+    if (!nGab && !nCom) avisos.push('Nao encontrei gabarito nem comentarios numerados neste arquivo.')
+    if (conflitos.length) avisos.push('O gabarito rapido e o comentado discordam nos itens ' + conflitos.join(', ') + '. Ficou o do gabarito rapido: confira.')
+    return { gab: gab, itens: res, conflitos: conflitos, avisos: avisos, nGab: nGab, nCom: nCom, nBizu: nBiz }
+  }
+
+  raiz.lerGabaritoComentado = lerGabaritoComentado
+  raiz.separarBizu = separarBizu
   raiz.lerSimulado = lerSimulado
   raiz.lerParesGabarito = lerParesGabarito
-  if (typeof module !== 'undefined') module.exports = { lerSimulado: lerSimulado, lerParesGabarito: lerParesGabarito }
+  if (typeof module !== 'undefined') module.exports = { lerSimulado: lerSimulado, lerParesGabarito: lerParesGabarito, lerGabaritoComentado: lerGabaritoComentado, separarBizu: separarBizu }
 })(typeof window !== 'undefined' ? window : this)

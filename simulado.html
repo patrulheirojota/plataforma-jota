@@ -65,6 +65,10 @@
   .barra{height:7px;border-radius:5px;background:var(--bd);overflow:hidden;margin-top:5px}
   .barra>div{height:100%}
   .cor-item{border-left:4px solid var(--bd2)}
+  .bizu{background:linear-gradient(135deg,rgba(185,138,224,.14),rgba(125,95,168,.06));border:1px solid #7d5fa8;border-radius:11px;padding:12px 13px;margin-top:10px}
+  .bizu-t{color:#c9a9e8;font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;margin-bottom:5px}
+  .bizu-b{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+  .bizu-b .btn{padding:7px 11px;font-size:12.5px}
   table.rk{width:100%;border-collapse:collapse;font-size:13px}
   table.rk td,table.rk th{padding:8px 6px;border-bottom:1px solid var(--bd);text-align:left}
   table.rk th{color:var(--tx3);font-weight:600;font-size:12px}
@@ -423,17 +427,64 @@ function renderCorrecao(){
       +'<span style="color:var(--tx3)">⏱️ '+tempoTxt(_tempo[q.id]||0)+(e&&e.tempo_medio?' (media '+e.tempo_medio+'s)':'')+'</span></div>'
       +(q.comentario?'<div style="border-top:1px solid var(--bd);padding-top:10px;margin-top:4px"><div style="color:var(--ouro);font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;margin-bottom:5px">Comentario do Jota</div><div style="font-size:14px;line-height:1.7;color:var(--tx2);white-space:pre-wrap">'+esc(q.comentario)+'</div></div>':'')
       +(q.explicacao_url&&typeof htmlExplicacao==='function'?htmlExplicacao(q.explicacao_url):'')
+      +htmlBizu(q)
       +'</div>'
   }).join('')||'<div class="estado">Nada neste filtro.</div>'
   h+='</div>'
   app(h)
+}
+/* ---------- BIZU: caderno de erros e flashcards ---------- */
+let _bizuFeito={}
+function botoesBizu(q){
+  const f=_bizuFeito[q.id]||{}
+  return (f.cad?'<span style="color:var(--ok);font-size:12.5px;font-weight:700">✓ No caderno de erros</span>':'<button class="btn" style="border-color:#7d5fa8;color:#c9a9e8" onclick="bizuCaderno(\''+q.id+'\')">📓 Salvar no caderno de erros</button>')
+    +(f.fc?'<span style="color:var(--ok);font-size:12.5px;font-weight:700">✓ Virou flashcard</span>':'<button class="btn" style="border-color:var(--ouro);color:var(--ouro)" onclick="bizuFlash(\''+q.id+'\')">🗂️ Virar flashcard</button>')
+}
+function htmlBizu(q){
+  if(!q.bizu)return ''
+  return '<div class="bizu"><div class="bizu-t">💡 Bizu do Jota</div><div style="font-size:14px;line-height:1.6;white-space:pre-wrap">'+esc(q.bizu)+'</div>'
+    +(_mentor?'':'<div class="bizu-b" id="bz-'+q.id+'">'+botoesBizu(q)+'</div><div id="bzm-'+q.id+'" style="font-size:12.5px;margin-top:6px"></div>')
+    +'</div>'
+}
+function textoQuestao(q){
+  return (q.texto_apoio?q.texto_apoio+'\n\n':'')+q.enunciado+(q.tipo==='multipla'?'\n'+(q.alternativas||[]).map(function(a,i){return LETRAS[i]+') '+a}).join('\n'):'')
+}
+function msgBizu(id,t,cor){const m=$('bzm-'+id);if(m){m.style.color=cor;m.innerHTML=t}}
+async function bizuCaderno(id){
+  const q=_itens.find(function(x){return x.id===id}); if(!q||!q.bizu)return
+  const st=statusItem(q)
+  msgBizu(id,'Salvando...','var(--tx3)')
+  const r=await _supabase.from('caderno_erros').insert({aluno_id:_alunoId,disciplina:q.disciplina||null,
+    titulo:(q.assunto||q.disciplina||'Questao')+(st==='errada'?' — errei no ':' — bizu do ')+_sim.nome,
+    conteudo:'BIZU:\n'+q.bizu+'\n\nQUESTAO '+q.numero+(st==='errada'?' (errei)':st==='certa'?' (acertei)':'')+':\n'+textoQuestao(q)
+      +'\n\nGABARITO: '+gabTxt(q,_gab[q.id])+(_resp[q.id]?' (marquei '+gabTxt(q,_resp[q.id])+')':'')+(q.comentario?'\n\nCOMENTARIO:\n'+q.comentario:''),
+    atualizado_em:new Date().toISOString()})
+  if(r.error){msgBizu(id,'Nao foi possivel salvar: '+esc(r.error.message),'var(--erro)');return}
+  _bizuFeito[id]=Object.assign({},_bizuFeito[id],{cad:1})
+  const b=$('bz-'+id);if(b)b.innerHTML=botoesBizu(q)
+  msgBizu(id,'✓ Salvo no caderno de <strong>'+esc(q.disciplina||'erros')+'</strong>. Ele volta para revisao no dia certo.','var(--ok)')
+}
+async function bizuFlash(id){
+  const q=_itens.find(function(x){return x.id===id}); if(!q||!q.bizu)return
+  const g=_gab[q.id]
+  const cortar=function(t,n){t=String(t||'').replace(/\s+/g,' ').trim();return t.length>n?t.slice(0,n-1).trim()+'…':t}
+  const reg=q.tipo==='multipla'
+    ?{tipo:'basico',frente:cortar(q.enunciado,300),verso:cortar((q.alternativas||[])[LETRAS.indexOf(g)]||'',220)+'\n'+cortar(q.bizu,200)}
+    :{tipo:'ce',frente:cortar(q.enunciado,400),gabarito:g==='C'?'C':'E',verso:cortar(q.bizu,300)}
+  Object.assign(reg,{disciplina:q.disciplina||'Geral',assunto:q.assunto||null,autor_tipo:'aluno',aluno_id:_alunoId,atualizado_em:new Date().toISOString()})
+  msgBizu(id,'Salvando...','var(--tx3)')
+  const r=await _supabase.from('flashcards').insert(reg)
+  if(r.error){msgBizu(id,/relation|does not exist|schema cache/i.test(r.error.message)?'Os flashcards ainda nao foram ativados. Avise o seu mentor.':'Nao foi possivel salvar: '+esc(r.error.message),'var(--erro)');return}
+  _bizuFeito[id]=Object.assign({},_bizuFeito[id],{fc:1})
+  const b=$('bz-'+id);if(b)b.innerHTML=botoesBizu(q)
+  msgBizu(id,'✓ Virou flashcard. Ele aparece em <a href="flashcards.html" style="color:var(--ouro)">Flashcards</a> no dia da revisao.','var(--ok)')
 }
 async function salvarErrosCaderno(b){
   const err=_itens.filter(function(q){return statusItem(q)==='errada'})
   if(!err.length)return
   b.disabled=true;b.textContent='Salvando...'
   const linhas=err.map(function(q){return {aluno_id:_alunoId,disciplina:q.disciplina||null,titulo:(q.assunto||q.disciplina||'Questao')+' — errei no '+_sim.nome,
-    conteudo:(q.texto_apoio?'TEXTO:\n'+q.texto_apoio+'\n\n':'')+'QUESTAO '+q.numero+':\n'+q.enunciado+(q.tipo==='multipla'?'\n'+(q.alternativas||[]).map(function(a,i){return LETRAS[i]+') '+a}).join('\n'):'')+'\n\nGABARITO: '+gabTxt(q,_gab[q.id])+' (marquei '+gabTxt(q,_resp[q.id])+')'+(q.comentario?'\n\nCOMENTARIO:\n'+q.comentario:''),
+    conteudo:(q.bizu?'BIZU:\n'+q.bizu+'\n\n':'')+(q.texto_apoio?'TEXTO:\n'+q.texto_apoio+'\n\n':'')+'QUESTAO '+q.numero+':\n'+q.enunciado+(q.tipo==='multipla'?'\n'+(q.alternativas||[]).map(function(a,i){return LETRAS[i]+') '+a}).join('\n'):'')+'\n\nGABARITO: '+gabTxt(q,_gab[q.id])+' (marquei '+gabTxt(q,_resp[q.id])+')'+(q.comentario?'\n\nCOMENTARIO:\n'+q.comentario:''),
     atualizado_em:new Date().toISOString()}})
   const r=await _supabase.from('caderno_erros').insert(linhas)
   if(r.error){b.disabled=false;b.textContent='Erro: '+r.error.message;return}

@@ -112,6 +112,7 @@
         <div class="modo">
           <button class="on" id="im-arq" onclick="modoImp('arq')">📄 Ler arquivo Word / PDF</button>
           <button id="im-json" onclick="modoImp('json')">📋 Colar JSON (prompt)</button>
+          <button id="im-com" onclick="modoImp('com')">📝 Gabarito comentado + BIZU</button>
           <button id="im-gab" onclick="modoImp('gab')">⚡ Gabarito rapido</button>
         </div>
         <div id="bx-arq">
@@ -129,6 +130,17 @@
           <button onclick="copiarPromptSim()" class="btn-acao btn-editar" style="padding:9px 14px;margin-bottom:8px">📋 Copiar prompt</button>
           <textarea class="big" id="json-sim" placeholder='[{"numero":1,"disciplina":"...","tipo":"certo_errado","enunciado":"...","gabarito":"C","comentario":"..."}]'></textarea>
           <button onclick="lerJsonSim()" style="width:auto;padding:10px 16px;margin-top:8px">Conferir JSON</button>
+        </div>
+        <div id="bx-com" style="display:none">
+          <p style="color:var(--tx3);font-size:13px;margin-bottom:8px;line-height:1.6">Envie o arquivo do <strong>gabarito comentado</strong> (Word ou PDF). A plataforma le o <strong>gabarito rapido</strong> do comeco (1 C, 2 E... ou a tabela) e, item por item, o <strong>comentario</strong> e o <strong>BIZU</strong>. Voce confere tudo antes de aplicar.<br>Use depois de trazer as questoes (pelo "Ler arquivo") ou junto com a previa.</p>
+          <div class="drop" id="drop-com" onclick="document.getElementById('arq-com').click()">
+            <div style="font-size:30px">📝</div>
+            <div style="font-weight:700;margin-top:6px">Toque para escolher o gabarito comentado</div>
+            <div style="color:var(--tx3);font-size:12.5px;margin-top:4px">Word (.docx) ou PDF com texto selecionavel</div>
+          </div>
+          <input type="file" id="arq-com" accept=".docx,.pdf,.txt" style="display:none" onchange="lerArquivoCom(this.files[0]);this.value=''">
+          <details style="margin-top:10px;color:var(--tx3);font-size:12.5px"><summary style="cursor:pointer">O que o leitor entende</summary>
+            <div style="line-height:1.7;margin-top:6px">• Gabarito rapido no comeco: "1 C 2 E", "01-A", uma linha por item ou tabela (numeros em uma linha, respostas na outra)<br>• Itens comentados: "Item 1 — CERTO", "1. Certo.", "Questao 01" + "Gabarito: Errado" / "Resposta: B" / "Alternativa correta: B"<br>• Comentario depois de "Comentario", "Justificativa", "Fundamentacao" (ou logo apos o gabarito do item)<br>• BIZU numa linha que comeca com "BIZU", "💡 BIZU:" ou "Bizu do Jota:" (pode continuar nas linhas seguintes)<br>• "Anulado" anula o item<br>Se o gabarito rapido e o do comentario discordarem, fica o rapido e a previa avisa.</div></details>
         </div>
         <div id="bx-gab" style="display:none">
           <p style="color:var(--tx3);font-size:13px;margin-bottom:8px">Cole o gabarito no formato que tiver: "1 C 2 E 3 C", "01-A 02-B", uma linha por questao... Use X ou "anulada" para anular.</p>
@@ -183,7 +195,7 @@
 <script src="explicacao.js"></script>
 <script>
 const LETRAS='ABCDE'
-let _concursos=[],_sims=[],_sim=null,_itens=[],_gab={},_nRes=0,_previa=null,_res=[],_nomes={}
+let _concursos=[],_sims=[],_sim=null,_itens=[],_gab={},_nRes=0,_previa=null,_res=[],_nomes={},_temBizu=false,_comPrev=null
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function msgEl(id,t,cor){const e=document.getElementById(id);if(!e)return;e.style.display='block';e.style.color=cor||'var(--tx3)';e.innerHTML=t}
 function uuid(){if(window.crypto&&crypto.randomUUID)return crypto.randomUUID();return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(c){const r=Math.random()*16|0;return (c==='x'?r:(r&3|8)).toString(16)})}
@@ -203,6 +215,11 @@ async function init(){
   d.addEventListener('dragover',function(e){e.preventDefault();d.classList.add('dentro')})
   d.addEventListener('dragleave',function(){d.classList.remove('dentro')})
   d.addEventListener('drop',function(e){e.preventDefault();d.classList.remove('dentro');if(e.dataTransfer.files[0])lerArquivoSim(e.dataTransfer.files[0])})
+  const dc=document.getElementById('drop-com')
+  dc.addEventListener('dragover',function(e){e.preventDefault();dc.classList.add('dentro')})
+  dc.addEventListener('dragleave',function(){dc.classList.remove('dentro')})
+  dc.addEventListener('drop',function(e){e.preventDefault();dc.classList.remove('dentro');if(e.dataTransfer.files[0])lerArquivoCom(e.dataTransfer.files[0])})
+  try{const tb=await _supabase.from('sim_itens').select('bizu').limit(1);_temBizu=!tb.error}catch(e){_temBizu=false}
   await listar()
   const id=new URLSearchParams(location.search).get('id')
   if(id)abrir(id)
@@ -361,6 +378,8 @@ function resumoHTML(lista,gabDe){
   if(ce.length)h+='<span class="tag">'+ce.length+' certo/errado</span>'
   if(n-ce.length)h+='<span class="tag">'+(n-ce.length)+' multipla</span>'
   Object.keys(cont).sort().forEach(function(k){h+='<span class="tag">'+k+': '+cont[k]+'</span>'})
+  const nCom=lista.filter(function(q){return q.comentario}).length, nBiz=lista.filter(function(q){return q.bizu}).length
+  h+='<span class="tag">💬 '+nCom+' comentadas</span>'+(nBiz?'<span class="tag" style="color:#c9a9e8;border-color:#7d5fa8">💡 '+nBiz+' com BIZU</span>':'')
   const anul=lista.filter(function(q){return q.anulada}).length
   if(anul)h+='<span class="tag" style="color:var(--alerta);border-color:var(--alerta)">'+anul+' anulada(s)</span>'
   h+='</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;font-size:12px;color:var(--tx3)">'+Object.keys(disc).map(function(d){return esc(d)+' ('+disc[d]+')'}).join(' · ')+'</div>'
@@ -386,12 +405,13 @@ function renderItens(){
       +'<button class="btn-acao btn-editar" style="padding:5px 10px;font-size:12px" onclick="editarItem(\''+q.id+'\')">Editar</button>'
       +'<button class="btn-acao btn-editar" style="padding:5px 10px;font-size:12px" onclick="anularItem(\''+q.id+'\','+(!q.anulada)+')">'+(q.anulada?'Desanular':'Anular')+'</button>'
       +(q.comentario?'<span style="color:var(--tx4);font-size:11.5px;align-self:center">💬 com comentario</span>':'<span style="color:var(--alerta);font-size:11.5px;align-self:center">sem comentario</span>')
+      +(q.bizu?'<span style="color:#c9a9e8;font-size:11.5px;align-self:center">💡 com BIZU</span>':'')
       +'</div></div>'
   }).join('')
 }
 
 function modoImp(m){
-  ;['arq','json','gab'].forEach(function(x){document.getElementById('im-'+x).classList.toggle('on',x===m);document.getElementById('bx-'+x).style.display=x===m?'block':'none'})
+  ;['arq','json','com','gab'].forEach(function(x){document.getElementById('im-'+x).classList.toggle('on',x===m);document.getElementById('bx-'+x).style.display=x===m?'block':'none'})
 }
 async function lerArquivoSim(file){
   if(!file)return
@@ -418,7 +438,8 @@ Formato de cada questao:
   "enunciado": "texto completo do item",
   "alternativas": ["texto da A", "texto da B", "texto da C", "texto da D", "texto da E"],
   "gabarito": "C",
-  "comentario": "explicacao didatica de por que o gabarito e esse"
+  "comentario": "explicacao didatica de por que o gabarito e esse",
+  "bizu": "macete curto para memorizar (se o arquivo tiver BIZU, copie)"
 }
 
 Regras:
@@ -445,7 +466,7 @@ function lerJsonSim(){
     const alts=Array.isArray(q.alternativas)&&q.alternativas.length>=2?q.alternativas.map(String):null
     let g=String(q.gabarito||'').trim().toUpperCase(); if(g==='CERTO')g='C'; if(g==='ERRADO')g='E'
     return {numero:parseInt(q.numero)||i+1,disciplina:q.disciplina||'Geral',assunto:q.assunto||'',tipo:alts?'multipla':'certo_errado',texto_apoio:q.texto_apoio||null,
-      enunciado:String(q.enunciado||'').trim(),alternativas:alts,gabarito:g?g.charAt(0):null,comentario:q.comentario||null,anulada:!!q.anulada}
+      enunciado:String(q.enunciado||'').trim(),alternativas:alts,gabarito:g?g.charAt(0):null,comentario:q.comentario||null,bizu:q.bizu||null,anulada:!!q.anulada}
   })
   const av=[]
   itens.forEach(function(q){if(!q.gabarito)av.push('Questao '+q.numero+' sem gabarito.');if(!q.enunciado)av.push('Questao '+q.numero+' sem enunciado.')})
@@ -466,7 +487,8 @@ function mostrarPrevia(itens,avisos,origem){
         +(q.texto_apoio?'<div style="color:var(--tx4);font-size:11.5px">📄 '+esc(q.texto_apoio.slice(0,110))+'...</div>':'')
         +'<div>'+esc(q.enunciado.slice(0,220))+'</div>'
         +(q.alternativas?'<div style="color:var(--tx3);font-size:11.5px">'+q.alternativas.map(function(a,i){return LETRAS[i]+') '+esc(String(a).slice(0,50))}).join(' · ')+'</div>':'')
-        +(q.comentario?'<div style="color:var(--tx4);font-size:11.5px">💬 '+esc(q.comentario.slice(0,120))+'...</div>':'')+'</div>'
+        +(q.comentario?'<div style="color:var(--tx4);font-size:11.5px">💬 '+esc(q.comentario.slice(0,120))+'...</div>':'')
+        +(q.bizu?'<div style="color:#c9a9e8;font-size:11.5px">💡 '+esc(q.bizu.slice(0,120))+'</div>':'')+'</div>'
     }).join('')+'</div>'
     +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
     +'<button onclick="salvarPrevia(\'substituir\')" style="width:auto;padding:10px 16px;margin:0">'+(_itens.length?'Substituir as '+_itens.length+' questoes atuais':'Salvar estas questoes')+'</button>'
@@ -487,6 +509,7 @@ async function salvarPrevia(modo){
     const id=uuid()
     linhas.push({id:id,simulado_id:_sim.id,numero:modo==='adicionar'?base+i+1:(q.numero||i+1),disciplina:q.disciplina||null,assunto:q.assunto||null,tipo:q.tipo,
       texto_apoio:q.texto_apoio||null,enunciado:q.enunciado||'(sem enunciado)',alternativas:q.alternativas||null,comentario:q.comentario||null,anulada:!!q.anulada})
+    if(_temBizu)linhas[linhas.length-1].bizu=q.bizu||null
     if(q.gabarito)gabs.push({item_id:id,simulado_id:_sim.id,gabarito:q.gabarito})
   })
   const box=document.getElementById('prev-imp')
@@ -503,6 +526,93 @@ async function salvarPrevia(modo){
   box.innerHTML='<p style="color:var(--ok);font-size:13px;font-weight:700">✓ '+linhas.length+' questoes salvas'+(gabs.length<linhas.length?' ('+(linhas.length-gabs.length)+' sem gabarito: use o Gabarito rapido)':'')+'.</p>'
   await carregarItens()
 }
+/* ---------- GABARITO COMENTADO (arquivo) ---------- */
+async function lerArquivoCom(file){
+  if(!file)return
+  const box=document.getElementById('prev-imp')
+  box.innerHTML='<p style="color:var(--tx3);font-size:13px">Lendo '+esc(file.name)+'...</p>'
+  let r
+  try{r=lerGabaritoComentado(await lerArquivoParagrafos(file))}
+  catch(e){box.innerHTML='<div class="aviso" style="border-color:var(--erro)">Nao consegui ler o arquivo: '+esc(e.message)+'</div>';return}
+  _comPrev=r
+  previaCom(file.name)
+}
+function alvoCom(){return _previa&&_previa.length?_previa:_itens}
+function previaCom(nome){
+  const r=_comPrev, box=document.getElementById('prev-imp'), alvo=alvoCom()
+  if(!r.nGab&&!r.nCom){box.innerHTML='<div class="aviso">Nao encontrei gabarito nem comentarios numerados em '+esc(nome)+'. Se o PDF for escaneado (foto), use o "Colar JSON".</div>';return}
+  if(!alvo.length){box.innerHTML='<div class="aviso">Achei '+r.nGab+' gabarito(s), '+r.nCom+' comentario(s) e '+r.nBizu+' BIZU(s), mas este simulado ainda nao tem questoes. Traga as questoes primeiro (botao "Ler arquivo Word / PDF") e depois envie o gabarito comentado de novo.</div>';_comPrev=null;return}
+  const gabDe=function(q){return alvo===_previa?q.gabarito:_gab[q.id]}
+  let nG=0,nTroca=0,nC=0,nB=0,nA=0
+  const linhas=alvo.map(function(q){
+    const g=r.gab[q.numero], it=r.itens[q.numero]||{}, atual=gabDe(q)
+    if(g&&g!=='X')nG++; if(g==='X')nA++
+    const troca=g&&g!=='X'&&atual&&atual!==g; if(troca)nTroca++
+    if(it.comentario)nC++; if(it.bizu)nB++
+    return '<tr><td><strong style="color:var(--ouro)">'+q.numero+'</strong></td>'
+      +'<td style="color:'+(g?(troca?'var(--alerta)':'var(--ok)'):'var(--erro)')+';font-weight:700">'+(g==='X'?'ANULADA':(g||'—'))+(troca?' <span style="font-weight:400">(era '+atual+')</span>':'')+'</td>'
+      +'<td style="font-size:12px;color:var(--tx2)">'+(it.comentario?esc(it.comentario.slice(0,90))+(it.comentario.length>90?'…':''):'<span style="color:var(--tx4)">—</span>')+'</td>'
+      +'<td style="font-size:12px;color:#c9a9e8">'+(it.bizu?esc(it.bizu.slice(0,70))+(it.bizu.length>70?'…':''):'<span style="color:var(--tx4)">—</span>')+'</td></tr>'
+  }).join('')
+  const nums={};alvo.forEach(function(q){nums[q.numero]=1})
+  const sobra=Object.keys(r.gab).concat(Object.keys(r.itens)).filter(function(n,i,a){return a.indexOf(n)===i&&!nums[n]})
+  const av=r.avisos.slice()
+  if(nG+nA<alvo.length)av.push((alvo.length-nG-nA)+' questao(oes) do simulado ficaram sem gabarito neste arquivo.')
+  if(nTroca)av.push(nTroca+' gabarito(s) vao mudar em relacao ao que ja estava salvo (em amarelo).'+(_nRes?' Depois de aplicar, va em Resultados → Recorrigir todos.':''))
+  if(sobra.length)av.push('O arquivo tem itens que nao existem no simulado: '+sobra.slice(0,12).join(', ')+(sobra.length>12?'...':'')+'.')
+  if(!_temBizu&&r.nBizu)av.push('Os BIZUs so serao gravados depois que voce rodar o arquivo atualizacao-simulado-bizu.sql no Supabase.')
+  box.innerHTML='<div style="background:var(--card2);border:1px solid var(--ouro);border-radius:12px;padding:14px">'
+    +'<div style="font-weight:800;color:var(--ouro);margin-bottom:8px">Gabarito comentado: '+esc(nome||'')+'</div>'
+    +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;font-size:12px">'
+    +'<span class="tag" style="color:var(--ouro);border-color:var(--ouro)">'+alvo.length+' questoes '+(alvo===_previa?'na previa':'no simulado')+'</span>'
+    +'<span class="tag" style="color:var(--ok);border-color:var(--ok)">✓ '+nG+' gabaritos</span>'
+    +(nA?'<span class="tag" style="color:var(--alerta);border-color:var(--alerta)">'+nA+' anulada(s)</span>':'')
+    +'<span class="tag">💬 '+nC+' comentarios</span><span class="tag" style="color:#c9a9e8;border-color:#7d5fa8">💡 '+nB+' BIZUs</span></div>'
+    +(av.length?'<div class="aviso">'+av.map(esc).join('<br>')+'</div>':'<div style="color:var(--ok);font-size:12.5px;margin-bottom:10px">✓ Tudo bateu: todas as questoes com gabarito.</div>')
+    +'<div class="wrap-tb" style="max-height:360px;overflow:auto;border:1px solid var(--bd);border-radius:10px;margin-bottom:10px"><table style="width:100%;border-collapse:collapse;font-size:13px">'
+    +'<tr style="position:sticky;top:0;background:var(--card2)"><th style="text-align:left;padding:6px">#</th><th style="text-align:left;padding:6px">Gabarito</th><th style="text-align:left;padding:6px">Comentario</th><th style="text-align:left;padding:6px">BIZU</th></tr>'
+    +linhas+'</table></div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
+    +'<button onclick="aplicarCom()" style="width:auto;padding:10px 16px;margin:0">Aplicar gabarito, comentarios e BIZUs</button>'
+    +'<button onclick="document.getElementById(\'prev-imp\').innerHTML=\'\';_comPrev=null" class="btn-acao btn-editar" style="padding:10px 14px">Descartar</button></div></div>'
+}
+async function aplicarCom(){
+  const r=_comPrev; if(!r)return
+  const box=document.getElementById('prev-imp')
+  if(_previa&&_previa.length){ // ainda na previa das questoes: so preenche e volta para a previa
+    _previa.forEach(function(q){
+      const g=r.gab[q.numero], it=r.itens[q.numero]||{}
+      if(g==='X')q.anulada=true; else if(g)q.gabarito=g
+      if(it.comentario)q.comentario=it.comentario
+      if(it.bizu)q.bizu=it.bizu
+    })
+    _comPrev=null
+    mostrarPrevia(_previa,[],'previa + gabarito comentado');return
+  }
+  const ups=[],anular=[],textos=[]
+  _itens.forEach(function(q){
+    const g=r.gab[q.numero], it=r.itens[q.numero]||{}
+    if(g==='X')anular.push(q.id); else if(g)ups.push({item_id:q.id,simulado_id:_sim.id,gabarito:g})
+    const u={}
+    if(it.comentario&&it.comentario!==q.comentario)u.comentario=it.comentario
+    if(_temBizu&&it.bizu&&it.bizu!==q.bizu)u.bizu=it.bizu
+    if(Object.keys(u).length)textos.push({id:q.id,u:u})
+  })
+  if(!confirm('Aplicar '+ups.length+' gabarito(s), '+textos.length+' comentario(s)/BIZU(s)'+(anular.length?' e anular '+anular.length+' questao(oes)':'')+'?'))return
+  box.innerHTML='<p style="color:var(--tx3);font-size:13px">Aplicando...</p>'
+  for(let i=0;i<ups.length;i+=200){const x=await _supabase.from('sim_gabaritos').upsert(ups.slice(i,i+200),{onConflict:'item_id'});if(x.error){box.innerHTML='<div class="aviso" style="border-color:var(--erro)">Erro no gabarito: '+esc(x.error.message)+'</div>';return}}
+  if(anular.length){const x=await _supabase.from('sim_itens').update({anulada:true}).in('id',anular);if(x.error){box.innerHTML='<div class="aviso" style="border-color:var(--erro)">Erro ao anular: '+esc(x.error.message)+'</div>';return}}
+  for(let i=0;i<textos.length;i+=15){
+    box.innerHTML='<p style="color:var(--tx3);font-size:13px">Gravando comentarios e BIZUs '+Math.min(i+15,textos.length)+'/'+textos.length+'...</p>'
+    const rs=await Promise.all(textos.slice(i,i+15).map(function(t){return _supabase.from('sim_itens').update(t.u).eq('id',t.id)}))
+    const e=rs.find(function(x){return x&&x.error})
+    if(e){box.innerHTML='<div class="aviso" style="border-color:var(--erro)">Erro ao gravar comentarios: '+esc(e.error.message)+'</div>';return}
+  }
+  _comPrev=null
+  await carregarItens()
+  box.innerHTML='<p style="color:var(--ok);font-size:13px;font-weight:700">✓ Gabarito comentado aplicado: '+ups.length+' gabarito(s), '+textos.length+' comentario(s)/BIZU(s).'+(_nRes?' Va em Resultados → Recorrigir todos.':'')+'</p>'
+}
+
 async function aplicarGabaritoRapido(){
   const pares=lerParesGabarito(document.getElementById('gab-rapido').value)
   const nums=Object.keys(pares)
@@ -539,6 +649,7 @@ function editarItem(id){
     +'<label class="ml">Enunciado</label><textarea id="ei-enun" rows="4">'+esc(q.enunciado||'')+'</textarea>'
     +'<div id="ei-alts" style="display:'+(q.tipo==='multipla'?'block':'none')+'">'+alts.map(function(a,i){return '<label class="ml">Alternativa '+LETRAS[i]+'</label><input type="text" class="ei-alt" value="'+esc(a)+'">'}).join('')+'</div>'
     +'<label class="ml">Comentario (aparece na correcao)</label><textarea id="ei-com" rows="4">'+esc(q.comentario||'')+'</textarea>'
+    +'<label class="ml">💡 BIZU (o aluno leva para o caderno de erros e para os flashcards)</label><textarea id="ei-bizu" rows="2"'+(_temBizu?'':' disabled placeholder="Rode o arquivo atualizacao-simulado-bizu.sql para liberar"')+'>'+esc(q.bizu||'')+'</textarea>'
     +'<label class="ml">Explicacao gravada (opcional)</label>'+(typeof campoExplicacaoHTML==='function'?campoExplicacaoHTML('ei-expl',q.explicacao_url||''):'')
     +'<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><button onclick="salvarItem('+(id?'\''+id+'\'':'null')+')" style="width:auto;padding:10px 16px;margin:0">Salvar</button>'
     +(id?'<button onclick="excluirItem(\''+id+'\')" class="btn-acao btn-excluir" style="padding:10px 14px">Excluir questao</button>':'')+'</div>'
@@ -556,6 +667,7 @@ async function salvarItem(id){
   if(g&&(tipo==='multipla'?LETRAS.slice(0,alts.length).indexOf(g)<0:'CE'.indexOf(g)<0)){msgEl('msg-item','Gabarito invalido para este tipo de questao.','var(--erro)');return}
   const linha={numero:parseInt(document.getElementById('ei-num').value)||1,tipo:tipo,disciplina:document.getElementById('ei-disc').value.trim()||null,assunto:document.getElementById('ei-ass').value.trim()||null,
     texto_apoio:document.getElementById('ei-apoio').value.trim()||null,enunciado:enun,alternativas:tipo==='multipla'?alts:null,comentario:document.getElementById('ei-com').value.trim()||null}
+  if(_temBizu)linha.bizu=document.getElementById('ei-bizu').value.trim()||null
   let iid=id
   if(id){const r=await _supabase.from('sim_itens').update(linha).eq('id',id);if(r.error){msgEl('msg-item',esc(r.error.message),'var(--erro)');return}}
   else{iid=uuid();linha.id=iid;linha.simulado_id=_sim.id;const r=await _supabase.from('sim_itens').insert(linha);if(r.error){msgEl('msg-item',esc(r.error.message),'var(--erro)');return}}
@@ -577,6 +689,7 @@ async function copiarParaBanco(){
   if(!confirm('Copiar '+ok.length+' questoes deste simulado para o banco de questoes da plataforma?'+(_sim.concurso_id?'\nElas ficam vinculadas a turma do simulado.':'')+'\n\nDica: faca isso depois que todos tiverem feito o simulado, para ninguem treinar antes.'))return
   const linhas=ok.map(function(q){return {disciplina:q.disciplina||'Geral',assunto:q.assunto||null,tipo:q.tipo,enunciado:q.enunciado,texto_apoio:q.texto_apoio||null,
     alternativas:q.tipo==='multipla'?q.alternativas:null,gabarito:_gab[q.id],comentario:q.comentario||null,origem:'autoral',banca:_sim.banca||null,ativo:true}})
+  if(ok.some(function(q){return q.bizu}))linhas.forEach(function(l,i){l.bizu=ok[i].bizu||null})
   let ids=[]
   for(let i=0;i<linhas.length;i+=100){
     const r=await _supabase.from('questoes').insert(linhas.slice(i,i+100)).select('id')
