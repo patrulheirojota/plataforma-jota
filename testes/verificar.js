@@ -101,6 +101,14 @@ if (SP) {
     ok(g.gab[3] === 'C' && g.conflitos.join() === '3' && g.nBizu === 3 && /O item esta errado|O item está errado/.test(g.itens[1].comentario), 'gabarito comentado: linha "1-E 2-C" + itens com enunciado (avisa divergencia)')
     g = lerGabaritoComentado(fx('gab-com-grade.txt').split('\n'))
     ok(JSON.stringify(g.gab) === '{"1":"B","2":"D","3":"A","4":"E"}' && g.nCom === 4 && g.nBizu === 2 && /Ato administrativo/.test(g.itens[1].bizu), 'gabarito comentado: grade de multipla escolha + Justificativa/BIZU', JSON.stringify(g.gab))
+    // formato "caderno de aplicacao" (capa, instrucoes numeradas, folha de respostas) + "cartao por cartao"
+    const cc = lerSimulado(fx('caderno-cartoes.txt').split('\n'))
+    ok(cc.itens.length === 6 && cc.itens[0].numero === 1 && cc.itens[5].numero === 6 && cc.itens.every(q => q.tipo === 'certo_errado' && q.enunciado.length > 30 && !/\(\s*\)/.test(q.enunciado)), 'caderno: ignora instrucoes "1. Este caderno", tabela "01 a 03", folha de respostas e tira o "( ) C ( ) E"', cc.itens.map(q => q.numero).join(','))
+    ok(cc.itens[0].disciplina === 'Língua Portuguesa' && cc.itens[3].disciplina === 'Legislação PMAL' && /TT1A1/.test(cc.itens[0].texto_apoio || '') && !cc.itens.some(q => q.gabarito), 'caderno: disciplinas (com sigla PMAL), texto de apoio e folha de respostas vazia nao vira gabarito')
+    g = lerGabaritoComentado(fx('gabarito-cartoes.txt').split('\n'))
+    ok(JSON.stringify(g.gab) === '{"1":"E","2":"C","3":"C","4":"C","5":"E","6":"E"}' && g.nCom === 6 && g.nBizu === 6 && !g.conflitos.length, 'gabarito cartao por cartao: gabarito rapido + GABARITO: no cabecalho', JSON.stringify(g.gab))
+    ok(/^O texto afirma/.test(g.itens[1].comentario) && /\n\n🎯 Mecanismo da banca: Antecipar/.test(g.itens[1].comentario) && !/INCID|TÓPICO|Enunciado repetido/.test(g.itens[1].comentario) && /começa antes/.test(g.itens[1].bizu) && !/CICLOS|ESPELHO|PLANO/.test(g.itens[6].bizu + g.itens[6].comentario), 'gabarito cartao por cartao: ANALISE + MECANISMO no comentario, BIZU limpo, sem ficha/ciclos/espelho')
+    ok(g.itens[1].disciplina === 'Língua Portuguesa' && g.itens[1].assunto === 'Compreensão e interpretação' && g.itens[6].assunto === 'Vedações', 'gabarito cartao por cartao: disciplina e assunto (topico do edital)', g.itens[1].assunto)
   } else ok(false, 'simulado-parser.js sem o leitor de gabarito comentado')
 }
 const LP = existe('lei-parser.js') && carregar('lei-parser.js')
