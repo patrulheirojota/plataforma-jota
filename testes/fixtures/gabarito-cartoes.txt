@@ -1,0 +1,98 @@
+PATRULHEIROS DE ELITE
+GABARITO COMENTADO
+CADERNO DE ERROS — CARTÃO POR CARTÃO
+COMO USAR ESTE CADERNO
+1.  Corrija primeiro, leia depois. Marque seu resultado antes de ler qualquer comentário.
+2.  Todo item errado e todo item chutado devem ser trabalhados.
+3.  Cada cartão traz o GABARITO em destaque e a ficha técnica do item.
+ESTATÍSTICA DE CONTROLE DESTE SIMULADO
+Total de itens
+6
+Itens com gabarito CERTO
+3
+Itens com gabarito ERRADO
+3
+Incidência alta / média
+4 / 2
+GABARITO RÁPIDO
+Nº
+GAB
+Nº
+GAB
+001
+E
+004
+C
+002
+C
+005
+E
+003
+C
+006
+E
+Distribuição conferida por contagem automática: 3 itens CERTO e 3 itens ERRADO.
+  LÍNGUA PORTUGUESA
+   CARTÃO 001  |  Língua Portuguesa	GABARITO: ERRADO  
+TÓPICO DO EDITAL: LP 1 - compreensão e interpretação
+INCIDÊNCIA: Alta      DIFICULDADE: Média      FORMATO: Certo/Errado — item de julgamento      FUNDAMENTO: Texto
+Enunciado repetido do item 1.
+ANÁLISE: O texto afirma que o patrulhamento começa antes, na leitura do relatório.
+MECANISMO DA BANCA: Antecipar ou atrasar o marco temporal do texto.
+BIZU:  Quando o texto diz "começa antes", a assertiva que fixa o início depois está errada.
+
+CICLOS:    R1 (   )        R2 (   )        R3 (   )        DOMINEI (   )        ERREI DE NOVO (   )
+   CARTÃO 002  |  Língua Portuguesa	GABARITO: CERTO  
+TÓPICO DO EDITAL: LP 5.4 - emprego dos sinais de pontuação
+INCIDÊNCIA: Alta      DIFICULDADE: Média      FORMATO: Certo/Errado — item de julgamento      FUNDAMENTO: Texto
+Enunciado repetido do item 2.
+ANÁLISE: Os dois-pontos anunciam o desenvolvimento do que foi dito antes.
+MECANISMO DA BANCA: Atribuir aos dois-pontos valor de conclusão.
+BIZU:  Dois-pontos = vem aí a explicação.
+
+CICLOS:    R1 (   )        R2 (   )        R3 (   )        DOMINEI (   )        ERREI DE NOVO (   )
+   CARTÃO 003  |  Língua Portuguesa	GABARITO: CERTO  
+TÓPICO DO EDITAL: LP 5.1 - classes de palavras
+INCIDÊNCIA: Alta      DIFICULDADE: Média      FORMATO: Certo/Errado — item de julgamento      FUNDAMENTO: Texto
+Enunciado repetido do item 3.
+ANÁLISE: O adjetivo atenta caracteriza o substantivo leitura.
+MECANISMO DA BANCA: Confundir adjetivo com advérbio.
+BIZU:  Teste do plural: varia com o substantivo? É adjetivo.
+
+CICLOS:    R1 (   )        R2 (   )        R3 (   )        DOMINEI (   )        ERREI DE NOVO (   )
+  LEGISLAÇÃO PMAL
+   CARTÃO 004  |  Legislação PMAL	GABARITO: CERTO  
+TÓPICO DO EDITAL: LEG 1 - Estatuto dos Militares
+INCIDÊNCIA: Alta      DIFICULDADE: Média      FORMATO: Certo/Errado — item de julgamento      FUNDAMENTO: Texto
+Enunciado repetido do item 4.
+ANÁLISE: Hierarquia e disciplina são a base institucional das corporações militares.
+MECANISMO DA BANCA: Trocar as definições.
+BIZU:  Hierarquia ordena; disciplina obedece.
+
+CICLOS:    R1 (   )        R2 (   )        R3 (   )        DOMINEI (   )        ERREI DE NOVO (   )
+   CARTÃO 005  |  Legislação PMAL	GABARITO: ERRADO  
+TÓPICO DO EDITAL: LEG 1 - Estatuto dos Militares
+INCIDÊNCIA: Alta      DIFICULDADE: Média      FORMATO: Certo/Errado — item de julgamento      FUNDAMENTO: Texto
+Enunciado repetido do item 5.
+ANÁLISE: A disciplina exige o cumprimento de ordens legais; discordar não autoriza descumprir.
+MECANISMO DA BANCA: Transformar opinião pessoal em exceção ao dever.
+BIZU:  Ordem legal se cumpre; ordem ilegal se recusa.
+
+CICLOS:    R1 (   )        R2 (   )        R3 (   )        DOMINEI (   )        ERREI DE NOVO (   )
+   CARTÃO 006  |  Legislação PMAL	GABARITO: ERRADO  
+TÓPICO DO EDITAL: LEG 2 - vedações
+INCIDÊNCIA: Alta      DIFICULDADE: Média      FORMATO: Certo/Errado — item de julgamento      FUNDAMENTO: Texto
+Enunciado repetido do item 6.
+ANÁLISE: O militar da ativa não pode exercer atividade político-partidária.
+MECANISMO DA BANCA: Estender ao militar da ativa um direito do civil.
+BIZU:  Na ativa: farda não tem partido.
+
+CICLOS:    R1 (   )        R2 (   )        R3 (   )        DOMINEI (   )        ERREI DE NOVO (   )
+  ESPELHO DA REDAÇÃO — CRITÉRIOS DE AUTOCORREÇÃO
+Avalie sua produção nos mesmos eixos utilizados pela banca.
+EIXO
+NOTA
+  PLANO DE AÇÃO PÓS-SIMULADO
+1.  Liste as três disciplinas com pior desempenho.
+2.  Use o TÓPICO DO EDITAL de cada cartão errado.
+A SORTE ACOMPANHA O AUDAZ.
