@@ -181,7 +181,7 @@ async function lerPdf (file) {
     return !(freq[k] >= lim && pdf.numPages >= 3 && borda) && !/^(p[aá]gina\s*)?\d+\s*(de\s*\d+)?$/i.test(l.t) && !/^[–-]?\s*\d+\s*[–-]?$/.test(l.t) || /^\d{1,3}\s*[.)-]/.test(l.t)
   })
   // junta linhas em paragrafos
-  var INICIO = /^\s*((quest[aã]o|item)\s*\d+|\d{1,3}\s*[.)\-–—]|\d{1,3}\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ"“(]|\(?[A-Ea-e]\s*[).\-–]\s|gabarito|coment[aá]rio|justificativa|resposta\s*:|alternativa\s+correta|\W{0,3}\s*bizu|certo$|errado$|texto\s|julgue|considere|acerca|com base)/i
+  var INICIO = /^\s*((quest[aã]o|item)\s*\d+|\d{1,3}\s*[.)\-–—]|\d{1,3}\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ"“(]|\(?[A-Ea-e]\s*[).\-–]\s|cart[aã]o\s*\d+|gabarito|coment[aá]rio|justificativa|an[aá]lise\s*:|mecanismo\s+da\s+banca|t[óo]pico\s+do\s+edital|incid[êe]ncia\s*:|ciclos\s*:|resposta\s*:|alternativa\s+correta|\W{0,3}\s*bizu|certo$|errado$|texto\s|julgue|considere|acerca|com base)/i
   var paras = [], atual = null, ant = null
   linhasTodas.forEach(function (l) {
     var maius = l.t.replace(/[^A-Za-zÀ-ÿ]/g, ''); maius = maius.length >= 4 && maius === maius.toUpperCase()

@@ -543,12 +543,12 @@ function previaCom(nome){
   if(!r.nGab&&!r.nCom){box.innerHTML='<div class="aviso">Nao encontrei gabarito nem comentarios numerados em '+esc(nome)+'. Se o PDF for escaneado (foto), use o "Colar JSON".</div>';return}
   if(!alvo.length){box.innerHTML='<div class="aviso">Achei '+r.nGab+' gabarito(s), '+r.nCom+' comentario(s) e '+r.nBizu+' BIZU(s), mas este simulado ainda nao tem questoes. Traga as questoes primeiro (botao "Ler arquivo Word / PDF") e depois envie o gabarito comentado de novo.</div>';_comPrev=null;return}
   const gabDe=function(q){return alvo===_previa?q.gabarito:_gab[q.id]}
-  let nG=0,nTroca=0,nC=0,nB=0,nA=0
+  let nG=0,nTroca=0,nC=0,nB=0,nA=0,nT=0
   const linhas=alvo.map(function(q){
     const g=r.gab[q.numero], it=r.itens[q.numero]||{}, atual=gabDe(q)
     if(g&&g!=='X')nG++; if(g==='X')nA++
     const troca=g&&g!=='X'&&atual&&atual!==g; if(troca)nTroca++
-    if(it.comentario)nC++; if(it.bizu)nB++
+    if(it.comentario)nC++; if(it.bizu)nB++; if(it.assunto&&!q.assunto)nT++
     return '<tr><td><strong style="color:var(--ouro)">'+q.numero+'</strong></td>'
       +'<td style="color:'+(g?(troca?'var(--alerta)':'var(--ok)'):'var(--erro)')+';font-weight:700">'+(g==='X'?'ANULADA':(g||'—'))+(troca?' <span style="font-weight:400">(era '+atual+')</span>':'')+'</td>'
       +'<td style="font-size:12px;color:var(--tx2)">'+(it.comentario?esc(it.comentario.slice(0,90))+(it.comentario.length>90?'…':''):'<span style="color:var(--tx4)">—</span>')+'</td>'
@@ -567,7 +567,8 @@ function previaCom(nome){
     +'<span class="tag" style="color:var(--ouro);border-color:var(--ouro)">'+alvo.length+' questoes '+(alvo===_previa?'na previa':'no simulado')+'</span>'
     +'<span class="tag" style="color:var(--ok);border-color:var(--ok)">✓ '+nG+' gabaritos</span>'
     +(nA?'<span class="tag" style="color:var(--alerta);border-color:var(--alerta)">'+nA+' anulada(s)</span>':'')
-    +'<span class="tag">💬 '+nC+' comentarios</span><span class="tag" style="color:#c9a9e8;border-color:#7d5fa8">💡 '+nB+' BIZUs</span></div>'
+    +'<span class="tag">💬 '+nC+' comentarios</span><span class="tag" style="color:#c9a9e8;border-color:#7d5fa8">💡 '+nB+' BIZUs</span>'
+    +(nT?'<span class="tag" title="Vem do TOPICO DO EDITAL de cada cartao">🏷️ '+nT+' assuntos do edital</span>':'')+'</div>'
     +(av.length?'<div class="aviso">'+av.map(esc).join('<br>')+'</div>':'<div style="color:var(--ok);font-size:12.5px;margin-bottom:10px">✓ Tudo bateu: todas as questoes com gabarito.</div>')
     +'<div class="wrap-tb" style="max-height:360px;overflow:auto;border:1px solid var(--bd);border-radius:10px;margin-bottom:10px"><table style="width:100%;border-collapse:collapse;font-size:13px">'
     +'<tr style="position:sticky;top:0;background:var(--card2)"><th style="text-align:left;padding:6px">#</th><th style="text-align:left;padding:6px">Gabarito</th><th style="text-align:left;padding:6px">Comentario</th><th style="text-align:left;padding:6px">BIZU</th></tr>'
@@ -585,6 +586,8 @@ async function aplicarCom(){
       if(g==='X')q.anulada=true; else if(g)q.gabarito=g
       if(it.comentario)q.comentario=it.comentario
       if(it.bizu)q.bizu=it.bizu
+      if(it.assunto&&!q.assunto)q.assunto=it.assunto
+      if(it.disciplina&&(!q.disciplina||q.disciplina==='Geral'))q.disciplina=it.disciplina
     })
     _comPrev=null
     mostrarPrevia(_previa,[],'previa + gabarito comentado');return
@@ -596,6 +599,8 @@ async function aplicarCom(){
     const u={}
     if(it.comentario&&it.comentario!==q.comentario)u.comentario=it.comentario
     if(_temBizu&&it.bizu&&it.bizu!==q.bizu)u.bizu=it.bizu
+    if(it.assunto&&!q.assunto)u.assunto=it.assunto
+    if(it.disciplina&&(!q.disciplina||q.disciplina==='Geral'))u.disciplina=it.disciplina
     if(Object.keys(u).length)textos.push({id:q.id,u:u})
   })
   if(!confirm('Aplicar '+ups.length+' gabarito(s), '+textos.length+' comentario(s)/BIZU(s)'+(anular.length?' e anular '+anular.length+' questao(oes)':'')+'?'))return
