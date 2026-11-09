@@ -1224,6 +1224,51 @@ async function carregarLog() {
     }).join('')
 }
 
+/* ---------- ZERAR PENDENCIAS DA CENTRAL ---------- */
+// relatorios de 21 dias: recomeca o ciclo de hoje para os alunos escolhidos (nada e apagado)
+async function zerarCiclos(ids, pergunta) {
+  if (!ids || !ids.length) return
+  if (pergunta && !confirm(pergunta)) return
+  const hoje = new Date(); const k = hoje.getFullYear()+'-'+String(hoje.getMonth()+1).padStart(2,'0')+'-'+String(hoje.getDate()).padStart(2,'0')
+  for (let i = 0; i < ids.length; i += 100) {
+    const r = await _supabase.from('alunos').update({ ciclo_base: k }).in('id', ids.slice(i, i+100))
+    if (r.error) {
+      alert(/ciclo_base/.test(r.error.message) ? 'Rode o arquivo atualizacao-zerar-ciclos.sql no Supabase primeiro.' : 'Erro: '+r.error.message)
+      return
+    }
+  }
+  ;(window._todosAlunos||[]).forEach(function(a){ if (ids.indexOf(a.id) >= 0) a.ciclo_base = k })
+  await calcularCiclos()
+  if (document.getElementById('lista-ciclos') && document.getElementById('aba-ciclos') && document.getElementById('aba-ciclos').style.display !== 'none') carregarCiclos()
+  if (typeof renderCentral === 'function' && typeof _central !== 'undefined' && _central) renderCentral()
+}
+function ciclosAtrasados(minDias) {
+  const ci = window._ciclos || {}
+  return (window._todosAlunos||[]).filter(function(a){ return ci[a.id] && ci[a.id].vencido && ci[a.id].atraso >= (minDias||0) && (typeof alunoNaTurma !== 'function' || alunoNaTurma(a)) }).map(function(a){ return a.id })
+}
+function zerarTodosCiclos(minDias) {
+  const ids = ciclosAtrasados(minDias)
+  if (!ids.length) { alert(minDias ? 'Nenhum relatorio atrasado ha '+minDias+' dias ou mais.' : 'Nenhum relatorio pendente.'); return }
+  zerarCiclos(ids, 'Zerar '+ids.length+' relatorio(s) de 21 dias'+(minDias?' atrasado(s) ha '+minDias+' dias ou mais':' pendente(s)')+'?\n\n'
+    +'O ciclo desses alunos recomeca HOJE e o proximo relatorio fecha em '+diaBR(somaDias(new Date(),CICLO_DIAS))+'.\nNenhum relatorio ja enviado e nenhum estudo e apagado.')
+}
+function pularCiclo(id) {
+  const a = (window._todosAlunos||[]).find(function(x){ return x.id === id }) || {}
+  zerarCiclos([id], 'Pular o relatorio atrasado de '+(a.nome||'este aluno')+'?\n\nO ciclo recomeca hoje e o proximo relatorio fecha em '+diaBR(somaDias(new Date(),CICLO_DIAS))+'.')
+}
+
+// mexeram no cronograma: marca todos os ajustes como vistos
+async function marcarTodosVistosCentral() {
+  const n = (typeof montarGrupos === 'function') ? montarGrupos().mexeu.length : 0
+  if (!confirm('Marcar como vistas as alteracoes de cronograma de '+(n||'todos os')+' aluno(s)?\n\nO historico continua guardado; so some o aviso de "nao viu".')) return
+  const r = await _supabase.from('cronograma_log').update({ visto: true }).eq('visto', false)
+  if (r.error) { alert('Erro: '+r.error.message); return }
+  await carregarAlertas()
+  if (typeof carregarLog === 'function') carregarLog()
+  if (window._todosAlunos && typeof filtrarAlunos === 'function') filtrarAlunos(true)
+  if (typeof renderCentral === 'function' && typeof _central !== 'undefined' && _central) renderCentral()
+}
+
 async function marcarLogVisto() {
   await _supabase.from('cronograma_log').update({ visto: true }).eq('visto', false)
   carregarLog()
@@ -1480,7 +1525,9 @@ async function calcularCiclos() {
     const entrada = a.criado_em ? new Date(a.criado_em) : null
     if (!entrada) return
     const u = ultimo[a.id]
-    const ini = u && u.periodo_fim ? new Date(u.periodo_fim+'T12:00:00') : entrada
+    let ini = u && u.periodo_fim ? new Date(u.periodo_fim+'T12:00:00') : entrada
+    // ciclo zerado pelo mentor ("Zerar atrasados"): recomeca da data marcada
+    if (a.ciclo_base) { const b = new Date(a.ciclo_base+'T00:00:00'); if (b > ini) ini = b }
     const fim = somaDias(ini, CICLO_DIAS)
     const atraso = Math.floor((hoje - fim)/86400000)
     ciclos[a.id] = {
@@ -1522,7 +1569,11 @@ async function carregarCiclos() {
   const lista = (window._todosAlunos||[]).filter(function(a){ return ciclos[a.id] })
     .sort(function(a,b){ return ciclos[b.id].atraso - ciclos[a.id].atraso })
   if (!lista.length) { div.innerHTML='<p style="color:var(--tx3);font-size:13px">Nenhum aluno cadastrado ainda.</p>'; return }
-  div.innerHTML = lista.map(function(a){
+  const nAtr = lista.filter(function(a){ return ciclos[a.id].vencido }).length
+  div.innerHTML = (nAtr ? '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">'
+      +'<button class="btn-acao btn-editar" style="padding:8px 14px" onclick="zerarTodosCiclos(7)">⏭️ Zerar atrasados ha 7+ dias</button>'
+      +'<button class="btn-acao btn-editar" style="padding:8px 14px" onclick="zerarTodosCiclos(0)">⏭️ Zerar todos os '+nAtr+' pendentes</button></div>' : '')
+    + lista.map(function(a){
     const c = ciclos[a.id]
     const cor = c.vencido ? 'var(--alerta)' : 'var(--bd2)'
     const txt = c.vencido
@@ -1533,7 +1584,8 @@ async function carregarCiclos() {
       +'<div style="color:var(--tx3);font-size:12px">'+(a.concursos?a.concursos.nome:'sem concurso')+'</div>'
       +'<div style="color:var(--tx4);font-size:11.5px;margin-top:3px">Ciclo '+c.ciclo+' · '+c.iniBR+' a '+c.fimBR+'</div></div>'
       +'<span style="color:'+(c.vencido?'var(--alerta)':'var(--tx3)')+';font-size:12.5px;font-weight:700">'+txt+'</span>'
-      +'<button class="btn-acao btn-editar" onclick="abrirRelatorioCiclo(\''+a.id+'\')">Montar relatorio</button></div>'
+      +'<button class="btn-acao btn-editar" onclick="abrirRelatorioCiclo(\''+a.id+'\')">Montar relatorio</button>'
+      +(c.vencido?'<button class="btn-acao btn-editar" title="Nao vou fazer este: recomeca o ciclo hoje" onclick="pularCiclo(\''+a.id+'\')">⏭️ Pular</button>':'')+'</div>'
   }).join('')
 }
 

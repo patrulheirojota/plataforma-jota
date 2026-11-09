@@ -116,11 +116,15 @@ function renderCentral() {
     return linhaAluno(x.a, 'Venceu ha ' + x.dias + ' dia(s) · ' + dataBR(x.a.data_expiracao), [['💬 Renovacao', "msgCentral('vencido','" + x.a.id + "'," + x.dias + ")"], ['✏️', "irEditarDaCentral('" + x.a.id + "')"]])
   })
   h += grupo('ciclos', '🗓️', 'Relatorio de 21 dias para enviar', 'var(--alerta)', g.ciclos, function (x) {
-    return linhaAluno(x.a, 'Ciclo ' + x.c.ciclo + ' · ' + x.c.iniBR + ' a ' + x.c.fimBR + (x.c.atraso > 0 ? ' · atrasado ' + x.c.atraso + ' dia(s)' : ' · fecha hoje'), [['🗓️ Fazer relatorio', "abrirRelatorioCiclo('" + x.a.id + "')"]])
-  })
+    return linhaAluno(x.a, 'Ciclo ' + x.c.ciclo + ' · ' + x.c.iniBR + ' a ' + x.c.fimBR + (x.c.atraso > 0 ? ' · atrasado ' + x.c.atraso + ' dia(s)' : ' · fecha hoje'), [['🗓️ Fazer relatorio', "abrirRelatorioCiclo('" + x.a.id + "')"], ['⏭️ Pular', "pularCiclo('" + x.a.id + "')"]])
+  }, '<div style="display:flex;gap:8px;flex-wrap:wrap">'
+    + (g.ciclos.filter(function (x) { return x.c.atraso >= 7 }).length ? '<button class="btn-acao btn-editar" style="padding:7px 12px" onclick="zerarTodosCiclos(7)">⏭️ Zerar os atrasados ha 7+ dias (' + g.ciclos.filter(function (x) { return x.c.atraso >= 7 }).length + ')</button>' : '')
+    + '<button class="btn-acao btn-editar" style="padding:7px 12px" onclick="zerarTodosCiclos(0)">⏭️ Zerar todos (' + g.ciclos.length + ') e recomecar de hoje</button></div>'
+    + '<div style="color:var(--tx4);font-size:11.5px;margin-top:6px">Zerar nao apaga nada: o ciclo do aluno recomeca hoje e o proximo relatorio vence em 21 dias.</div>')
   h += grupo('mexeu', '🔄', 'Mexeram no cronograma (voce ainda nao viu)', 'var(--info)', g.mexeu, function (x) {
     return linhaAluno(x.a, String(x.txt).slice(0, 90), [['👁️ Ver', "verComoAluno('" + x.a.id + "')"]])
-  }, '<button class="btn-acao btn-editar" style="padding:7px 12px" onclick="mostrarAba(\'aba-desempenho\')">Ver historico</button>')
+  }, '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn-acao btn-editar" style="padding:7px 12px;border-color:var(--ok);color:var(--ok)" onclick="marcarTodosVistosCentral()">✓ Marcar todos como vistos (' + g.mexeu.length + ')</button>'
+    + '<button class="btn-acao btn-editar" style="padding:7px 12px" onclick="mostrarAba(\'aba-desempenho\')">Ver historico</button></div>')
   h += grupo('pausa', '⏸️', 'Pausa com retorno vencido', 'var(--alerta)', g.pausaVencida, function (x) {
     return linhaAluno(x.a, 'Retorno previsto em ' + dataBR(x.prevista), [['💬 Mensagem', "msgCentral('pausa','" + x.a.id + "',0)"], ['👁️', "verComoAluno('" + x.a.id + "')"]])
   })
