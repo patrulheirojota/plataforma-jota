@@ -1378,6 +1378,7 @@ async function carregarSimulados(){
     else if(abre){st='abre em '+dt(s.abre_em);bt='<a class="btn" href="'+url+'" style="text-decoration:none">Ver</a>'}
     else if(fechou){st='encerrado';bt=''}
     else{st=s.fecha_em?'disponivel ate '+dt(s.fecha_em):'disponivel';bt=_mentor?'':'<a class="btn btn-ouro" href="'+url+'" style="text-decoration:none">Fazer</a>'}
+    if(_mentor)bt='<a class="btn" href="simulado.html?id='+s.id+'&previa=1&aluno='+_alunoId+'" style="text-decoration:none" title="Abre a prova como o aluno ve. Nada e salvo.">👁️ Previa</a>'+bt
     return '<div class="mat"><div style="font-size:24px">🧪</div>'
       +'<div style="flex:1;min-width:160px"><div style="font-size:14.5px;font-weight:700">'+esc(s.nome)+'</div>'
       +(s.descricao?'<div style="color:var(--tx3);font-size:12.5px;margin-top:3px">'+esc(s.descricao)+'</div>':'')
