@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Montar meu cronograma — Patrulheiros de Elite</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0a1420">
+<link rel="apple-touch-icon" href="/icone-192.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>document.documentElement.setAttribute("data-tema",localStorage.getItem("tema")||"escuro")</script>
+<style>
+  :root{--ouro:#C9A83C;--bg:#0a1420;--card:#101d2c;--card2:#0d1a28;--btn:#132030;--bd:#1b2c40;--bd2:#24384f;--tx:#e8edf4;--tx2:#8fa5bd;--tx3:#63809e;--tx4:#4d6684;--hov:#16283c;--ok:#6ddba0;--erro:#f07171;--alerta:#e8b04b;--info:#5bb3f0}
+  [data-tema="claro"]{--bg:#eef1f6;--card:#fff;--card2:#f7f9fc;--btn:#fff;--bd:#dde4ed;--bd2:#c6d2e0;--tx:#0f1b2a;--tx2:#4a5f78;--tx3:#66809b;--tx4:#8fa2b8;--hov:#eaf0f8;--ok:#1f9d61;--erro:#d24646;--alerta:#b9800f}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--tx);min-height:100vh}
+  .wrap{max-width:560px;margin:0 auto;padding:22px 16px 70px}
+  .topo{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+  .topo a{color:var(--tx3);font-size:13px;text-decoration:none}
+  .card{background:var(--card);border:1px solid var(--bd);border-radius:18px;padding:20px;margin-bottom:14px}
+  .h1{font-size:21px;font-weight:800}
+  .sub{color:var(--tx3);font-size:13.5px;margin-top:6px;line-height:1.55}
+  .passo{font-size:12px;font-weight:800;letter-spacing:.6px;color:var(--ouro);text-transform:uppercase;margin:18px 0 8px}
+  label{display:block;color:var(--tx3);font-size:12.5px;margin:10px 0 5px}
+  input,select{width:100%;padding:12px 13px;border-radius:11px;border:1px solid var(--bd2);background:var(--card2);color:var(--tx);font-size:15px;font-family:inherit}
+  .chips{display:flex;gap:6px;flex-wrap:wrap}
+  .chip{padding:10px 12px;border-radius:10px;border:1px solid var(--bd2);background:var(--card2);color:var(--tx3);font-weight:700;font-size:13.5px;cursor:pointer;font-family:inherit;user-select:none}
+  .chip.on{border-color:var(--ouro);color:var(--ouro);background:var(--hov)}
+  .ops{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+  .op{padding:12px;border-radius:12px;border:1px solid var(--bd2);background:var(--card2);cursor:pointer;text-align:left;font-family:inherit;color:var(--tx)}
+  .op.on{border-color:var(--ouro);background:var(--hov)}
+  .op b{display:block;font-size:14.5px}.op span{display:block;color:var(--tx3);font-size:12px;margin-top:3px;line-height:1.4}
+  .btn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:14px;border-radius:12px;border:1px solid var(--bd2);background:var(--btn);color:var(--tx);font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:12px}
+  .btn-ouro{background:var(--ouro);border-color:var(--ouro);color:#0a1420;font-weight:800}
+  .btn:disabled{opacity:.5;cursor:default}
+  .msg{font-size:13px;margin-top:10px;line-height:1.5}
+  .kp{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}
+  .kp div{background:var(--card2);border:1px solid var(--bd);border-radius:12px;padding:10px 6px;text-align:center}
+  .kp b{display:block;font-size:22px;color:var(--ouro)}.kp span{font-size:11.5px;color:var(--tx3)}
+  .dia{background:var(--card2);border:1px solid var(--bd);border-radius:12px;padding:10px 12px;margin-top:8px}
+  .dia .d{color:var(--ouro);font-weight:800;font-size:13px;margin-bottom:4px}
+  .dia .s{font-size:13px;color:var(--tx2);padding:3px 0}
+  .aviso{background:rgba(232,176,75,.08);border:1px solid var(--alerta);border-radius:12px;padding:11px 12px;font-size:13px;color:var(--tx2);line-height:1.55;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topo"><a href="cronograma.html">‹ Voltar ao cronograma</a></div>
+  <div class="card" id="box"><div class="sub">Carregando...</div></div>
+  <div class="card" id="prev" style="display:none"></div>
+</div>
+<script src="config.js"></script>
+<script src="motor-cronograma.js"></script>
+<script>
+const $=function(id){return document.getElementById(id)}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+const CURTO=['Dom','Seg','Ter','Qua','Qui','Sex','Sab']
+const LABEL={teoria:'📖 Teoria',questoes:'❓ Questoes',revisao:'🔁 Revisao'}
+// tempo por dia -> sessoes por dia x minutos
+const CARGAS=[{m:60,t:'1 hora',s:'2 sessoes de 30 min',porDia:2,tempo:30},{m:90,t:'1h30',s:'3 sessoes de 30 min',porDia:3,tempo:30},
+  {m:120,t:'2 horas',s:'2 sessoes de 1 hora',porDia:2,tempo:60},{m:180,t:'3 horas',s:'3 sessoes de 1 hora',porDia:3,tempo:60},{m:240,t:'4 horas ou mais',s:'4 sessoes de 1 hora',porDia:4,tempo:60}]
+let _uid=null,_concs=[],_carga=CARGAS[2],_nivel='zero',_plano=null,_temas=[],_temCron=false
+
+async function init(){
+  const { data:{session} }=await _supabase.auth.getSession()
+  if(!session){location.href='index.html';return}
+  _uid=session.user.id
+  const ac=await _supabase.rpc('meu_acesso')
+  const st=ac.data||{}
+  if(st.status!=='ativo'){location.href='primeiro-acesso.html';return}
+  const pend=await _supabase.from('sessoes_estudo').select('id',{count:'exact',head:true}).eq('aluno_id',_uid).eq('concluida',false)
+  _temCron=(pend.count||0)>0
+  if(st.plano!=='assinatura'&&_temCron){
+    $('box').innerHTML='<div class="h1">Seu cronograma e montado pelo mentor</div><div class="sub">Voce e aluno da mentoria: o seu plano e ajustado pelo mentor. Se precisar de mudanca, fale com ele pelo WhatsApp.</div><a class="btn btn-ouro" href="cronograma.html" style="text-decoration:none">Voltar ao cronograma</a>'
+    return
+  }
+  // concursos com edital cadastrado (as turmas do aluno primeiro)
+  const [rc,rv,ra]=await Promise.all([
+    _supabase.from('concursos').select('*').order('nome'),
+    _supabase.from('aluno_concursos').select('concurso_id').eq('aluno_id',_uid),
+    _supabase.from('alunos').select('concurso_id').eq('id',_uid).maybeSingle()])
+  const meus={};(rv.data||[]).forEach(function(x){meus[x.concurso_id]=1})
+  const foco=ra.data&&ra.data.concurso_id
+  const cs=rc.data||[]
+  const conts=await Promise.all(cs.map(function(c){return _supabase.from('edital_topicos').select('id',{count:'exact',head:true}).eq('concurso_id',c.id)}))
+  _concs=cs.map(function(c,i){return Object.assign({},c,{nTemas:conts[i].count||0,meu:!!meus[c.id]})}).filter(function(c){return c.nTemas>0})
+    .sort(function(a,b){return (b.meu-a.meu)||String(a.nome).localeCompare(b.nome)})
+  if(!_concs.length){$('box').innerHTML='<div class="h1">Quase la</div><div class="sub">Ainda nao ha edital cadastrado para montar o cronograma. Avise o mentor pelo WhatsApp.</div>';return}
+  tela(foco)
+}
+
+function tela(foco){
+  const hoje=ymd(new Date())
+  const sel=_concs.find(function(c){return String(c.id)===String(foco)})||_concs[0]
+  $('box').innerHTML='<div class="h1">⚡ Montar meu cronograma</div>'
+    +'<div class="sub">Responda 4 perguntas e a plataforma distribui todo o edital ate a sua prova, com teoria, questoes e revisoes no tempo certo.'+(_temCron?'<br><strong style="color:var(--alerta)">Voce ja tem um cronograma: refazer troca as sessoes pendentes. As que voce ja concluiu ficam guardadas.</strong>':'')+'</div>'
+    +'<div class="passo">1. Qual concurso?</div>'
+    +'<select id="f-conc" onchange="trocouConc()">'+_concs.map(function(c){return '<option value="'+c.id+'"'+(c===sel?' selected':'')+'>'+esc(c.nome)+' ('+c.nTemas+' temas)</option>'}).join('')+'</select>'
+    +'<div class="passo">2. Quando e a prova?</div>'
+    +'<input type="date" id="f-prova" min="'+hoje+'">'
+    +'<label style="display:flex;gap:8px;align-items:center;cursor:pointer;margin-top:8px"><input type="checkbox" id="f-semdata" style="width:18px;height:18px" onchange="semData()"> <span>Ainda nao tem data (planejo para 6 meses)</span></label>'
+    +'<div class="passo">3. Em quais dias voce estuda?</div>'
+    +'<div class="chips" id="f-dias">'+[1,2,3,4,5,6,0].map(function(d){return '<div class="chip'+(d>=1&&d<=6?' on':'')+'" data-d="'+d+'" onclick="this.classList.toggle(\'on\');limpar()">'+CURTO[d]+'</div>'}).join('')+'</div>'
+    +'<div class="passo">4. Quanto tempo por dia?</div>'
+    +'<div class="ops" id="f-carga">'+CARGAS.map(function(c,i){return '<button type="button" class="op'+(c===_carga?' on':'')+'" onclick="escolherCarga('+i+')"><b>'+c.t+'</b><span>'+c.s+'</span></button>'}).join('')+'</div>'
+    +'<div class="passo">5. Como voce esta no conteudo?</div>'
+    +'<div class="ops" id="f-nivel">'
+    +'<button type="button" class="op on" data-n="zero" onclick="escolherNivel(\'zero\')"><b>Comecando agora</b><span>Teoria → questoes em 5 dias → revisao em 15 dias</span></button>'
+    +'<button type="button" class="op" data-n="revisao" onclick="escolherNivel(\'revisao\')"><b>Ja estudei antes</b><span>Questoes → revisao em 10 dias (sem teoria)</span></button></div>'
+    +'<label>Comecar em</label><input type="date" id="f-inicio" value="'+hoje+'" min="'+hoje+'" onchange="limpar()">'
+    +'<button class="btn btn-ouro" id="bt-ver" onclick="calcular()">Ver como fica o meu cronograma</button>'
+    +'<div class="msg" id="msg"></div>'
+  trocouConc()
+}
+function trocouConc(){
+  const c=_concs.find(function(x){return String(x.id)===String($('f-conc').value)})
+  $('f-prova').value=c&&c.data_prova&&c.data_prova>=ymd(new Date())?c.data_prova:''
+  $('f-semdata').checked=!$('f-prova').value
+  semData()
+}
+function semData(){
+  const sd=$('f-semdata').checked
+  if(sd)$('f-prova').value=ymd(addDays(new Date(),182))
+  $('f-prova').disabled=sd
+  limpar()
+}
+function escolherCarga(i){_carga=CARGAS[i];document.querySelectorAll('#f-carga .op').forEach(function(b,k){b.classList.toggle('on',k===i)});limpar()}
+function escolherNivel(n){_nivel=n;document.querySelectorAll('#f-nivel .op').forEach(function(b){b.classList.toggle('on',b.dataset.n===n)});limpar()}
+function limpar(){_plano=null;$('prev').style.display='none';msg('')}
+function msg(t,cor){const m=$('msg');if(m){m.style.color=cor||'var(--tx3)';m.innerHTML=t||''}}
+function diasSel(){return Array.from(document.querySelectorAll('#f-dias .chip.on')).map(function(el){return parseInt(el.dataset.d)})}
+function etapas(){return _nivel==='revisao'?[{tipo:'questoes',off:0},{tipo:'revisao',off:10}]:[{tipo:'teoria',off:0},{tipo:'questoes',off:5},{tipo:'revisao',off:15}]}
+
+async function calcular(){
+  const conc=$('f-conc').value, prova=$('f-prova').value, inicio=$('f-inicio').value, dias=diasSel()
+  if(!prova||!inicio)return msg('Informe a data da prova (ou marque "ainda nao tem data").','var(--erro)')
+  if(parseD(prova)<=addDays(parseD(inicio),6))return msg('A prova precisa ser pelo menos uma semana depois do inicio.','var(--erro)')
+  if(!dias.length)return msg('Escolha pelo menos um dia de estudo.','var(--erro)')
+  $('bt-ver').disabled=true;msg('Montando...')
+  try{
+    const [rt,rp]=await Promise.all([
+      _supabase.from('edital_topicos').select('*').eq('concurso_id',conc).order('disciplina').order('ordem'),
+      _supabase.from('edital_progresso').select('topico_id').eq('aluno_id',_uid).eq('concluido',true)])
+    const feito={};(rp.data||[]).forEach(function(x){feito[x.topico_id]=1})
+    _temas=(rt.data||[]).filter(function(t){return String(t.topico||'').trim()}).map(function(t,i){
+      return {key:'t'+i,disciplina:t.disciplina,topico:t.topico,topico_id:t.id,prioridade:t.prioridade||'media',incluir:true,status:'ativo',semTeoria:!!feito[t.id]&&_nivel==='zero'}})
+    if(!_temas.length){msg('Este concurso ainda nao tem temas no edital.','var(--erro)');return}
+    const base={inicio:inicio,prova:prova,dias:dias,porDia:_carga.porDia,tempo:_carga.tempo,etapas:etapas()}
+    let plano=montarPlano(_temas,Object.assign({nivel:0},base))
+    for(let n=1;n<=5&&plano.naoAlocados>0;n++){const t=montarPlano(_temas,Object.assign({nivel:n},base));if(t.naoAlocados<plano.naoAlocados)plano=t;if(!plano.naoAlocados)break}
+    _plano=plano
+    mostrar(base)
+    msg('')
+  }catch(e){msg('Nao consegui montar: '+esc(e.message),'var(--erro)')}
+  finally{$('bt-ver').disabled=false}
+}
+function mostrar(base){
+  const p=_plano
+  let n=0;p.calendario.forEach(function(d){n+=d.sessoes.length})
+  const semanas=Math.max(1,Math.round((parseD(base.prova)-parseD(base.inicio))/604800000))
+  const nTeo=_temas.length-p.naoAlocados
+  let h='<div class="h1" style="font-size:18px">Seu cronograma</div>'
+    +'<div class="kp"><div><b>'+nTeo+'</b><span>de '+_temas.length+' temas</span></div><div><b>'+n+'</b><span>sessoes</span></div><div><b>'+semanas+'</b><span>semanas</span></div></div>'
+  if(p.naoAlocados)h+='<div class="aviso"><strong>'+p.naoAlocados+' tema(s) nao couberam ate a prova.</strong> Para caber tudo, aumente o tempo por dia ou os dias de estudo. Se preferir manter assim, os temas de prioridade alta entram primeiro.</div>'
+  else if(p.encurtadas)h+='<div class="aviso">Para caber tudo, algumas revisoes e temas de menor prioridade ficaram com meio tempo. Se puder, aumente o tempo por dia.</div>'
+  h+='<div class="passo">Seus primeiros dias</div>'
+  p.calendario.slice(0,4).forEach(function(d){
+    const dt=parseD(d.data)
+    h+='<div class="dia"><div class="d">'+CURTO[dt.getDay()]+', '+dt.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})+'</div>'
+      +d.sessoes.map(function(s){return '<div class="s">'+LABEL[s.tipo]+' · <strong>'+esc(s.disciplina)+'</strong> · '+esc(s.topico)+' <span style="color:var(--tx4)">('+s.min+' min)</span></div>'}).join('')+'</div>'
+  })
+  h+='<button class="btn btn-ouro" id="bt-salvar" onclick="salvar()">✅ Salvar meu cronograma</button>'
+    +'<div style="color:var(--tx4);font-size:12px;text-align:center;margin-top:8px">Depois voce pode adiantar, adiar e ajustar tudo pelo proprio cronograma.</div>'
+    +'<div class="msg" id="msg2"></div>'
+  $('prev').innerHTML=h;$('prev').style.display='block'
+  $('prev').scrollIntoView({behavior:'smooth'})
+}
+async function salvar(){
+  if(!_plano)return
+  if(_temCron&&!confirm('Trocar as sessoes pendentes do seu cronograma atual por este novo plano?\n\nO que voce ja concluiu fica guardado.'))return
+  const b=$('bt-salvar'),m=$('msg2');b.disabled=true;m.style.color='var(--tx3)';m.textContent='Salvando...'
+  const conc=$('f-conc').value, dias=diasSel(), et=etapas()
+  const sess=[]
+  _plano.calendario.forEach(function(d){d.sessoes.forEach(function(s,i){
+    sess.push({data:d.data,tipo:s.tipo,disciplina:s.disciplina,topico:s.topico,topico_id:s.topico_id||null,tempo_minutos:s.min||_carga.tempo,meta_questoes:s.tipo==='questoes'?20:0,ordem:i+1})})})
+  const cfg={concurso_id:conc,data_inicio:$('f-inicio').value,data_prova:$('f-prova').value,dias_semana:dias.join(','),sessoes_por_dia:_carga.porDia,tempo_sessao:_carga.tempo,
+    dias_questoes:_nivel==='revisao'?0:5,dias_revisao:_nivel==='revisao'?10:15,meta_questoes_sessao:20,modo_teoria:_nivel!=='revisao',modo_questoes:true,modo_revisao:true}
+  const r=await _supabase.rpc('auto_cronograma_salvar',{p_concurso:String(conc),p_cfg:cfg,p_sessoes:sess})
+  if(r.error){b.disabled=false;m.style.color='var(--erro)';m.textContent=/function|schema cache/i.test(r.error.message)?'A plataforma ainda esta sendo atualizada. Tente de novo mais tarde ou avise o mentor.':'Nao foi possivel salvar: '+r.error.message;return}
+  m.style.color='var(--ok)';m.textContent='✓ Cronograma salvo com '+r.data.sessoes+' sessoes! Abrindo...'
+  try{sessionStorage.removeItem('banco_facetas')}catch(e){}
+  setTimeout(function(){location.href='cronograma.html'},900)
+}
+init()
+</script>
+<script src="comum.js"></script>
+</body>
+</html>

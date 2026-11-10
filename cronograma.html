@@ -319,8 +319,16 @@
 
     <div id="vazio" class="estado" style="display:none">
       <div style="font-size:46px;margin-bottom:12px">🗓️</div>
+      <div id="vazio-mentor">
       <div style="color:var(--ouro);font-weight:700;font-size:17px;line-height:1.45;max-width:520px;margin:0 auto">O mentor está montando seu cronograma de acordo com a sua rotina e necessidades</div>
       <p style="color:var(--tx3);font-size:13px;margin-top:8px;line-height:1.6">Enquanto isso, você já pode estudar por aqui:</p>
+      </div>
+      <div id="vazio-auto" style="display:none">
+      <div style="color:var(--ouro);font-weight:800;font-size:18px;line-height:1.45;max-width:520px;margin:0 auto">Vamos montar o seu cronograma?</div>
+      <p style="color:var(--tx3);font-size:13.5px;margin:8px auto 0;line-height:1.6;max-width:520px">Responda 4 perguntas (concurso, data da prova, dias e tempo de estudo) e a plataforma distribui todo o edital com teoria, questões e revisões no tempo certo.</p>
+      <button class="btn btn-ouro" style="margin:14px auto 4px;padding:13px 22px;font-size:15px" onclick="location.href='meu-cronograma.html'">⚡ Montar meu cronograma agora</button>
+      <p style="color:var(--tx4);font-size:12px;margin-top:6px">Leva 1 minuto. Ou, se preferir, comece por aqui:</p>
+      </div>
       <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:14px">
         <button class="btn btn-ouro" onclick="ir('questoes.html')">❓ Resolver questoes</button>
         <button class="btn" onclick="ir('edital.html')">📖 Marcar o que ja estudei</button>
@@ -615,6 +623,8 @@ async function init(){
   document.getElementById('loading').style.display='none'
   if(!sess||!sess.length){
     document.getElementById('vazio').style.display='block'
+    // assinante da plataforma: monta o proprio cronograma
+    if(aluno.plano==='assinatura'&&!_mentor){document.getElementById('vazio-mentor').style.display='none';document.getElementById('vazio-auto').style.display='block'}
     _concursoId=aluno.concurso_id
     checarAvisos()
     // mesmo sem cronograma: desempenho por assunto e relatorio do ciclo
@@ -1244,6 +1254,9 @@ function renderPerfil(){
    +'<div><div style="font-size:16px;font-weight:700">'+esc(_nome)+'</div>'
    +'<div style="color:var(--tx3);font-size:13px">'+esc(_email)+'</div></div></div>'
    +(_concursoNome?'<div style="color:var(--tx3);font-size:13px;margin-top:8px">Concurso: <span style="color:var(--tx2)">'+esc(_concursoNome)+'</span></div>':'')
+   +(_rcAluno&&_rcAluno.plano==='assinatura'&&!_mentor?'<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--bd)"><div style="font-size:13px;color:var(--tx2);margin-bottom:6px">Mudou a rotina, a data da prova ou o concurso?</div>'
+      +'<button class="btn" onclick="location.href=\'meu-cronograma.html\'" style="width:100%">⚡ Refazer meu cronograma</button>'
+      +(_rcAluno.assinatura_status==='cancelada'?'<div style="color:var(--alerta);font-size:12.5px;margin-top:8px">Sua assinatura foi cancelada. Voce continua com acesso ate '+new Date(_rcAluno.data_expiracao+'T12:00:00').toLocaleDateString('pt-BR')+'.</div>':'')+'</div>':'')
   if(typeof renderNotificacoes==='function')renderNotificacoes()
   if(typeof renderMeusDados==='function')renderMeusDados()
 }

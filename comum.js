@@ -6,7 +6,7 @@
    A cada atualizacao, troque a VERSAO abaixo.
    ===================================================================== */
 (function () {
-  var VERSAO = '2026.11.08-c'
+  var VERSAO = '2026.11.10-a'
   window.VERSAO_PLATAFORMA = VERSAO
 
   var pagina = (location.pathname.split('/').pop() || 'index.html').toLowerCase()
@@ -139,9 +139,88 @@
     document.body.appendChild(d)
   }
 
+  /* ---------------- bugs e sugestoes (turma de teste) ---------------- */
+  var fbTipo = 'bug'
+  function menuFeedback () {
+    if (ehPaginaMentor() || document.getElementById('nav-feedback')) return
+    var sair = document.getElementById('nav-sair')
+    if (!sair || !sair.parentNode) return
+    var it = document.createElement('div')
+    it.className = 'nav-i'
+    it.id = 'nav-feedback'
+    it.innerHTML = '<span class="nav-ic">🐞</span>Bugs e sugestões'
+    it.onclick = abrirFeedback
+    // no celular o bloco do "Sair" fica escondido: o item vai para a barra de menu principal
+    var alvo = sair.parentNode.classList && sair.parentNode.classList.contains('side-b') ? sair.parentNode : sair
+    alvo.parentNode.insertBefore(it, alvo)
+  }
+  function chipFb (t) {
+    fbTipo = t
+    var cs = document.querySelectorAll('#fb-ov [data-fb]')
+    for (var i = 0; i < cs.length; i++) {
+      var on = cs[i].getAttribute('data-fb') === t
+      cs[i].style.background = on ? 'var(--ouro,#C9A83C)' : 'transparent'
+      cs[i].style.color = on ? '#0a1420' : 'var(--tx2,#8fa5bd)'
+    }
+  }
+  function fecharFeedback () { var o = document.getElementById('fb-ov'); if (o) o.remove() }
+  function abrirFeedback () {
+    fecharFeedback()
+    var tipos = [['bug', '🐞 Algo deu erro'], ['melhoria', '💡 Ideia de melhoria'], ['duvida', '❓ Dúvida'], ['elogio', '👏 Elogio']]
+    var o = document.createElement('div')
+    o.id = 'fb-ov'
+    o.style.cssText = 'position:fixed;inset:0;z-index:700;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:14px'
+    o.onclick = function (e) { if (e.target === o) fecharFeedback() }
+    var bt = 'padding:8px 11px;border-radius:20px;border:1px solid var(--bd2,#24384f);font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit'
+    o.innerHTML = '<div style="width:100%;max-width:460px;max-height:92vh;overflow:auto;background:var(--bg2,#0c1826);border:1px solid var(--bd2,#24384f);border-radius:16px;padding:18px;color:var(--tx,#e8edf4);font-family:inherit">'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div style="font-weight:800;font-size:16px">🐞 Bugs e sugestões</div>'
+      + '<button id="fb-x" aria-label="Fechar" style="background:none;border:0;color:var(--tx3,#63809e);font-size:18px;cursor:pointer">✕</button></div>'
+      + '<div style="font-size:13px;color:var(--tx2,#8fa5bd);line-height:1.55;margin:6px 0 12px">Achou algo estranho ou tem uma ideia? Conte aqui. O mentor recebe na hora, junto com a página e o aparelho que você está usando.</div>'
+      + '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">'
+      + tipos.map(function (t) { return '<button type="button" data-fb="' + t[0] + '" style="' + bt + '">' + t[1] + '</button>' }).join('')
+      + '</div>'
+      + '<textarea id="fb-txt" rows="5" maxlength="3000" placeholder="Ex.: na aba Questões, ao clicar em Responder, a tela travou." style="width:100%;box-sizing:border-box;padding:11px;border-radius:10px;border:1px solid var(--bd2,#24384f);background:var(--card,#101d2c);color:var(--tx,#e8edf4);font:inherit;font-size:14px;resize:vertical"></textarea>'
+      + '<div id="fb-msg" style="font-size:12.5px;min-height:18px;margin:8px 0;color:var(--tx3,#63809e)"></div>'
+      + '<button id="fb-env" style="width:100%;padding:12px;border-radius:10px;border:0;background:var(--ouro,#C9A83C);color:#0a1420;font-weight:800;font-size:14px;cursor:pointer">Enviar para o mentor</button>'
+      + '</div>'
+    document.body.appendChild(o)
+    var cs = o.querySelectorAll('[data-fb]')
+    for (var i = 0; i < cs.length; i++) cs[i].onclick = function () { chipFb(this.getAttribute('data-fb')) }
+    document.getElementById('fb-x').onclick = fecharFeedback
+    document.getElementById('fb-env').onclick = enviarFeedback
+    chipFb('bug')
+    setTimeout(function () { var t = document.getElementById('fb-txt'); if (t) t.focus() }, 50)
+  }
+  function enviarFeedback () {
+    var txt = (document.getElementById('fb-txt').value || '').trim()
+    var msg = document.getElementById('fb-msg'), btn = document.getElementById('fb-env')
+    if (txt.length < 3) { msg.style.color = '#e8b04b'; msg.textContent = 'Escreva um pouco mais para o mentor entender.'; return }
+    if (typeof _supabase === 'undefined') { msg.textContent = 'Sem conexao com o servidor.'; return }
+    btn.disabled = true; btn.textContent = 'Enviando...'
+    var aparelho = (navigator.userAgent || '').slice(0, 200) + ' | tela ' + (screen.width || 0) + 'x' + (screen.height || 0)
+    _supabase.from('feedback_alunos').insert({
+      tipo: fbTipo, texto: txt.slice(0, 3000),
+      pagina: (pagina + location.search + location.hash).slice(0, 200),
+      aparelho: aparelho, versao: VERSAO
+    }).then(function (r) {
+      if (r && r.error) {
+        btn.disabled = false; btn.textContent = 'Enviar para o mentor'
+        msg.style.color = '#e06c6c'
+        msg.textContent = /does not exist|relation|schema cache/i.test(r.error.message || '') ? 'Canal ainda nao ativado pelo mentor. Avise-o pelo WhatsApp.' : 'Nao foi possivel enviar agora. Tente de novo.'
+        return
+      }
+      var box = document.querySelector('#fb-ov > div')
+      if (box) box.innerHTML = '<div style="text-align:center;padding:14px 4px"><div style="font-size:40px">✅</div><div style="font-weight:800;font-size:16px;margin:8px 0">Recebido! Obrigado.</div>'
+        + '<div style="font-size:13px;color:var(--tx2,#8fa5bd);line-height:1.55">Cada relato ajuda a deixar a plataforma melhor para toda a turma.</div>'
+        + '<button onclick="document.getElementById(\'fb-ov\').remove()" style="margin-top:14px;padding:11px 22px;border-radius:10px;border:0;background:var(--ouro,#C9A83C);color:#0a1420;font-weight:800;cursor:pointer">Fechar</button></div>'
+    }, function () { btn.disabled = false; btn.textContent = 'Enviar para o mentor'; msg.textContent = 'Falha de conexao. Tente de novo.' })
+  }
+  window.abrirFeedback = abrirFeedback
+
   function iniciar () {
     rodape()
     faixaTeste()
+    menuFeedback()
     if ('serviceWorker' in navigator) { try { navigator.serviceWorker.register('/sw.js').catch(function () {}) } catch (e) {} }
     if (celular && podeMostrar()) setTimeout(aviso, 3500)
   }

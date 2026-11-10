@@ -34,13 +34,14 @@ async function carregarCentralAgora() {
   if (!window._ciclos) { try { await calcularCiclos() } catch (e) {} }
 
   const sete = new Date(Date.now() - 7 * 86400000).toISOString()
-  const [rr, re, rc, rpd, rcp, rlg] = await Promise.all([
+  const [rr, re, rc, rpd, rcp, rlg, rfb] = await Promise.all([
     _supabase.from('questao_reportes').select('*').eq('status', 'aberto').order('criado_em', { ascending: false }).limit(100),
     _supabase.from('erros_site').select('*').gte('criado_em', sete).order('criado_em', { ascending: false }).limit(60),
     _supabase.from('questao_comentarios').select('id').gte('criado_em', sete),
     _supabase.from('pedidos_acesso').select('*').eq('status', 'pendente').order('criado_em', { ascending: true }).limit(100),
     _supabase.from('compras').select('id,email,nome,produto_id,produto_nome,criado_em').eq('status', 'aprovada').is('aluno_id', null).order('criado_em', { ascending: true }).limit(100),
-    _supabase.from('solicitacoes_lgpd').select('*').eq('status', 'aberta').order('criado_em', { ascending: true }).limit(50)
+    _supabase.from('solicitacoes_lgpd').select('*').eq('status', 'aberta').order('criado_em', { ascending: true }).limit(50),
+    _supabase.from('feedback_alunos').select('*').eq('status', 'aberto').order('criado_em', { ascending: false }).limit(100)
   ])
   _central = {
     reportes: rr.error ? null : (rr.data || []),
@@ -49,7 +50,8 @@ async function carregarCentralAgora() {
     comentarios: rc.error ? null : (rc.data || []).length,
     pedidos: rpd && !rpd.error ? (rpd.data || []) : [],
     comprasEsperando: rcp && !rcp.error ? (rcp.data || []) : [],
-    lgpd: rlg && !rlg.error ? (rlg.data || []) : []
+    lgpd: rlg && !rlg.error ? (rlg.data || []) : [],
+    feedback: rfb && !rfb.error ? (rfb.data || []) : []
   }
   renderCentral()
 }
@@ -94,7 +96,7 @@ function renderCentral() {
     c.reportes = (_central.todosReportes || c.reportes).filter(function (r) { return ids[r.aluno_id] })
   } else if (_central && _central.todosReportes) c.reportes = _central.todosReportes
   const nRep = c.reportes ? c.reportes.length : 0, nErr = c.erros ? c.erros.length : 0
-  const total = (c.pedidos || []).length + g.sumidos.length + g.vencendo.length + g.vencidos.length + g.ciclos.length + g.mexeu.length + g.pausaVencida.length + nRep
+  const total = (c.pedidos || []).length + g.sumidos.length + g.vencendo.length + g.vencidos.length + g.ciclos.length + g.mexeu.length + g.pausaVencida.length + nRep + (c.feedback || []).length
   const kpi = function (n, l, cor) { return '<div class="kpi"><div class="kpi-n" style="color:' + cor + '">' + n + '</div><div class="kpi-l">' + l + '</div></div>' }
   let h = (typeof htmlSeletorTurma === 'function' ? htmlSeletorTurma() : '')
   h += '<div class="kpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px">'
@@ -153,6 +155,18 @@ function renderCentral() {
       + (x.mensagem ? '<div style="color:var(--tx2);font-size:12.5px;margin-top:3px">“' + escC(x.mensagem) + '”</div>' : '') + '</div>'
       + (x.tipo === 'exclusao' ? '<button class="btn-acao btn-excluir" style="padding:8px 12px" onclick="anonimizarLgpd(\'' + x.aluno_id + '\',\'' + jsC(a.nome || '') + '\')">Excluir dados</button>' : '')
       + '<button class="btn-acao btn-editar" style="padding:8px 12px" onclick="concluirLgpd(\'' + x.id + '\')">✓ Resolvido</button></div>'
+  })
+
+  // turma de teste: bugs e sugestoes enviados pelo botao "Bugs e sugestoes" do aluno
+  const TIPO_FB = { bug: '🐞 Erro', melhoria: '💡 Melhoria', duvida: '❓ Duvida', elogio: '👏 Elogio' }
+  if ((c.feedback || []).length) h += grupo('feedback', '🐞', 'Bugs e sugestoes dos alunos', 'var(--info)', c.feedback, function (f) {
+    const a = (window._todosAlunos || []).find(function (y) { return y.id === f.aluno_id }) || {}
+    return '<div class="item-lista" style="gap:8px"><div style="flex:1;min-width:200px"><strong>' + escC(TIPO_FB[f.tipo] || f.tipo) + '</strong> · ' + escC(a.nome || 'Aluno')
+      + '<div style="color:var(--tx3);font-size:11.5px">' + new Date(f.criado_em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) + ' · ' + escC(f.pagina || '') + ' · versao ' + escC(f.versao || '?')
+      + (f.aparelho ? ' · ' + escC(/iPhone|iPad/i.test(f.aparelho) ? 'iPhone' : /Android/i.test(f.aparelho) ? 'Android' : 'Computador') : '') + '</div>'
+      + '<div style="color:var(--tx2);font-size:12.5px;margin-top:4px;white-space:pre-wrap">' + escC(f.texto) + '</div></div>'
+      + '<div style="display:flex;gap:6px;flex-wrap:wrap">' + (a.id ? '<button class="btn-acao btn-editar" style="padding:8px 12px" onclick="verComoAluno(\'' + a.id + '\')">👁️</button>' : '')
+      + '<button class="btn-acao btn-editar" style="padding:8px 12px;border-color:var(--ok);color:var(--ok)" onclick="resolverFeedback(\'' + f.id + '\')">✓ Resolvido</button></div></div>'
   })
 
   // erros reportados nas questoes
@@ -362,4 +376,11 @@ async function anonimizarLgpd (alunoId, nome) {
   alert('Dados excluidos. Avise o aluno que o pedido foi concluido.')
   try { await carregarAlunos() } catch (e) {}
   carregarCentral()
+}
+
+async function resolverFeedback(id) {
+  const r = await _supabase.from('feedback_alunos').update({ status: 'resolvido', resolvido_em: new Date().toISOString() }).eq('id', id)
+  if (r.error) { alert('Nao consegui marcar: ' + r.error.message); return }
+  if (_central && _central.feedback) _central.feedback = _central.feedback.filter(function (f) { return f.id !== id })
+  renderCentral()
 }

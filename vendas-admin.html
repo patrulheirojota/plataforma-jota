@@ -79,12 +79,12 @@
       <li><code>KIWIFY_SEGREDO</code> = a senha do passo 1</li></ul>
       Depois va em Deployments → nos 3 pontinhos do ultimo → <strong>Redeploy</strong>.
       <div style="margin-top:8px"><button onclick="testarApi()" style="width:auto;padding:9px 14px;margin:0">Testar se a Vercel esta pronta</button> <span id="c-api" style="font-size:13px"></span></div></div>
-    <div class="passo"><b class="n">3</b><strong>Na Kiwify</strong>: Apps → Webhooks → Criar webhook. Cole o link abaixo, escolha <strong>todos os produtos</strong> e marque os eventos <strong>Compra aprovada, Compra reembolsada e Chargeback</strong>.
+    <div class="passo"><b class="n">3</b><strong>Na Kiwify</strong>: Apps → Webhooks → Criar webhook. Cole o link abaixo, escolha <strong>todos os produtos</strong> e marque os eventos <strong>Compra aprovada, Compra reembolsada e Chargeback</strong> e, para a assinatura mensal, tambem <strong>Assinatura renovada, Assinatura cancelada e Assinatura atrasada</strong>.
       <div class="cp"><input id="c-url" readonly><button onclick="copiar('c-url')">Copiar</button></div>
       <div style="color:var(--tx4);font-size:12px;margin-top:6px">Depois de salvar, a Kiwify tem um botao para enviar um teste. O teste aparece na aba "Avisos da Kiwify".</div></div>
     <div class="passo"><b class="n">4</b><strong>Na area de membros da Kiwify</strong>, no modulo de apresentacao (primeira aula), coloque este link com o texto: <em>"Crie agora o seu acesso a plataforma de estudos, usando o mesmo e-mail da compra"</em>. Envie o mesmo link para quem pagar por Pix ou Mercado Pago.
       <div class="cp"><input id="c-link" readonly><button onclick="copiar('c-link')">Copiar</button></div></div>
-    <div class="passo"><b class="n">5</b>Em <strong>Produtos</strong>, configure a turma e o prazo de cada produto (aparecem sozinhos depois da primeira venda ou do teste).</div>
+    <div class="passo"><b class="n">5</b>Em <strong>Produtos</strong>, configure cada produto (aparecem sozinhos depois da primeira venda ou do teste): <strong>Mentoria</strong> = turma + prazo fixo; <strong>Assinatura mensal</strong> = o aluno monta o proprio cronograma e o acesso acompanha as cobrancas.</div>
   </div>
 
   <div id="t-eventos" class="card aba-t" style="display:none">
@@ -207,7 +207,7 @@ function renderVendas(){
     let sit=c.status!=='aprovada'?'<span class="tag" style="color:'+COR[c.status]+';border-color:'+COR[c.status]+'">'+c.status+'</span>'
       :c.aluno_id?'<span class="tag" style="color:var(--ok);border-color:var(--ok)">acesso ate '+dBR(c.expira_aplicada)+'</span>'
       :'<span class="tag" style="color:var(--alerta);border-color:var(--alerta)">aguardando '+(_prods.some(function(p){return p.produto_id===c.produto_id&&p.ativo})?'o aluno criar o login':'configurar o produto')+'</span>'
-    return '<div class="it"><div class="tx"><div class="nm">'+esc(c.nome||c.email)+' <span class="tag">'+(c.origem==='kiwify'?'Kiwify':'Pix/MP')+'</span></div>'
+    return '<div class="it"><div class="tx"><div class="nm">'+esc(c.nome||c.email)+' <span class="tag">'+(c.origem==='kiwify'?'Kiwify':'Pix/MP')+'</span>'+(c.assinatura_id||c.proxima_cobranca?' <span class="tag" style="color:var(--ouro);border-color:var(--ouro)">assinatura'+(c.proxima_cobranca?' · prox. '+dBR(c.proxima_cobranca):'')+'</span>':'')+'</div>'
       +'<div class="sb">'+esc(c.email)+(c.produto_nome?' · '+esc(c.produto_nome):'')+(c.valor?' · R$ '+Number(c.valor).toFixed(2).replace('.',','):'')+' · '+dt(c.criado_em)+(al?'<br>Aluno: '+esc(al.nome):'')+'</div></div>'+sit
       +(c.status==='aprovada'&&!c.aluno_id?'<button class="btn-acao btn-editar" style="padding:8px 12px" onclick="reaplicar(\''+c.id+'\')">Tentar liberar</button>':'')+'</div>'
   }).join('')
@@ -224,19 +224,35 @@ function renderProdutos(){
   if(!_prods.length){box.innerHTML='<p style="color:var(--tx3);font-size:13px;text-align:center;padding:16px">Nenhum produto ainda. Ele aparece aqui na primeira venda (ou no teste da Kiwify).</p>';return}
   box.innerHTML=_prods.map(function(p){
     const esp=_comp.filter(function(c){return c.produto_id===p.produto_id&&c.status==='aprovada'&&!c.aluno_id}).length
+    const ass=p.tipo==='assinatura'
     return '<div class="it" style="'+(p.ativo?'':'border-color:var(--erro)')+'"><div class="tx" style="min-width:100%">'
-      +'<div class="nm">'+esc(p.produto_nome||'(sem nome)')+' '+(p.ativo?'<span class="tag" style="color:var(--ok);border-color:var(--ok)">liberando</span>':'<span class="tag" style="color:var(--erro);border-color:var(--erro)">configure</span>')+(esp?' <span class="tag" style="color:var(--alerta);border-color:var(--alerta)">'+esp+' compra(s) esperando</span>':'')+'</div>'
+      +'<div class="nm">'+esc(p.produto_nome||'(sem nome)')+' '+(ass?'<span class="tag" style="color:var(--ouro);border-color:var(--ouro)">assinatura</span> ':'')+(p.ativo?'<span class="tag" style="color:var(--ok);border-color:var(--ok)">liberando</span>':'<span class="tag" style="color:var(--erro);border-color:var(--erro)">configure</span>')+(esp?' <span class="tag" style="color:var(--alerta);border-color:var(--alerta)">'+esp+' compra(s) esperando</span>':'')+'</div>'
       +'<div class="sb">ID Kiwify: '+esc(p.produto_id)+'</div>'
-      +'<div class="mg" style="margin-top:6px"><div><label class="ml">Turma</label><select id="pt-'+p.produto_id+'"><option value="">Sem turma</option>'+_conc.map(function(c){return '<option value="'+c.id+'"'+(String(c.id)===String(p.concurso_id)?' selected':'')+'>'+esc(c.nome)+'</option>'}).join('')+'</select></div>'
-      +'<div><label class="ml">Prazo de acesso (dias)</label><input type="number" id="pd-'+p.produto_id+'" value="'+(p.dias||365)+'" min="1"></div>'
+      +'<div class="mg" style="margin-top:6px"><div><label class="ml">Tipo de produto</label><select id="pk-'+p.produto_id+'" onchange="tipoProdutoMudou(\''+esc(p.produto_id)+'\')">'
+        +'<option value="mentoria"'+(ass?'':' selected')+'>Mentoria (prazo fixo)</option><option value="assinatura"'+(ass?' selected':'')+'>Assinatura mensal (cronograma automatico)</option></select></div>'
+      +'<div><label class="ml">Turma</label><select id="pt-'+p.produto_id+'"><option value="">'+(ass?'O aluno escolhe ao montar o cronograma':'Sem turma')+'</option>'+_conc.map(function(c){return '<option value="'+c.id+'"'+(String(c.id)===String(p.concurso_id)?' selected':'')+'>'+esc(c.nome)+'</option>'}).join('')+'</select></div>'
+      +'<div><label class="ml" id="pdl-'+p.produto_id+'">'+(ass?'Dias por cobranca':'Prazo de acesso (dias)')+'</label><input type="number" id="pd-'+p.produto_id+'" value="'+(p.dias||(ass?30:365))+'" min="1"></div>'
+      +'<div id="pcw-'+p.produto_id+'" style="display:'+(ass?'block':'none')+'"><label class="ml">Carencia se atrasar (dias)</label><input type="number" id="pc-'+p.produto_id+'" value="'+(p.carencia_dias==null?3:p.carencia_dias)+'" min="0" max="30"></div>'
       +'<div style="display:flex;align-items:flex-end"><button onclick="salvarProduto(\''+esc(p.produto_id)+'\')" style="margin:0">'+(p.ativo?'Salvar':'Salvar e liberar')+'</button></div></div>'
+      +(ass?'<div style="color:var(--tx3);font-size:12px;margin-top:6px">Assinatura: cada cobranca paga libera ate a proxima cobranca + carencia. Cancelou: estuda ate o fim do mes pago. O aluno monta o proprio cronograma; voce pode ajustar quando quiser.</div>':'')
       +(p.ativo?'<a style="color:var(--tx4);font-size:12px;cursor:pointer;text-decoration:underline" onclick="pausarProduto(\''+esc(p.produto_id)+'\')">Pausar liberacao automatica deste produto</a>':'')
       +'</div></div>'
   }).join('')
 }
+function tipoProdutoMudou(id){
+  const ass=document.getElementById('pk-'+id).value==='assinatura'
+  document.getElementById('pcw-'+id).style.display=ass?'block':'none'
+  document.getElementById('pdl-'+id).textContent=ass?'Dias por cobranca':'Prazo de acesso (dias)'
+  const d=document.getElementById('pd-'+id); if(ass&&parseInt(d.value)>60)d.value=30; if(!ass&&parseInt(d.value)<=31)d.value=365
+  const t=document.getElementById('pt-'+id); if(t&&t.options[0])t.options[0].textContent=ass?'O aluno escolhe ao montar o cronograma':'Sem turma'
+}
 async function salvarProduto(id){
-  const conc=document.getElementById('pt-'+id).value||null, dias=parseInt(document.getElementById('pd-'+id).value)||365
-  const r=await _supabase.from('produtos_acesso').update({concurso_id:conc,dias:dias,ativo:true}).eq('produto_id',id)
+  const tipo=(document.getElementById('pk-'+id)||{}).value||'mentoria', ass=tipo==='assinatura'
+  const conc=document.getElementById('pt-'+id).value||null, dias=parseInt(document.getElementById('pd-'+id).value)||(ass?30:365)
+  const dados={concurso_id:conc,dias:dias,ativo:true,tipo:tipo}
+  if(ass){const c=parseInt(document.getElementById('pc-'+id).value);dados.carencia_dias=isNaN(c)?3:Math.max(0,Math.min(30,c))}
+  let r=await _supabase.from('produtos_acesso').update(dados).eq('produto_id',id)
+  if(r.error&&/tipo|carencia/i.test(r.error.message||'')){alert('Rode primeiro o arquivo atualizacao-assinatura.sql no Supabase (SQL Editor) e tente de novo.');return}
   if(r.error){alert('Erro: '+r.error.message);return}
   const ra=await _supabase.rpc('reaplicar_produto',{p_produto:id})
   alert('Produto salvo.'+(ra.data?'\n'+ra.data+' compra(s) que estavam esperando foram liberadas.':''))
