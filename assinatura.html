@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Patrulheiros de Elite · Plataforma de estudos para concursos policiais</title>
+<meta name="description" content="Cronograma pronto em 1 minuto, questões, simulados com gabarito comentado, caderno de erros e revisões no tempo certo. Por R$ 29,90 por mês.">
+<meta property="og:title" content="Patrulheiros de Elite · Seu cronograma pronto em 1 minuto">
+<meta property="og:description" content="A plataforma de estudos do Cabo Jota para concursos policiais. R$ 29,90/mês, cancele quando quiser.">
+<meta property="og:image" content="https://patrulheirojota.com.br/vendas/og.jpg">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#0a1420">
+<link rel="icon" href="/icone-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script>
+/* =====================================================================
+   PAGINA DE VENDAS DA ASSINATURA — o que voce pode trocar sem medo
+   (abra no editor do GitHub, mude so o que esta entre aspas e salve)
+   ===================================================================== */
+var CONFIG = {
+  LINK_REGULAR: '',          // link do checkout Kiwify do produto R$ 29,90  (ex.: 'https://pay.kiwify.com.br/AbCdEf')
+  LINK_FUNDADOR: '',         // link do checkout Kiwify do produto Fundador R$ 14,90
+  PRECO_REGULAR: '29,90',
+  PRECO_FUNDADOR: '14,90',
+  FUNDADOR_ABERTO: true,     // false = encerra a turma fundadora (o link ?turma=fundador volta ao preco normal)
+  VAGAS_FUNDADOR: '',        // ex.: '50'  (deixe vazio para mostrar so "vagas limitadas")
+  VIDEO_YOUTUBE: '',         // so o codigo do video. Ex.: no link youtu.be/AbC123xyz, coloque 'AbC123xyz'
+  APROVADOS: '+50',          // numero de alunos aprovados que voce quer mostrar
+  INSTAGRAM: 'patrulheiro.jota'
+}
+var VERSAO_PAGINA = 'vendas-2026.11.10-a'
+</script>
+<style>
+  :root{
+    --bg:#08121e;--bg2:#0c1826;--card:#101d2c;--card2:#13243a;--bd:#1b2d42;--bd2:#24384f;
+    --tx:#eef2f7;--tx2:#a9bacd;--tx3:#7a93ae;--ouro:#C9A83C;--ouro2:#e2c463;--navy:#1A3A5C;--ok:#3ccf8e;--erro:#e06c6c;
+    --r:16px;--disp:'Barlow Condensed',Arial,sans-serif;--txt:'Barlow',Arial,sans-serif
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--tx);font-family:var(--txt);font-size:17px;line-height:1.55;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  img{max-width:100%;display:block}
+  a{color:inherit}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 16px}
+  .disp{font-family:var(--disp);text-transform:uppercase;letter-spacing:.5px;line-height:1.02}
+  .kick{font-family:var(--disp);font-weight:700;text-transform:uppercase;letter-spacing:2.2px;color:var(--ouro);font-size:14px}
+  h2.disp{font-size:clamp(34px,6vw,54px);font-weight:800;margin:10px 0 14px}
+  .sub{color:var(--tx2);font-size:18px;max-width:640px}
+  section{padding:72px 0;position:relative}
+
+  /* topo */
+  .top{position:sticky;top:0;z-index:50;background:rgba(8,18,30,.86);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--bd)}
+  .top .wrap{display:flex;align-items:center;justify-content:space-between;height:60px;gap:12px}
+  .marca{display:flex;align-items:center;gap:10px;font-family:var(--disp);font-weight:800;font-size:19px;letter-spacing:1px;text-transform:uppercase;text-decoration:none}
+  .marca img{width:34px;height:34px;border-radius:9px}
+  .marca span b{color:var(--ouro)}
+  .top .btn{padding:10px 16px;font-size:15px}
+
+  .btn{display:inline-block;text-align:center;background:var(--ouro);color:#0a1420;font-family:var(--disp);font-weight:800;font-size:21px;letter-spacing:.8px;text-transform:uppercase;text-decoration:none;border:0;border-radius:12px;padding:17px 28px;cursor:pointer;box-shadow:0 10px 30px rgba(201,168,60,.25);transition:transform .15s,background .15s}
+  .btn:hover{background:var(--ouro2);transform:translateY(-2px)}
+  .btn.full{display:block;width:100%}
+  .selos{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:16px;color:var(--tx3);font-size:14.5px}
+  .selos span::before{content:'✓ ';color:var(--ok);font-weight:700}
+
+  /* hero */
+  .hero{padding:56px 0 40px;overflow:hidden}
+  .hero::before{content:'';position:absolute;inset:0;background:radial-gradient(700px 420px at 85% 20%,rgba(26,58,92,.75),transparent 70%),radial-gradient(500px 300px at 0% 100%,rgba(201,168,60,.10),transparent 70%);pointer-events:none}
+  .hero .wrap{display:grid;grid-template-columns:1.15fr .85fr;gap:40px;align-items:center;position:relative}
+  .hero h1{font-size:clamp(44px,7.4vw,82px);font-weight:800;margin:14px 0 18px}
+  .hero h1 em{font-style:normal;color:var(--ouro)}
+  .hero p.sub{font-size:19px}
+  .preco-hero{display:flex;align-items:baseline;gap:10px;margin:24px 0 18px;flex-wrap:wrap}
+  .preco-hero .de{color:var(--tx3);text-decoration:line-through;font-size:18px}
+  .preco-hero .val{font-family:var(--disp);font-weight:800;font-size:46px;color:var(--tx)}
+  .preco-hero .val small{font-size:20px;color:var(--tx2);font-weight:700}
+  .preco-hero .dia{color:var(--ouro);font-weight:600;font-size:15px}
+
+  .fone{position:relative;width:min(300px,78vw);margin:0 auto;border-radius:42px;padding:11px;background:linear-gradient(160deg,#2a3f58,#0d1724);box-shadow:0 30px 80px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.06) inset}
+  .fone img{border-radius:32px;aspect-ratio:390/844;object-fit:cover;object-position:top;background:var(--bg2)}
+  .fone::after{content:'';position:absolute;top:20px;left:50%;transform:translateX(-50%);width:84px;height:22px;border-radius:12px;background:#05090f}
+  .hero .fone{transform:rotate(3deg)}
+  .flutua{position:absolute;background:var(--card2);border:1px solid var(--bd2);border-radius:14px;padding:10px 14px;font-size:14px;box-shadow:0 14px 30px rgba(0,0,0,.4);white-space:nowrap}
+  .flutua b{color:var(--ouro);font-family:var(--disp);font-size:22px;display:block;line-height:1}
+  .f1{left:-6%;top:22%}.f2{right:-4%;bottom:18%}
+
+  /* fundador */
+  .faixa-fund{display:none;background:linear-gradient(90deg,var(--ouro),#e9cf72);color:#0a1420;text-align:center;font-weight:700;font-size:14.5px;padding:9px 14px}
+  .fund .faixa-fund{display:block}
+  .so-fund{display:none}.fund .so-fund{display:block}
+  .fund .so-reg{display:none}
+
+  /* video */
+  .video{padding-top:20px}
+  .vid{position:relative;aspect-ratio:16/9;border-radius:var(--r);overflow:hidden;border:1px solid var(--bd2);background:var(--bg2);box-shadow:0 30px 70px rgba(0,0,0,.4);max-width:880px;margin:0 auto}
+  .vid iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+
+  /* dores */
+  .dores{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:30px}
+  .dor{background:var(--card);border:1px solid var(--bd);border-radius:var(--r);padding:22px}
+  .dor .ic{font-size:28px}
+  .dor h3{font-family:var(--disp);text-transform:uppercase;font-size:24px;margin:10px 0 6px;letter-spacing:.4px}
+  .dor p{color:var(--tx2);font-size:15.5px}
+  .virada{margin-top:26px;font-size:20px;font-weight:600;border-left:4px solid var(--ouro);padding:6px 0 6px 16px;max-width:760px}
+
+  /* passos */
+  .passos{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:30px;counter-reset:p}
+  .passo{background:var(--card);border:1px solid var(--bd);border-radius:var(--r);padding:22px;position:relative}
+  .passo::before{counter-increment:p;content:counter(p);font-family:var(--disp);font-weight:800;font-size:56px;color:var(--ouro);line-height:1;opacity:.9}
+  .passo h3{font-family:var(--disp);text-transform:uppercase;font-size:24px;margin:6px 0}
+  .passo p{color:var(--tx2);font-size:15.5px}
+
+  /* recursos */
+  .rec{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center;margin-top:56px}
+  .rec.inv .fone{order:-1}
+  .rec h3{font-family:var(--disp);text-transform:uppercase;font-size:clamp(30px,4.6vw,42px);line-height:1.02;margin:8px 0 12px}
+  .rec p{color:var(--tx2)}
+  .rec ul{list-style:none;margin-top:14px}
+  .rec li{padding:6px 0 6px 30px;position:relative;font-size:16px}
+  .rec li::before{content:'';position:absolute;left:0;top:11px;width:18px;height:18px;border-radius:50%;background:rgba(201,168,60,.16);box-shadow:inset 0 0 0 2px var(--ouro)}
+  .mais{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:56px}
+  .mi{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:18px}
+  .mi .ic{font-size:24px}
+  .mi b{display:block;margin:6px 0 2px;font-size:16px}
+  .mi span{color:var(--tx3);font-size:14px;line-height:1.45;display:block}
+
+  /* autoridade */
+  .jota{display:grid;grid-template-columns:.8fr 1.2fr;gap:44px;align-items:center}
+  .foto{aspect-ratio:4/5;border-radius:22px;overflow:hidden;background:linear-gradient(160deg,var(--navy),#0b1a2a);border:1px solid var(--bd2);position:relative;display:flex;align-items:center;justify-content:center}
+  .foto img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
+  .foto .mono{font-family:var(--disp);font-weight:800;font-size:120px;color:var(--ouro);opacity:.85}
+  .nums{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:22px 0}
+  .num{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;text-align:center}
+  .num b{font-family:var(--disp);font-size:36px;color:var(--ouro);display:block;line-height:1}
+  .num span{color:var(--tx3);font-size:13px;line-height:1.3;display:block;margin-top:4px}
+  .jota p{color:var(--tx2);margin-bottom:12px}
+  .jota p strong{color:var(--tx)}
+
+  /* comparativo */
+  .comp{margin-top:30px;border:1px solid var(--bd2);border-radius:var(--r);overflow:hidden}
+  .comp .l{display:grid;grid-template-columns:1.6fr 1fr 1fr;border-top:1px solid var(--bd)}
+  .comp .l:first-child{border-top:0;background:var(--card2);font-family:var(--disp);text-transform:uppercase;font-size:17px;letter-spacing:.5px}
+  .comp .l>div{padding:13px 14px;font-size:15.5px}
+  .comp .l>div:nth-child(2),.comp .l>div:nth-child(3){text-align:center}
+  .comp .l>div:nth-child(3){background:rgba(201,168,60,.07);color:var(--ouro);font-weight:700}
+  .nao{color:var(--tx3)}
+
+  /* oferta */
+  .oferta{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:stretch;margin-top:30px}
+  .card-preco{background:linear-gradient(170deg,#13263c,#0c1826);border:2px solid var(--ouro);border-radius:22px;padding:30px;position:relative;box-shadow:0 30px 80px rgba(201,168,60,.10)}
+  .etq{position:absolute;top:-14px;left:24px;background:var(--ouro);color:#0a1420;font-family:var(--disp);font-weight:800;letter-spacing:1px;text-transform:uppercase;font-size:14px;padding:5px 12px;border-radius:8px}
+  .card-preco h3{font-family:var(--disp);text-transform:uppercase;font-size:28px}
+  .pv{display:flex;align-items:baseline;gap:6px;margin:12px 0 2px}
+  .pv .rs{font-size:22px;font-weight:700;color:var(--tx2)}
+  .pv .n{font-family:var(--disp);font-weight:800;font-size:76px;line-height:1}
+  .pv .m{color:var(--tx2);font-weight:600}
+  .pd{color:var(--ouro);font-weight:600;font-size:15px;margin-bottom:18px}
+  .card-preco ul{list-style:none;margin:16px 0 22px}
+  .card-preco li{padding:5px 0 5px 28px;position:relative;font-size:15.5px}
+  .card-preco li::before{content:'✓';position:absolute;left:2px;color:var(--ok);font-weight:800}
+  .gar{background:var(--card);border:1px solid var(--bd);border-radius:22px;padding:30px;display:flex;flex-direction:column;justify-content:center}
+  .sel{width:96px;height:96px;border-radius:50%;border:3px solid var(--ouro);display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--disp);text-transform:uppercase;color:var(--ouro);line-height:1;margin-bottom:16px}
+  .sel b{font-size:40px}.sel span{font-size:13px;letter-spacing:1px}
+  .gar h3{font-family:var(--disp);text-transform:uppercase;font-size:28px;margin-bottom:8px}
+  .gar p{color:var(--tx2);font-size:16px;margin-bottom:10px}
+  .fund-box{background:rgba(201,168,60,.08);border:1px dashed var(--ouro);border-radius:14px;padding:14px;margin:4px 0 16px;font-size:15px;color:var(--tx2)}
+  .fund-box b{color:var(--ouro)}
+
+  /* faq */
+  .faq{max-width:820px;margin-top:26px}
+  details{background:var(--card);border:1px solid var(--bd);border-radius:14px;margin-bottom:10px}
+  summary{cursor:pointer;list-style:none;padding:18px 48px 18px 18px;font-weight:700;font-size:17px;position:relative}
+  summary::-webkit-details-marker{display:none}
+  summary::after{content:'+';position:absolute;right:18px;top:12px;font-size:26px;color:var(--ouro);font-weight:400}
+  details[open] summary::after{content:'–'}
+  details p{padding:0 18px 18px;color:var(--tx2);font-size:15.5px}
+
+  .final{text-align:center;padding:90px 0}
+  .final::before{content:'';position:absolute;inset:0;background:radial-gradient(600px 300px at 50% 60%,rgba(26,58,92,.7),transparent 70%);pointer-events:none}
+  .final .wrap{position:relative}
+  .lema{font-family:var(--disp);text-transform:uppercase;letter-spacing:3px;color:var(--ouro);font-size:15px;margin-top:22px}
+  footer{border-top:1px solid var(--bd);padding:26px 0 90px;color:var(--tx3);font-size:13.5px;text-align:center}
+  footer a{color:var(--tx2)}
+
+  .barra{position:fixed;left:0;right:0;bottom:0;z-index:60;background:rgba(8,18,30,.94);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-top:1px solid var(--bd2);padding:10px 16px calc(10px + env(safe-area-inset-bottom));display:none;align-items:center;gap:12px;transform:translateY(110%);transition:transform .25s}
+  .barra.on{transform:none}
+  .barra .t{flex:1;font-size:13px;color:var(--tx2);line-height:1.25}
+  .barra .t b{display:block;font-family:var(--disp);font-size:22px;color:var(--tx)}
+  .barra .btn{font-size:17px;padding:12px 18px}
+
+  .rv{opacity:0;transform:translateY(18px);transition:opacity .6s,transform .6s}
+  .rv.vis{opacity:1;transform:none}
+  @media (prefers-reduced-motion:reduce){.rv{opacity:1;transform:none;transition:none}html{scroll-behavior:auto}}
+
+  @media(max-width:900px){
+    section{padding:56px 0}
+    .hero{padding:34px 0 30px}
+    .hero .wrap,.rec,.jota,.oferta{grid-template-columns:1fr;gap:30px}
+    .hero .fone{transform:none;margin-top:6px}
+    .rec .fone,.rec.inv .fone{order:2}
+    .dores,.passos{grid-template-columns:1fr}
+    .mais{grid-template-columns:1fr 1fr}
+    .f1{left:-2%}.f2{right:-2%}
+    .foto{max-width:360px;width:100%;margin:0 auto}
+    .barra{display:flex}
+    .top .btn{display:none}
+    body{font-size:16.5px}
+  }
+  @media(max-width:420px){
+    .comp .l{grid-template-columns:1.3fr .8fr .9fr}
+    .comp .l>div{padding:11px 8px;font-size:14px}
+    .num b{font-size:27px;white-space:nowrap}.num{padding:12px 6px}
+    .flutua{font-size:12.5px;padding:8px 11px}.flutua b{font-size:19px}
+  }
+</style>
+</head>
+<body>
+
+<div class="faixa-fund">🚀 TURMA FUNDADORA · você testa a plataforma antes de todo mundo e paga <span class="p-fund"></span>/mês enquanto mantiver a assinatura</div>
+
+<header class="top">
+  <div class="wrap">
+    <a class="marca" href="#"><img src="/icone-192.png" alt=""><span>Patrulheiros <b>de Elite</b></span></a>
+    <a class="btn cta" href="#oferta">Assinar agora</a>
+  </div>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="wrap">
+    <div class="rv">
+      <div class="kick">Plataforma de estudos · concursos policiais</div>
+      <h1 class="disp">Seu cronograma pronto em <em>1 minuto.</em> Sua aprovação construída todo dia.</h1>
+      <p class="sub">Você responde 5 perguntas e a plataforma distribui o edital inteiro até a sua prova, com teoria, questões e revisões no tempo certo. Todo dia você sabe exatamente o que estudar.</p>
+      <div class="preco-hero">
+        <span class="de so-fund">R$ <span class="p-reg"></span></span>
+        <span class="val">R$ <span class="p-atual"></span><small>/mês</small></span>
+        <span class="dia">menos de <span class="p-dia"></span> por dia</span>
+      </div>
+      <a class="btn cta" href="#oferta">Quero meu cronograma ⚡</a>
+      <div class="selos"><span>Cancele quando quiser</span><span>7 dias de garantia</span><span>Funciona no celular</span></div>
+    </div>
+    <div class="rv" style="position:relative">
+      <div class="fone"><img src="/vendas/cronograma.jpg" alt="Tela da missão de hoje no cronograma" loading="eager"></div>
+      <div class="flutua f1"><b>3 metas</b>por dia, sem enrolação</div>
+      <div class="flutua f2"><b>Revisão</b>no dia certo, sozinha</div>
+    </div>
+  </div>
+</section>
+
+<!-- VIDEO (aparece quando voce colocar o codigo do YouTube no CONFIG) -->
+<section class="video" id="sec-video" style="display:none">
+  <div class="wrap"><div class="vid rv" id="vid"></div></div>
+</section>
+
+<!-- DORES -->
+<section>
+  <div class="wrap">
+    <div class="kick rv">O problema não é falta de vontade</div>
+    <h2 class="disp rv">Você estuda, mas não sabe se está no caminho certo?</h2>
+    <div class="dores">
+      <div class="dor rv"><div class="ic">🧭</div><h3>Senta e não sabe por onde começar</h3><p>O edital é enorme, o tempo é curto e cada dia vira uma decisão nova sobre o que estudar.</p></div>
+      <div class="dor rv"><div class="ic">🫥</div><h3>Estuda hoje, esquece em 2 semanas</h3><p>Sem revisão programada, o conteúdo some da cabeça e você sente que está sempre recomeçando.</p></div>
+      <div class="dor rv"><div class="ic">🎯</div><h3>Faz questões sem medir nada</h3><p>Resolve, confere o gabarito e segue. Não sabe quais assuntos estão fracos nem se está evoluindo.</p></div>
+    </div>
+    <p class="virada rv">A aprovação não vem de um dia de 10 horas. Vem de <strong>constância com método</strong>. A plataforma cuida do método. Você cuida da constância.</p>
+  </div>
+</section>
+
+<!-- COMO FUNCIONA -->
+<section style="background:var(--bg2)">
+  <div class="wrap">
+    <div class="kick rv">Como funciona</div>
+    <h2 class="disp rv">Da compra ao primeiro dia de estudo em minutos</h2>
+    <div class="passos">
+      <div class="passo rv"><h3>Assine</h3><p>Pagamento seguro pela Kiwify, no cartão ou Pix. Você recebe o link de acesso na hora.</p></div>
+      <div class="passo rv"><h3>Crie seu login</h3><p>Use o mesmo e-mail da compra. A plataforma reconhece o seu pagamento sozinha.</p></div>
+      <div class="passo rv"><h3>Monte o cronograma</h3><p>Escolha o concurso, a data da prova, seus dias e seu tempo. Pronto: o plano até a prova está montado.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- RECURSOS -->
+<section>
+  <div class="wrap">
+    <div class="kick rv">O que você recebe</div>
+    <h2 class="disp rv">Tudo o que um concurseiro policial precisa num só lugar</h2>
+
+    <div class="rec">
+      <div class="rv">
+        <div class="kick">01 · Cronograma automático</div>
+        <h3>O edital inteiro distribuído até a sua prova</h3>
+        <p>Você diz quanto tempo tem. A plataforma decide a ordem, intercala as matérias e agenda cada revisão.</p>
+        <ul>
+          <li>Teoria → questões em 5 dias → revisão em 15 dias</li>
+          <li>De 1 hora a 4 horas por dia, nos dias que você escolher</li>
+          <li>Já estudou antes? Comece direto pelas questões</li>
+          <li>Imprevisto? Adie, adiante e refaça quando quiser</li>
+        </ul>
+      </div>
+      <div class="fone rv"><img src="/vendas/assistente.jpg" alt="Assistente que monta o cronograma" loading="lazy"></div>
+    </div>
+
+    <div class="rec inv">
+      <div class="fone rv"><img src="/vendas/questoes.jpg" alt="Banco de questões" loading="lazy"></div>
+      <div class="rv">
+        <div class="kick">02 · Questões e simulados</div>
+        <h3>Treino de prova com correção que ensina</h3>
+        <p>Questões no estilo das bancas policiais e simulados com gabarito comentado e o <strong>BIZU</strong> de cada item: o atalho para não errar de novo.</p>
+        <ul>
+          <li>Filtros por matéria, assunto, banca e tipo de questão</li>
+          <li>A sessão de questões do cronograma abre direto no assunto do dia</li>
+          <li>Simulados com nota e gabarito comentado</li>
+          <li>Errou? Leve a questão e o BIZU para o caderno de erros</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="rec">
+      <div class="rv">
+        <div class="kick">03 · Desempenho</div>
+        <h3>Saiba exatamente onde você está fraco</h3>
+        <p>Cada resposta vira dado. Você enxerga seus pontos fortes, os assuntos que pedem atenção e quanto está acertando por certeza ou por sorte.</p>
+        <ul>
+          <li>Acerto por assunto e por matéria</li>
+          <li>Marque certeza, dúvida ou chute e descubra seus "acertos de sorte"</li>
+          <li>Relatório do seu ciclo a cada 21 dias</li>
+          <li>Exporte seu desempenho em PDF</li>
+        </ul>
+      </div>
+      <div class="fone rv"><img src="/vendas/desempenho.jpg" alt="Painel de desempenho" loading="lazy"></div>
+    </div>
+
+    <div class="mais">
+      <div class="mi rv"><div class="ic">📓</div><b>Caderno de erros</b><span>Suas anotações com revisão programada para não errar duas vezes.</span></div>
+      <div class="mi rv"><div class="ic">🗂️</div><b>Flashcards</b><span>Repetição espaçada para memorizar prazos, penas e conceitos.</span></div>
+      <div class="mi rv"><div class="ic">📖</div><b>Edital verticalizado</b><span>Marque o que já estudou e acompanhe o progresso de cada matéria.</span></div>
+      <div class="mi rv"><div class="ic">⚖️</div><b>Lei seca</b><span>Leitura da legislação cobrada, com controle do que você já leu.</span></div>
+      <div class="mi rv"><div class="ic">🏆</div><b>Ranking</b><span>Veja sua posição entre os alunos e use a competição a seu favor.</span></div>
+      <div class="mi rv"><div class="ic">🔥</div><b>Sequência diária</b><span>Missão do dia com 3 metas claras: cronograma, questões e revisão.</span></div>
+      <div class="mi rv"><div class="ic">📱</div><b>App no celular</b><span>Instale na tela inicial e estude no intervalo do trabalho.</span></div>
+      <div class="mi rv"><div class="ic">⏱️</div><b>Pomodoro</b><span>Cronômetro de foco embutido em cada sessão de estudo.</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- AUTORIDADE -->
+<section style="background:var(--bg2)">
+  <div class="wrap jota">
+    <div class="foto rv"><span class="mono">J</span><img src="/vendas/jota.jpg" alt="Jorge Mendes, o Cabo Jota" onerror="this.remove()"></div>
+    <div class="rv">
+      <div class="kick">Quem criou o método</div>
+      <h2 class="disp">Cabo Jota</h2>
+      <p><strong>Jorge Mendes</strong> é policial militar em Sergipe. Passou no concurso da PMSE aos 18 anos, entre os 200 primeiros de mais de 60 mil candidatos, e formou-se em Direito pela UFS enquanto trabalhava no operacional.</p>
+      <p>Desde 2021 é mentor de concursos policiais, com alunos aprovados em <strong>PMAL, PMBA, PMPB, PMCE e PMESP</strong>. A plataforma reúne o método que ele usa com os alunos da mentoria: constância, contato frequente com as matérias e muita questão, adaptado a quem trabalha e tem pouco tempo.</p>
+      <div class="nums">
+        <div class="num"><b class="n-aprov"></b><span>alunos aprovados</span></div>
+        <div class="num"><b>2021</b><span>mentorando concurseiros</span></div>
+        <div class="num"><b>60 mil</b><span>candidatos no concurso em que passou</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- COMPARATIVO -->
+<section>
+  <div class="wrap">
+    <div class="kick rv">Por que não só um banco de questões</div>
+    <h2 class="disp rv">Questão sem plano é esforço sem direção</h2>
+    <div class="comp rv">
+      <div class="l"><div></div><div>Só banco de questões</div><div>Patrulheiros de Elite</div></div>
+      <div class="l"><div>Banco de questões</div><div>✓</div><div>✓</div></div>
+      <div class="l"><div>Cronograma até a prova</div><div class="nao">—</div><div>✓ automático</div></div>
+      <div class="l"><div>Revisão programada</div><div class="nao">—</div><div>✓</div></div>
+      <div class="l"><div>Caderno de erros com BIZU</div><div class="nao">—</div><div>✓</div></div>
+      <div class="l"><div>Foco em carreiras policiais</div><div class="nao">—</div><div>✓</div></div>
+      <div class="l"><div>Método de quem é policial</div><div class="nao">—</div><div>✓</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- OFERTA -->
+<section id="oferta" style="background:var(--bg2)">
+  <div class="wrap">
+    <div class="kick rv">Assinatura mensal</div>
+    <h2 class="disp rv so-reg">Comece hoje por menos de R$ 1 por dia</h2>
+    <h2 class="disp rv so-fund">Entre na turma fundadora</h2>
+    <div class="oferta">
+      <div class="card-preco rv">
+        <div class="etq"><span class="so-reg">Acesso completo</span><span class="so-fund">Preço de fundador</span></div>
+        <h3>Patrulheiros de Elite</h3>
+        <div class="so-fund fund-box">Você entra antes de todo mundo, usa a plataforma de verdade e nos conta o que melhorar pelo botão <b>🐞 Bugs e sugestões</b>. Em troca, paga <b>R$ <span class="p-fund"></span>/mês para sempre</b>, enquanto mantiver a assinatura ativa. <span class="vagas"></span></div>
+        <div class="pv"><span class="rs">R$</span><span class="n p-atual"></span><span class="m">/mês</span></div>
+        <div class="pd so-reg">Menos de <span class="p-dia"></span> por dia · sem fidelidade</div>
+        <div class="pd so-fund">Depois da turma fundadora, o preço será R$ <span class="p-reg"></span>/mês</div>
+        <ul>
+          <li>Cronograma automático até a sua prova</li>
+          <li>Banco de questões com filtros e desempenho por assunto</li>
+          <li>Simulados com gabarito comentado e BIZU</li>
+          <li>Caderno de erros e flashcards com revisão programada</li>
+          <li>Edital verticalizado, lei seca e ranking</li>
+          <li>App no celular e relatório a cada 21 dias</li>
+        </ul>
+        <a class="btn full cta" id="cta-oferta" href="#">Assinar por R$ <span class="p-atual"></span>/mês</a>
+        <div class="selos" style="justify-content:center"><span>Cartão ou Pix</span><span>Acesso imediato</span><span>Cancele quando quiser</span></div>
+      </div>
+      <div class="gar rv">
+        <div class="sel"><b>7</b><span>dias</span></div>
+        <h3>Garantia de 7 dias</h3>
+        <p>Assine, monte seu cronograma e use tudo durante 7 dias. Se não fizer sentido para você, peça o reembolso pela própria Kiwify e recebe 100% do valor.</p>
+        <p>Depois disso, você pode cancelar a qualquer momento e continua com acesso até o fim do mês que já pagou. Sem multa, sem fidelidade.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section>
+  <div class="wrap">
+    <div class="kick rv">Dúvidas frequentes</div>
+    <h2 class="disp rv">Antes de assinar</h2>
+    <div class="faq">
+      <details class="rv"><summary>Para quais concursos serve?</summary><p>Para carreiras policiais (polícias militares, guardas municipais e outras da área de segurança). Ao montar o cronograma, você escolhe entre os concursos com edital cadastrado na plataforma. Se o seu ainda não estiver na lista, fale com a gente pelo Instagram antes de assinar.</p></details>
+      <details class="rv"><summary>A plataforma tem videoaulas?</summary><p>Não. A plataforma organiza, treina e revisa: cronograma, questões, simulados, caderno de erros, flashcards e lei seca. A teoria você estuda pelo material que preferir (apostila, PDF, livro ou curso). O cronograma diz o que estudar em cada dia.</p></details>
+      <details class="rv"><summary>Preciso de computador?</summary><p>Não. Tudo funciona no celular e você pode instalar a plataforma na tela inicial, como um aplicativo. No computador também funciona.</p></details>
+      <details class="rv"><summary>Trabalho e tenho pouco tempo. Funciona para mim?</summary><p>Foi pensado exatamente para isso. Você escolhe a partir de 1 hora por dia e os dias da semana em que estuda. Se a rotina mudar, refaça o cronograma em 1 minuto.</p></details>
+      <details class="rv"><summary>Como recebo o acesso?</summary><p>Logo após o pagamento, você recebe o link para criar o seu login. Use o mesmo e-mail da compra e a plataforma libera o acesso sozinha.</p></details>
+      <details class="rv"><summary>Como cancelo?</summary><p>Pela própria Kiwify, quando quiser. O acesso continua até o fim do período que você já pagou.</p></details>
+      <details class="rv"><summary>Qual a diferença para a mentoria do Cabo Jota?</summary><p>Na mentoria, o Cabo Jota monta o seu cronograma e acompanha você individualmente. Na assinatura, você usa a mesma plataforma e o mesmo método, mas monta o seu cronograma sozinho, por um valor bem menor.</p></details>
+    </div>
+  </div>
+</section>
+
+<!-- CHAMADA FINAL -->
+<section class="final">
+  <div class="wrap">
+    <h2 class="disp rv">Daqui a 6 meses, você vai desejar ter começado hoje.</h2>
+    <p class="sub rv" style="margin:0 auto 26px">Monte seu cronograma agora e estude com método até o dia da prova.</p>
+    <a class="btn cta rv" href="#oferta">Quero assinar por R$ <span class="p-atual"></span>/mês</a>
+    <div class="lema">A sorte acompanha o audaz</div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    Patrulheiros de Elite · Cabo Jota · <a class="ig" href="#" target="_blank" rel="noopener">@patrulheiro.jota</a> · <a href="/privacidade.html">Privacidade</a> · <a href="/index.html">Já sou aluno</a>
+    <div style="margin-top:6px;font-size:11px;opacity:.6" id="v-pag"></div>
+  </div>
+</footer>
+
+<div class="barra" id="barra"><div class="t">Patrulheiros de Elite<b>R$ <span class="p-atual"></span>/mês</b></div><a class="btn cta" href="#oferta">Assinar</a></div>
+
+<script>
+(function(){
+  var C=CONFIG, q=location.search
+  var fund=C.FUNDADOR_ABERTO&&/[?&]turma=fundador/i.test(q)
+  if(fund)document.body.classList.add('fund')
+  var atual=fund?C.PRECO_FUNDADOR:C.PRECO_REGULAR
+  var porDia=(parseFloat(String(atual).replace(',','.'))/30)
+  var diaTxt=porDia<1?'R$ 1':'R$ '+Math.ceil(porDia).toString()
+  function poe(sel,txt){document.querySelectorAll(sel).forEach(function(e){e.textContent=txt})}
+  poe('.p-atual',atual);poe('.p-reg',C.PRECO_REGULAR);poe('.p-fund','R$ '+C.PRECO_FUNDADOR);poe('.p-dia',diaTxt);poe('.n-aprov',C.APROVADOS)
+  document.querySelectorAll('.fund-box .p-fund').forEach(function(e){e.textContent=C.PRECO_FUNDADOR})
+  poe('.vagas',C.VAGAS_FUNDADOR?'Somente '+C.VAGAS_FUNDADOR+' vagas.':'Vagas limitadas.')
+  document.querySelectorAll('.ig').forEach(function(a){a.href='https://instagram.com/'+C.INSTAGRAM;a.textContent='@'+C.INSTAGRAM})
+  document.getElementById('v-pag').textContent=VERSAO_PAGINA
+
+  // botoes de compra: no card da oferta vai direto para a Kiwify (mantem utm/origem do anuncio)
+  var link=fund?C.LINK_FUNDADOR:C.LINK_REGULAR
+  var cta=document.getElementById('cta-oferta')
+  if(link){
+    var extra=q.replace(/^\?/,'').split('&').filter(function(p){return /^(utm_|src=|sck=)/.test(p)}).join('&')
+    cta.href=link+(extra?(link.indexOf('?')>=0?'&':'?')+extra:'')
+  } else {
+    cta.addEventListener('click',function(e){e.preventDefault();alert('As inscricoes abrem em breve. Acompanhe no Instagram @'+C.INSTAGRAM+'.')})
+  }
+
+  // video
+  var vid=String(C.VIDEO_YOUTUBE||'').trim().replace(/^.*(?:youtu\.be\/|v=|shorts\/|embed\/)/,'').replace(/[?&].*$/,'')
+  if(vid&&/^[\w-]{6,20}$/.test(vid)){
+    document.getElementById('sec-video').style.display='block'
+    document.getElementById('vid').innerHTML='<iframe src="https://www.youtube-nocookie.com/embed/'+vid+'?rel=0&modestbranding=1" title="Conheca a plataforma" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe>'
+  }
+
+  // animacao ao rolar
+  var els=document.querySelectorAll('.rv')
+  if('IntersectionObserver' in window){
+    var io=new IntersectionObserver(function(es){es.forEach(function(x){if(x.isIntersecting){x.target.classList.add('vis');io.unobserve(x.target)}})},{threshold:.12})
+    els.forEach(function(e){io.observe(e)})
+  } else els.forEach(function(e){e.classList.add('vis')})
+
+  // barra fixa no celular: aparece depois do topo e some na oferta
+  var barra=document.getElementById('barra'), of=document.getElementById('oferta')
+  function rolou(){
+    var r=of.getBoundingClientRect(), naOferta=r.top<window.innerHeight&&r.bottom>0
+    barra.classList.toggle('on',window.scrollY>500&&!naOferta)
+  }
+  window.addEventListener('scroll',rolou,{passive:true});rolou()
+})()
+</script>
+</body>
+</html>
