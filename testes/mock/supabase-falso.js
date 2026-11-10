@@ -17,13 +17,14 @@ window.SEED={
  alunos:[
   {id:'al1',nome:'Joao Teste',email:'j@t',concurso_id:'c1',ultimo_acesso:D(0),criado_em:D(-45),data_expiracao:Y(10),meta_questoes_dia:30},
   {id:'al2',nome:'Maria PMAL',email:'m@t',concurso_id:'c2',ultimo_acesso:D(-6),criado_em:D(-60),data_expiracao:Y(90)},
-  {id:'al3',nome:'Pedro PMSE',email:'p@t',concurso_id:'c1',ultimo_acesso:D(-4),criado_em:D(-10),data_expiracao:Y(-3)}],
+  {id:'al3',nome:'Pedro PMSE',email:'p@t',concurso_id:'c1',ultimo_acesso:D(-4),criado_em:D(-10),data_expiracao:Y(-3)},
+  {id:'al4',nome:'Ana Assinante',email:'a@t',concurso_id:null,ultimo_acesso:D(0),criado_em:D(0),data_expiracao:Y(33),plano:'assinatura',assinatura_status:'ativa'}],
  aluno_concursos:[{aluno_id:'al1',concurso_id:'c1'},{aluno_id:'al2',concurso_id:'c2'},{aluno_id:'al2',concurso_id:'c1'}],
  concursos:[{id:'c1',nome:'PMSE'},{id:'c2',nome:'PMAL'}],
  questoes:qs.map((q,i)=>i===0?Object.assign(q,{explicacao_url:'https://youtu.be/dQw4w9WgXcQ',comentario:'Comentario de teste'}):q), questao_respostas:rs, sessoes_estudo:sess,
  config_cronograma:[{aluno_id:'al1',concurso_id:'c1',atualizado_em:D(-45),sessoes_por_dia:2}],
  simulado_tentativas:[{aluno_id:'al1',acertos:30,total:50,finalizado_em:D(-5)}],
- relatorio_ciclo_visto:[],auth_users:[],compras:[{id:'cp1',origem:'kiwify',pedido_id:'K1',email:'kiwi@aluno.com',nome:'Kiwi Aluno',produto_id:'P1',produto_nome:'Mentoria 6 meses',valor:497,status:'aprovada',aluno_id:null,criado_em:D(-1)}],produtos_acesso:[{produto_id:'P1',produto_nome:'Mentoria 6 meses',concurso_id:null,dias:365,ativo:false,criado_em:D(-1)}],pedidos_acesso:[],kiwify_eventos:[{id:'ev1',recebido_em:D(-1),evento:'order_approved',pedido_id:'K1',email:'kiwi@aluno.com',resultado:'produto sem configuracao',payload:{order_status:'paid'}}],leis:[],lei_leituras:[],sim_banca:[],sim_itens:[],sim_gabaritos:[],sim_respostas:[],sim_resultados:[],questao_reportes:[],erros_site:[],questao_comentarios:[],caderno_erros:[{id:'n1',aluno_id:'al1',titulo:'Crase antes de masculino',conteudo:'Nao ha crase antes de palavra masculina, salvo a moda de.',disciplina:'Portugues',atualizado_em:D(-5)},{id:'n2',aluno_id:'al1',titulo:'Tortura-castigo',conteudo:'Exige vitima sob guarda, poder ou autoridade.',disciplina:'Leg. Penal',atualizado_em:D(-3),revisar_em:Y(10),nivel:2},{id:'n3',aluno_id:'al1',titulo:'Pena do homicidio culposo',conteudo:'Detencao de 1 a 3 anos.',disciplina:'Leg. Penal',atualizado_em:D(-2)}],config_marca:[],questao_concursos:[],mapas_mentais:[],edital_topicos:[],edital_progresso:[],avisos:[],registros_diarios:[],plano_aluno:[],flashcards:[],flashcard_progresso:[],relatorios_aluno:[],anotacoes_aluno:[],cronograma_log:[]
+ relatorio_ciclo_visto:[],auth_users:[],compras:[{id:'cp1',origem:'kiwify',pedido_id:'K1',email:'kiwi@aluno.com',nome:'Kiwi Aluno',produto_id:'P1',produto_nome:'Mentoria 6 meses',valor:497,status:'aprovada',aluno_id:null,criado_em:D(-1)}],produtos_acesso:[{produto_id:'P1',produto_nome:'Mentoria 6 meses',concurso_id:null,dias:365,ativo:false,criado_em:D(-1)}],pedidos_acesso:[],kiwify_eventos:[{id:'ev1',recebido_em:D(-1),evento:'order_approved',pedido_id:'K1',email:'kiwi@aluno.com',resultado:'produto sem configuracao',payload:{order_status:'paid'}}],leis:[],lei_leituras:[],sim_banca:[],sim_itens:[],sim_gabaritos:[],sim_respostas:[],sim_resultados:[],questao_reportes:[],erros_site:[],questao_comentarios:[],caderno_erros:[{id:'n1',aluno_id:'al1',titulo:'Crase antes de masculino',conteudo:'Nao ha crase antes de palavra masculina, salvo a moda de.',disciplina:'Portugues',atualizado_em:D(-5)},{id:'n2',aluno_id:'al1',titulo:'Tortura-castigo',conteudo:'Exige vitima sob guarda, poder ou autoridade.',disciplina:'Leg. Penal',atualizado_em:D(-3),revisar_em:Y(10),nivel:2},{id:'n3',aluno_id:'al1',titulo:'Pena do homicidio culposo',conteudo:'Detencao de 1 a 3 anos.',disciplina:'Leg. Penal',atualizado_em:D(-2)}],config_marca:[],questao_concursos:[],mapas_mentais:[],edital_topicos:[{id:'et1',concurso_id:'c1',disciplina:'Portugues',topico:'Crase',ordem:1,prioridade:'alta'},{id:'et2',concurso_id:'c1',disciplina:'Portugues',topico:'Concordancia verbal',ordem:2,prioridade:'media'},{id:'et3',concurso_id:'c1',disciplina:'Portugues',topico:'Pontuacao',ordem:3,prioridade:'media'},{id:'et4',concurso_id:'c1',disciplina:'Portugues',topico:'Regencia',ordem:4,prioridade:'media'},{id:'et5',concurso_id:'c1',disciplina:'Matematica',topico:'Porcentagem',ordem:1,prioridade:'alta'},{id:'et6',concurso_id:'c1',disciplina:'Matematica',topico:'Razao e proporcao',ordem:2,prioridade:'media'},{id:'et7',concurso_id:'c1',disciplina:'Matematica',topico:'Juros simples',ordem:3,prioridade:'media'},{id:'et8',concurso_id:'c1',disciplina:'Direito Penal',topico:'Crimes contra a pessoa',ordem:1,prioridade:'alta'},{id:'et9',concurso_id:'c1',disciplina:'Direito Penal',topico:'Legitima defesa',ordem:2,prioridade:'media'},{id:'et10',concurso_id:'c1',disciplina:'Direito Penal',topico:'Concurso de pessoas',ordem:3,prioridade:'media'}],feedback_alunos:[{id:'fb1',aluno_id:'al1',tipo:'bug',texto:'Na aba de questoes o filtro nao limpou.',pagina:'questoes.html',aparelho:'Android',versao:'2026.11.08-c',status:'aberto',criado_em:D(-1)}],edital_progresso:[],avisos:[],registros_diarios:[],plano_aluno:[],flashcards:[],flashcard_progresso:[],relatorios_aluno:[],anotacoes_aluno:[],cronograma_log:[]
 }})();
 
 (function(){
@@ -35,7 +36,7 @@ function save(){localStorage.setItem(K,JSON.stringify(db))}
 window._db=function(){return db}
 let nid=1000
 function Q(t){this.t=t;this.f=[];this.op='select';this.one=0;this.ord=[];this.rg=null;this.d=null;this.oc=null}
-Q.prototype.select=function(){if(this.op==='select')this.op='select';return this}
+Q.prototype.select=function(c,o){if(o&&o.count)this.cnt=o.head?2:1;return this}
 Q.prototype.eq=function(c,v){this.f.push(r=>String(r[c])===String(v));return this}
 Q.prototype.in=function(c,v){this.f.push(r=>v.map(String).includes(String(r[c])));return this}
 Q.prototype.or=function(){return this}
@@ -61,7 +62,7 @@ Q.prototype.run=function(){
   const T=db[this.t]=db[this.t]||[]
   if(window.FAIL&&window.FAIL(this))return {data:null,error:{message:window.FAIL(this)}}
   const m=r=>this.f.every(f=>f(r))
-  if(this.op==='insert'){const a=Array.isArray(this.d)?this.d:[this.d];const ins=a.map(x=>{x=Object.assign({},x);if(x.id==null)x.id=String(nid++);T.push(x);return x});save();return {data:this.one?ins[0]:ins,error:null}}
+  if(this.op==='insert'){const a=Array.isArray(this.d)?this.d:[this.d];const ins=a.map(x=>{x=Object.assign({},x);if(x.id==null)x.id=String(nid++);if(this.t==='feedback_alunos'){if(x.aluno_id==null)x.aluno_id=window.UID;if(x.status==null)x.status='aberto';if(x.criado_em==null)x.criado_em=new Date().toISOString()}T.push(x);return x});save();return {data:this.one?ins[0]:ins,error:null}}
   if(this.op==='upsert'){const a=Array.isArray(this.d)?this.d:[this.d];a.forEach(x=>{const ex=T.find(r=>this.oc.every(k=>String(r[k])===String(x[k])));if(ex)Object.assign(ex,x);else{const y=Object.assign({},x);if(y.id==null)y.id=String(nid++);T.push(y)}});save();return {data:null,error:null}}
   if(this.op==='update'){const up=T.filter(m);up.forEach(r=>Object.assign(r,this.d));save();const c=up.map(x=>Object.assign({},x));return {data:this.one?(c[0]||null):c,error:null}}
   if(this.op==='delete'&&window.BLOQ_DEL){return {data:[],error:null}}
@@ -70,8 +71,9 @@ Q.prototype.run=function(){
   this.ord.slice().reverse().forEach(([c,a])=>r.sort((x,y)=>(x[c]>y[c]?1:x[c]<y[c]?-1:0)*(a?1:-1)))
   if(this.rg)r=r.slice(this.rg[0],this.rg[1]+1)
   r=r.slice(0,1000) // CAP1000
+  if(this.cnt===2)return {data:null,count:r.length,error:null}
   if(this.one)return {data:r[0]||null,error:null}
-  return {data:r,error:null}
+  return {data:r,count:r.length,error:null}
 }
 const PQ=t=>new Proxy(new Q(t),{get(o,k){if(k in o)return o[k];if(typeof k==='symbol')return undefined;return function(){return this}}});
 window._supabase={from:t=>PQ(t),storage:{from:()=>({upload:async()=>({data:{},error:null}),getPublicUrl:n=>({data:{publicUrl:'https://exemplo/'+n}})})},rpc:async(n,a)=>(window.RPC&&window.RPC[n]?{data:window.RPC[n](a),error:null}:{data:!!window.ADMIN,error:null}),
@@ -120,7 +122,7 @@ function liberar(uid,nome,email,tel,conc,dias){const al=T('alunos').find(a=>a.id
  T('pedidos_acesso').filter(p=>p.aluno_id===uid&&p.status==='pendente').forEach(p=>{p.status='aprovado'});save();return exp}
 function meu(){const u=T('auth_users').find(u=>u.id===window.UID)||{email:window.EMAIL};const al=T('alunos').find(a=>a.id===window.UID);const ped=T('pedidos_acesso').find(p=>p.aluno_id===window.UID&&p.status==='pendente')
  const comp=T('compras').some(c=>c.email===u.email&&c.status==='aprovada'&&!c.aluno_id&&!(T('produtos_acesso').find(p=>p.produto_id===c.produto_id)||{}).ativo)
- return {status:al&&al.data_expiracao>=hoje()&&!ped?'ativo':ped?'pendente':comp?'configurando':al?'vencido':'novo',email:u.email,expira:al?al.data_expiracao:null}}
+ return {status:al&&al.data_expiracao>=hoje()&&!ped?'ativo':ped?'pendente':comp?'configurando':al?'vencido':'novo',email:u.email,expira:al?al.data_expiracao:null,plano:(al&&al.plano)||'mentoria',assinatura_status:al?al.assinatura_status||null:null}}
 R.meu_acesso=()=>meu()
 R.eh_admin=()=>!!window.ADMIN
 R.ativar_acesso=function(a){const u=T('auth_users').find(u=>u.id===window.UID);let n=0
@@ -128,4 +130,10 @@ R.ativar_acesso=function(a){const u=T('auth_users').find(u=>u.id===window.UID);l
 R.pedir_acesso=function(a){const u=T('auth_users').find(u=>u.id===window.UID);T('pedidos_acesso').push({id:'pd'+Math.random().toString(36).slice(2,7),aluno_id:u.id,email:u.email,nome:a.p_nome,telefone:a.p_telefone,concurso_id:a.p_concurso,forma_pagamento:a.p_forma,observacao:a.p_obs,status:'pendente',tipo:'novo',criado_em:new Date().toISOString()});save();return meu()}
 R.aprovar_pedido=function(a){const p=T('pedidos_acesso').find(x=>x.id===a.p_pedido);const exp=liberar(p.aluno_id,p.nome,p.email,p.telefone,a.p_concurso,a.p_dias);p.status='aprovado';save();return exp}
 R.reaplicar_produto=function(a){return 0}
+R.auto_cronograma_salvar=function(a){const uid=window.UID;const S=T('sessoes_estudo');const ant=S.filter(x=>x.aluno_id===uid&&!x.concluida&&!x.extra).length
+ db()['sessoes_estudo']=S.filter(x=>!(x.aluno_id===uid&&!x.concluida&&!x.extra))
+ a.p_sessoes.forEach((x,i)=>T('sessoes_estudo').push(Object.assign({id:'as'+i,aluno_id:uid,concluida:false},x)))
+ const al=T('alunos').find(x=>x.id===uid);if(al)al.concurso_id=a.p_concurso
+ const cf=T('config_cronograma');const e=cf.find(x=>x.aluno_id===uid&&String(x.concurso_id)===String(a.p_concurso));if(e)Object.assign(e,a.p_cfg);else cf.push(Object.assign({aluno_id:uid,concurso_id:a.p_concurso},a.p_cfg))
+ save();return {sessoes:a.p_sessoes.length,removidas:ant}}
 })();
