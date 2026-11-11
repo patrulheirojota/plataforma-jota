@@ -11,7 +11,7 @@ const TIPOS = { '.html': 'text/html', '.js': 'application/javascript', '.css': '
 
 const ALUNO = ['cronograma.html', 'questoes.html', 'questoes.html#simulados', 'flashcards.html', 'edital.html', 'lei-seca.html', 'ranking.html', 'cronograma.html#desempenho', 'cronograma.html#perfil']
 const MENTOR = ['notificacoes-admin.html', 'admin.html', 'questoes-admin.html', 'questoes-admin.html#estatisticas', 'simulados-admin.html', 'leis-admin.html', 'vendas-admin.html', 'gerador.html', 'ajustar.html', 'overview.html', 'flashcards-admin.html', 'cronograma.html?aluno=al1']
-const PUBLICAS = ['index.html', 'primeiro-acesso.html', 'privacidade.html']
+const PUBLICAS = ['index.html', 'primeiro-acesso.html', 'privacidade.html', 'assinatura.html']
 ALUNO.push('meu-cronograma.html')
 
 const srv = http.createServer((req, res) => {
