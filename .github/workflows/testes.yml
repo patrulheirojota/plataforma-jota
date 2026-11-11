@@ -12,7 +12,7 @@ concurrency:
 jobs:
   testes:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Esperar 2 minutos (tempo de terminar de subir os arquivos)
         if: github.event_name == 'push'
@@ -26,6 +26,8 @@ jobs:
       - name: Instalar o navegador de teste
         run: |
           npm install --no-save --no-package-lock playwright@1.48.2
-          npx playwright install --with-deps chromium
+          npx playwright install chromium
+          # bibliotecas extras do Ubuntu: se o servidor do Ubuntu estiver fora do ar, segue com o que a maquina ja tem
+          timeout 300 sudo npx playwright install-deps chromium || echo "Aviso: servidor do Ubuntu indisponivel; seguindo sem as bibliotecas extras"
       - name: Abrir todas as paginas (teste de fumaca)
         run: node testes/fumaca.js
