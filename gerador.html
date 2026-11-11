@@ -277,6 +277,15 @@ async function init(){
   const { data: alunos } = await _supabase.from('alunos').select('id,nome').order('nome')
   const sa = document.getElementById('g-aluno')
   if (alunos) alunos.forEach(a => { sa.innerHTML += '<option value="'+a.id+'">'+a.nome+'</option>' })
+  // aberto a partir de outra tela: ?aluno=...&concurso=...  (#extras rola ate o card de extras)
+  const qs = new URLSearchParams(location.search), qa = qs.get('aluno'), qc = qs.get('concurso')
+  if (qa && Array.from(sa.options).some(function(o){ return o.value === qa })) {
+    sa.value = qa
+    await aoTrocarAluno()
+    const sc = document.getElementById('g-concurso')
+    if (qc && Array.from(sc.options).some(function(o){ return o.value === qc }) && sc.value !== qc) { sc.value = qc; await carregarTemas() }
+    if (location.hash === '#extras') setTimeout(function(){ const c = document.getElementById('card-extra'); if (c && c.style.display !== 'none') c.scrollIntoView({ behavior:'smooth' }) }, 600)
+  }
 }
 
 function montarDias(){
@@ -909,6 +918,7 @@ async function resumoExtras(){
     + '<strong style="color:var(--info)">Extras que este aluno ja tem:</strong><br>'
     + ks.map(function(k){ return '• '+esc(_exNomes[k]||'outro concurso')+': '+por[k].t+' sessoes ('+por[k].f+' feitas) '
         + (por[k].t>por[k].f ? '<button onclick="removerExtras(\''+k+'\')" style="width:auto;margin:4px 0 0 4px;padding:5px 10px;font-size:12px;background:var(--card);color:var(--erro);border:1px solid var(--erro)">Remover as '+(por[k].t-por[k].f)+' pendentes</button>' : '') }).join('<br>')
+    + '<button onclick="location.href=\'cronograma.html?aluno='+aluno_id+'#extras\'" style="width:auto;margin:8px 0 0;padding:7px 12px;font-size:12.5px;background:var(--card);color:var(--ouro);border:1px solid var(--ouro)">📅 Mudar datas, excluir ou ajustar uma a uma</button>'
     + '<div style="color:var(--tx4);font-size:11.5px;margin-top:6px">Gerar de novo para o mesmo concurso substitui as extras pendentes dele. As ja feitas ficam como historico.</div></div>' : ''
 }
 

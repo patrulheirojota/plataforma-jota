@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Migrar aluno de concurso — Admin</title>
+<script>document.documentElement.setAttribute("data-tema",localStorage.getItem("tema")||"escuro")</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="style.css">
+<style>
+  .passo{display:flex;gap:10px;align-items:center;margin-bottom:14px}
+  .passo-n{width:26px;height:26px;border-radius:50%;background:var(--ouro);color:#0a1420;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex-shrink:0}
+  .cx{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px}
+  .cx-c{background:var(--card2);border:1px solid var(--bd);border-radius:12px;padding:14px;text-align:center}
+  .cx-n{font-size:23px;font-weight:800}
+  .cx-l{color:var(--tx3);font-size:11.5px;margin-top:3px}
+  .disc{background:var(--card2);border:1px solid var(--bd);border-radius:12px;padding:12px 14px;margin-bottom:8px}
+  .disc.off{opacity:.6}
+  .disc-l{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1.2fr);gap:10px;align-items:center}
+  .disc-o b{font-size:14px}
+  .disc-o span{display:block;color:var(--tx3);font-size:12px;margin-top:2px}
+  .seta{color:var(--ouro);font-weight:800;font-size:18px}
+  .disc select{margin:0}
+  .tema{display:flex;gap:9px;align-items:flex-start;padding:7px 0;border-top:1px solid var(--bd);font-size:13px;line-height:1.4;cursor:pointer}
+  .tema input{margin-top:2px;width:18px;height:18px;flex-shrink:0}
+  .tema small{display:block;color:var(--tx3);font-size:11.5px}
+  .lbl{color:var(--tx3);font-size:12px;display:block;margin-bottom:4px}
+  .aviso{background:var(--card2);border-radius:11px;padding:12px 14px;font-size:13px;line-height:1.6;margin-bottom:12px}
+  @media(max-width:640px){
+    .disc-l{grid-template-columns:1fr}
+    .seta{display:none}
+  }
+</style>
+<style>
+.voltar-mob{display:none}
+@media(max-width:860px){
+  header{display:none}
+  .voltar-mob{
+    display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:40;
+    background:var(--bg2);border-bottom:1px solid var(--bd);
+    padding:11px 14px;margin:-16px -12px 16px
+  }
+  .voltar-mob button{
+    width:42px;height:42px;border-radius:11px;flex-shrink:0;margin:0;padding:0;
+    background:var(--card);border:1px solid var(--bd2);color:var(--tx);
+    font-size:19px;display:flex;align-items:center;justify-content:center;min-height:42px
+  }
+  .voltar-mob .t1{font-size:16px;font-weight:800;line-height:1.2}
+  .voltar-mob .t2{color:var(--tx3);font-size:11.5px}
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="voltar-mob"><button onclick="location.href='admin.html'" aria-label="Voltar">&#8249;</button><div><div class="t1">Migrar de concurso</div><div class="t2">Leva o avanco das disciplinas iguais</div></div></div>
+  <header>
+    <div>
+      <div class="pag-t">Migrar aluno de concurso</div>
+      <div class="pag-s">Leva o que o aluno ja estudou nas disciplinas equivalentes para o novo edital</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button onclick="location.href='gerador.html'" class="btn-neutro" style="width:auto;padding:9px 15px">Gerador</button>
+      <button onclick="location.href='admin.html'" style="width:auto;padding:9px 15px">Painel</button>
+    </div>
+  </header>
+
+  <div class="card">
+    <div class="passo"><div class="passo-n">1</div><h3 style="margin:0">Aluno e concursos</h3></div>
+    <p style="color:var(--tx3);font-size:13px;line-height:1.55;margin-bottom:12px">Ex.: o aluno estudava para a PMBA e vai para a PMAL. Portugues, Matematica, Constitucional... o que ele ja estudou fica marcado como estudado no edital novo. <strong>Nada e apagado</strong> nesta etapa.</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px">
+      <div><label class="lbl" for="m-aluno">Aluno</label><select id="m-aluno" onchange="aoTrocarAluno()"><option value="">Selecione</option></select></div>
+      <div><label class="lbl" for="m-de">Estudava para (concurso antigo)</label><select id="m-de" onchange="montarDestinos();aoTrocarConcursos()"><option value="">Selecione o aluno</option></select></div>
+      <div><label class="lbl" for="m-para">Vai para (concurso novo)</label><select id="m-para" onchange="aoTrocarConcursos()"><option value="">Selecione</option></select></div>
+    </div>
+    <p id="msg-1" style="display:none;margin-top:10px;font-size:13px"></p>
+  </div>
+
+  <div class="card" id="card-discs" style="display:none">
+    <div class="passo"><div class="passo-n">2</div><h3 style="margin:0">Disciplinas equivalentes</h3></div>
+    <p style="color:var(--tx3);font-size:13px;line-height:1.55;margin-bottom:12px">Ja liguei as disciplinas de nome parecido. Confira e troque o que precisar. Escolha <strong>"Nao levar"</strong> para a disciplina que nao existe no novo concurso (ex.: Historia da Bahia).</p>
+    <div class="cx" id="resumo"></div>
+    <div id="discs"></div>
+    <div id="novas" style="margin-top:12px"></div>
+  </div>
+
+  <div class="card" id="card-temas" style="display:none">
+    <div class="passo"><div class="passo-n">3</div><h3 style="margin:0">Temas que vao como ja estudados</h3></div>
+    <p style="color:var(--tx3);font-size:13px;line-height:1.55;margin-bottom:12px">Cada tema do edital novo foi comparado com os temas que o aluno ja estudou. Desmarque o que nao for equivalente de verdade.</p>
+    <div id="temas"></div>
+    <button onclick="aplicar()" id="btn-aplicar" class="btn-ok" style="width:100%;padding:13px;margin-top:12px">Levar o avanco</button>
+    <p id="msg-ap" style="display:none;margin-top:10px;font-size:13px;line-height:1.6"></p>
+  </div>
+
+  <div class="card" id="card-fim" style="display:none">
+    <div class="passo"><div class="passo-n">4</div><h3 style="margin:0">Montar o cronograma do novo concurso</h3></div>
+    <div class="aviso" id="fim-txt"></div>
+    <button onclick="irGerador()" style="width:100%;padding:13px">⚡ Abrir o Gerador com o novo concurso</button>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="motor-migracao.js"></script>
+<script>
+let _alunos=[],_concNomes={},_sess=[],_progresso={},_temasDe=[],_temasPara=[],_origem=[],_mapa={},_proposta=[],_fora={},_extrasFeitas=[],_jaMarcados=0
+
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function msg(id,t,c){const m=document.getElementById(id);m.style.display=t?'block':'none';m.style.color=c||'var(--tx3)';m.innerHTML=t||''}
+function chave(d,t){return migNorm(d)+'|'+migNorm(t)}
+async function todas(fab){
+  const out=[];let ini=0
+  for(let g=0;g<50;g++){const r=await fab().range(ini,ini+999);if(r.error)throw r.error;const d=r.data||[];out.push.apply(out,d);if(d.length<1000)break;ini+=1000}
+  return out
+}
+
+async function init(){
+  const { data:{user} }=await _supabase.auth.getUser()
+  if(!user){location.href='index.html';return}
+  const [ra,rc]=await Promise.all([
+    _supabase.from('alunos').select('id,nome,concurso_id').order('nome'),
+    _supabase.from('concursos').select('id,nome').order('nome')
+  ])
+  _alunos=ra.data||[]
+  ;(rc.data||[]).forEach(function(c){_concNomes[String(c.id)]=c.nome})
+  const s=document.getElementById('m-aluno')
+  _alunos.forEach(function(a){s.innerHTML+='<option value="'+a.id+'">'+esc(a.nome)+'</option>'})
+  // concursos com edital cadastrado (so esses podem ser o destino)
+  const ids=Object.keys(_concNomes), comEdital=[]
+  await Promise.all(ids.map(async function(id){
+    try{const r=await _supabase.from('edital_topicos').select('id',{count:'exact',head:true}).eq('concurso_id',id);if((r.count||0)>0)comEdital.push(id)}catch(e){}
+  }))
+  window._comEdital=comEdital
+  const qa=new URLSearchParams(location.search).get('aluno')
+  if(qa&&_alunos.some(function(a){return a.id===qa})){s.value=qa;aoTrocarAluno()}
+}
+
+async function aoTrocarAluno(){
+  const id=document.getElementById('m-aluno').value
+  const de=document.getElementById('m-de'), para=document.getElementById('m-para')
+  ;['card-discs','card-temas','card-fim'].forEach(function(c){document.getElementById(c).style.display='none'})
+  msg('msg-1','')
+  de.innerHTML='<option value="">Selecione o aluno</option>';para.innerHTML='<option value="">Selecione</option>'
+  if(!id)return
+  msg('msg-1','Carregando o historico do aluno...')
+  try{
+    _sess=await todas(function(){return _supabase.from('sessoes_estudo').select('id,concurso_id,extra,concurso_extra,tipo,disciplina,topico,topico_id,concluida').eq('aluno_id',id).order('data').order('id')})
+  }catch(e){msg('msg-1','Erro ao carregar as sessoes: '+esc(e.message),'var(--erro)');return}
+  const { data:ep }=await _supabase.from('edital_progresso').select('topico_id,concluido').eq('aluno_id',id).eq('concluido',true)
+  _progresso={};(ep||[]).forEach(function(x){_progresso[String(x.topico_id)]=1})
+  const { data:vinc }=await _supabase.from('aluno_concursos').select('concurso_id').eq('aluno_id',id)
+  const aluno=_alunos.find(function(a){return a.id===id})||{}
+  const daqui={}
+  _sess.forEach(function(x){if(!x.extra&&x.concurso_id)daqui[String(x.concurso_id)]=(daqui[String(x.concurso_id)]||0)+1})
+  ;(vinc||[]).forEach(function(v){if(!(String(v.concurso_id) in daqui))daqui[String(v.concurso_id)]=0})
+  if(aluno.concurso_id&&!(String(aluno.concurso_id) in daqui))daqui[String(aluno.concurso_id)]=0
+  const ks=Object.keys(daqui)
+  if(!ks.length){msg('msg-1','Este aluno ainda nao tem cronograma nem concurso vinculado. Nao ha avanco para levar: monte o cronograma direto no Gerador.','var(--alerta)');return}
+  de.innerHTML='<option value="">Selecione</option>'+ks.map(function(k){return '<option value="'+esc(k)+'">'+esc(_concNomes[k]||'Concurso')+(daqui[k]?' ('+daqui[k]+' sessoes)':'')+'</option>'}).join('')
+  de.value=aluno.concurso_id&&ks.indexOf(String(aluno.concurso_id))>=0?String(aluno.concurso_id):ks[0]
+  msg('msg-1','')
+  montarDestinos()
+}
+function montarDestinos(){
+  const de=document.getElementById('m-de').value, para=document.getElementById('m-para'), atual=para.value
+  const lista=(window._comEdital||[]).filter(function(k){return k!==de}).sort(function(a,b){return (_concNomes[a]||'').localeCompare(_concNomes[b]||'')})
+  para.innerHTML='<option value="">Selecione</option>'+lista.map(function(k){return '<option value="'+esc(k)+'">'+esc(_concNomes[k])+'</option>'}).join('')
+  if(atual&&lista.indexOf(atual)>=0)para.value=atual
+  if(!lista.length)msg('msg-1','Nenhum outro concurso tem edital cadastrado. Cadastre o edital do novo concurso em Editais primeiro.','var(--alerta)')
+}
+
+async function aoTrocarConcursos(){
+  const de=document.getElementById('m-de').value, para=document.getElementById('m-para').value
+  ;['card-discs','card-temas','card-fim'].forEach(function(c){document.getElementById(c).style.display='none'})
+  if(!de||!para)return
+  msg('msg-1','Comparando os editais...')
+  const [r1,r2]=await Promise.all([
+    _supabase.from('edital_topicos').select('id,disciplina,topico').eq('concurso_id',de).order('disciplina').order('ordem'),
+    _supabase.from('edital_topicos').select('id,disciplina,topico').eq('concurso_id',para).order('disciplina').order('ordem')
+  ])
+  _temasDe=r1.data||[];_temasPara=r2.data||[]
+  if(!_temasPara.length){msg('msg-1','O concurso novo nao tem edital cadastrado.','var(--erro)');return}
+
+  // temas do concurso antigo: os do edital + os que estao nas sessoes (concurso sem edital tambem funciona)
+  const feitoNome={},feitoId={},vistos={}
+  _origem=[]
+  _sess.forEach(function(s){
+    if(s.extra||String(s.concurso_id)!==de)return
+    if(s.tipo==='teoria'&&s.concluida){feitoNome[chave(s.disciplina,s.topico)]=1;if(s.topico_id)feitoId[String(s.topico_id)]=1}
+  })
+  _temasDe.forEach(function(t){
+    const k=chave(t.disciplina,t.topico); if(vistos[k])return; vistos[k]=1
+    _origem.push({disciplina:t.disciplina,topico:t.topico,feito:!!(_progresso[String(t.id)]||feitoId[String(t.id)]||feitoNome[k])})
+  })
+  _sess.forEach(function(s){
+    if(s.extra||String(s.concurso_id)!==de||!s.disciplina||!s.topico)return
+    const k=chave(s.disciplina,s.topico); if(vistos[k])return; vistos[k]=1
+    _origem.push({disciplina:s.disciplina,topico:s.topico,feito:!!feitoNome[k]})
+  })
+  // extras ja feitas DO concurso novo (o aluno ja estudava disciplinas dele como extra)
+  const idsPara={};_temasPara.forEach(function(t){idsPara[String(t.id)]=t})
+  const ex={}
+  _sess.forEach(function(s){if(s.extra&&String(s.concurso_extra)===para&&s.tipo==='teoria'&&s.concluida&&s.topico_id&&idsPara[String(s.topico_id)])ex[String(s.topico_id)]=idsPara[String(s.topico_id)]})
+  _extrasFeitas=Object.keys(ex).map(function(k){return ex[k]})
+  _jaMarcados=_temasPara.filter(function(t){return _progresso[String(t.id)]}).length
+
+  const discsDe=[];_origem.forEach(function(t){if(discsDe.indexOf(t.disciplina)<0)discsDe.push(t.disciplina)})
+  const discsPara=[];_temasPara.forEach(function(t){if(discsPara.indexOf(t.disciplina)<0)discsPara.push(t.disciplina)})
+  _mapa=migSugerirDisciplinas(discsDe,discsPara)
+  _fora={}
+  msg('msg-1','')
+  if(!_origem.length){msg('msg-1','O aluno nao tem temas registrados em '+esc(_concNomes[de])+'. Nao ha avanco para levar.','var(--alerta)');return}
+  renderDiscs()
+}
+
+function renderDiscs(){
+  const para=document.getElementById('m-para').value
+  const discsPara=[];_temasPara.forEach(function(t){if(discsPara.indexOf(t.disciplina)<0)discsPara.push(t.disciplina)})
+  const discsDe=Object.keys(_mapa)
+  const est={},tot={}
+  _origem.forEach(function(t){tot[t.disciplina]=(tot[t.disciplina]||0)+1;if(t.feito)est[t.disciplina]=(est[t.disciplina]||0)+1})
+  discsDe.sort(function(a,b){return (est[b]||0)-(est[a]||0)||a.localeCompare(b)})
+  const totalEst=_origem.filter(function(t){return t.feito}).length
+  document.getElementById('discs').innerHTML=discsDe.map(function(d,i){
+    const off=!_mapa[d]
+    return '<div class="disc'+(off?' off':'')+'"><div class="disc-l">'
+      +'<div class="disc-o"><b>'+esc(d)+'</b><span>'+(est[d]||0)+' de '+tot[d]+' temas estudados</span></div>'
+      +'<div class="seta">→</div>'
+      +'<select aria-label="Disciplina equivalente a '+esc(d)+'" onchange="trocarMapa('+i+',this.value)"><option value="">Nao levar</option>'
+      +discsPara.map(function(x){return '<option value="'+esc(x)+'"'+(x===_mapa[d]?' selected':'')+'>'+esc(x)+'</option>'}).join('')+'</select>'
+      +'</div></div>'
+  }).join('')
+  window._discsDe=discsDe
+  const usadas={};discsDe.forEach(function(d){if(_mapa[d])usadas[_mapa[d]]=1})
+  const novas=discsPara.filter(function(x){return !usadas[x]})
+  document.getElementById('novas').innerHTML=novas.length?'<div class="aviso"><strong style="color:var(--info)">Comecam do zero no '+esc(_concNomes[para])+':</strong> '+novas.map(esc).join(' · ')+'</div>':''
+  montarProposta()
+  document.getElementById('resumo').innerHTML=
+    '<div class="cx-c"><div class="cx-n">'+totalEst+'</div><div class="cx-l">temas estudados no concurso antigo</div></div>'
+   +'<div class="cx-c"><div class="cx-n" style="color:var(--ok)" id="rs-levar">0</div><div class="cx-l">temas vao como estudados</div></div>'
+   +'<div class="cx-c"><div class="cx-n">'+_temasPara.length+'</div><div class="cx-l">temas no edital novo</div></div>'
+  document.getElementById('card-discs').style.display='block'
+  renderTemas()
+}
+function trocarMapa(i,v){_mapa[window._discsDe[i]]=v;renderDiscs()}
+function montarProposta(){_proposta=migMontarProposta(_origem,_temasPara,_mapa)}
+
+function idsMarcados(){
+  const ids={}
+  _proposta.forEach(function(g){g.marcar.forEach(function(t){if(!_fora[t.id])ids[t.id]=1})})
+  _extrasFeitas.forEach(function(t){if(!_fora[t.id])ids[t.id]=1})
+  return Object.keys(ids).filter(function(id){return !_progresso[String(id)]})
+}
+function renderTemas(){
+  const para=document.getElementById('m-para').value
+  let h=''
+  if(_jaMarcados)h+='<div class="aviso">'+_jaMarcados+' tema(s) do '+esc(_concNomes[para])+' ja estavam marcados como estudados. Eles continuam marcados.</div>'
+  if(_extrasFeitas.length){
+    h+='<div class="disc"><b style="color:var(--roxo)">Ja estudados como sessao extra</b><span style="display:block;color:var(--tx3);font-size:12px;margin:2px 0 6px">O aluno ja fazia disciplinas do '+esc(_concNomes[para])+' como extra.</span>'
+      +_extrasFeitas.map(linhaTema).join('')+'</div>'
+  }
+  _proposta.forEach(function(g){
+    h+='<div class="disc"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b>'+esc(g.discDestino)+'</b>'
+      +'<span style="color:var(--tx3);font-size:12px">'+g.marcar.length+' de '+g.total+' temas · vindo de '+g.discsOrigem.map(esc).join(' + ')+'</span></div>'
+    if(!g.marcar.length)h+='<div style="color:var(--tx3);font-size:12.5px;margin-top:6px">'+(g.estudadosOrigem?'Nenhum tema estudado tem equivalente claro aqui.':'O aluno ainda nao estudou temas desta disciplina.')+'</div>'
+    h+=g.marcar.map(linhaTema).join('')
+    if(g.semPar.length)h+='<details style="margin-top:6px"><summary style="cursor:pointer;color:var(--tx3);font-size:12px">'+g.semPar.length+' tema(s) estudados sem equivalente no edital novo</summary><div style="color:var(--tx3);font-size:12px;line-height:1.6;margin-top:4px">'+g.semPar.map(esc).join(' · ')+'</div></details>'
+    h+='</div>'
+  })
+  document.getElementById('temas').innerHTML=h
+  atualizarContagem()
+  document.getElementById('card-temas').style.display='block'
+}
+function linhaTema(t){
+  const ja=!!_progresso[String(t.id)]
+  return '<label class="tema"><input type="checkbox" '+(ja?'checked disabled':(_fora[t.id]?'':'checked'))+' onchange="marcarTema(\''+esc(String(t.id))+'\',this.checked)">'
+    +'<span>'+esc(t.topico)+(t.de?'<small>← '+esc(t.de)+(t.nota<100?' · '+t.nota+'% parecido':'')+'</small>':'')+(ja?'<small style="color:var(--ok)">ja estava marcado</small>':'')+'</span></label>'
+}
+function marcarTema(id,on){if(on)delete _fora[id];else _fora[id]=1;atualizarContagem()}
+function atualizarContagem(){
+  const n=idsMarcados().length, r=document.getElementById('rs-levar'); if(r)r.textContent=n
+  const b=document.getElementById('btn-aplicar')
+  b.disabled=!n;b.textContent=n?'Levar o avanco: '+n+' tema(s) como estudados':'Nenhum tema novo para levar'
+  b.style.opacity=n?'1':'.5'
+}
+
+async function aplicar(){
+  const aluno=document.getElementById('m-aluno').value, de=document.getElementById('m-de').value, para=document.getElementById('m-para').value
+  const ids=idsMarcados()
+  if(!ids.length)return
+  const nome=(_alunos.find(function(a){return a.id===aluno})||{}).nome||'o aluno'
+  if(!confirm('Marcar '+ids.length+' tema(s) como estudados no edital do '+(_concNomes[para]||'novo concurso')+' para '+nome+'?\n\nNada e apagado. O cronograma muda so quando voce salvar no Gerador.'))return
+  const pares=Object.keys(_mapa).filter(function(d){return _mapa[d]}).map(function(d){return d===_mapa[d]?d:d+' → '+_mapa[d]}).join('; ')
+  msg('msg-ap','Salvando...')
+  document.getElementById('btn-aplicar').disabled=true
+  const r=await _supabase.rpc('migrar_avanco',{p_aluno:aluno,p_origem:de,p_destino:para,p_topicos:ids,p_resumo:pares})
+  if(r.error){
+    document.getElementById('btn-aplicar').disabled=false
+    msg('msg-ap',/migrar_avanco|function/i.test(r.error.message)?'Rode primeiro o arquivo <strong>atualizacao-migrar-concurso.sql</strong> no Supabase (SQL Editor).':'Erro: '+esc(r.error.message),'var(--erro)');return
+  }
+  const d=r.data||{}
+  ids.forEach(function(id){_progresso[String(id)]=1})
+  msg('msg-ap','✓ '+(d.marcados||0)+' tema(s) marcados como estudados no '+esc(d.destino||_concNomes[para])+'.','var(--ok)')
+  renderTemas()
+  document.getElementById('fim-txt').innerHTML='<strong>Ultimo passo:</strong> monte o cronograma do '+esc(_concNomes[para])+' no Gerador. Deixe ligada a opcao <strong>"Tirar a teoria dos temas que o aluno marcou como estudados no Edital"</strong>: esses temas entram so com questoes e revisao.'
+    +'<br><br>Ao salvar, o Gerador avisa que o aluno tem cronograma do '+esc(_concNomes[de]||'concurso antigo')+' e remove so as sessoes <strong>pendentes</strong> dele. O que o aluno ja fez fica no historico.'
+  document.getElementById('card-fim').style.display='block'
+  document.getElementById('card-fim').scrollIntoView({behavior:'smooth'})
+}
+function irGerador(){
+  location.href='gerador.html?aluno='+encodeURIComponent(document.getElementById('m-aluno').value)+'&concurso='+encodeURIComponent(document.getElementById('m-para').value)
+}
+
+init()
+</script>
+<script src="menu-admin.js"></script>
+</body>
+</html>

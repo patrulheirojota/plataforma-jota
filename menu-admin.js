@@ -20,6 +20,7 @@
     ['⚡','Gerador','gerador.html'],
     ['📅','Planos','aba-cronograma'],
     ['🔄','Ajustar ao edital','ajustar.html'],
+    ['🔁','Migrar de concurso','migrar-concurso.html'],
     ['🎯','Controle de Temas','temas.html'],
     ['Conteudo'],
     ['📄','Importar Prova','importador.html'],

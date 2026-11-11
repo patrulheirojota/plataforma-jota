@@ -6,12 +6,12 @@
    A cada atualizacao, troque a VERSAO abaixo.
    ===================================================================== */
 (function () {
-  var VERSAO = '2026.11.10-a'
+  var VERSAO = '2026.11.11-a'
   window.VERSAO_PLATAFORMA = VERSAO
 
   var pagina = (location.pathname.split('/').pop() || 'index.html').toLowerCase()
   var PAGINAS_MENTOR = ['admin.html', 'overview.html', 'gerador.html', 'ajustar.html', 'temas.html', 'importador.html',
-    'questoes-admin.html', 'flashcards-admin.html', 'simulados-admin.html', 'leis-admin.html', 'vendas-admin.html', 'notificacoes-admin.html', 'edital-admin.html', 'relatorio.html', 'marca.html']
+    'questoes-admin.html', 'flashcards-admin.html', 'simulados-admin.html', 'leis-admin.html', 'vendas-admin.html', 'notificacoes-admin.html', 'edital-admin.html', 'relatorio.html', 'marca.html', 'migrar-concurso.html']
   function ehPaginaMentor () {
     return PAGINAS_MENTOR.indexOf(pagina) >= 0 || /[?&](aluno|admin)=/.test(location.search)
   }
@@ -217,7 +217,14 @@
   }
   window.abrirFeedback = abrirFeedback
 
+  function senhaVisivel () {
+    // botao de "olho" nos campos de senha (login, primeiro acesso, troca de senha)
+    if (window.__senhaVisivel || document.querySelector('script[src*="senha-visivel.js"]')) return
+    var sc = document.createElement('script'); sc.src = 'senha-visivel.js'; document.head.appendChild(sc)
+  }
+
   function iniciar () {
+    senhaVisivel()
     rodape()
     faixaTeste()
     menuFeedback()

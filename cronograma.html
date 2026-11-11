@@ -661,6 +661,12 @@ async function init(){
       if(t)t.innerHTML+='<br><span style="color:#f07171;font-weight:700">⚠️ Este aluno ainda tem '+pendOutros+' sessoes pendentes de outro concurso (plano antigo). Elas nao aparecem aqui. Para remover, abra o Gerador com este aluno.</span>'
     }
   }
+  if(_mentor&&_extras.length){
+    const bar=document.getElementById('mentor-bar'), b=document.createElement('button')
+    b.className='btn';b.style.cssText='border-color:#b98ae0;color:#c9a9e8';b.textContent='➕ Extras ('+_extras.filter(function(x){return !x.concluida}).length+')'
+    b.onclick=function(){gerenciarExtras(null)}
+    if(bar&&bar.lastChild)bar.insertBefore(b,bar.lastChild)
+  }
   const { data:conc }=await _supabase.from('concursos').select('nome, data_prova').eq('id',_concursoId).single()
   _concursoNome=conc?conc.nome:''
   await nomesExtras()
@@ -690,6 +696,7 @@ async function init(){
   else if(qs.get('dias')==='1')setTimeout(abrirDias,500)
   else if(qs.get('carga')==='1')setTimeout(abrirCarga,500)
   else if(qs.get('teoria')==='1')setTimeout(abrirJaVistas,500)
+  else if(location.hash==='#extras'&&_mentor)setTimeout(function(){gerenciarExtras(null)},400)
   else if(['desempenho','avisos','perfil','sequencia'].indexOf(location.hash.replace('#',''))>=0)irSecao(location.hash.replace('#',''))
   else if(checarJaVistas()){}
   else if(!_mentor){
@@ -1348,9 +1355,146 @@ function itemHoje(s,extra){
 function htmlExtrasHoje(k){
   const ex=extrasDoDia(k); if(!ex.length)return ''
   const f=ex.filter(function(s){return s.concluida}).length
-  return '<div class="metas-t" style="margin-top:14px">➕ Sessoes extras <span style="color:var(--tx3)">'+f+'/'+ex.length+'</span></div>'
+  return '<div class="metas-t" style="margin-top:14px">➕ Sessoes extras <span style="color:var(--tx3)">'+f+'/'+ex.length+'</span>'
+    +(_mentor?' <button class="btn" style="padding:3px 9px;font-size:11.5px;margin-left:6px" onclick="gerenciarExtras(null)">⚙️ Gerenciar</button>':'')+'</div>'
     +'<div style="color:var(--tx3);font-size:12px;margin:-2px 0 8px">Alem do seu horario: disciplinas de outro concurso. Nao contam na Missao de hoje.</div>'
     +ex.map(function(s){return itemHoje(s,true)}).join('')
+}
+
+/* ---------- SESSOES EXTRAS: GERENCIAR (so o mentor) ----------
+   Por concurso de origem: remover as pendentes, reprogramar as datas
+   (a partir de um dia, nos dias da semana escolhidos) ou mexer uma a uma.
+   As extras ja feitas nunca sao apagadas: ficam como historico. */
+let _gxAberto=null,_gxDias=null
+function gruposExtras(){
+  const g={},ordem=[]
+  _extras.slice().sort(ordenarSess).forEach(function(s){
+    const k=s.concurso_extra||'?'
+    if(!g[k]){g[k]={k:k,nome:nomeExtra(s),pend:[],feitas:[]};ordem.push(k)}
+    ;(s.concluida?g[k].feitas:g[k].pend).push(s)
+  })
+  return ordem.map(function(k){return g[k]})
+}
+function dBr(k){return parseD(k).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})}
+function gerenciarExtras(abrir){
+  if(!_mentor)return
+  if(abrir!==undefined)_gxAberto=abrir
+  const gs=gruposExtras(), hj=hojeStr()
+  let h='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:6px">'
+   +'<div><div style="color:#c9a9e8;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase">Modo mentor</div>'
+   +'<div style="font-size:18px;font-weight:800;margin-top:2px">➕ Sessoes extras</div></div>'
+   +'<button class="btn" onclick="fecharModal()" style="padding:5px 11px">✕</button></div>'
+   +'<div style="color:var(--tx3);font-size:12.5px;line-height:1.55;margin-bottom:12px">Disciplinas de outros concursos, alem do plano principal. Mexer aqui <strong>nao altera o plano principal</strong>, e as extras ja feitas ficam como historico.</div>'
+  if(!gs.length){
+    h+='<div class="bloco" style="text-align:center;color:var(--tx3);font-size:13px">Este aluno nao tem sessoes extras.</div>'
+  }
+  gs.forEach(function(g){
+    const pr=g.pend.length?dBr(g.pend[0].data)+' a '+dBr(g.pend[g.pend.length-1].data):'nenhuma pendente'
+    const atras=g.pend.filter(function(s){return s.data<hj}).length
+    h+='<div class="bloco" style="border-color:#b98ae0">'
+      +'<div class="bloco-t" style="color:#c9a9e8">'+esc(g.nome)+'</div>'
+      +'<div class="bloco-d">'+g.pend.length+' pendente(s) · '+g.feitas.length+' feita(s) · '+pr
+      +(atras?' · <span style="color:#f07171;font-weight:700">'+atras+' atrasada(s)</span>':'')+'</div>'
+      +(g.pend.length?'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">'
+        +'<button class="btn" style="flex:1;min-width:120px;padding:9px" onclick="gerenciarExtras(\''+g.k+':rep\')">📅 Reprogramar datas</button>'
+        +'<button class="btn" style="flex:1;min-width:120px;padding:9px" onclick="gerenciarExtras(\''+g.k+':lista\')">✏️ Ajustar uma a uma</button>'
+        +'<button class="btn" style="flex:1;min-width:120px;padding:9px;border-color:#d9566a;color:#f07171" onclick="removerExtrasGrupo(\''+g.k+'\')">🗑️ Remover pendentes</button></div>':'')
+    if(_gxAberto===g.k+':rep'&&g.pend.length){
+      if(!_gxDias){_gxDias=[];g.pend.forEach(function(s){const d=parseD(s.data).getDay();if(_gxDias.indexOf(d)<0)_gxDias.push(d)})}
+      let maxDia=1;const cont={};g.pend.forEach(function(s){cont[s.data]=(cont[s.data]||0)+1;maxDia=Math.max(maxDia,cont[s.data])})
+      h+='<div style="margin-top:12px;padding-top:12px;border-top:1px dashed var(--bd2)">'
+        +'<div style="font-size:12.5px;color:var(--tx2);line-height:1.5;margin-bottom:8px">As '+g.pend.length+' pendentes sao redistribuidas <strong>na mesma ordem</strong>, a partir do dia escolhido.</div>'
+        +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div><label class="lbl">A partir de</label><input class="inp" type="date" id="gx-ini" value="'+(g.pend[0].data<hj?hj:g.pend[0].data)+'"></div>'
+        +'<div><label class="lbl">Extras por dia</label><input class="inp" type="number" id="gx-n" min="1" max="6" value="'+maxDia+'"></div></div>'
+        +'<label class="lbl" style="margin-top:8px;display:block">Em quais dias</label>'
+        +'<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px">'
+        +[1,2,3,4,5,6,0].map(function(d){const on=_gxDias.indexOf(d)>=0
+          return '<button onclick="gxDia('+d+',\''+g.k+'\')" style="padding:10px 0;border-radius:9px;font-weight:800;font-size:12px;cursor:pointer;border:2px solid '+(on?'#b98ae0':'var(--bd2)')+';background:'+(on?'#b98ae0':'var(--card2)')+';color:'+(on?'#0a1420':'var(--tx3)')+'">'+CURTO[d]+'</button>'}).join('')+'</div>'
+        +'<button class="btn btn-ouro" style="width:100%;padding:11px;margin-top:10px" onclick="reprogramarExtras(\''+g.k+'\')">Aplicar novas datas</button></div>'
+    }
+    if(_gxAberto===g.k+':lista'&&g.pend.length){
+      h+='<div style="margin-top:12px;padding-top:12px;border-top:1px dashed var(--bd2);max-height:46vh;overflow:auto">'
+        +g.pend.map(function(s){
+          return '<div style="display:flex;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--bd)">'
+            +'<input class="inp" type="date" value="'+s.data+'" style="width:142px;flex-shrink:0;padding:7px" onchange="moverExtra(\''+s.id+'\',this.value)">'
+            +'<div style="flex:1;min-width:0;font-size:12px;line-height:1.35"><b>'+esc(s.disciplina)+'</b> · '+LABEL[s.tipo]+'<div style="color:var(--tx3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(s.topico)+'</div></div>'
+            +'<button class="btn" aria-label="Excluir sessao extra" style="padding:7px 10px;border-color:#d9566a;color:#f07171" onclick="excluirExtra(\''+s.id+'\')">✕</button></div>'
+        }).join('')+'</div>'
+    }
+    h+='</div>'
+  })
+  h+='<button class="btn" style="width:100%;padding:11px;margin-top:12px" onclick="location.href=\'gerador.html?aluno='+_alunoId+'&concurso='+encodeURIComponent(_concursoId||'')+'#extras\'">➕ Criar extras de outro concurso (Gerador)</button>'
+   +'<div id="gx-msg" style="font-size:12px;margin-top:10px;text-align:center"></div>'
+  document.getElementById('modal-c').innerHTML=h
+  document.getElementById('modal').classList.add('on')
+}
+function gxMsg(t,c){const m=document.getElementById('gx-msg');if(m){m.style.color=c||'var(--tx3)';m.textContent=t}}
+function gxDia(d,k){const i=_gxDias.indexOf(d);if(i>=0)_gxDias.splice(i,1);else _gxDias.push(d);gerenciarExtras(k+':rep')}
+async function depoisExtras(abrir,txt,log){
+  await recarregar()
+  if(log)logar('ajustou_extras',log)
+  gerenciarExtras(abrir)
+  if(txt)gxMsg(txt,'#6ddba0')
+}
+async function removerExtrasGrupo(k){
+  const g=gruposExtras().find(function(x){return x.k===k}); if(!g||!g.pend.length)return
+  if(!confirm('Remover as '+g.pend.length+' sessoes extras PENDENTES de '+g.nome+'?\n\nAs '+g.feitas.length+' ja feitas ficam como historico. O plano principal nao muda.'))return
+  gxMsg('Removendo...')
+  let q=_supabase.from('sessoes_estudo').delete().eq('aluno_id',_alunoId).eq('extra',true).eq('concluida',false)
+  if(_concursoId)q=q.eq('concurso_id',_concursoId)
+  q=k==='?'?q.is('concurso_extra',null):q.eq('concurso_extra',k)
+  const r=await q
+  if(r.error){gxMsg('Erro: '+r.error.message,'#f07171');return}
+  _gxAberto=null
+  await depoisExtras(null,g.pend.length+' sessoes extras de '+g.nome+' removidas.','Removeu '+g.pend.length+' sessoes extras pendentes de '+g.nome)
+}
+async function reprogramarExtras(k){
+  const g=gruposExtras().find(function(x){return x.k===k}); if(!g||!g.pend.length)return
+  const ini=document.getElementById('gx-ini').value, n=Math.max(1,Math.min(6,parseInt(document.getElementById('gx-n').value)||1))
+  if(!ini){gxMsg('Escolha a data de inicio.','#f07171');return}
+  if(!_gxDias.length){gxMsg('Escolha pelo menos um dia da semana.','#f07171');return}
+  const novas=[];let d=parseD(ini),guard=0
+  while(novas.length<g.pend.length&&guard<2000){
+    if(_gxDias.indexOf(d.getDay())>=0){for(let j=0;j<n&&novas.length<g.pend.length;j++)novas.push({data:ymd(d),ordem:100+j})}
+    d=addDays(d,1);guard++
+  }
+  const mudar=[];g.pend.forEach(function(s,i){if(s.data!==novas[i].data||(s.ordem||0)!==novas[i].ordem)mudar.push({id:s.id,data:novas[i].data,ordem:novas[i].ordem})})
+  if(!mudar.length){gxMsg('As datas ja estao assim. Nada mudou.','#e8b04b');return}
+  for(let i=0;i<mudar.length;i+=10){
+    gxMsg('Reprogramando... '+i+'/'+mudar.length)
+    const rs=await Promise.all(mudar.slice(i,i+10).map(function(m){return _supabase.from('sessoes_estudo').update({data:m.data,ordem:m.ordem}).eq('id',m.id)}))
+    const e=rs.find(function(r){return r&&r.error}); if(e){gxMsg('Erro: '+e.error.message,'#f07171');await recarregar();return}
+  }
+  const fim=novas[novas.length-1].data
+  _gxAberto=null
+  await depoisExtras(null,'Extras de '+g.nome+' reprogramadas: '+dBr(ini)+' a '+dBr(fim)+'.','Reprogramou '+g.pend.length+' sessoes extras de '+g.nome+' ('+dBr(ini)+' a '+dBr(fim)+', '+n+' por dia, '+_gxDias.slice().sort().map(function(x){return CURTO[x]}).join('/')+')')
+}
+async function moverExtraModal(id){
+  const v=document.getElementById('mx-data').value, s=acharSessao(id); if(!s||!v||v===s.data)return
+  const r=await _supabase.from('sessoes_estudo').update({data:v}).eq('id',id)
+  if(r.error){alert('Erro: '+r.error.message);return}
+  const de=s.data
+  await recarregar();fecharModal()
+  logar('ajustou_extras','Moveu a sessao extra '+s.disciplina+' de '+dBr(de)+' para '+dBr(v))
+  toast('Sessao extra movida para '+dBr(v)+'.')
+}
+async function moverExtra(id,data){
+  const s=acharSessao(id); if(!s||!data||data===s.data)return
+  const r=await _supabase.from('sessoes_estudo').update({data:data}).eq('id',id)
+  if(r.error){gxMsg('Erro: '+r.error.message,'#f07171');return}
+  const de=s.data
+  await depoisExtras(_gxAberto,'Sessao movida para '+dBr(data)+'.','Moveu a sessao extra '+s.disciplina+' de '+dBr(de)+' para '+dBr(data))
+}
+async function excluirExtra(id){
+  const s=acharSessao(id); if(!s)return
+  if(s.concluida){alert('Esta sessao ja foi feita e fica como historico. Desmarque a conclusao antes, se quiser mesmo excluir.');return}
+  if(!confirm('Excluir esta sessao extra?\n\n'+s.disciplina+' · '+s.topico))return
+  const r=await _supabase.from('sessoes_estudo').delete().eq('id',id)
+  if(r.error){alert('Erro: '+r.error.message);return}
+  const abrir=document.getElementById('gx-msg')?_gxAberto:undefined
+  await recarregar()
+  logar('ajustou_extras','Excluiu a sessao extra '+s.disciplina+' · '+s.topico+' ('+dBr(s.data)+')')
+  if(abrir!==undefined)gerenciarExtras(abrir); else {fecharModal();toast('Sessao extra excluida.')}
 }
 
 async function toggleSessao(id){
@@ -1411,6 +1555,12 @@ function abrirSessao(id){
    +'<span style="color:var(--tx3);font-size:12px">min</span></div>'
    +'<button class="btn" style="width:100%;margin-top:10px;padding:10px" onclick="salvarTempoSessao(\''+id+'\')">Salvar tempo</button>'
    +'<div id="ms-msg" style="font-size:12px;margin-top:8px;text-align:center"></div></div>'
+   +((s.extra&&_mentor)?'<div class="bloco" style="border-color:#b98ae0"><div class="bloco-t" style="color:#c9a9e8">Ajustar esta extra (mentor)</div>'
+     +'<div class="lin"><input class="inp" type="date" id="mx-data" value="'+s.data+'" style="flex:1">'
+     +'<button class="btn" style="padding:10px 14px" onclick="moverExtraModal(\''+id+'\')">Mudar data</button></div>'
+     +'<div style="display:flex;gap:6px;margin-top:8px">'
+     +(!s.concluida?'<button class="btn" style="flex:1;padding:10px;border-color:#d9566a;color:#f07171" onclick="excluirExtra(\''+id+'\')">🗑️ Excluir</button>':'')
+     +'<button class="btn" style="flex:1;padding:10px" onclick="gerenciarExtras(null)">⚙️ Todas as extras</button></div></div>':'')
    +((s.tipo==='questoes'||s.questoes_feitas)?
       '<div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--bd2)">'
      +'<div style="color:var(--tx3);font-size:11px;letter-spacing:1px;text-transform:uppercase;font-weight:600;margin-bottom:8px">Registro de questoes</div>'
