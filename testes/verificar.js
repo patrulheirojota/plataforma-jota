@@ -42,7 +42,7 @@ htmls.forEach(f => {
 
 // 3) arquivos que nao podem ser trocados por engano
 const assinaturas = {
-  'menu-admin.js': 'window.MenuAdmin', 'comum.js': 'VERSAO_PLATAFORMA', 'motor-cronograma.js': 'function montarPlano', 'central.js': 'function carregarCentral',
+  'menu-admin.js': 'window.MenuAdmin', 'comum.js': 'VERSAO_PLATAFORMA', 'motor-cronograma.js': 'function montarPlano', 'motor-migracao.js': 'function migMontarProposta', 'senha-visivel.js': '__senhaVisivel', 'central.js': 'function carregarCentral',
   'desempenho.js': 'buscarDesempenhoAssuntos', 'relatorio-ciclo.js': 'verificarRelatorioCiclo', 'pomodoro.js': 'pomoAbrir',
   'explicacao.js': 'htmlExplicacao', 'lei-parser.js': 'lerLei', 'simulado-parser.js': 'lerSimulado',
   'leitor-arquivos.js': 'lerArquivoParagrafos', 'caderno-revisao.js': 'renderRevisaoCaderno', 'admin.js': 'function carregarAlunos',
