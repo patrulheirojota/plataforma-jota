@@ -12,6 +12,13 @@
   .st-n{font-size:22px;font-weight:bold}
   .st-l{color:var(--tx3);font-size:11px;margin-top:2px}
   .disc-h{color:var(--ouro);font-size:14px;font-weight:bold;margin:16px 0 8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+  .disc-tog{width:100%;display:flex;align-items:center;gap:10px;background:var(--card2);border:1px solid var(--bd2);border-radius:10px;padding:11px 13px;margin:0 0 6px;cursor:pointer;text-align:left;color:var(--tx);font-size:14px;font-weight:700;min-height:44px}
+  .disc-tog:hover{border-color:var(--ouro)}
+  .disc-tog .seta{color:var(--ouro);width:14px;flex-shrink:0;transition:transform .15s}
+  .disc-tog.on .seta{transform:rotate(90deg)}
+  .disc-tog .nm{flex:1;min-width:0}
+  .disc-tog .ct{color:var(--tx3);font-size:12px;font-weight:600;white-space:nowrap}
+  .disc-corpo{border-left:2px solid var(--bd2);margin:-2px 0 10px 8px;padding:4px 0 4px 12px}
   .t-row{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;background:var(--card2);margin-bottom:5px;flex-wrap:wrap}
   .t-row.removido{opacity:.45}
   .t-txt{flex:1;min-width:150px;font-size:13px}
@@ -117,7 +124,7 @@
 
 <script src="config.js"></script>
 <script>
-let _alunoId=null,_concursoId=null,_topicos=[],_status={},_feitos={}
+let _alunoId=null,_concursoId=null,_topicos=[],_status={},_feitos={},_abertaT={},_discsT=[]
 
 async function init(){
   const { data:{user} }=await _supabase.auth.getUser()
@@ -151,6 +158,7 @@ async function carregar(){
     document.getElementById('resumo').innerHTML=''
     return
   }
+  _abertaT={}
   _topicos=tops
 
   const { data:st }=await _supabase.from('tema_aluno_status').select('topico_id,status')
@@ -190,7 +198,10 @@ function render(){
   _topicos.forEach(function(t){ if(!porDisc[t.disciplina])porDisc[t.disciplina]=[]; porDisc[t.disciplina].push(t) })
 
   let html='',mostrados=0
-  Object.keys(porDisc).forEach(function(disc){
+  // lista RECOLHIDA: so as disciplinas; clique para abrir. Com busca ou filtro, abre as que tem resultado.
+  const filtrando=!!(busca||filtro)
+  _discsT=Object.keys(porDisc)
+  Object.keys(porDisc).forEach(function(disc,di){
     const itens=porDisc[disc].filter(function(t){
       if(busca && String(t.topico).toLowerCase().indexOf(busca)<0) return false
       if(filtro==='feito') return !!_feitos[t.id]
@@ -200,9 +211,16 @@ function render(){
     if(!itens.length)return
     mostrados+=itens.length
     const nAtivos=porDisc[disc].filter(function(t){return statusDe(t.id)==='ativo'}).length
-    html+='<div class="disc-h"><span>'+disc+'</span>'
-      +'<span style="display:flex;gap:6px;align-items:center">'
-      +'<span style="color:var(--tx3);font-size:12px;font-weight:normal">'+nAtivos+'/'+porDisc[disc].length+' ativos</span>'
+    const nRev=porDisc[disc].filter(function(t){return statusDe(t.id)==='so_revisao'}).length
+    const nRem=porDisc[disc].filter(function(t){return statusDe(t.id)==='removido'}).length
+    const aberta=filtrando||!!_abertaT[disc]
+    html+='<button type="button" class="disc-tog'+(aberta?' on':'')+'" aria-expanded="'+aberta+'" onclick="abrirDiscT('+di+')">'
+      +'<span class="seta">▸</span><span class="nm">'+disc+'</span>'
+      +'<span class="ct">'+nAtivos+'/'+porDisc[disc].length+' ativos'+(nRev?' · <span style="color:var(--ok)">'+nRev+' revisao</span>':'')+(nRem?' · <span style="color:var(--erro)">'+nRem+' fora</span>':'')+(filtrando?' · '+itens.length+' encontrado(s)':'')+'</span></button>'
+    if(!aberta)return
+    html+='<div class="disc-corpo"><div class="disc-h" style="margin:4px 0 8px;justify-content:flex-start">'
+      +'<span style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">'
+      +'<span style="color:var(--tx3);font-size:12px;font-weight:normal">Toda a disciplina:</span>'
       +'<button class="btn-acao btn-editar" style="font-size:10px;padding:3px 8px" onclick="aplicarDisc(\''+disc.replace(/'/g,"\\'")+'\',\'ativo\')">ativar</button>'
       +'<button class="btn-acao" style="font-size:10px;padding:3px 8px;background:var(--card2);color:var(--ok);border:1px solid var(--ok)" onclick="aplicarDisc(\''+disc.replace(/'/g,"\\'")+'\',\'so_revisao\')">revisao</button>'
       +'<button class="btn-acao btn-excluir" style="font-size:10px;padding:3px 8px" onclick="aplicarDisc(\''+disc.replace(/'/g,"\\'")+'\',\'removido\')">remover</button>'
@@ -219,11 +237,13 @@ function render(){
         +'<button class="'+(s==='removido'?'on removido':'')+'" onclick="setStatus(\''+t.id+'\',\'removido\')">Remover</button>'
         +'</span></div>'
     })
+    html+='</div>'
   })
   if(!mostrados)html='<p style="color:var(--tx3);font-size:13px">Nenhum tema encontrado com esses filtros.</p>'
   document.getElementById('lista').innerHTML=html
 }
 
+function abrirDiscT(i){const d=_discsT[i];if(d===undefined)return;_abertaT[d]=!_abertaT[d];render()}
 async function setStatus(topico_id,status){
   _status[topico_id]=status
   render()

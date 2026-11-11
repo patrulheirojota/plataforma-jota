@@ -7,6 +7,13 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="stylesheet" href="style.css">
   <style>
+  .disc-tog{width:100%;display:flex;align-items:center;gap:10px;background:var(--card2);border:1px solid var(--bd2);border-radius:10px;padding:11px 13px;margin:0 0 6px;cursor:pointer;text-align:left;color:var(--tx);font-size:14px;font-weight:700;min-height:44px}
+  .disc-tog:hover{border-color:var(--ouro)}
+  .disc-tog .seta{color:var(--ouro);width:14px;flex-shrink:0;transition:transform .15s}
+  .disc-tog.on .seta{transform:rotate(90deg)}
+  .disc-tog .nm{flex:1;min-width:0}
+  .disc-tog .ct{color:var(--tx3);font-size:12px;font-weight:600;white-space:nowrap}
+  .disc-corpo{border-left:2px solid var(--bd2);margin:-2px 0 10px 8px;padding:4px 0 4px 12px}
     .topico-admin { display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--bd2);flex-wrap:wrap; }
     .topico-admin:last-child { border-bottom:none; }
     .prioridade-sel { padding:4px 8px;border-radius:6px;border:1px solid var(--bd2);background:var(--card2);color:#fff;font-size:12px;width:auto; }
@@ -374,11 +381,13 @@ async function salvarEdital() {
   const topicosParaSalvar = []
   let ordem = 1
 
-  document.querySelectorAll('.disc-bloco').forEach((discEl, di) => {
+  // so os blocos da previa (a lista de "Gerenciar" usa a mesma classe) e lendo os campos de cada linha
+  // (antes, apagar um topico com X fazia os seguintes sumirem ao salvar)
+  document.querySelectorAll('#lista-preview-ia .disc-bloco').forEach((discEl) => {
     const nomeDisc = discEl.querySelector('.disc-titulo span')?.textContent || ''
-    discEl.querySelectorAll('.topico-admin').forEach((topicoEl, ti) => {
-      const texto = document.getElementById('tp-'+di+'-'+ti)?.value || ''
-      const prioridade = document.getElementById('pr-'+di+'-'+ti)?.value || 'media'
+    discEl.querySelectorAll('.topico-admin').forEach((topicoEl) => {
+      const texto = topicoEl.querySelector('input[type=text]')?.value || ''
+      const prioridade = topicoEl.querySelector('select')?.value || 'media'
       if (texto.trim()) {
         topicosParaSalvar.push({ concurso_id: _concursoAtual, disciplina: nomeDisc, topico: texto.trim(), prioridade, ordem: ordem++ })
       }
@@ -451,16 +460,23 @@ async function carregarEditalAdmin() {
       </div>
     </div>`
 
-  Object.entries(porDisc).forEach(([disc, ts]) => {
-    div.innerHTML += `
+  // lista RECOLHIDA: so as disciplinas; clique para abrir os topicos
+  window._abertaE = window._abertaE || {}
+  window._discsE = Object.keys(porDisc)
+  let blocos = ''
+  Object.entries(porDisc).forEach(([disc, ts], di) => {
+    const ab = !!window._abertaE[disc]
+    const nA = ts.filter(t=>t.prioridade==='alta').length
+    blocos += `
       <div class="disc-bloco">
-        <div class="disc-titulo">
-          <span>${disc}</span>
-          <div style="display:flex;gap:6px;align-items:center">
-            <span style="color:var(--tx3);font-size:12px;font-weight:normal">${ts.length} topicos</span>
-            <button onclick="excluirDisciplina('${disc}','${concurso_id}')" class="btn-acao btn-excluir" style="font-size:11px;padding:3px 8px">Excluir disc.</button>
+        <button type="button" class="disc-tog${ab?' on':''}" aria-expanded="${ab}" onclick="abrirDiscE(${di}, this)">
+          <span class="seta">▸</span><span class="nm">${disc}</span>
+          <span class="ct">${ts.length} topicos${nA?' · <span style="color:var(--erro)">'+nA+' alta</span>':''}</span>
+        </button>
+        <div class="disc-corpo" style="display:${ab?'block':'none'}">
+          <div style="display:flex;justify-content:flex-end;margin:4px 0 6px">
+            <button onclick="excluirDisciplina('${disc}','${concurso_id}')" class="btn-acao btn-excluir" style="font-size:11px;padding:4px 10px">Excluir disciplina inteira</button>
           </div>
-        </div>
         ${ts.map(t => `
           <div class="topico-admin">
             <span style="color:${t.prioridade==='alta'?'var(--erro)':t.prioridade==='media'?'var(--alerta)':'var(--info)'};font-size:16px">●</span>
@@ -473,8 +489,18 @@ async function carregarEditalAdmin() {
             </select>
             <button onclick="excluirTopico('${t.id}')" class="btn-acao btn-excluir" style="font-size:11px;padding:3px 8px">X</button>
           </div>`).join('')}
+        </div>
       </div>`
   })
+  div.innerHTML += blocos
+}
+
+function abrirDiscE(i, bt) {
+  const d = window._discsE[i]; if (d === undefined) return
+  window._abertaE[d] = !window._abertaE[d]
+  bt.classList.toggle('on', window._abertaE[d])
+  bt.setAttribute('aria-expanded', window._abertaE[d])
+  bt.nextElementSibling.style.display = window._abertaE[d] ? 'block' : 'none'
 }
 
 async function alterarPrioridade(id, prioridade) {

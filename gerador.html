@@ -22,6 +22,16 @@
   .p-media { background:rgba(232,176,75,.13);color:var(--alerta);border:1px solid var(--alerta) }
   .p-baixa { background:rgba(91,179,240,.13);color:var(--info);border:1px solid var(--info) }
   .disc-head { color:var(--ouro);font-size:14px;font-weight:bold;margin:14px 0 6px;display:flex;justify-content:space-between;align-items:center }
+  .disc-tog { width:100%;display:flex;align-items:center;gap:10px;background:var(--card2);border:1px solid var(--bd2);border-radius:10px;padding:11px 13px;margin:0 0 6px;cursor:pointer;text-align:left;color:var(--tx);font-size:14px;font-weight:700;min-height:44px }
+  .disc-tog:hover { border-color:var(--ouro) }
+  .disc-tog .seta { color:var(--ouro);width:14px;flex-shrink:0;transition:transform .15s }
+  .disc-tog.on .seta { transform:rotate(90deg) }
+  .disc-tog .nm { flex:1;min-width:0 }
+  .disc-tog .ct { color:var(--tx3);font-size:12px;font-weight:600;white-space:nowrap }
+  .disc-tog .ct.parcial { color:var(--alerta) }
+  .disc-tog .ct.zero { color:var(--erro) }
+  .disc-corpo { border-left:2px solid var(--bd2);margin:-2px 0 10px 8px;padding:4px 0 4px 12px }
+  .disc-acoes { display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 6px }
   .dia-card { background:var(--card2);border-radius:10px;padding:12px;margin-bottom:8px }
   .sessao { border-left:3px solid var(--bd2);border-radius:6px;padding:8px 10px;margin-top:6px;background:var(--card) }
   .s-teoria { border-left-color:var(--info) }
@@ -517,6 +527,7 @@ async function carregarTemas(){
     return
   }
 
+  _discAberta = {}
   _temas = tops.map(function(t,i){
     const st = _statusTema[t.id] || 'ativo'
     return { key:'t'+i, disciplina:t.disciplina, topico:t.topico, topico_id:t.id,
@@ -527,32 +538,51 @@ async function carregarTemas(){
   renderTemas()
 }
 
+// Temas agrupados por disciplina: a lista fica RECOLHIDA (so os nomes das disciplinas).
+// Clique na disciplina para abrir e mexer nos temas dela.
+let _discAberta = {}, _discsG = []
 function renderTemas(){
   const div = document.getElementById('lista-temas')
-  div.innerHTML = ''
   if (!_temas.length) { div.innerHTML = '<p style="color:var(--tx3);font-size:13px">Nenhum tema. Adicione manualmente abaixo.</p>'; return }
 
   const porDisc = {}
-  _temas.forEach(function(t){ if(!porDisc[t.disciplina]) porDisc[t.disciplina]=[]; porDisc[t.disciplina].push(t) })
+  _discsG = []
+  _temas.forEach(function(t){ if(!porDisc[t.disciplina]){ porDisc[t.disciplina]=[]; _discsG.push(t.disciplina) } porDisc[t.disciplina].push(t) })
 
-  Object.keys(porDisc).forEach(function(disc){
+  let html = ''
+  _discsG.forEach(function(disc, i){
     const itens = porDisc[disc]
     const marcados = itens.filter(function(t){return t.incluir}).length
-    let html = '<div class="disc-head"><span>'+disc+'</span><span style="color:var(--tx3);font-size:12px;font-weight:normal">'+marcados+'/'+itens.length+' temas</span></div>'
+    const aberta = !!_discAberta[disc]
+    const cls = marcados === 0 ? ' zero' : (marcados < itens.length ? ' parcial' : '')
+    html += '<button type="button" class="disc-tog'+(aberta?' on':'')+'" aria-expanded="'+aberta+'" onclick="abrirDiscG('+i+')">'
+      + '<span class="seta">▸</span><span class="nm">'+esc(disc)+'</span>'
+      + '<span class="ct'+cls+'">'+marcados+'/'+itens.length+' temas</span></button>'
+    if (!aberta) return
+    html += '<div class="disc-corpo"><div class="disc-acoes">'
+      + '<button class="btn-acao btn-editar" style="font-size:11px;padding:5px 10px" onclick="marcarDiscG('+i+',true)">Marcar todos</button>'
+      + '<button class="btn-acao" style="font-size:11px;padding:5px 10px;background:var(--card);color:var(--tx3);border:1px solid var(--bd2)" onclick="marcarDiscG('+i+',false)">Desmarcar todos</button></div>'
     itens.forEach(function(t){
       html += '<div class="tema-row">'
-        + '<input type="checkbox" '+(t.incluir?'checked':'')+' onchange="alternarTema(\''+t.key+'\',this.checked)" style="width:18px;height:18px;accent-color:var(--ouro);flex-shrink:0">'
-        + '<input type="text" value="'+String(t.topico).replace(/"/g,'&quot;')+'" onchange="editarTema(\''+t.key+'\',this.value)" style="flex:1;min-width:140px;margin:0;padding:6px;font-size:13px">'
+        + '<input type="checkbox" aria-label="Incluir tema" '+(t.incluir?'checked':'')+' onchange="alternarTema(\''+t.key+'\',this.checked)" style="width:18px;height:18px;accent-color:var(--ouro);flex-shrink:0">'
+        + '<input type="text" aria-label="Nome do tema" value="'+String(t.topico).replace(/"/g,'&quot;')+'" onchange="editarTema(\''+t.key+'\',this.value)" style="flex:1;min-width:140px;margin:0;padding:6px;font-size:13px">'
         + '<span class="badge-p p-'+t.prioridade+'">'+t.prioridade.toUpperCase()+'</span>'
         + '</div>'
     })
-    div.innerHTML += html
+    html += '</div>'
   })
 
   const total = _temas.filter(function(t){return t.incluir}).length
-  div.innerHTML += '<p style="color:var(--ouro);font-size:13px;text-align:center;margin-top:12px">'+total+' temas selecionados</p>'
+  const abertas = _discsG.filter(function(d){ return _discAberta[d] }).length
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px">'
+    + '<span style="color:var(--ouro);font-size:13px">'+total+' de '+_temas.length+' temas selecionados · '+_discsG.length+' disciplinas</span>'
+    + '<button class="btn-acao" style="font-size:11px;padding:5px 10px;background:var(--card);color:var(--tx3);border:1px solid var(--bd2)" onclick="abrirTodasG('+(abertas?'false':'true')+')">'+(abertas?'Recolher todas':'Abrir todas')+'</button></div>'
+  div.innerHTML = html
   atualizarCapacidade()
 }
+function abrirDiscG(i){ const d = _discsG[i]; if (d === undefined) return; _discAberta[d] = !_discAberta[d]; renderTemas() }
+function abrirTodasG(v){ _discAberta = {}; if (v) _discsG.forEach(function(d){ _discAberta[d] = true }); renderTemas() }
+function marcarDiscG(i, v){ const d = _discsG[i]; _temas.forEach(function(t){ if (t.disciplina === d) t.incluir = v }); renderTemas() }
 
 function alternarTema(key, val){
   const t = _temas.find(function(x){return x.key===key}); if (t) t.incluir = val
@@ -570,6 +600,7 @@ function adicionarTemaManual(){
   const prio = document.getElementById('novo-tema-prio').value
   if (!disc || !txt) { alert('Preencha disciplina e tema.'); return }
   _temas.push({ key:'m'+Date.now(), disciplina:disc, topico:txt, topico_id:null, prioridade:prio, incluir:true })
+  _discAberta[disc] = true
   document.getElementById('novo-tema-txt').value=''
   renderTemas()
 }
@@ -622,6 +653,7 @@ function gerarPreview(){
     }
   }
   _plano = plano
+  _prevDias = 7
   renderPreview(_plano)
   document.getElementById('card-preview').style.display='block'
   document.getElementById('card-preview').scrollIntoView({behavior:'smooth'})
@@ -679,7 +711,10 @@ function renderPreview(plano){
 
   const div = document.getElementById('preview-dias')
   div.innerHTML = ''
-  const mostrar = cal.slice(0, 30)
+  // previa enxuta: a primeira semana; o resto abre no botao "Ver mais dias"
+  const lim = Math.min(cal.length, 30, _prevDias || 7)
+  let todos = ''
+  const mostrar = cal.slice(0, lim)
   mostrar.forEach(function(d){
     const dt = parseD(d.data)
     let html = '<div class="dia-card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'
@@ -695,12 +730,16 @@ function renderPreview(plano){
         + '<div style="font-size:13px;margin-top:2px">'+s.topico+(s.reta?' <span style="color:var(--ok);font-size:11px">(reta final)</span>':'')+'</div></div>'
     })
     html += '</div>'
-    div.innerHTML += html
+    todos += html
   })
-  if (cal.length > 30) {
-    div.innerHTML += '<p style="color:var(--tx3);font-size:13px;text-align:center;padding:10px">... e mais '+(cal.length-30)+' dias. Salve para ver o cronograma completo.</p>'
+  if (lim < Math.min(cal.length, 30)) {
+    todos += '<div style="text-align:center;padding:8px"><button class="btn-acao" style="background:var(--card);color:var(--ouro);border:1px solid var(--ouro);padding:8px 14px" onclick="_prevDias='+Math.min(30, lim + 14)+';renderPreview(_plano)">Ver mais dias ('+lim+' de '+cal.length+')</button></div>'
+  } else if (cal.length > lim) {
+    todos += '<p style="color:var(--tx3);font-size:13px;text-align:center;padding:10px">... e mais '+(cal.length-lim)+' dias. Salve para ver o cronograma completo.</p>'
   }
+  div.innerHTML = todos
 }
+let _prevDias = 7
 
 // ---------- TRAVA: UM CRONOGRAMA ATIVO POR ALUNO ----------
 // sessoes PENDENTES do aluno em outros concursos (as concluidas sao historico e ficam)

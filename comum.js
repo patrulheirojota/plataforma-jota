@@ -6,7 +6,7 @@
    A cada atualizacao, troque a VERSAO abaixo.
    ===================================================================== */
 (function () {
-  var VERSAO = '2026.11.11-a'
+  var VERSAO = '2026.11.11-b'
   window.VERSAO_PLATAFORMA = VERSAO
 
   var pagina = (location.pathname.split('/').pop() || 'index.html').toLowerCase()
