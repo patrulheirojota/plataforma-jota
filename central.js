@@ -34,14 +34,15 @@ async function carregarCentralAgora() {
   if (!window._ciclos) { try { await calcularCiclos() } catch (e) {} }
 
   const sete = new Date(Date.now() - 7 * 86400000).toISOString()
-  const [rr, re, rc, rpd, rcp, rlg, rfb] = await Promise.all([
+  const [rr, re, rc, rpd, rcp, rlg, rfb, rbq] = await Promise.all([
     _supabase.from('questao_reportes').select('*').eq('status', 'aberto').order('criado_em', { ascending: false }).limit(100),
     _supabase.from('erros_site').select('*').gte('criado_em', sete).order('criado_em', { ascending: false }).limit(60),
     _supabase.from('questao_comentarios').select('id').gte('criado_em', sete),
     _supabase.from('pedidos_acesso').select('*').eq('status', 'pendente').order('criado_em', { ascending: true }).limit(100),
     _supabase.from('compras').select('id,email,nome,produto_id,produto_nome,criado_em').eq('status', 'aprovada').is('aluno_id', null).order('criado_em', { ascending: true }).limit(100),
     _supabase.from('solicitacoes_lgpd').select('*').eq('status', 'aberta').order('criado_em', { ascending: true }).limit(50),
-    _supabase.from('feedback_alunos').select('*').eq('status', 'aberto').order('criado_em', { ascending: false }).limit(100)
+    _supabase.from('feedback_alunos').select('*').eq('status', 'aberto').order('criado_em', { ascending: false }).limit(100),
+    _supabase.rpc('banco_contagem')
   ])
   _central = {
     reportes: rr.error ? null : (rr.data || []),
@@ -51,7 +52,12 @@ async function carregarCentralAgora() {
     pedidos: rpd && !rpd.error ? (rpd.data || []) : [],
     comprasEsperando: rcp && !rcp.error ? (rcp.data || []) : [],
     lgpd: rlg && !rlg.error ? (rlg.data || []) : [],
-    feedback: rfb && !rfb.error ? (rfb.data || []) : []
+    feedback: rfb && !rfb.error ? (rfb.data || []) : [],
+    // banco de questoes: disciplinas abaixo da meta nos concursos priorizados (null = falta rodar o SQL)
+    banco: (function () {
+      if (!rbq || rbq.error || typeof bancoCobertura !== 'function') return rbq && rbq.error && /banco_contagem|function/i.test(rbq.error.message || '') ? null : undefined
+      try { return bancoPrioridades(bancoCobertura(rbq.data)) } catch (e) { console.error(e); return undefined }
+    })()
   }
   renderCentral()
 }
@@ -168,6 +174,20 @@ function renderCentral() {
       + '<div style="display:flex;gap:6px;flex-wrap:wrap">' + (a.id ? '<button class="btn-acao btn-editar" style="padding:8px 12px" onclick="verComoAluno(\'' + a.id + '\')">👁️</button>' : '')
       + '<button class="btn-acao btn-editar" style="padding:8px 12px;border-color:var(--ok);color:var(--ok)" onclick="resolverFeedback(\'' + f.id + '\')">✓ Resolvido</button></div></div>'
   })
+
+  // banco de questoes: onde alimentar primeiro (nao conta como pendencia do dia)
+  if (c.banco === null) h += '<div class="card" style="border-color:var(--alerta);font-size:13px;color:var(--tx2)">Para ver onde faltam questoes no banco, rode o arquivo <strong>atualizacao-banco-questoes.sql</strong> no Supabase.</div>'
+  else if (c.banco && c.banco.length) h += grupo('banco', '📚', 'Banco de questoes: onde alimentar primeiro', 'var(--ouro)', c.banco, function (x) {
+    const l = x.l
+    return '<div class="item-lista" style="gap:8px"><div style="flex:1;min-width:200px">'
+      + '<span style="background:' + x.c.prio.cor + ';color:#0a1420;border-radius:7px;padding:1px 8px;font-size:10.5px;font-weight:800;margin-right:6px">' + escC(x.c.prio.nome) + '</span>'
+      + '<strong>' + escC(x.c.nome) + ' · ' + escC(l.disc) + '</strong>'
+      + '<div style="height:6px;border-radius:4px;background:var(--bd2);overflow:hidden;margin:6px 0 3px;max-width:320px"><i style="display:block;height:100%;width:' + l.pct + '%;background:' + l.status.cor + '"></i></div>'
+      + '<div style="color:var(--tx3);font-size:12px">' + l.nBanco + ' de ' + l.meta + ' questoes (' + l.pct + '%) · faltam ' + l.falta + (l.temasSem ? ' · <span style="color:var(--erro)">' + l.temasSem + ' tema(s) sem questao</span>' : '') + '</div></div>'
+      + '<button class="btn-acao btn-editar" style="padding:8px 12px" onclick="location.href=\'banco-cobertura.html#c=' + encodeURIComponent(x.c.id) + '\'">Ver temas</button></div>'
+  }, '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn-acao btn-editar" style="padding:7px 12px" onclick="location.href=\'banco-cobertura.html\'">📊 Cobertura completa e prioridades</button>'
+    + '<button class="btn-acao btn-editar" style="padding:7px 12px" onclick="location.href=\'questoes-admin.html\'">+ Adicionar questoes</button></div>'
+    + '<div style="color:var(--tx4);font-size:11.5px;margin-top:6px">Ordem: concursos com edital aberto primeiro, depois alta, media e baixa prioridade; dentro deles, a disciplina mais longe da meta. Nao conta nas acoes do dia.</div>')
 
   // erros reportados nas questoes
   if (c.reportes === null) h += '<div class="card" style="border-color:var(--alerta);font-size:13px;color:var(--tx2)">Para ver os erros reportados pelos alunos, rode o arquivo <strong>atualizacao-central-mentor.sql</strong> no Supabase.</div>'

@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cobertura do banco de questoes — Admin</title>
+<script>document.documentElement.setAttribute("data-tema",localStorage.getItem("tema")||"escuro")</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="style.css">
+<style>
+  .kp{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+  .kp-c{background:var(--card2);border:1px solid var(--bd);border-radius:12px;padding:14px;text-align:center}
+  .kp-n{font-size:24px;font-weight:800}
+  .kp-l{color:var(--tx3);font-size:11.5px;margin-top:3px}
+  .pr-l{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) 110px;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--bd)}
+  .pr-l:last-child{border-bottom:0}
+  .pr-l select,.pr-l input{margin:0}
+  .pr-l small{display:block;color:var(--tx3);font-size:11.5px}
+  .tog{width:100%;display:flex;align-items:center;gap:10px;background:var(--card2);border:1px solid var(--bd2);border-radius:12px;padding:12px 14px;margin:0 0 8px;cursor:pointer;text-align:left;color:var(--tx);font-size:14.5px;font-weight:700;min-height:48px;flex-wrap:wrap}
+  .tog:hover{border-color:var(--ouro)}
+  .tog .seta{color:var(--ouro);width:14px;flex-shrink:0;transition:transform .15s}
+  .tog.on .seta{transform:rotate(90deg)}
+  .tog .nm{flex:1;min-width:140px}
+  .chip-p{border-radius:8px;padding:2px 9px;font-size:11px;font-weight:800;color:#0a1420;white-space:nowrap}
+  .corpo{border-left:2px solid var(--bd2);margin:-2px 0 12px 8px;padding:4px 0 4px 12px}
+  .dl{padding:10px 0;border-bottom:1px solid var(--bd)}
+  .dl:last-child{border-bottom:0}
+  .dl-t{display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap;cursor:pointer}
+  .dl-t b{font-size:14px}
+  .barra{height:8px;border-radius:5px;background:var(--bd2);overflow:hidden;margin:7px 0 4px}
+  .barra i{display:block;height:100%;border-radius:5px}
+  .dl-s{color:var(--tx3);font-size:12px}
+  .tm{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;padding:5px 0;border-top:1px dashed var(--bd)}
+  .tm span:last-child{font-weight:800;white-space:nowrap}
+  .lbl{color:var(--tx3);font-size:12px;display:block;margin-bottom:4px}
+  @media(max-width:640px){.pr-l{grid-template-columns:1fr 1fr}.pr-l>div:first-child{grid-column:1/-1}}
+</style>
+<style>
+.voltar-mob{display:none}
+@media(max-width:860px){
+  header{display:none}
+  .voltar-mob{display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:40;background:var(--bg2);border-bottom:1px solid var(--bd);padding:11px 14px;margin:-16px -12px 16px}
+  .voltar-mob button{width:42px;height:42px;border-radius:11px;flex-shrink:0;margin:0;padding:0;background:var(--card);border:1px solid var(--bd2);color:var(--tx);font-size:19px;display:flex;align-items:center;justify-content:center;min-height:42px}
+  .voltar-mob .t1{font-size:16px;font-weight:800;line-height:1.2}
+  .voltar-mob .t2{color:var(--tx3);font-size:11.5px}
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="voltar-mob"><button onclick="location.href='admin.html'" aria-label="Voltar">&#8249;</button><div><div class="t1">Cobertura do banco</div><div class="t2">Onde faltam questoes</div></div></div>
+  <header>
+    <div>
+      <div class="pag-t">Cobertura do banco de questoes</div>
+      <div class="pag-s">Quantas questoes ha por concurso e disciplina, e onde alimentar primeiro</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button onclick="location.href='questoes-admin.html'" style="width:auto;padding:9px 15px">+ Adicionar questoes</button>
+      <button onclick="location.href='admin.html'" class="btn-neutro" style="width:auto;padding:9px 15px">Painel</button>
+    </div>
+  </header>
+
+  <div id="carregando" class="card" style="text-align:center;color:var(--tx3)">Contando o banco de questoes...</div>
+  <div id="conteudo" style="display:none">
+    <div class="kp" id="kpis"></div>
+
+    <div class="card">
+      <button type="button" class="tog" id="tog-prio" onclick="alternarPrio()"><span class="seta">▸</span><span class="nm">⚙️ Prioridade e meta de cada concurso</span><span style="color:var(--tx3);font-size:12px;font-weight:600">a Central do dia segue esta ordem</span></button>
+      <div class="corpo" id="prio-corpo" style="display:none">
+        <p style="color:var(--tx3);font-size:12.5px;line-height:1.55;margin:4px 0 8px"><strong>Edital aberto</strong> vem primeiro na Central. <strong>Fora do radar</strong> some dos alertas. A <strong>meta</strong> e o numero de questoes que voce quer ter em cada disciplina daquele concurso, contando todo o banco (o aluno de qualquer concurso pode fazer).</p>
+        <div id="prio-lista"></div>
+        <p id="prio-msg" style="font-size:12.5px;margin-top:8px;min-height:18px"></p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin:0 0 6px">Concursos</h3>
+      <p style="color:var(--tx3);font-size:12.5px;line-height:1.55;margin-bottom:12px">Toque no concurso para ver as disciplinas e, na disciplina, os temas do edital sem nenhuma questao. <strong>No banco</strong> conta as questoes da mesma disciplina de qualquer concurso; <strong>do concurso</strong> conta so as vinculadas a ele.</p>
+      <div id="lista"></div>
+    </div>
+
+    <div class="card" id="card-sem" style="display:none">
+      <h3 style="margin:0 0 6px">Disciplinas do banco fora dos editais</h3>
+      <p style="color:var(--tx3);font-size:12.5px;margin-bottom:8px">Questoes cujo nome de disciplina nao bate com nenhum edital cadastrado. Se for so diferenca de nome, padronize no banco para elas contarem.</p>
+      <div id="sem"></div>
+    </div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="motor-migracao.js"></script>
+<script src="motor-banco.js"></script>
+<script>
+let _dados=null,_cob=null,_aberto={},_discAb={},_prioAb=false
+
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function nf(n){return Number(n||0).toLocaleString('pt-BR')}
+
+async function init(){
+  const { data:{user} }=await _supabase.auth.getUser()
+  if(!user){location.href='index.html';return}
+  const h=String(location.hash||'')
+  const m=h.match(/c=([^&]+)/); if(m)_aberto[decodeURIComponent(m[1])]=true
+  await carregar()
+}
+async function carregar(){
+  const r=await _supabase.rpc('banco_contagem')
+  if(r.error){
+    document.getElementById('carregando').innerHTML=/banco_contagem|function/i.test(r.error.message)
+      ?'Rode primeiro o arquivo <strong>atualizacao-banco-questoes.sql</strong> no Supabase (SQL Editor) e recarregue a pagina.'
+      :'Erro ao contar o banco: '+esc(r.error.message)
+    return
+  }
+  _dados=r.data||{}
+  _cob=bancoCobertura(_dados)
+  document.getElementById('carregando').style.display='none'
+  document.getElementById('conteudo').style.display='block'
+  render()
+}
+
+function render(){
+  const cs=_cob.concursos, ativos=cs.filter(function(c){return c.temEdital&&c.prio.peso>0})
+  let crit=0,baixo=0; ativos.forEach(function(c){c.discs.forEach(function(l){if(l.status.id==='critico')crit++;else if(l.status.id==='baixo')baixo++})})
+  const temasSem=ativos.reduce(function(s,c){return s+c.discs.reduce(function(t,l){return t+l.temasSem},0)},0)
+  document.getElementById('kpis').innerHTML=
+    '<div class="kp-c"><div class="kp-n" style="color:var(--ouro)">'+nf(_cob.total)+'</div><div class="kp-l">questoes ativas no banco</div></div>'
+   +'<div class="kp-c"><div class="kp-n" style="color:#f07171">'+crit+'</div><div class="kp-l">disciplinas criticas (menos de 25% da meta)</div></div>'
+   +'<div class="kp-c"><div class="kp-n" style="color:#e8b04b">'+baixo+'</div><div class="kp-l">disciplinas baixas (menos de 60%)</div></div>'
+   +'<div class="kp-c"><div class="kp-n">'+nf(temasSem)+'</div><div class="kp-l">temas de edital sem nenhuma questao</div></div>'
+  renderPrio()
+  document.getElementById('lista').innerHTML=cs.map(function(c,ci){
+    const ab=!!_aberto[c.id]
+    let h='<button type="button" class="tog'+(ab?' on':'')+'" aria-expanded="'+ab+'" onclick="alternarC('+ci+')">'
+      +'<span class="seta">▸</span><span class="nm">'+esc(c.nome)+'</span>'
+      +'<span class="chip-p" style="background:'+c.prio.cor+'">'+esc(c.prio.nome)+'</span>'
+      +(c.temEdital?'<span style="color:var(--tx3);font-size:12px;font-weight:600;white-space:nowrap">'+c.pct+'% da meta'+(c.abaixo?' · <span style="color:#e8b04b">'+c.abaixo+' abaixo</span>':'')+'</span>'
+        :'<span style="color:var(--tx3);font-size:12px;font-weight:600">sem edital cadastrado</span>')
+      +'</button>'
+    if(!ab)return h
+    h+='<div class="corpo">'
+    if(!c.temEdital){
+      h+='<div style="color:var(--tx3);font-size:13px;padding:6px 0">Cadastre o edital deste concurso (Editais) para medir a cobertura por disciplina. Questoes vinculadas a ele: <strong>'+nf(c.nConc)+'</strong>.</div></div>'
+      return h
+    }
+    h+='<div style="color:var(--tx3);font-size:12px;margin:2px 0 4px">Meta: '+nf(c.meta)+' questoes por disciplina · '+nf(c.nConc)+' questoes vinculadas a este concurso</div>'
+    h+=c.discs.map(function(l,li){
+      const k=c.id+'|'+l.disc, abd=!!_discAb[k]
+      let x='<div class="dl"><div class="dl-t" onclick="alternarD(\''+ci+'\','+li+')" role="button" tabindex="0">'
+        +'<b>'+(abd?'▾ ':'▸ ')+esc(l.disc)+'</b><span style="font-size:12.5px;font-weight:800;color:'+l.status.cor+'">'+nf(l.nBanco)+' / '+nf(l.meta)+' · '+l.status.nome+'</span></div>'
+        +'<div class="barra"><i style="width:'+l.pct+'%;background:'+l.status.cor+'"></i></div>'
+        +'<div class="dl-s">'+nf(l.nConc)+' do concurso · '+(l.falta?'faltam '+nf(l.falta)+' · ':'')+(l.temasSem?'<span style="color:#f07171">'+l.temasSem+' de '+l.temas.length+' temas sem questao</span>':'todos os '+l.temas.length+' temas tem questao')
+        +(l.nomesBanco.length&&(l.nomesBanco.length>1||l.nomesBanco[0]!==l.disc)?' · no banco como: '+l.nomesBanco.map(esc).join(', '):'')+'</div>'
+      if(abd){
+        const ts=l.temas.slice().sort(function(a,b){return a.n-b.n})
+        x+='<div style="margin-top:6px">'+ts.map(function(t){return '<div class="tm"><span>'+esc(t.t)+'</span><span style="color:'+(t.n?'var(--tx2)':'#f07171')+'">'+(t.n?nf(t.n):'nenhuma')+'</span></div>'}).join('')+'</div>'
+      }
+      return x+'</div>'
+    }).join('')
+    return h+'</div>'
+  }).join('')
+  const sem=_cob.discsSemEdital
+  document.getElementById('card-sem').style.display=sem.length?'block':'none'
+  document.getElementById('sem').innerHTML=sem.map(function(s){return '<span style="display:inline-block;background:var(--card2);border:1px solid var(--bd2);border-radius:8px;padding:4px 10px;margin:0 6px 6px 0;font-size:12.5px">'+esc(s.d)+' · <b>'+nf(s.n)+'</b></span>'}).join('')
+}
+function alternarC(i){const c=_cob.concursos[i];_aberto[c.id]=!_aberto[c.id];render()}
+function alternarD(ci,li){const c=_cob.concursos[ci],l=c.discs[li],k=c.id+'|'+l.disc;_discAb[k]=!_discAb[k];render()}
+function alternarPrio(){_prioAb=!_prioAb;renderPrio()}
+function renderPrio(){
+  const t=document.getElementById('tog-prio');t.classList.toggle('on',_prioAb);t.setAttribute('aria-expanded',_prioAb)
+  document.getElementById('prio-corpo').style.display=_prioAb?'block':'none'
+  if(!_prioAb)return
+  const cs=(_dados.concursos||[]).slice().sort(function(a,b){return bancoPrio(b.prio).peso-bancoPrio(a.prio).peso||String(a.nome).localeCompare(b.nome)})
+  document.getElementById('prio-lista').innerHTML=cs.map(function(c){
+    return '<div class="pr-l"><div><b style="font-size:13.5px">'+esc(c.nome)+'</b></div>'
+      +'<div><label class="lbl" for="pp-'+esc(c.id)+'">Prioridade</label><select id="pp-'+esc(c.id)+'" onchange="salvarPrio(\''+esc(c.id)+'\')">'
+      +BANCO_PRIOS.map(function(p){return '<option value="'+p[0]+'"'+(p[0]===(c.prio||'media')?' selected':'')+'>'+p[1]+'</option>'}).join('')+'</select></div>'
+      +'<div><label class="lbl" for="pm-'+esc(c.id)+'">Meta / disciplina</label><input id="pm-'+esc(c.id)+'" type="number" min="10" max="5000" step="10" value="'+(c.meta||200)+'" onchange="salvarPrio(\''+esc(c.id)+'\')"></div></div>'
+  }).join('')
+}
+async function salvarPrio(id){
+  const p=document.getElementById('pp-'+id).value, m=Math.max(10,Math.min(5000,parseInt(document.getElementById('pm-'+id).value)||200))
+  const msg=document.getElementById('prio-msg')
+  msg.style.color='var(--tx3)';msg.textContent='Salvando...'
+  const r=await _supabase.from('concursos').update({prio_banco:p,meta_questoes:m}).eq('id',id)
+  if(r.error){msg.style.color='var(--erro)';msg.textContent='Erro: '+r.error.message;return}
+  const c=(_dados.concursos||[]).find(function(x){return x.id===id}); if(c){c.prio=p;c.meta=m}
+  _cob=bancoCobertura(_dados)
+  render()
+  msg.style.color='var(--ok)';msg.textContent='✓ Salvo: '+(c?c.nome:'concurso')+' · '+bancoPrio(p).nome+' · meta '+m
+}
+
+init()
+</script>
+<script src="menu-admin.js"></script>
+</body>
+</html>

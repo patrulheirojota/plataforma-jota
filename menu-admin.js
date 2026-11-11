@@ -25,6 +25,7 @@
     ['Conteudo'],
     ['📄','Importar Prova','importador.html'],
     ['❓','Questoes','questoes-admin.html'],
+    ['📊','Cobertura do banco','banco-cobertura.html'],
     ['🧪','Simulados','simulados-admin.html'],
     ['⚖️','Lei seca','leis-admin.html'],
     ['🗂️','Flashcards','flashcards-admin.html'],

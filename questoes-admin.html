@@ -774,7 +774,7 @@ async function importar(){
   const lote=_lote.filter(function(q){return !q.em_duvida||(cbD&&cbD.checked)})
   const puladas=_lote.length-lote.length
   if(!lote.length){alert('Nenhuma questao para importar (todas estao marcadas como em duvida).');return}
-  if(!concurso_id&&!confirm('Voce nao escolheu um concurso. Os alunos so veem questoes vinculadas ao concurso deles.\n\nImportar mesmo assim como questao geral?'))return
+  if(!concurso_id&&!confirm('Voce nao escolheu um concurso.\n\nTodos os alunos continuam vendo a questao (o banco e aberto), mas ela nao aparece quando o aluno filtra pelo concurso dele.\n\nImportar mesmo assim como questao geral?'))return
   if(!confirm('Importar '+lote.length+' questoes'+(concurso_id?' vinculadas ao concurso selecionado':'')+'?'+(puladas?'\n\n'+puladas+' em duvida ficarao de fora.':'')))return
   msg('msg-imp','Importando...','var(--tx3)')
 

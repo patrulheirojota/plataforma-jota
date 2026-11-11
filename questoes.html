@@ -408,6 +408,9 @@ async function init(){
   sc.innerHTML='<option value="">Todas as questoes</option><option value="__geral">Questoes gerais (sem concurso)</option>'
     +(_concursos.length?'<optgroup label="Meu concurso">'+_concursos.map(function(c){return '<option value="'+c.id+'">'+esc(c.nome)+'</option>'}).join('')+'</optgroup>':'')
     +(outros.length?'<optgroup label="Outros concursos">'+outros.map(function(c){return '<option value="'+c.id+'">'+esc(c.nome)+'</option>'}).join('')+'</optgroup>':'')
+  // o banco e aberto: o aluno faz questoes de qualquer concurso. Ao entrar, abre no concurso dele
+  // (se ja tiver questoes vinculadas) e lembra a ultima escolha.
+  await escolherConcursoInicial(al)
 
   document.getElementById('ch-status').innerHTML=
     [['todas','Todas'],['nao','Nao resolvidas'],['resolvidas','Resolvidas'],['acertei','Acertei'],['errei','Errei']]
@@ -589,7 +592,22 @@ function toggleDisc(el){
   renderAssuntos()
   buscar()
 }
-function aoTrocarConcurso(){buscar()}
+function chaveConc(){return 'qconc_'+(_alunoId||'')}
+async function escolherConcursoInicial(al){
+  const sc=document.getElementById('f-conc')
+  if(new URLSearchParams(location.search).get('treinar'))return
+  let pref=null
+  try{pref=localStorage.getItem(chaveConc())}catch(e){}
+  if(pref!==null&&(pref===''||Array.from(sc.options).some(function(o){return o.value===pref}))){sc.value=pref;return}
+  const meu=(al&&al.concurso_id&&_concursos.some(function(c){return String(c.id)===String(al.concurso_id)}))?al.concurso_id:(_concursos[0]&&_concursos[0].id)
+  if(!meu)return
+  try{
+    const r=await _supabase.from('questao_concursos').select('questao_id',{count:'exact',head:true}).eq('concurso_id',meu)
+    if((r.count||0)>=20)sc.value=String(meu)
+  }catch(e){}
+}
+function aoTrocarConcurso(){try{localStorage.setItem(chaveConc(),document.getElementById('f-conc').value)}catch(e){}buscar()}
+function verTodoBanco(){document.getElementById('f-conc').value='';aoTrocarConcurso()}
 let _tipoSel=''
 function setTipo(t){
   _tipoSel=t
@@ -670,7 +688,8 @@ async function buscar(pag){
   if(!tot){
     const msg=conc==='__geral'?'Nenhuma questao geral (sem concurso) com esses filtros.'
       :conc?'Nenhuma questao deste concurso com esses filtros.':'Nenhuma questao encontrada com esses filtros.'
-    box.innerHTML='<div class="vazio"><div style="font-size:40px;margin-bottom:10px">🔍</div>'+msg+'</div>';return
+    box.innerHTML='<div class="vazio"><div style="font-size:40px;margin-bottom:10px">🔍</div>'+msg
+      +(conc?'<div style="margin-top:12px"><button class="btn btn-ouro" onclick="verTodoBanco()">Ver de todos os concursos</button></div>':'')+'</div>';return
   }
   const paginas=Math.ceil(tot/PP)
   if(_pag>=paginas)_pag=paginas-1
@@ -683,7 +702,10 @@ async function buscar(pag){
   const lista=pagIds.map(function(id){return porId[id]}).filter(Boolean)
 
   _qs=lista
-  box.innerHTML='<div style="color:var(--tx3);font-size:12.5px;margin-bottom:10px">'+tot+' questao(oes) encontrada(s)</div>'+lista.map(renderQ).join('')
+  const selC=document.getElementById('f-conc'), nomeC=conc&&conc!=='__geral'&&selC.selectedIndex>=0?selC.options[selC.selectedIndex].text:''
+  box.innerHTML='<div style="color:var(--tx3);font-size:12.5px;margin-bottom:10px">'+tot+' questao(oes) encontrada(s)'
+    +(nomeC?' do '+esc(nomeC)+' · <a href="#" style="color:var(--ouro);font-weight:700" onclick="verTodoBanco();return false">ver de todos os concursos</a>':'')
+    +(!conc?' em todo o banco (questoes de todos os concursos)':'')+'</div>'+lista.map(renderQ).join('')
 
   if(paginas>1){
     document.getElementById('paginacao').innerHTML=
@@ -1448,19 +1470,23 @@ let _simDisp={},_simQs=[],_simResp={},_simConf={},_simAtual=0,_simIni=null,_simT
 async function prepararSimulado(){
   const sc=document.getElementById('sim-conc')
   if(!sc.options.length){
-    sc.innerHTML='<option value="">Todos os meus concursos</option>'
-    _concursos.forEach(function(c){ sc.innerHTML+='<option value="'+c.id+'">'+esc(c.nome)+'</option>' })
+    // o banco e aberto: pode montar o simulado com questoes de qualquer concurso
+    const fc=document.getElementById('f-conc')
+    const outros=fc?Array.from(fc.querySelectorAll('optgroup[label="Outros concursos"] option')).map(function(o){return [o.value,o.textContent]}):[]
+    sc.innerHTML=(_concursos.length?'<option value="__meus">So os meus concursos</option>':'')+'<option value="">Todo o banco de questoes</option>'
+      +(_concursos.length?'<optgroup label="Meu concurso">'+_concursos.map(function(c){return '<option value="'+c.id+'">'+esc(c.nome)+'</option>'}).join('')+'</optgroup>':'')
+      +(outros.length?'<optgroup label="Outros concursos">'+outros.map(function(o){return '<option value="'+esc(o[0])+'">'+esc(o[1])+'</option>'}).join('')+'</optgroup>':'')
   }
   const box=document.getElementById('sim-discs')
   box.innerHTML='<div style="color:var(--tx3);font-size:12.5px;padding:10px">Verificando questoes disponiveis...</div>'
 
   const conc=sc.value, orig=document.getElementById('sim-orig').value
   let ids=null
-  if(conc){
+  if(conc&&conc!=='__meus'){
     const v=await todasLinhas(function(){return _supabase.from('questao_concursos').select('questao_id').eq('concurso_id',conc).order('questao_id')})
     ids=v.map(function(x){return x.questao_id})
-    if(!ids.length){ box.innerHTML='<div style="color:var(--alerta);font-size:13px;padding:10px">Nenhuma questao vinculada a este concurso ainda.</div>'; _simDisp={}; somar(); return }
-  }else if(_concursos.length){
+    if(!ids.length){ box.innerHTML='<div style="color:var(--alerta);font-size:13px;padding:10px">Nenhuma questao vinculada a este concurso ainda. Escolha "Todo o banco de questoes".</div>'; _simDisp={}; somar(); return }
+  }else if(conc==='__meus'&&_concursos.length){
     const cids=_concursos.map(function(c){return c.id})
     const v=await todasLinhas(function(){return _supabase.from('questao_concursos').select('questao_id').in('concurso_id',cids).order('questao_id')})
     ids=v.map(function(x){return x.questao_id})
