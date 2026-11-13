@@ -696,6 +696,12 @@ function renderPreview(plano){
       + '<strong>Encaixe automatico ligado.</strong> O prazo ate a prova era curto, entao '+nomes[plano.nivel]+' entraram com metade do tempo ('+plano.encurtadas+' sessoes) para que <strong>nenhum tema ficasse de fora</strong>. '
       + 'A carga de minutos por dia do aluno continua a mesma.</div>'
   }
+  if (plano.reforcos > 0) {
+    let iniRef = ''
+    for (let i=0;i<plano.calendario.length && !iniRef;i++) if (plano.calendario[i].sessoes.some(function(s){return s.reforco})) iniRef = plano.calendario[i].data
+    al.innerHTML += '<div style="background:var(--card2);border:1px solid var(--ok);border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px;color:var(--ok)">'
+      + '<strong>🔁 Sobrou tempo ate a prova.</strong> Todos os temas fecham o ciclo de teoria, questoes e revisao, e a partir de '+fmtBR(iniRef)+' o cronograma volta aos temas com <strong>'+plano.reforcos+' sessoes de reforco</strong> (questoes e, no mesmo intervalo do aluno, revisao), ate a data da prova. Nenhum dia fica vazio.</div>'
+  }
   if (plano.retaFinal > 0) {
     al.innerHTML += '<div style="background:var(--card2);border:1px solid var(--ok);border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px;color:var(--ok)">'
       + plano.retaFinal+' sessoes de questoes/revisao dos ultimos temas cairiam depois da prova e foram <strong>remanejadas para a reta final</strong>, com tempo reduzido. Antes elas eram descartadas.</div>'
@@ -727,7 +733,7 @@ function renderPreview(plano){
         + '<span style="font-size:12px;color:var(--tx3)">'+s.disciplina+'</span>'
         + '<span style="display:flex;gap:5px;align-items:center"><span style="font-size:11px;color:var(--tx4)">'+(s.min||'')+'min</span>'
         + '<span class="tag t-'+s.tipo+'">'+lbl+'</span></span></div>'
-        + '<div style="font-size:13px;margin-top:2px">'+s.topico+(s.reta?' <span style="color:var(--ok);font-size:11px">(reta final)</span>':'')+'</div></div>'
+        + '<div style="font-size:13px;margin-top:2px">'+s.topico+(s.reta?' <span style="color:var(--ok);font-size:11px">(reta final)</span>':'')+(s.reforco?' <span style="color:var(--info);font-size:11px">(reforco)</span>':'')+'</div></div>'
     })
     html += '</div>'
     todos += html
@@ -1011,7 +1017,7 @@ function gerarExtras(){
   if (!discs.length) return exMsg('Marque pelo menos uma disciplina.', 'var(--erro)')
   const temas = _exTops.filter(function(t){ return discs.indexOf(t.disciplina) >= 0 && String(t.topico||'').trim() })
     .map(function(t,i){ return { key:'x'+i, disciplina:t.disciplina, topico:t.topico, topico_id:t.id, prioridade:t.prioridade||'media', incluir:true, status:'ativo' } })
-  const base = { inicio:inicio, prova:fim, dias:dias, porDia:porDia, dq:parseInt(document.getElementById('g-dq').value)||5, dr:parseInt(document.getElementById('g-dr').value)||15, etapas:montarEtapas(), tempo:tempo }
+  const base = { inicio:inicio, prova:fim, dias:dias, porDia:porDia, dq:parseInt(document.getElementById('g-dq').value)||5, dr:parseInt(document.getElementById('g-dr').value)||15, etapas:montarEtapas(), tempo:tempo, reforco:false }
   let plano = montarPlano(temas, Object.assign({ nivel:0 }, base))
   for (let n=1; n<=5 && plano.naoAlocados>0; n++) { const t = montarPlano(temas, Object.assign({ nivel:n }, base)); if (t.naoAlocados < plano.naoAlocados) plano = t }
   _exPlano = plano

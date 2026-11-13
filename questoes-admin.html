@@ -155,7 +155,7 @@
       <p style="color:var(--tx3);font-size:13px;margin-bottom:12px">Cole o JSON gerado no outro chat. Use o prompt padrao para garantir o formato certo.</p>
 
       <label style="color:var(--tx3);font-size:12px;display:block;margin-bottom:4px">Vincular ao concurso (opcional, mas recomendado)</label>
-      <select id="imp-concurso"><option value="">Nenhum — questao geral</option></select>
+      <select id="imp-concurso" onchange="if(_lote)mostrarTriagem()"><option value="">Nenhum — questao geral</option></select>
 
       <div style="background:linear-gradient(135deg,var(--card2),var(--card2));border:1px solid var(--ok);border-radius:11px;padding:14px;margin-top:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
         <div style="font-size:26px">📄</div>
@@ -175,10 +175,18 @@
       <div id="box-arq" style="display:none">
         <div class="drop" id="drop" onclick="document.getElementById('file').click()">
           <div style="font-size:28px;margin-bottom:8px">📄</div>
-          <div style="color:var(--ouro);font-size:14px;font-weight:bold">Clique ou arraste o arquivo</div>
-          <div style="color:var(--tx4);font-size:12px;margin-top:4px">.json · .csv · .txt — ate 5 MB</div>
+          <div style="color:var(--ouro);font-size:14px;font-weight:bold">Clique ou arraste os arquivos (pode escolher varios de uma vez)</div>
+          <div style="color:var(--tx4);font-size:12px;margin-top:4px">.json · .csv · .txt · simulados em Word (.docx) ou PDF</div>
         </div>
-        <input type="file" id="file" accept=".json,.csv,.txt" style="display:none" onchange="lerArquivo(this.files[0])">
+        <input type="file" id="file" multiple accept=".json,.csv,.txt,.docx,.pdf" style="display:none" onchange="lerArquivos(this.files);this.value=''">
+        <div style="background:var(--card2);border:1px solid var(--bd2);border-radius:10px;padding:12px;margin-top:10px">
+          <div style="color:var(--ouro);font-size:13px;font-weight:bold;margin-bottom:4px">📚 Simulados em Word para o banco</div>
+          <div style="color:var(--tx3);font-size:12.5px;line-height:1.55">Selecione o <strong>caderno</strong> e o <strong>gabarito comentado</strong> de cada simulado juntos (pode ser todos os simulados de uma vez). A plataforma junta cada caderno com o seu gabarito pelo nome do arquivo (ex.: "Simulado 06 PMAL.docx" + "Simulado 06 PMAL - Gabarito comentado.docx"). Questoes anuladas ou sem gabarito ficam de fora.</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-top:8px">
+            <div><label style="color:var(--tx3);font-size:12px;display:block;margin-bottom:4px">Banca (opcional)</label><input type="text" id="sim-banca" placeholder="Ex.: CEBRASPE"></div>
+            <div><label style="color:var(--tx3);font-size:12px;display:block;margin-bottom:4px">Ano (opcional)</label><input type="number" id="sim-ano" placeholder="2026"></div>
+          </div>
+        </div>
         <button onclick="baixarModeloCSV()" style="margin-top:10px;background:var(--card);color:var(--tx3);border:1px solid var(--bd2)">Baixar planilha modelo (.csv)</button>
         <p style="color:var(--tx4);font-size:11px;margin-top:6px">Preencha a planilha no Excel, salve como CSV e envie aqui. Tambem aceita o JSON gerado no outro chat salvo como arquivo.</p>
       </div>
@@ -428,6 +436,9 @@ Para MULTIPLA ESCOLHA, use o botao Baixar planilha modelo: ela tem a coluna alte
 </div>
 
 <script src="config.js"></script>
+<script src="simulado-parser.js"></script>
+<script src="leitor-arquivos.js"></script>
+<script src="banco-dedup.js"></script>
 <script src="explicacao.js"></script>
 <script>
 const PROMPT=`Voce e especialista em questoes para concursos policiais. Vou te enviar questoes que criei.
@@ -486,7 +497,7 @@ async function init(){
   if(d){
     d.addEventListener('dragover',function(e){e.preventDefault();d.classList.add('dentro')})
     d.addEventListener('dragleave',function(){d.classList.remove('dentro')})
-    d.addEventListener('drop',function(e){e.preventDefault();d.classList.remove('dentro');if(e.dataTransfer.files[0])lerArquivo(e.dataTransfer.files[0])})
+    d.addEventListener('drop',function(e){e.preventDefault();d.classList.remove('dentro');if(e.dataTransfer.files.length)lerArquivos(e.dataTransfer.files)})
   }
   manRenderAlts()
   const eb=document.getElementById('man-expl-box'); if(eb&&typeof campoExplicacaoHTML==='function')eb.innerHTML=campoExplicacaoHTML('man-expl','')
@@ -564,24 +575,118 @@ function copiarPrompt(tipo){
     : 'Prompt copiado! Cole em outro chat junto com suas questoes.')
 }
 
-function lerArquivo(file){
-  if(!file)return
-  if(file.size>5*1024*1024){msg('msg-imp','Arquivo maior que 5 MB. Divida em partes.','var(--erro)');return}
-  const r=new FileReader()
-  r.onload=function(e){
-    const txt=String(e.target.result||'').trim()
-    const nome=file.name.toLowerCase()
-    if(nome.endsWith('.csv')||(!txt.startsWith('[')&&!txt.startsWith('{')&&txt.indexOf(';')>=0)){
-      document.getElementById('imp-csv').value=txt
-      setModo('csv')
-      converterCSV()
-    }else{
-      setModo('json')
-      document.getElementById('imp-json').value=txt
-      validar()
-    }
+// ---------- varios arquivos de uma vez (JSON, CSV e simulados em Word/PDF) ----------
+function lerTexto(file){return new Promise(function(ok,erro){const r=new FileReader();r.onload=function(e){ok(String(e.target.result||''))};r.onerror=function(){erro(new Error('nao consegui ler '+file.name))};r.readAsText(file,'UTF-8')})}
+function jsonParaArray(txt){
+  let arr=JSON.parse(String(txt).trim().replace(/^```(?:json)?/i,'').replace(/```$/,'').trim())
+  if(!Array.isArray(arr)&&arr&&Array.isArray(arr.questoes))arr=arr.questoes
+  if(!Array.isArray(arr)&&arr&&typeof arr==='object'&&arr.enunciado)arr=[arr]
+  if(!Array.isArray(arr))throw new Error('o JSON precisa ser uma lista (array) de questoes')
+  return arr
+}
+function ehCSV(txt){const l=String(txt).split(/\r?\n/)[0]||'';return /disciplina/i.test(l)&&/enunciado/i.test(l)&&/[;\t,]/.test(l)}
+async function lerArquivos(lista){
+  const files=Array.from(lista||[])
+  if(!files.length)return
+  setModo('arq')
+  document.getElementById('prev-imp').innerHTML=''
+  document.getElementById('btn-imp').style.display='none'
+  let todas=[]; const avisos=[], word=[]
+  for(let i=0;i<files.length;i++){
+    const f=files[i], nome=f.name, low=nome.toLowerCase()
+    msg('msg-imp','Lendo '+(i+1)+' de '+files.length+': '+esc(nome)+'...','var(--tx3)')
+    if(/\.(docx|pdf)$/.test(low)){word.push(f);continue}
+    if(/\.doc$/.test(low)){avisos.push(esc(nome)+': arquivo .doc antigo. Abra no Word e use "Salvar como" .docx.');continue}
+    if(f.size>5*1024*1024){avisos.push(esc(nome)+': maior que 5 MB. Divida em partes.');continue}
+    let txt=''
+    try{txt=(await lerTexto(f)).replace(/^﻿/,'').trim()}catch(e){avisos.push(esc(nome)+': '+esc(e.message));continue}
+    try{
+      let arr
+      if(low.endsWith('.json')||txt.startsWith('[')||txt.startsWith('{')||txt.startsWith('```'))arr=jsonParaArray(txt)
+      else if(low.endsWith('.csv')||ehCSV(txt)){const r=csvParaArray(txt);if(r.erro)throw new Error(r.erro);arr=r.arr}
+      else{word.push(f);continue}   // .txt com o simulado escrito
+      arr.forEach(function(q,j){if(q&&typeof q==='object'){q._arq=nome;q._n=q.numero||(j+1)}})
+      todas=todas.concat(arr.filter(function(q){return q&&typeof q==='object'}))
+    }catch(e){avisos.push(esc(nome)+': '+esc(e.message))}
   }
-  r.readAsText(file,'UTF-8')
+  if(word.length){
+    try{
+      const r=await lerSimuladosWord(word,function(t){msg('msg-imp',t,'var(--tx3)')})
+      todas=todas.concat(r.itens)
+      r.avisos.forEach(function(a){avisos.push(a)})
+    }catch(e){avisos.push('Simulados: '+esc(e.message))}
+  }
+  _avisosArq=avisos
+  if(!todas.length){msg('msg-imp','<strong>Nenhuma questao encontrada nos arquivos.</strong>'+(avisos.length?'<br>'+avisos.join('<br>'):''),'var(--erro)');return}
+  document.getElementById('imp-json').value=''
+  await validarArray(todas,{arquivos:files.length})
+}
+
+// junta o caderno com o gabarito comentado do mesmo simulado
+function chaveNomeArq(n){
+  return String(n).toLowerCase().replace(/\.[a-z0-9]+$/,'').normalize('NFD').replace(/[̀-ͯ]/g,'')
+    .replace(/gabaritos?|comentad[oa]s?|respostas?|resolucao|correcao|caderno( de erros)?|cartao( por cartao)?|questoes|prova|oficial/g,' ')
+    .replace(/[^a-z0-9]+/g,' ').trim()
+}
+function numeroArq(n){const m=(String(n).replace(/\.[a-z0-9]+$/,'').match(/\d+/g)||[]).map(Number).filter(function(x){return x<1900});return m.length?m[0]:null}
+const RX_ARQ_GAB=/gabarit|comentad|respost|resolu|corre[cç]/i
+async function lerSimuladosWord(files,prog){
+  const cads=[],gabs=[],avisos=[]
+  for(let i=0;i<files.length;i++){
+    const f=files[i]
+    if(prog)prog('Lendo simulado '+(i+1)+' de '+files.length+': '+esc(f.name)+'...')
+    let ps
+    try{ps=await lerArquivoParagrafos(f)}catch(e){avisos.push(esc(f.name)+': '+esc(e.message));continue}
+    if(RX_ARQ_GAB.test(f.name)){gabs.push({nome:f.name,g:lerGabaritoComentado(ps)});continue}
+    const r=lerSimulado(ps)
+    if(!r.itens.length){
+      const g=lerGabaritoComentado(ps)
+      if(g.nGab){gabs.push({nome:f.name,g:g});continue}
+      avisos.push(esc(f.name)+': nao encontrei questoes neste arquivo.');continue
+    }
+    cads.push({nome:f.name,r:r,gab:null})
+  }
+  // pareamento: mesmo nome (sem "gabarito comentado") > mesmo numero > unico par
+  gabs.forEach(function(g){
+    const k=chaveNomeArq(g.nome), n=numeroArq(g.nome)
+    let c=cads.find(function(x){return !x.gab&&chaveNomeArq(x.nome)===k})
+    if(!c&&n!=null){const m=cads.filter(function(x){return !x.gab&&numeroArq(x.nome)===n});if(m.length===1)c=m[0]}
+    if(!c&&cads.length===1&&gabs.length===1&&!cads[0].gab)c=cads[0]
+    if(c)c.gab=g
+    else avisos.push(esc(g.nome)+': nao achei o caderno deste gabarito. Envie os dois juntos, com o mesmo nome (ex.: "Simulado 06" e "Simulado 06 - gabarito").')
+  })
+  const banca=(document.getElementById('sim-banca')||{}).value||''
+  const ano=parseInt((document.getElementById('sim-ano')||{}).value)||null
+  let itens=[]
+  cads.forEach(function(c){
+    const G=c.gab&&c.gab.g
+    let semGab=0,anul=0,geral=0
+    c.r.itens.forEach(function(it){
+      const q=Object.assign({},it)
+      if(G){
+        const gg=G.gab[q.numero], ci=G.itens[q.numero]||{}
+        if(gg==='X')q.anulada=true
+        else if(gg)q.gabarito=gg
+        if(ci.comentario&&!q.comentario)q.comentario=ci.comentario
+        if(ci.bizu&&!q.bizu)q.bizu=ci.bizu
+        if(ci.assunto&&!q.assunto)q.assunto=ci.assunto
+        if(ci.disciplina&&!q.disciplina)q.disciplina=ci.disciplina
+      }
+      if(q.anulada){anul++;return}
+      if(!q.gabarito){semGab++;return}
+      if(!q.disciplina){q.disciplina='Geral';geral++}
+      itens.push({disciplina:q.disciplina,assunto:q.assunto||null,tipo:q.tipo,enunciado:q.enunciado,texto_apoio:q.texto_apoio||null,
+        alternativas:q.tipo==='multipla'?q.alternativas:null,gabarito:q.gabarito,comentario:q.comentario||null,bizu:q.bizu||null,
+        banca:banca.trim()||null,ano:ano,origem:'autoral',_arq:c.nome,_n:q.numero})
+    })
+    const ok=c.r.itens.length-semGab-anul
+    let t=esc(c.nome)+': '+ok+' questoes'+(c.gab?' (gabarito: '+esc(c.gab.nome)+')':'')
+    if(anul)t+=' · '+anul+' anulada(s) ficaram de fora'
+    if(semGab)t+=' · <span style="color:var(--erro)">'+semGab+' sem gabarito ficaram de fora'+(c.gab?'':' — envie o gabarito comentado junto')+'</span>'
+    if(geral)t+=' · '+geral+' sem disciplina (ficaram como "Geral")'
+    avisos.unshift(t)
+  })
+  return {itens:itens,avisos:avisos}
 }
 
 function baixarModeloCSV(){
@@ -611,21 +716,18 @@ function parseLinhaCSV(linha,sep){
   return out.map(function(x){return x.trim()})
 }
 
-function converterCSV(){
-  const txt=document.getElementById('imp-csv').value.trim()
-  if(!txt){msg('msg-imp','Cole as linhas da planilha primeiro.','var(--erro)');return}
+function csvParaArray(txt){
+  txt=String(txt||'').trim()
+  if(!txt)return {erro:'Cole as linhas da planilha primeiro.'}
   const linhas=txt.split(/\r?\n/).filter(function(l){return l.trim()})
-  if(linhas.length<2){msg('msg-imp','Preciso do cabecalho e pelo menos uma questao.','var(--erro)');return}
-
+  if(linhas.length<2)return {erro:'Preciso do cabecalho e pelo menos uma questao.'}
   const sep=(linhas[0].indexOf(';')>=0)?';':((linhas[0].indexOf('\t')>=0)?'\t':',')
   const cab=parseLinhaCSV(linhas[0],sep).map(function(x){
-    return x.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'_')
+    return x.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,'_')
   })
-
   const obrig=['disciplina','enunciado','gabarito']
   const falta=obrig.filter(function(x){return cab.indexOf(x)<0})
-  if(falta.length){msg('msg-imp','Faltam colunas no cabecalho: '+falta.join(', '),'var(--erro)');return}
-
+  if(falta.length)return {erro:'Faltam colunas no cabecalho: '+falta.join(', ')}
   const arr=[]
   for(let i=1;i<linhas.length;i++){
     const v=parseLinhaCSV(linhas[i],sep)
@@ -641,10 +743,14 @@ function converterCSV(){
     if(o.ano)o.ano=parseInt(o.ano)
     arr.push(o)
   }
-  if(!arr.length){msg('msg-imp','Nenhuma linha valida encontrada na planilha.','var(--erro)');return}
-
+  if(!arr.length)return {erro:'Nenhuma linha valida encontrada na planilha.'}
+  return {arr:arr}
+}
+function converterCSV(){
+  const r=csvParaArray(document.getElementById('imp-csv').value)
+  if(r.erro){msg('msg-imp',r.erro,'var(--erro)');return}
   setModo('json')
-  document.getElementById('imp-json').value=JSON.stringify(arr,null,2)
+  document.getElementById('imp-json').value=JSON.stringify(r.arr,null,2)
   validar()
 }
 
@@ -709,74 +815,131 @@ function normalizarQ(o){
   return q
 }
 
+let _avisosArq=[],_indice=null,_tri=null
 function validar(){
   const txt=document.getElementById('imp-json').value.trim()
   if(!txt){msg('msg-imp','Cole o JSON primeiro.','var(--erro)');return}
   let arr
-  try{
-    arr=JSON.parse(txt.replace(/^```json/i,'').replace(/```$/,'').trim())
-  }catch(e){
-    msg('msg-imp','JSON invalido: '+e.message+'<br><span style="color:var(--tx3);font-size:12px">Verifique se copiou o array inteiro, comecando com [ e terminando com ]</span>','var(--erro)')
+  try{ arr=jsonParaArray(txt) }catch(e){
+    msg('msg-imp','JSON invalido: '+esc(e.message)+'<br><span style="color:var(--tx3);font-size:12px">Verifique se copiou o array inteiro, comecando com [ e terminando com ]</span>','var(--erro)')
     return
   }
-  if(!Array.isArray(arr)&&arr&&Array.isArray(arr.questoes))arr=arr.questoes
-  if(!Array.isArray(arr)&&arr&&typeof arr==='object'&&arr.enunciado)arr=[arr]
-  if(!Array.isArray(arr)){msg('msg-imp','O JSON precisa ser uma lista (array) de questoes.','var(--erro)');return}
-  arr=arr.map(normalizarQ)
+  _avisosArq=[]
+  return validarArray(arr,null)
+}
 
-  const erros=[]
+async function validarArray(arr,deArq){
+  _lote=null;_tri=null
+  document.getElementById('btn-imp').style.display='none'
+  arr=arr.map(normalizarQ)
+  const erros=[], comErro={}
   arr.forEach(function(q,i){
-    const n='Questao '+(i+1)+': '
+    const id=q.codigo?' ('+q.codigo+')':''
+    const n=(q._arq?esc(q._arq)+' · questao '+(q._n||i+1):'Questao '+(i+1))+id+': '
+    const e0=erros.length
     if(!q.disciplina)erros.push(n+'falta "disciplina"')
     if(!q.enunciado)erros.push(n+'falta "enunciado"')
     if(!q.gabarito)erros.push(n+'falta "gabarito"')
     const tp=q.tipo
-    const id=q.codigo?' ('+q.codigo+')':''
-    if(tp==='certo_errado'&&['C','E'].indexOf(q.gabarito)<0)erros.push(n.replace(': ',id+': ')+'gabarito de certo/errado deve ser C ou E (veio "'+q.gabarito+'"). Se for multipla escolha, falta a lista de alternativas.')
+    if(tp==='certo_errado'&&q.gabarito&&['C','E'].indexOf(q.gabarito)<0)erros.push(n+'gabarito de certo/errado deve ser C ou E (veio "'+esc(q.gabarito)+'"). Se for multipla escolha, falta a lista de alternativas.')
     if(tp==='multipla'){
-      if(!Array.isArray(q.alternativas)||q.alternativas.length<2)erros.push(n.replace(': ',id+': ')+'multipla escolha precisa de "alternativas"')
-      else if(LETRAS.slice(0,q.alternativas.length).indexOf(q.gabarito)<0||!q.gabarito)erros.push(n.replace(': ',id+': ')+'gabarito "'+q.gabarito+'" nao corresponde a nenhuma das '+q.alternativas.length+' alternativas')
+      if(!Array.isArray(q.alternativas)||q.alternativas.length<2)erros.push(n+'multipla escolha precisa de "alternativas"')
+      else if(q.gabarito&&LETRAS.slice(0,q.alternativas.length).indexOf(q.gabarito)<0)erros.push(n+'gabarito "'+esc(q.gabarito)+'" nao corresponde a nenhuma das '+q.alternativas.length+' alternativas')
     }
+    if(erros.length>e0)comErro[i]=1
   })
+  let invalidas=0
   if(erros.length){
-    msg('msg-imp','<strong>'+erros.length+' problema(s):</strong><br>'+erros.slice(0,12).join('<br>')+(erros.length>12?'<br>...':''),'var(--erro)')
-    document.getElementById('btn-imp').style.display='none'
-    return
+    // JSON colado: corrige antes. Varios arquivos: segue com as validas e lista as que ficaram de fora.
+    if(!deArq||erros.length===arr.length){
+      msg('msg-imp','<strong>'+erros.length+' problema(s):</strong><br>'+erros.slice(0,12).join('<br>')+(erros.length>12?'<br>...':'')+(_avisosArq.length?'<br><br>'+_avisosArq.join('<br>'):''),'var(--erro)')
+      return
+    }
+    invalidas=Object.keys(comErro).length
+    arr=arr.filter(function(q,i){return !comErro[i]})
   }
-
   _lote=arr
-  const duvida=arr.filter(function(q){return q.em_duvida})
-  const discs={}
-  arr.forEach(function(q){discs[q.disciplina]=(discs[q.disciplina]||0)+1})
-  const ce=arr.filter(function(q){return q.tipo==='certo_errado'}).length
-  const semBizu=arr.filter(function(q){return !q.bizu}).length
+  _errosArq=erros
+  _invalidasArq=invalidas
+  msg('msg-imp','Conferindo se estas questoes ja estao no banco...','var(--tx3)')
+  try{
+    if(!_indice||Date.now()-_indice.quando>60*1000)_indice=await BancoDedup.carregarIndice(_supabase,function(t){msg('msg-imp',t,'var(--tx3)')})
+  }catch(e){
+    _indice=null
+    msg('msg-imp','Nao consegui conferir duplicadas agora ('+esc(e.message)+'). Tente validar de novo.','var(--erro)')
+    _lote=null;return
+  }
+  mostrarTriagem()
+}
+let _errosArq=[],_invalidasArq=0
 
-  msg('msg-imp','<strong style="color:var(--ok)">'+arr.length+' questoes validas!</strong>'+(semBizu?' <span style="color:var(--alerta)">('+semBizu+' sem bizu)</span>':''),'var(--ok)')
+function mostrarTriagem(){
+  const arr=_lote
+  if(!arr)return
+  const concurso_id=document.getElementById('imp-concurso').value
+  _tri=BancoDedup.triar(arr,_indice,concurso_id)
+  const s=BancoDedup.resumo(_tri)
+  const novas=_tri.filter(function(t){return t.acao==='nova'}).map(function(t){return t.q})
+  const duvida=novas.filter(function(q){return q.em_duvida})
+  const discs={}
+  novas.forEach(function(q){discs[q.disciplina]=(discs[q.disciplina]||0)+1})
+  const ce=novas.filter(function(q){return q.tipo==='certo_errado'}).length
+  const semBizu=novas.filter(function(q){return !q.bizu}).length
+  const nomeC=concurso_id?((_concursos.find(function(c){return String(c.id)===String(concurso_id)})||{}).nome||'concurso escolhido'):''
+  const linha=function(cor,n,txt){return '<div style="display:flex;gap:10px;align-items:baseline;padding:5px 0;border-bottom:1px solid var(--card);font-size:13px"><strong style="color:'+cor+';min-width:44px;text-align:right">'+n+'</strong><span style="color:var(--tx2)">'+txt+'</span></div>'}
+  const conflitos=_tri.filter(function(t){return t.conflito})
+  msg('msg-imp','<strong style="color:var(--ok)">'+arr.length+' questoes lidas'+(deArqTxt())+'.</strong> '+(s.novas?s.novas+' novas para o banco.':'Nenhuma questao nova.')+(semBizu&&s.novas?' <span style="color:var(--alerta)">('+semBizu+' novas sem bizu)</span>':''),'var(--ok)')
   document.getElementById('prev-imp').innerHTML=
     '<div style="background:var(--card2);border-radius:8px;padding:12px">'
-   +'<div style="color:var(--ouro);font-size:13px;font-weight:bold;margin-bottom:8px">'+ce+' certo/errado · '+(arr.length-ce)+' multipla escolha</div>'
+   +'<div style="color:var(--ouro);font-size:13px;font-weight:bold;margin-bottom:6px">🔎 Triagem de duplicadas (comparado com as '+_indice.total+' questoes do banco)</div>'
+   +linha('var(--ok)',s.novas,'novas — serao adicionadas'+(nomeC?' e vinculadas a '+esc(nomeC):''))
+   +(s.existe?linha('var(--info)',s.existe,'ja estao no banco — <strong>nao serao duplicadas</strong>'):'')
+   +(s.vincular?linha('var(--info)',s.vincular,'destas ja existentes ainda nao estao em '+esc(nomeC)+' — vao ganhar o vinculo'):'')
+   +(!concurso_id&&s.existe?linha('var(--tx3)','—','sem concurso escolhido: as ja existentes continuam com os concursos que ja tinham'):'')
+   +(s.completar?linha('var(--info)',s.completar,'ja existentes sem comentario/bizu/assunto — vao receber os do arquivo'):'')
+   +(s.repetidas?linha('var(--alerta)',s.repetidas,'repetidas dentro dos arquivos — entra uma so'):'')
+   +(conflitos.length?linha('var(--erro)',conflitos.length,'ja existem com <strong>gabarito diferente</strong> — nada sera mudado nelas, confira:'):'')
+   +(conflitos.length?'<div style="font-size:12px;color:var(--tx3);line-height:1.6;margin:4px 0 6px 54px">'+conflitos.slice(0,15).map(function(t){return (t.q._arq?esc(t.q._arq)+' · questao '+(t.q._n||'')+': ':'')+'arquivo diz <strong>'+esc(t.q.gabarito)+'</strong>, banco diz <strong>'+esc(t.gabBanco)+'</strong> — "'+esc(String(t.q.enunciado).slice(0,90))+'..."'}).join('<br>')+(conflitos.length>15?'<br>...':'')+'</div>':'')
+   +(_invalidasArq?linha('var(--erro)',_invalidasArq,'com problema — ficaram de fora:'):'')
+   +(_invalidasArq?'<div style="font-size:12px;color:var(--tx3);line-height:1.6;margin:4px 0 6px 54px">'+_errosArq.slice(0,12).join('<br>')+(_errosArq.length>12?'<br>...':'')+'</div>':'')
+   +(_avisosArq.length?'<details style="margin-top:8px;font-size:12.5px;color:var(--tx3)"'+(_avisosArq.length<=6?' open':'')+'><summary style="cursor:pointer;color:var(--tx2)">Arquivos lidos ('+_avisosArq.length+')</summary><div style="line-height:1.7;margin-top:6px">'+_avisosArq.join('<br>')+'</div></details>':'')
+   +(s.novas?'<div style="color:var(--ouro);font-size:13px;font-weight:bold;margin:12px 0 8px">Novas: '+ce+' certo/errado · '+(s.novas-ce)+' multipla escolha</div>':'')
    +(duvida.length?'<div style="background:rgba(232,176,75,.08);border:1px solid var(--alerta);border-radius:8px;padding:10px;margin-bottom:10px;font-size:12.5px;color:var(--alerta);line-height:1.55">'
       +'<strong>'+duvida.length+' questao(oes) marcadas como "em duvida"</strong> pelo gerador (o gabarito pode estar errado): '
-      +duvida.map(function(q,i){return '<strong>'+esc(q.codigo||('#'+(arr.indexOf(q)+1)))+'</strong>'+(q.nota_revisao?' — <span style="color:var(--tx2)">'+esc(String(q.nota_revisao).substring(0,240))+'</span>':'')}).join('<br>')
+      +duvida.map(function(q){return '<strong>'+esc(q.codigo||('#'+(arr.indexOf(q)+1)))+'</strong>'+(q.nota_revisao?' — <span style="color:var(--tx2)">'+esc(String(q.nota_revisao).substring(0,240))+'</span>':'')}).join('<br>')
       +'.<br>Por seguranca elas <strong>nao serao importadas</strong>. Revise e importe depois, ou marque abaixo.'
       +'<label style="display:flex;gap:8px;align-items:center;margin-top:8px;color:var(--tx2);cursor:pointer"><input type="checkbox" id="imp-duvida" style="width:16px;height:16px;margin:0"> Importar tambem as questoes em duvida</label></div>':'')
-   +'<div style="color:var(--tx3);font-size:12px;margin-bottom:6px">Por disciplina:</div>'
+   +(s.novas?'<div style="color:var(--tx3);font-size:12px;margin-bottom:6px">Novas por disciplina:</div>'
    +Object.keys(discs).sort().map(function(d){
-      return '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--card);font-size:13px"><span>'+d+'</span><span style="color:var(--tx3)">'+discs[d]+'</span></div>'
-    }).join('')+'</div>'
-  document.getElementById('btn-imp').style.display='block'
+      return '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--card);font-size:13px"><span>'+esc(d)+'</span><span style="color:var(--tx3)">'+discs[d]+'</span></div>'
+    }).join(''):'')+'</div>'
+  const temAlgo=s.novas||s.vincular||s.completar
+  const b=document.getElementById('btn-imp')
+  b.style.display=temAlgo?'block':'none'
+  b.textContent=s.novas?'Importar '+s.novas+' questoes novas':'Aplicar vinculos e comentarios'
 }
+function deArqTxt(){const a=_lote&&_lote.filter(function(q){return q._arq}).map(function(q){return q._arq}).filter(function(x,i,l){return l.indexOf(x)===i}).length;return a?' de '+a+' arquivo(s)':''}
 
 async function importar(){
-  if(!_lote){alert('Valide o JSON primeiro.');return}
+  if(!_lote||!_tri){alert('Valide primeiro.');return}
   const concurso_id=document.getElementById('imp-concurso').value
+  _tri=BancoDedup.triar(_lote,_indice,concurso_id)
+  const sres=BancoDedup.resumo(_tri)
   const cbD=document.getElementById('imp-duvida')
-  const lote=_lote.filter(function(q){return !q.em_duvida||(cbD&&cbD.checked)})
-  const puladas=_lote.length-lote.length
-  if(!lote.length){alert('Nenhuma questao para importar (todas estao marcadas como em duvida).');return}
-  if(!concurso_id&&!confirm('Voce nao escolheu um concurso.\n\nTodos os alunos continuam vendo a questao (o banco e aberto), mas ela nao aparece quando o aluno filtra pelo concurso dele.\n\nImportar mesmo assim como questao geral?'))return
-  if(!confirm('Importar '+lote.length+' questoes'+(concurso_id?' vinculadas ao concurso selecionado':'')+'?'+(puladas?'\n\n'+puladas+' em duvida ficarao de fora.':'')))return
+  const novasT=_tri.filter(function(t){return t.acao==='nova'})
+  const lote=novasT.map(function(t){return t.q}).filter(function(q){return !q.em_duvida||(cbD&&cbD.checked)})
+  const puladas=novasT.length-lote.length
+  if(!lote.length&&!sres.vincular&&!sres.completar){alert('Nada para importar: as questoes ja estao no banco'+(puladas?' ou estao marcadas como em duvida':'')+'.');return}
+  if(lote.length&&!concurso_id&&!confirm('Voce nao escolheu um concurso.\n\nTodos os alunos continuam vendo a questao (o banco e aberto), mas ela nao aparece quando o aluno filtra pelo concurso dele.\n\nImportar mesmo assim como questao geral?'))return
+  const partes=[]
+  if(lote.length)partes.push(lote.length+' questoes novas'+(concurso_id?' vinculadas ao concurso selecionado':''))
+  if(sres.vincular&&concurso_id)partes.push(sres.vincular+' ja existentes ganham o vinculo com o concurso')
+  if(sres.completar)partes.push(sres.completar+' ja existentes recebem comentario/bizu')
+  if(!confirm('Confirmar?\n\n• '+partes.join('\n• ')+(sres.existe?'\n\n'+sres.existe+' ja estao no banco e NAO serao duplicadas.':'')+(puladas?'\n\n'+puladas+' em duvida ficarao de fora.':'')))return
+  const btn=document.getElementById('btn-imp'); btn.disabled=true
+  try{
   msg('msg-imp','Importando...','var(--tx3)')
+  const ex=await BancoDedup.aplicarExistentes(_supabase,_tri,concurso_id,_indice,function(t){msg('msg-imp',t,'var(--tx3)')})
 
   const linhas=lote.map(function(q){
     const tp=q.tipo||'certo_errado'
@@ -831,25 +994,30 @@ async function importar(){
 
   let ids=[]
   for(let i=0;i<linhas.length;i+=LOTE){
-    const { data,error }=await _supabase.from('questoes').insert(linhas.slice(i,i+LOTE)).select('id')
-    if(error){msg('msg-imp','Erro ao importar: '+error.message,'var(--erro)');return}
-    if(data)ids=ids.concat(data.map(function(x){return x.id}))
+    const parte=linhas.slice(i,i+LOTE)
+    const { data,error }=await _supabase.from('questoes').insert(parte).select('id')
+    if(error){msg('msg-imp','Erro ao importar: '+esc(error.message)+(ids.length?'<br>'+ids.length+' ja tinham entrado. Valide de novo: a triagem reconhece as que ja entraram e nao duplica.':''),'var(--erro)');_indice=null;return}
+    const novosIds=(data||[]).map(function(x){return x.id})
+    if(concurso_id&&novosIds.length){
+      await _supabase.from('questao_concursos').insert(novosIds.map(function(id){return {questao_id:id,concurso_id:concurso_id}}))
+    }
+    BancoDedup.registrarNovas(_indice,parte,novosIds,concurso_id)
+    ids=ids.concat(novosIds)
     msg('msg-imp','Importando... '+ids.length+'/'+linhas.length,'var(--tx3)')
   }
 
-  if(concurso_id&&ids.length){
-    const vin=ids.map(function(id){return {questao_id:id,concurso_id:concurso_id}})
-    for(let i=0;i<vin.length;i+=LOTE){
-      await _supabase.from('questao_concursos').insert(vin.slice(i,i+LOTE))
-    }
-  }
-
   resumoTopo()
-  msg('msg-imp','<strong style="color:var(--ok)">'+ids.length+' questoes novas importadas'+(atualizadas?' e '+atualizadas+' ja existentes receberam comentario e bizu':'')+'!</strong>'+(puladas?' <span style="color:var(--alerta)">'+puladas+' em duvida ficaram de fora.</span>':''),'var(--ok)')
+  const fim=[]
+  fim.push(ids.length+' questoes novas importadas')
+  if(atualizadas)fim.push(atualizadas+' (pelo codigo) receberam comentario e bizu')
+  if(ex.vinculadas)fim.push(ex.vinculadas+' ja existentes vinculadas ao concurso')
+  if(ex.completadas)fim.push(ex.completadas+' ja existentes receberam comentario/bizu')
+  msg('msg-imp','<strong style="color:var(--ok)">'+fim.join(' · ')+'.</strong>'+(sres.existe?' <span style="color:var(--tx2)">'+sres.existe+' ja estavam no banco e nao foram duplicadas.</span>':'')+(puladas?' <span style="color:var(--alerta)">'+puladas+' em duvida ficaram de fora.</span>':''),'var(--ok)')
   document.getElementById('imp-json').value=''
   document.getElementById('prev-imp').innerHTML=''
-  document.getElementById('btn-imp').style.display='none'
-  _lote=null
+  btn.style.display='none'
+  _lote=null;_tri=null
+  }finally{btn.disabled=false}
 }
 
 

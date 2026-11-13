@@ -193,6 +193,7 @@
 <script src="config.js"></script>
 <script src="simulado-parser.js"></script>
 <script src="leitor-arquivos.js"></script>
+<script src="banco-dedup.js"></script>
 <script src="explicacao.js"></script>
 <script>
 const LETRAS='ABCDE'
@@ -692,21 +693,33 @@ async function excluirItem(id){
 async function copiarParaBanco(){
   if(!_itens.length){alert('Nao ha questoes.');return}
   const ok=_itens.filter(function(q){return _gab[q.id]&&!q.anulada})
-  if(!confirm('Copiar '+ok.length+' questoes deste simulado para o banco de questoes da plataforma?'+(_sim.concurso_id?'\nElas ficam vinculadas a turma do simulado.':'')+'\n\nDica: faca isso depois que todos tiverem feito o simulado, para ninguem treinar antes.'))return
+  if(!ok.length){alert('Nenhuma questao com gabarito para copiar.');return}
   const linhas=ok.map(function(q){return {disciplina:q.disciplina||'Geral',assunto:q.assunto||null,tipo:q.tipo,enunciado:q.enunciado,texto_apoio:q.texto_apoio||null,
     alternativas:q.tipo==='multipla'?q.alternativas:null,gabarito:_gab[q.id],comentario:q.comentario||null,origem:'autoral',banca:_sim.banca||null,ativo:true}})
   if(ok.some(function(q){return q.bizu}))linhas.forEach(function(l,i){l.bizu=ok[i].bizu||null})
+  // triagem: nao duplica o que ja esta no banco
+  let ind=null,tri=null,s=null
+  try{
+    ind=await BancoDedup.carregarIndice(_supabase)
+    tri=BancoDedup.triar(linhas,ind,_sim.concurso_id||'')
+    s=BancoDedup.resumo(tri)
+  }catch(e){alert('Nao consegui conferir o banco agora: '+e.message);return}
+  const novas=tri.filter(function(t){return t.acao==='nova'}).map(function(t){return t.q})
+  if(!novas.length&&!s.vincular&&!s.completar){alert('As '+ok.length+' questoes deste simulado ja estao no banco. Nada foi duplicado.');return}
+  if(!confirm('Copiar para o banco de questoes:\n\n• '+novas.length+' questoes novas'+(_sim.concurso_id?' (vinculadas a turma do simulado)':'')
+    +(s.existe?'\n• '+s.existe+' ja estao no banco e NAO serao duplicadas'+(s.vincular?' ('+s.vincular+' ganham o vinculo com o concurso)':''):'')
+    +(s.conflitos?'\n• '+s.conflitos+' ja existem com gabarito diferente (nao serao mudadas)':'')
+    +'\n\nDica: faca isso depois que todos tiverem feito o simulado, para ninguem treinar antes.'))return
+  const ex=await BancoDedup.aplicarExistentes(_supabase,tri,_sim.concurso_id||'',ind)
   let ids=[]
-  for(let i=0;i<linhas.length;i+=100){
-    const r=await _supabase.from('questoes').insert(linhas.slice(i,i+100)).select('id')
-    if(r.error){alert('Erro ao copiar: '+r.error.message);return}
-    ids=ids.concat((r.data||[]).map(function(x){return x.id}))
+  for(let i=0;i<novas.length;i+=100){
+    const r=await _supabase.from('questoes').insert(novas.slice(i,i+100)).select('id')
+    if(r.error){alert('Erro ao copiar: '+r.error.message+(ids.length?'\n'+ids.length+' ja tinham entrado; copie de novo que a triagem nao duplica.':''));return}
+    const nid=(r.data||[]).map(function(x){return x.id})
+    if(_sim.concurso_id&&nid.length)await _supabase.from('questao_concursos').insert(nid.map(function(id){return {questao_id:id,concurso_id:_sim.concurso_id}}))
+    ids=ids.concat(nid)
   }
-  if(_sim.concurso_id&&ids.length){
-    const vin=ids.map(function(id){return {questao_id:id,concurso_id:_sim.concurso_id}})
-    for(let i=0;i<vin.length;i+=100)await _supabase.from('questao_concursos').insert(vin.slice(i,i+100))
-  }
-  alert(ids.length+' questoes copiadas para o banco.')
+  alert(ids.length+' questoes novas copiadas para o banco.'+(s.existe?'\n'+s.existe+' ja estavam la e nao foram duplicadas'+(ex.vinculadas?' ('+ex.vinculadas+' vinculadas ao concurso)':'')+'.':''))
 }
 
 /* ---------------- RESULTADOS ---------------- */

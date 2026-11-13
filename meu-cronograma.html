@@ -162,7 +162,8 @@ function mostrar(base){
   let h='<div class="h1" style="font-size:18px">Seu cronograma</div>'
     +'<div class="kp"><div><b>'+nTeo+'</b><span>de '+_temas.length+' temas</span></div><div><b>'+n+'</b><span>sessoes</span></div><div><b>'+semanas+'</b><span>semanas</span></div></div>'
   if(p.naoAlocados)h+='<div class="aviso"><strong>'+p.naoAlocados+' tema(s) nao couberam ate a prova.</strong> Para caber tudo, aumente o tempo por dia ou os dias de estudo. Se preferir manter assim, os temas de prioridade alta entram primeiro.</div>'
-  else if(p.encurtadas)h+='<div class="aviso">Para caber tudo, algumas revisoes e temas de menor prioridade ficaram com meio tempo. Se puder, aumente o tempo por dia.</div>'
+  if(p.reforcos)h+='<div class="aviso" style="border-color:var(--ok)"><strong>🔁 Sobrou tempo ate a prova.</strong> Depois de passar por todos os temas, o cronograma volta a eles com questoes e revisao ('+p.reforcos+' sessoes de reforco), para nada ser esquecido ate o dia da prova.</div>'
+  if(!p.naoAlocados&&p.encurtadas)h+='<div class="aviso">Para caber tudo, algumas revisoes e temas de menor prioridade ficaram com meio tempo. Se puder, aumente o tempo por dia.</div>'
   h+='<div class="passo">Seus primeiros dias</div>'
   p.calendario.slice(0,4).forEach(function(d){
     const dt=parseD(d.data)
