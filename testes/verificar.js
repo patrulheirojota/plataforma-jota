@@ -42,7 +42,7 @@ htmls.forEach(f => {
 
 // 3) arquivos que nao podem ser trocados por engano
 const assinaturas = {
-  'menu-admin.js': 'window.MenuAdmin', 'comum.js': 'VERSAO_PLATAFORMA', 'motor-cronograma.js': 'function montarPlano', 'motor-migracao.js': 'function migMontarProposta', 'motor-banco.js': 'function bancoCobertura', 'senha-visivel.js': '__senhaVisivel', 'central.js': 'function carregarCentral',
+  'menu-admin.js': 'window.MenuAdmin', 'comum.js': 'VERSAO_PLATAFORMA', 'motor-cronograma.js': 'function montarPlano', 'motor-migracao.js': 'function migMontarProposta', 'motor-banco.js': 'function bancoCobertura', 'senha-visivel.js': '__senhaVisivel', 'banco-dedup.js': 'function triar', 'central.js': 'function carregarCentral',
   'desempenho.js': 'buscarDesempenhoAssuntos', 'relatorio-ciclo.js': 'verificarRelatorioCiclo', 'pomodoro.js': 'pomoAbrir',
   'explicacao.js': 'htmlExplicacao', 'lei-parser.js': 'lerLei', 'simulado-parser.js': 'lerSimulado',
   'leitor-arquivos.js': 'lerArquivoParagrafos', 'caderno-revisao.js': 'renderRevisaoCaderno', 'admin.js': 'function carregarAlunos',
@@ -110,6 +110,34 @@ if (SP) {
     ok(/^O texto afirma/.test(g.itens[1].comentario) && /\n\n🎯 Mecanismo da banca: Antecipar/.test(g.itens[1].comentario) && !/INCID|TÓPICO|Enunciado repetido/.test(g.itens[1].comentario) && /começa antes/.test(g.itens[1].bizu) && !/CICLOS|ESPELHO|PLANO/.test(g.itens[6].bizu + g.itens[6].comentario), 'gabarito cartao por cartao: ANALISE + MECANISMO no comentario, BIZU limpo, sem ficha/ciclos/espelho')
     ok(g.itens[1].disciplina === 'Língua Portuguesa' && g.itens[1].assunto === 'Compreensão e interpretação' && g.itens[6].assunto === 'Vedações', 'gabarito cartao por cartao: disciplina e assunto (topico do edital)', g.itens[1].assunto)
   } else ok(false, 'simulado-parser.js sem o leitor de gabarito comentado')
+}
+// triagem de duplicadas na importacao do banco
+const BD = existe('banco-dedup.js') && carregar('banco-dedup.js')
+if (BD) {
+  const ind = { porChave: {}, porId: {}, total: 0 }
+  const base = [
+    { id: 'b1', enunciado: 'A legítima defesa exige agressão injusta, atual ou iminente.', gabarito: 'C', comentario: null, bizu: null },
+    { id: 'b2', enunciado: 'Assinale a correta.', texto_apoio: 'Texto CG1A1 sobre patrulhamento', alternativas: ['a', 'b'], gabarito: 'A', comentario: 'x', bizu: 'y', assunto: 'z' },
+    { id: 'b3', enunciado: 'Item com gabarito C no banco e muito texto para passar de sessenta letras.', gabarito: 'C' }
+  ]
+  base.forEach(q => { const x = { id: q.id, gabarito: q.gabarito, comentario: !!q.comentario, bizu: !!q.bizu, assunto: !!q.assunto, concursos: q.id === 'b2' ? { c1: 1 } : {} }; ind.porId[q.id] = x; ind.porChave[BD.chave(q)] = x; ind.total++ })
+  const lote = [
+    { enunciado: 'A LEGITIMA DEFESA exige agressao injusta, atual ou iminente', gabarito: 'C', comentario: 'novo coment', bizu: 'novo bizu' },
+    { enunciado: 'Assinale a correta.', texto_apoio: 'Texto CG1A1 sobre patrulhamento', alternativas: ['a', 'b'], gabarito: 'A' },
+    { enunciado: 'Assinale a correta.', texto_apoio: 'Outro texto completamente diferente', alternativas: ['a', 'b'], gabarito: 'B' },
+    { enunciado: 'Questao nova de verdade sobre o Estatuto dos Militares de Alagoas.', gabarito: 'E' },
+    { enunciado: 'Questao nova de verdade sobre o Estatuto dos Militares de Alagoas.', gabarito: 'E', bizu: 'bizu da repetida' },
+    { enunciado: 'Item com gabarito C no banco e muito texto para passar de sessenta letras.', gabarito: 'E', comentario: 'diz E' }
+  ]
+  const t = BD.triar(lote, ind, 'c1'), r = BD.resumo(t)
+  ok(t[0].acao === 'existe' && t[0].id === 'b1' && t[0].vincular && t[0].completar.comentario === 'novo coment', 'triagem: mesma questao com acento/maiuscula diferente e reconhecida, ganha vinculo e comentario')
+  ok(t[1].acao === 'existe' && !t[1].vincular && !t[1].completar, 'triagem: ja vinculada e completa nao muda nada')
+  ok(t[2].acao === 'nova', 'triagem: enunciado curto igual com texto de apoio diferente e outra questao')
+  ok(t[3].acao === 'nova' && t[4].acao === 'repetida' && t[3].q.bizu === 'bizu da repetida', 'triagem: repetida dentro do lote entra uma vez so (aproveitando o bizu)')
+  ok(t[5].conflito && !t[5].completar && t[5].gabBanco === 'C', 'triagem: gabarito diferente vira conflito e nao mexe na questao')
+  ok(r.novas === 2 && r.existe === 3 && r.repetidas === 1 && r.vincular === 2 && r.conflitos === 1, 'triagem: resumo', JSON.stringify(r))
+  BD.registrarNovas(ind, [lote[3]], ['n1'], 'c1')
+  ok(BD.triar([lote[3]], ind, 'c1')[0].acao === 'existe', 'triagem: questao recem-importada nao duplica na importacao seguinte')
 }
 const LP = existe('lei-parser.js') && carregar('lei-parser.js')
 if (LP) {
