@@ -130,6 +130,41 @@ if (SP) {
     ok(['Direito Administrativo (itens 61 a 70)', 'Legislação PMAL', 'Noções de Dir. Proc. Penal Militar (q113–q120)', 'Direitos Humanos', 'Direito Processual Penal'].map(x => casarDisciplina(x, AL)).join('|') === 'Noções de Direito Administrativo|Legislação Pertinente ao Policial Militar de Alagoas|Noções de Direito Processual Penal Militar|Noções de Direitos Humanos|Noções de Direito Processual Penal' && ['Incorreta.', 'A B C D', 'Parte 1 – Conhecimentos Básicos', 'Instruções Gerais'].every(x => !casarDisciplina(x, AL)), 'disciplina: variacoes casam com o edital; lixo nao casa')
   } else ok(false, 'simulado-parser.js sem o leitor de gabarito comentado')
 }
+// cronograma: encaixe minimo (so encurta o necessario, so no comeco; o resto volta ao tempo cheio)
+if (existe('motor-cronograma.js')) {
+  const vm = require('vm'), ctxM = {}
+  vm.createContext(ctxM)
+  vm.runInContext(fs.readFileSync(path.join(RAIZ, 'motor-cronograma.js'), 'utf8') + ';this.M={montarPlano,melhorPlano}', ctxM)
+  const { montarPlano, melhorPlano } = ctxM.M
+  if (!melhorPlano) ok(false, 'motor-cronograma.js sem melhorPlano')
+  else {
+    const temasM = (n, semTeo) => Array.from({ length: n }, (_, i) => ({ disciplina: ['Port', 'Mat', 'Penal', 'Const'][i % 4], topico: 'T' + i, topico_id: 't' + i, prioridade: ['alta', 'media', 'baixa'][i % 3], status: 'ativo', semTeoria: i < semTeo }))
+    const baseM = prova => ({ inicio: '2026-11-16', prova, dias: [1, 2, 3, 4, 5], porDia: 4, tempo: 60, etapas: [{ tipo: 'teoria', off: 0 }, { tipo: 'questoes', off: 4 }, { tipo: 'revisao', off: 15 }] })
+    const curtas = pl => pl.calendario.reduce((n, d) => n + d.sessoes.filter(x => x.min < 60).length, 0)
+    const maxS = pl => pl.calendario.reduce((m, d) => Math.max(m, d.sessoes.length), 0)
+    // prazo apertado (como o do Danilo: 106 temas ate 17/01)
+    const tA = temasM(106, 26), bA = baseM('2027-01-17')
+    let velho = montarPlano(tA, Object.assign({ nivel: 0 }, bA)); for (let n = 1; n <= 5 && velho.naoAlocados > 0; n++) { const t = montarPlano(tA, Object.assign({ nivel: n }, bA)); if (t.naoAlocados < velho.naoAlocados) velho = t; if (!velho.naoAlocados) break }
+    const novoA = melhorPlano(tA, bA, true)
+    ok(novoA.naoAlocados === 0, 'encaixe minimo: prazo apertado continua cabendo todos os temas')
+    const excesso = pl => pl.calendario.reduce((n, d) => n + Math.max(0, d.sessoes.length - 6), 0)
+    ok(excesso(novoA) < excesso(velho), 'encaixe minimo: menos sessoes acima do limite do dia que antes (' + excesso(novoA) + ' x ' + excesso(velho) + ')')
+    ok(!novoA.ateData || novoA.calendario.filter(d => d.data >= novoA.ateData).every(d => d.sessoes.every(x => x.min === 60 || x.reta)), 'encaixe minimo: depois da data de encaixe, tudo no tempo cheio')
+    ok(novoA.calendario.every(d => d.sessoes.every(x => x.min >= 30)), 'encaixe minimo: com sessao de 60 min, nada abaixo de 30 min')
+    ok(maxS(novoA) <= 8, 'encaixe minimo: no maximo 8 sessoes num dia (antes: ' + maxS(velho) + ')')
+    // com folga (aluno marcou temas como estudados): nada encurtado
+    const tB = temasM(60, 50), novoB = melhorPlano(tB, baseM('2027-03-30'), true)
+    ok(novoB.naoAlocados === 0 && curtas(novoB) === 0 && maxS(novoB) <= 4, 'encaixe minimo: com tempo sobrando, nenhuma sessao encurtada e no maximo as sessoes do dia')
+    // aperto leve: prefere 45 min a 30 min
+    const tC = temasM(70, 10), bC = baseM('2027-01-29'), novoC = melhorPlano(tC, bC, true)
+    const minimos = novoC.calendario.reduce((a, d) => a.concat(d.sessoes.filter(x => !x.reta).map(x => x.min)), [])
+    ok(novoC.naoAlocados === 0 && (curtas(novoC) === 0 || minimos.filter(m => m < 60).every(m => m === 45) || novoC.fator === 0.5), 'encaixe minimo: aperto leve usa 45 min antes de 30 min (fator ' + novoC.fator + ')')
+    // reforco (sobra de tempo) sempre no tempo cheio
+    const pR = montarPlano(temasM(20, 0), Object.assign({ nivel: 4 }, baseM('2027-04-30')))
+    ok(pR.calendario.every(d => d.sessoes.filter(x => x.reforco).every(x => x.min === 60)), 'reforco: sessoes de reforco sempre no tempo cheio')
+  }
+}
+
 // triagem de duplicadas na importacao do banco
 const BD = existe('banco-dedup.js') && carregar('banco-dedup.js')
 if (BD) {
