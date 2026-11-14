@@ -38,6 +38,8 @@ if(!db){db=window.SEED||{};}
 function save(){localStorage.setItem(K,JSON.stringify(db))}
 window._db=function(){return db}
 let nid=1000
+// continua a numeracao de ids entre paginas (o banco falso fica salvo no navegador)
+try{Object.keys(db).forEach(t=>Array.isArray(db[t])&&db[t].forEach(r=>{const n=parseInt(r&&r.id,10);if(String(n)===String(r&&r.id)&&n>=nid)nid=n+1}))}catch(e){}
 function Q(t){this.t=t;this.f=[];this.op='select';this.one=0;this.ord=[];this.rg=null;this.d=null;this.oc=null}
 Q.prototype.select=function(c,o){if(o&&o.count)this.cnt=o.head?2:1;this.sel=c||'';return this}
 Q.prototype.eq=function(c,v){this.f.push(r=>String(r[c])===String(v));return this}
@@ -65,7 +67,7 @@ Q.prototype.run=function(){
   const T=db[this.t]=db[this.t]||[]
   if(window.FAIL&&window.FAIL(this))return {data:null,error:{message:window.FAIL(this)}}
   const m=r=>this.f.every(f=>f(r))
-  if(this.op==='insert'){const a=Array.isArray(this.d)?this.d:[this.d];const ins=a.map(x=>{x=Object.assign({},x);if(x.id==null)x.id=String(nid++);if(this.t==='feedback_alunos'){if(x.aluno_id==null)x.aluno_id=window.UID;if(x.status==null)x.status='aberto';if(x.criado_em==null)x.criado_em=new Date().toISOString()}T.push(x);return x});save();return {data:this.one?ins[0]:ins,error:null}}
+  if(this.op==='insert'){const a=Array.isArray(this.d)?this.d:[this.d];const ins=a.map(x=>{x=Object.assign({},x);if(x.id==null)x.id=String(nid++);if(this.t==='questoes'){if(x.criado_em==null)x.criado_em=new Date().toISOString();if(x.ativo==null)x.ativo=true}if(this.t==='feedback_alunos'){if(x.aluno_id==null)x.aluno_id=window.UID;if(x.status==null)x.status='aberto';if(x.criado_em==null)x.criado_em=new Date().toISOString()}T.push(x);return x});save();return {data:this.one?ins[0]:ins,error:null}}
   if(this.op==='upsert'){const a=Array.isArray(this.d)?this.d:[this.d];a.forEach(x=>{const ex=T.find(r=>this.oc.every(k=>String(r[k])===String(x[k])));if(ex)Object.assign(ex,x);else{const y=Object.assign({},x);if(y.id==null)y.id=String(nid++);T.push(y)}});save();return {data:null,error:null}}
   if(this.op==='update'){const up=T.filter(m);up.forEach(r=>Object.assign(r,this.d));save();const c=up.map(x=>Object.assign({},x));return {data:this.one?(c[0]||null):c,error:null}}
   if(this.op==='delete'&&window.BLOQ_DEL){return {data:[],error:null}}
