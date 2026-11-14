@@ -146,8 +146,7 @@ async function calcular(){
       return {key:'t'+i,disciplina:t.disciplina,topico:t.topico,topico_id:t.id,prioridade:t.prioridade||'media',incluir:true,status:'ativo',semTeoria:!!feito[t.id]&&_nivel==='zero'}})
     if(!_temas.length){msg('Este concurso ainda nao tem temas no edital.','var(--erro)');return}
     const base={inicio:inicio,prova:prova,dias:dias,porDia:_carga.porDia,tempo:_carga.tempo,etapas:etapas()}
-    let plano=montarPlano(_temas,Object.assign({nivel:0},base))
-    for(let n=1;n<=5&&plano.naoAlocados>0;n++){const t=montarPlano(_temas,Object.assign({nivel:n},base));if(t.naoAlocados<plano.naoAlocados)plano=t;if(!plano.naoAlocados)break}
+    const plano=melhorPlano(_temas,base,true)
     _plano=plano
     mostrar(base)
     msg('')

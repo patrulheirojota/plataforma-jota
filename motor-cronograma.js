@@ -38,8 +38,9 @@ function intercalar(temas){
 
 // Quanto tempo cada sessao ocupa, conforme o nivel de encaixe.
 // nivel 0 = tudo no tempo cheio. Quanto maior o nivel, mais coisa entra com meio tempo.
-function minutosDaSessao(tipo, prioridade, tempo, nivel){
-  const meio = Math.max(15, Math.round((tempo/2)/5)*5)
+// fator: quanto do tempo fica na sessao encurtada (0.75 = 45 de 60 min; 0.5 = 30 de 60 min). Nunca menos de 15 min.
+function minutosDaSessao(tipo, prioridade, tempo, nivel, fator){
+  const meio = Math.min(tempo, Math.max(15, Math.round((tempo*(fator||0.5))/5)*5))
   if (nivel <= 0) return tempo
   const p = prioridade || 'media'
   if (nivel >= 1 && tipo === 'revisao') return meio
@@ -75,8 +76,13 @@ function montarPlano(temas, cfg){
   const comReforco = cfg.reforco !== false && temas.length > 0
   let rodada = 1, reforcos = 0
   const dias = cfg.dias
-  const nivel = cfg.nivel || 0
+  const nivelCfg = cfg.nivel || 0
+  // encaixe so ate a data "ateData" (exclusive): depois dela, tudo volta ao tempo cheio
+  const ateData = cfg.ateData || null
+  const maxSess = cfg.maxSessoes || 0
+  let nivel = nivelCfg
   const tempo = cfg.tempo || 60
+  const fator = cfg.fator || 0.5
   const orcamento = cfg.porDia * tempo   // minutos disponiveis por dia
   const datas = []
   let d = parseD(cfg.inicio)
@@ -95,6 +101,8 @@ function montarPlano(temas, cfg){
     const dia = datas[i]
     const sessoes = []
     let usado = 0
+    nivel = (ateData && ymd(dia) >= ateData) ? 0 : nivelCfg
+    const cheio = function(){ return maxSess > 0 && sessoes.length >= maxSess }
 
     // guarda espaco para pelo menos 1 tema novo, se ainda houver fila
     let reserva = 0
@@ -102,13 +110,15 @@ function montarPlano(temas, cfg){
     if (idx < fila.length && cfg.porDia > 1 && !fila[idx]._reforco) {
       const prox = fila[idx]
       const tipoProx = etapasDoTema(prox, cfg)[0].tipo
-      reserva = minutosDaSessao(tipoProx, prox.prioridade, tempo, nivel)
+      reserva = minutosDaSessao(tipoProx, prox.prioridade, tempo, nivel, fator)
     }
 
     const due = pendentes.filter(function(p){ return p.due <= dia }).sort(function(a,b){ return a.due-b.due })
     for (let j=0;j<due.length;j++){
       const p = due[j]
-      const min = minutosDaSessao(p.tipo, p.tema.prioridade, tempo, nivel)
+      if (cheio()) break
+      // reforco e sobra de tempo: sempre no tempo cheio
+      const min = p.tema._reforco ? tempo : minutosDaSessao(p.tipo, p.tema.prioridade, tempo, nivel, fator)
       if (usado + min > orcamento - reserva) continue
       if (min < tempo) encurtadas++
       const sp = { tipo:p.tipo, key:'s'+(seq++), origem:p.origem, disciplina:p.tema.disciplina, topico:p.tema.topico, topico_id:p.tema.topico_id, min:min }
@@ -132,8 +142,8 @@ function montarPlano(temas, cfg){
       // no reforco, pula o tema que ainda tem questoes/revisao pendentes da rodada anterior
       if (tema._reforco && pendentes.some(function(p){ return chaveTema(p.tema) === chaveTema(tema) })) { idx++; continue }
       const et = etapasDoTema(tema, cfg)
-      const min = minutosDaSessao(et[0].tipo, tema.prioridade, tempo, nivel)
-      if (usado + min > orcamento) break
+      const min = tema._reforco ? tempo : minutosDaSessao(et[0].tipo, tema.prioridade, tempo, nivel, fator)
+      if (usado + min > orcamento || cheio()) break
       if (min < tempo && !tema._reforco) encurtadas++
       idx++
       semEspacoRodada = false
@@ -156,7 +166,7 @@ function montarPlano(temas, cfg){
   // o que sobrou do reforco depois da prova simplesmente nao entra (o tema ja foi estudado)
   pendentes = pendentes.filter(function(p){ return !p.tema._reforco })
   if (pendentes.length && calendario.length){
-    const meio = Math.max(15, Math.round((tempo/2)/5)*5)
+    const meio = Math.min(tempo, Math.max(15, Math.round((tempo*fator)/5)*5))
     const limite = Math.round(orcamento * 1.35)   // no maximo 35% a mais num dia
     pendentes.sort(function(a,b){ return a.due-b.due })
     for (let i=0;i<pendentes.length;i++){
@@ -164,9 +174,12 @@ function montarPlano(temas, cfg){
       const dueStr = ymd(p.due)
       let cands = calendario.filter(function(x){ return x.data >= dueStr })
       if (!cands.length) cands = calendario.slice(-Math.min(10, calendario.length))
-      cands.sort(function(a,b){ return (a.minutos||0)-(b.minutos||0) })
+      // reta final: no maximo o limite de sessoes do dia (ou o dobro das sessoes do aluno); vai para o dia mais leve
+      const tetoSess = maxSess > 0 ? maxSess : cfg.porDia * 2
+      cands = cands.filter(function(x){ return x.sessoes.length < tetoSess })
+      cands.sort(function(a,b){ return a.sessoes.length-b.sessoes.length || (a.minutos||0)-(b.minutos||0) })
       const alvo = cands[0]
-      if ((alvo.minutos||0) + meio > limite) { descartadas++; continue }
+      if (!alvo || (alvo.minutos||0) + meio > limite) { descartadas++; continue }
       alvo.sessoes.push({ tipo:p.tipo, key:'s'+(seq++), origem:p.origem, disciplina:p.tema.disciplina, topico:p.tema.topico, topico_id:p.tema.topico_id, min:meio, reta:true })
       alvo.minutos = (alvo.minutos||0) + meio
       retaFinal++
@@ -175,6 +188,47 @@ function montarPlano(temas, cfg){
   }
 
   return { calendario:calendario, naoAlocados: Math.max(0, nOriginal-Math.min(idx, nOriginal)), pendentes: descartadas, retaFinal: retaFinal,
-           encurtadas: encurtadas, nivel: nivel, totalDatas: datas.length, reforcos: reforcos, rodadas: rodada }
+           encurtadas: encurtadas, nivel: nivelCfg, totalDatas: datas.length, reforcos: reforcos, rodadas: rodada,
+           ateData: ateData, fator: fator, datas: datas.map(ymd) }
 }
 
+// Escolhe o plano com o MENOR encaixe possivel:
+// 1) tenta tudo no tempo cheio; 2) se faltar espaco, sobe o nivel de encaixe so ate todos os temas caberem;
+// 3) encurta so o comeco do cronograma (o minimo de dias necessario) — depois dessa data as sessoes
+//    voltam ao tempo cheio; 4) limita o numero de sessoes por dia (sessoes por dia + metade), se der.
+// Assim, quando o aluno marca temas como estudados e sobra tempo, as questoes e revisoes nao ficam curtas a toa.
+function melhorPlano(temas, base, encaixe){
+  const limite = base.porDia + Math.ceil(base.porDia/2)
+  const tempo = base.tempo || 60
+  const tentar = function(n, f, ate, cap){ return montarPlano(temas, Object.assign({}, base, { nivel:n, fator:f, ateData:ate||null, maxSessoes:cap?limite:0 })) }
+  const semEncaixe = tentar(0, 0.5, null, false)
+  if (!semEncaixe.naoAlocados || encaixe === false) return semEncaixe
+    const nota = function(pl){
+    // sessoes alem do limite do dia, minutos cortados e revisoes que ficaram de fora
+    let corte = 0, exc = 0
+    pl.calendario.forEach(function(d){ exc += Math.max(0, d.sessoes.length - limite); d.sessoes.forEach(function(x){ corte += Math.max(0, tempo - x.min) }) })
+    return exc * 250 + corte + pl.pendentes * 600
+  }
+  let melhor = semEncaixe, melhorNota = Infinity
+  const fatores = [0.75, 0.5], caps = [true, false]
+  for (let c=0;c<caps.length;c++){
+    for (let fi=0;fi<fatores.length;fi++){
+      for (let n=1;n<=5;n++){
+        const todo = tentar(n, fatores[fi], null, caps[c])
+        if (todo.naoAlocados > 0) { if (melhorNota === Infinity && todo.naoAlocados < melhor.naoAlocados) melhor = todo; continue }
+        // menor janela de encaixe (em dias de estudo) que ainda cabe tudo; depois dela, tempo cheio
+        const datas = todo.datas
+        let lo = 1, hi = datas.length, ok = todo
+        while (lo < hi){
+          const mid = (lo + hi) >> 1
+          const t = tentar(n, fatores[fi], datas[mid], caps[c])
+          if (!t.naoAlocados && t.pendentes <= todo.pendentes) { hi = mid; ok = t } else lo = mid + 1
+        }
+        const nt = nota(ok)
+        if (nt < melhorNota) { melhor = ok; melhorNota = nt }
+        break   // niveis maiores com o mesmo fator so encurtam mais
+      }
+    }
+  }
+  return melhor
+}

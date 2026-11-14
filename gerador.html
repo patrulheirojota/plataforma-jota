@@ -643,15 +643,8 @@ function gerarPreview(){
   _soRevisao = selecionados.filter(function(t){ return t.status==='so_revisao' }).length
 
   const base = { inicio:inicio, prova:prova, dias:dias, porDia:porDia, dq:dq, dr:dr, etapas:etapasPadrao, tempo:tempo }
-  let plano = montarPlano(selecionados, Object.assign({nivel:0}, base))
-  if (encaixe) {
-    // sobe o nivel de encaixe so ate todos os temas caberem
-    for (let n=1; n<=5 && plano.naoAlocados>0; n++){
-      const tentativa = montarPlano(selecionados, Object.assign({nivel:n}, base))
-      if (tentativa.naoAlocados < plano.naoAlocados) plano = tentativa
-      if (plano.naoAlocados === 0) break
-    }
-  }
+  // encaixe minimo: so encurta o necessario, so no comeco, e o resto volta ao tempo cheio
+  const plano = melhorPlano(selecionados, base, encaixe)
   _plano = plano
   _prevDias = 7
   renderPreview(_plano)
@@ -692,9 +685,13 @@ function renderPreview(plano){
   }
   if (plano.nivel > 0 && plano.encurtadas > 0) {
     const nomes = ['','as revisoes','as revisoes e os temas de prioridade baixa','as revisoes, a prioridade baixa e as questoes de prioridade media','quase todas as sessoes (a teoria de prioridade alta segue no tempo cheio)','todas as sessoes']
+    const tempoG = parseInt(document.getElementById('g-tempo').value)||60
+    const curto = Math.min(tempoG, Math.max(15, Math.round((tempoG*(plano.fator||0.5))/5)*5))
+    let maxS = 0; plano.calendario.forEach(function(d){ maxS = Math.max(maxS, d.sessoes.length) })
     al.innerHTML += '<div style="background:var(--card2);border:1px solid var(--info);border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px;color:var(--info)">'
-      + '<strong>Encaixe automatico ligado.</strong> O prazo ate a prova era curto, entao '+nomes[plano.nivel]+' entraram com metade do tempo ('+plano.encurtadas+' sessoes) para que <strong>nenhum tema ficasse de fora</strong>. '
-      + 'A carga de minutos por dia do aluno continua a mesma.</div>'
+      + '<strong>Encaixe automatico ligado.</strong> O prazo ate a prova era curto, entao '+nomes[plano.nivel]+' entraram com <strong>'+curto+' min</strong> em vez de '+tempoG+' ('+plano.encurtadas+' sessoes) para que <strong>nenhum tema ficasse de fora</strong>'
+      + (plano.ateData ? ' — <strong>so ate '+fmtBR(plano.ateData)+'</strong>; a partir dai tudo volta ao tempo cheio' : '')+'. '
+      + 'A plataforma encurta o minimo possivel. No dia mais cheio sao '+maxS+' sessoes. A carga de minutos por dia do aluno continua a mesma.</div>'
   }
   if (plano.reforcos > 0) {
     let iniRef = ''
@@ -1018,8 +1015,7 @@ function gerarExtras(){
   const temas = _exTops.filter(function(t){ return discs.indexOf(t.disciplina) >= 0 && String(t.topico||'').trim() })
     .map(function(t,i){ return { key:'x'+i, disciplina:t.disciplina, topico:t.topico, topico_id:t.id, prioridade:t.prioridade||'media', incluir:true, status:'ativo' } })
   const base = { inicio:inicio, prova:fim, dias:dias, porDia:porDia, dq:parseInt(document.getElementById('g-dq').value)||5, dr:parseInt(document.getElementById('g-dr').value)||15, etapas:montarEtapas(), tempo:tempo, reforco:false }
-  let plano = montarPlano(temas, Object.assign({ nivel:0 }, base))
-  for (let n=1; n<=5 && plano.naoAlocados>0; n++) { const t = montarPlano(temas, Object.assign({ nivel:n }, base)); if (t.naoAlocados < plano.naoAlocados) plano = t }
+  const plano = melhorPlano(temas, base, true)
   _exPlano = plano
   let nS = 0; plano.calendario.forEach(function(d){ nS += d.sessoes.length })
   const prim = plano.calendario.slice(0, 4).map(function(d){

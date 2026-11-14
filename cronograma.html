@@ -1899,14 +1899,26 @@ function tempoBase(){
   return m
 }
 
-function minNoNivel(sx,nivel){
+// tempo cheio da sessao: questoes/revisao que ja foram encurtadas antes voltam ao tempo do aluno
+// (assim um replanejamento nao encurta de novo o que ja estava curto: 60 -> 30 -> 15).
+// Teoria e sessoes divididas (continuacao) ficam com o tempo que tem.
+function tempoCheio(sx){
   const t=sx.tempo_minutos||tempoBase()
-  if(nivel<=0||sx.tipo==='teoria')return t
-  const meio=Math.max(15,Math.round(t/2/5)*5)
-  const terco=Math.max(15,Math.round(t/3/5)*5)
-  if(nivel===1)return sx.tipo==='revisao'?meio:t
-  if(nivel===2)return meio
-  return terco
+  if(sx.tipo==='teoria'||sx.parcial||sx.continuacao_de)return t
+  return Math.max(t,tempoBase())
+}
+// niveis de encaixe (so questoes e revisao; teoria nunca encurta):
+// 1 revisao 3/4 · 2 questoes e revisao 3/4 · 3 revisao 1/2 · 4 as duas 1/2 · 5 as duas 1/3 (minimo 15 min)
+function minNoNivel(sx,nivel){
+  const t=tempoCheio(sx)
+  if(nivel<=0||sx.tipo==='teoria'||sx.parcial||sx.continuacao_de)return t
+  const f=function(x){return Math.min(t,Math.max(15,Math.round(t*x/5)*5))}
+  const rev=sx.tipo==='revisao'
+  if(nivel===1)return rev?f(0.75):t
+  if(nivel===2)return f(0.75)
+  if(nivel===3)return rev?f(0.5):f(0.75)
+  if(nivel===4)return f(0.5)
+  return f(1/3)
 }
 
 function limitePlano(inicio){
@@ -1917,7 +1929,8 @@ function limitePlano(inicio){
   return lim
 }
 
-function alocarReplan(fila,inicio,nivel,orc,dias,lim,fixo){
+// ate: a partir desta data (inclusive) nao encurta nada; maxS: limite de sessoes no dia (0 = sem limite)
+function alocarReplan(fila,inicio,nivel,orc,dias,lim,fixo,ate,maxS){
   const itens=[],carga={}
   let d=parseD(inicio),i=0,guarda=0
   while(i<fila.length&&guarda<2000){
@@ -1925,9 +1938,11 @@ function alocarReplan(fila,inicio,nivel,orc,dias,lim,fixo){
     if(lim&&k>lim)break
     if(dias.indexOf(d.getDay())>=0){
       let usado=fixo[k]||0,colocou=0
+      const nv=(ate&&k>=ate)?0:nivel
       while(i<fila.length){
-        const m=minNoNivel(fila[i],nivel)
+        const m=minNoNivel(fila[i],nv)
         if(usado+m>orc&&!(colocou===0&&usado===0))break
+        if(maxS&&colocou>=maxS)break
         itens.push({s:fila[i],data:k,min:m,idx:i});usado+=m;i++;colocou++
       }
       carga[k]=usado
@@ -2041,15 +2056,40 @@ function simularReplan(inicio,primeiro,opts){
   _sessoes.forEach(function(x){if(x.concluida&&x.data>=inicio)fixo[x.data]=(fixo[x.data]||0)+(x.tempo_minutos||0)})
 
   const fimAntes=_sessoes.filter(function(x){return !x.concluida}).map(function(x){return x.data}).sort().pop()||inicio
+  // 1) tudo no tempo cheio (as que estavam encurtadas voltam ao normal se couber)
   let r=alocarReplan(fila,inicio,0,orc,dias,lim,fixo)
-  for(let n=1;n<=3&&r.faltam.length;n++)r=alocarReplan(fila,inicio,n,orc,dias,lim,fixo)
+  // 2) se nao cabe: encurta o minimo (3/4 antes de 1/2), so no comeco do periodo (o resto volta ao tempo cheio)
+  //    e, se der, sem passar de "sessoes por dia + metade" num dia
+  if(r.faltam.length){
+    const cap=capacidadeDia(), maxS=cap+Math.ceil(cap/2)
+    const datas=[]
+    for(let dd=parseD(inicio),g=0;g<1500&&(!lim||ymd(dd)<=lim);dd=addDays(dd,1),g++)if(dias.indexOf(dd.getDay())>=0)datas.push(ymd(dd))
+    let achou=null
+    ;[maxS,0].forEach(function(ms){
+      if(achou)return
+      for(let n=1;n<=5&&!achou;n++){
+        const tudo=alocarReplan(fila,inicio,n,orc,dias,lim,fixo,null,ms)
+        if(tudo.faltam.length)continue
+        let lo=1,hi=datas.length,ok=tudo
+        while(lo<hi){
+          const mid=(lo+hi)>>1
+          const t=alocarReplan(fila,inicio,n,orc,dias,lim,fixo,datas[mid],ms)
+          if(!t.faltam.length){hi=mid;ok=t}else lo=mid+1
+        }
+        ok.ate=hi<datas.length?datas[hi]:null
+        achou=ok
+      }
+    })
+    if(achou)r=achou
+    else{ for(let n=1;n<=5&&r.faltam.length;n++)r=alocarReplan(fila,inicio,n,orc,dias,lim,fixo) }
+  }
 
   // ultimo recurso: nada se perde e a ordem teoria -> questoes -> revisao se mantem.
   // Aumenta a carga de TODOS os dias por igual (de 15 em 15 min) ate tudo caber antes da prova.
   let sobrecarga=0, orcUsado=orc
   if(r.faltam.length){
     for(let B=orc+15;B<=orc*4&&r.faltam.length;B+=15){
-      r=alocarReplan(fila,inicio,3,B,dias,lim,fixo); orcUsado=B
+      r=alocarReplan(fila,inicio,5,B,dias,lim,fixo); orcUsado=B
     }
     if(r.faltam.length){
       // periodo realmente impossivel: coloca o restante no ultimo dia util, em ordem
@@ -2077,13 +2117,16 @@ function simularReplan(inicio,primeiro,opts){
     return it.s._novo||it.data!==it.s.data||it.ordem!==(it.s.ordem||0)||it.min!==(it.s.tempo_minutos||0)
   })
   const encurtadas=r.itens.filter(function(it){return !it.s._novo&&it.min<(it.s.tempo_minutos||0)}).length
+  const restauradas=r.itens.filter(function(it){return !it.s._novo&&it.min>(it.s.tempo_minutos||0)}).length
+  const voltaramCheio=r.itens.filter(function(it){return !it.s._novo&&it.min>(it.s.tempo_minutos||0)&&it.min>=tempoCheio(it.s)}).length
+  const curtasDepois=r.itens.filter(function(it){return it.s.tipo!=='teoria'&&it.min<tempoCheio(it.s)}).length
   const fimDepois=r.itens.map(function(it){return it.data}).concat(_sessoes.filter(function(x){return !x.concluida&&x.data<inicio&&!ids[x.id]}).map(function(x){return x.data})).sort().pop()||inicio
   let maxDia=0
   Object.keys(porDia).forEach(function(k){
     const t=(fixo[k]||0)+porDia[k].reduce(function(a,it){return a+it.min},0)
     if(t>maxDia)maxDia=t
   })
-  return {itens:r.itens,mudancas:mudancas,nivel:r.nivel,encurtadas:encurtadas,sobrecarga:sobrecarga,puxadas:dep.puxadas,orcUsado:orcUsado,recriadas:recriadas,
+  return {itens:r.itens,mudancas:mudancas,nivel:r.nivel,encurtadas:encurtadas,restauradas:restauradas,voltaramCheio:voltaramCheio,curtasDepois:curtasDepois,ateEncaixe:r.ate||null,sobrecarga:sobrecarga,puxadas:dep.puxadas,orcUsado:orcUsado,recriadas:recriadas,
     fimAntes:fimAntes,fimDepois:fimDepois,lim:lim,orc:orc,maxDia:maxDia,total:fila.length}
 }
 
@@ -2113,7 +2156,9 @@ function textoReplan(p){
   if(p.fimDepois>p.fimAntes)partes.push('o plano foi alongado ate '+br(p.fimDepois))
   else if(p.fimDepois<p.fimAntes)partes.push('o plano agora termina antes, em '+br(p.fimDepois))
   else partes.push('o plano continua terminando em '+br(p.fimDepois))
-  if(p.encurtadas)partes.push(p.encurtadas+' sessoes de '+(p.nivel===1?'revisao':'questoes/revisao')+' ficaram mais curtas para caber ate a prova')
+  if(p.restauradas)partes.push(p.restauradas+' sessoes de questoes/revisao que estavam encurtadas ficaram mais longas'+(p.voltaramCheio?' ('+(p.voltaramCheio===p.restauradas?'todas':p.voltaramCheio)+' de volta ao tempo cheio de '+dur(tempoBase())+')':''))
+  if(p.curtasDepois&&!p.encurtadas)partes.push('para caber ate a prova, '+p.curtasDepois+' ainda ficam abaixo do tempo cheio'+(p.ateEncaixe?' (so ate '+br(p.ateEncaixe)+'; depois, tempo cheio)':''))
+  if(p.encurtadas)partes.push(p.encurtadas+' sessoes de '+(p.nivel===1?'revisao':'questoes/revisao')+' ficaram mais curtas para caber ate a prova'+(p.ateEncaixe?' (so ate '+br(p.ateEncaixe)+'; depois, tempo cheio)':''))
   if(p.recriadas)partes.push(p.recriadas+' teoria(s) que tinham sumido do plano foram recriadas')
   if(p.puxadas)partes.push(p.puxadas+' tema(s) reordenados para a teoria vir antes das questoes/revisao')
   if(p.sobrecarga)partes.push('tempo diario subiu para ate '+dur(p.orcUsado)+' em '+p.sobrecarga+' dia(s) para caber tudo ate a prova (nenhuma sessao perdida)')
