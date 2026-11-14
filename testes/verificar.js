@@ -109,6 +109,20 @@ if (SP) {
     ok(JSON.stringify(g.gab) === '{"1":"E","2":"C","3":"C","4":"C","5":"E","6":"E"}' && g.nCom === 6 && g.nBizu === 6 && !g.conflitos.length, 'gabarito cartao por cartao: gabarito rapido + GABARITO: no cabecalho', JSON.stringify(g.gab))
     ok(/^O texto afirma/.test(g.itens[1].comentario) && /\n\n🎯 Mecanismo da banca: Antecipar/.test(g.itens[1].comentario) && !/INCID|TÓPICO|Enunciado repetido/.test(g.itens[1].comentario) && /começa antes/.test(g.itens[1].bizu) && !/CICLOS|ESPELHO|PLANO/.test(g.itens[6].bizu + g.itens[6].comentario), 'gabarito cartao por cartao: ANALISE + MECANISMO no comentario, BIZU limpo, sem ficha/ciclos/espelho')
     ok(g.itens[1].disciplina === 'Língua Portuguesa' && g.itens[1].assunto === 'Compreensão e interpretação' && g.itens[6].assunto === 'Vedações', 'gabarito cartao por cartao: disciplina e assunto (topico do edital)', g.itens[1].assunto)
+    // caderno em PDF (PMPE): instrucoes numeradas, "INCORRETA."/"EXCETO" em linha propria, tabela "A B C D", "QUESTOES 01 A 02"
+    const PE = ['LÍNGUA PORTUGUESA', 'HISTÓRIA DE PERNAMBUCO', 'RACIOCÍNIO LÓGICO', 'INFORMÁTICA', 'DIREITO CONSTITUCIONAL', 'DIREITOS HUMANOS E LEGISLAÇÃO EXTRAVAGANTE']
+    ;[PE, null].forEach(lista => {
+      const pe = lerSimulado(fx('caderno-pmpe-pdf.txt').split('\n'), { disciplinas: lista })
+      const ds = pe.itens.map(q => q.disciplina)
+      ok(pe.itens.length === 6 && pe.itens.every(q => q.tipo === 'multipla' && q.alternativas.length === 5) && pe.itens.map(q => q.numero).join() === '1,2,3,4,5,6', 'caderno PDF: instrucoes numeradas e tabela nao viram questao (' + (lista ? 'com' : 'sem') + ' edital)', pe.itens.map(q => q.numero + ':' + q.tipo).join(' '))
+      ok(ds.join('|') === 'Língua Portuguesa|Língua Portuguesa|Informática|Informática|Direitos Humanos e Legislação Extravagante|Direitos Humanos e Legislação Extravagante', 'caderno PDF: "INCORRETA.", "EXCETO", "A B C D" e "COLUNA 1" nao viram disciplina (' + (lista ? 'com' : 'sem') + ' edital)', ds.join('|'))
+      ok(/INCORRETA/.test(pe.itens[0].enunciado) && /EXCETO/.test(pe.itens[3].enunciado) && !/QUESTÕES 0/.test(pe.itens.map(q => q.texto_apoio || '').join()), 'caderno PDF: "INCORRETA." e "EXCETO" ficam no enunciado; faixa "QUESTOES 01 A 02" nao vai para o texto de apoio')
+    })
+    const AL = ['LÍNGUA PORTUGUESA', 'MATEMÁTICA', 'NOÇÕES DE INFORMÁTICA', 'LEGISLAÇÃO PERTINENTE AO POLICIAL MILITAR DE ALAGOAS', 'NOÇÕES DE DIREITO ADMINISTRATIVO', 'NOÇÕES DE DIREITO PROCESSUAL PENAL', 'NOÇÕES DE DIREITO PROCESSUAL PENAL MILITAR', 'NOÇÕES DE DIREITOS HUMANOS']
+    const al = lerSimulado(fx('caderno-pmal-ce.txt').split('\n'), { disciplinas: AL })
+    ok(al.itens.length === 4 && al.itens.map(q => q.disciplina).join('|') === 'Língua Portuguesa|Língua Portuguesa|Noções de Direito Processual Penal Militar|Noções de Direito Processual Penal Militar' && al.itens.every(q => q.tipo === 'certo_errado' && !/Certo|PARTE/.test(q.enunciado + (q.texto_apoio || ''))), 'caderno CE: "PARTE 1", "(ITENS 1 A 2)" e "( ) Certo ( ) Errado" nao viram disciplina; nome do edital', al.itens.map(q => q.disciplina).join('|'))
+    const { casarDisciplina } = SP
+    ok(['Direito Administrativo (itens 61 a 70)', 'Legislação PMAL', 'Noções de Dir. Proc. Penal Militar (q113–q120)', 'Direitos Humanos', 'Direito Processual Penal'].map(x => casarDisciplina(x, AL)).join('|') === 'Noções de Direito Administrativo|Legislação Pertinente ao Policial Militar de Alagoas|Noções de Direito Processual Penal Militar|Noções de Direitos Humanos|Noções de Direito Processual Penal' && ['Incorreta.', 'A B C D', 'Parte 1 – Conhecimentos Básicos', 'Instruções Gerais'].every(x => !casarDisciplina(x, AL)), 'disciplina: variacoes casam com o edital; lixo nao casa')
   } else ok(false, 'simulado-parser.js sem o leitor de gabarito comentado')
 }
 // triagem de duplicadas na importacao do banco
