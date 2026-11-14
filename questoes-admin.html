@@ -873,7 +873,7 @@ async function validarArray(arr,deArq){
     const pa=porArq[q._arq]
     let motivo=''
     if(q.tipo==='certo_errado'&&pa.m>=pa.t*0.7)motivo='veio sem alternativas num simulado de multipla escolha (questao cortada ou instrucao da prova)'
-    else if(window.RX_INSTRUCAO_SIM&&RX_INSTRUCAO_SIM.test(q.enunciado||'')&&String(q.enunciado||'').length<260)motivo='parece instrucao da prova, nao questao'
+    else if(q.tipo==='certo_errado'&&window.RX_INSTRUCAO_SIM&&RX_INSTRUCAO_SIM.test(q.enunciado||'')&&String(q.enunciado||'').length<260)motivo='parece instrucao da prova, nao questao'
     if(motivo){_foraArq.push(esc(q._arq)+' · questao '+(q._n||'?')+': '+motivo+' — "'+esc(String(q.enunciado||'').slice(0,80))+'..."');return false}
     return true
   })

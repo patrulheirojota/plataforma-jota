@@ -12,7 +12,7 @@
    Funciona no navegador e no Node (para testes).
    ===================================================================== */
 (function (raiz) {
-  var RX_NUM = /^\s*(?:quest[aã]o|item)?\s*(\d{1,3})\s*(?:[.)\-–—:]\s*|\s{2,}|\s(?=["“(«A-ZÁÉÍÓÚÂÊÔÃÕÇ]))(.*)$/i
+  var RX_NUM = /^\s*(?:quest[aã]o|item)?\s*(\d{1,3})\s*(?:[.)\-–—:]\s*|\s{2,}|\s(?=["“(«A-ZÀÁÉÍÓÚÂÊÔÃÕÇ]))(.*)$/i
   var RX_NUM_SO = /^\s*(?:quest[aã]o|item)?\s*(\d{1,3})\s*[.)\-–—:]?\s*$/i
   var RX_ALT = /^\s*\(?\s*([A-Ea-e])\s*[).\-–]\s*(.+)$/
   var RX_CE = /^\s*(?:\(\s*\)\s*)?(certo|errado)\s*$/i
@@ -31,7 +31,7 @@
   var RX_GAB_ANY = /gabarito\s*(?:oficial|preliminar|definitivo)?\s*[:\-–—]\s*(certo|errado|anulad[ao]|[A-E])(?![A-Za-zÀ-ÿ])/i
   var RX_GAB_ANY_G = /gabarito\s*(?:oficial|preliminar|definitivo)?\s*[:\-–—]\s*(certo|errado|anulad[ao]|[A-E])(?![A-Za-zÀ-ÿ]).*$/i
   var RX_TOPICO = /^\s*t[óo]pico(?:\s+do\s+edital)?\s*[:\-–—]\s*(.+)$/i
-  var RX_FICHA = /^\s*(?:t[óo]pico(?:\s+do\s+edital)?|incid[êe]ncia|dificuldade|formato|fundamento|ciclos)\s*[:\-–—]/i
+  var RX_FICHA = /^\s*(?:t[óo]pico(?:\s+do\s+edital)?|incid[êe]ncia|dificuldade|formato|ciclos)\s*[:\-–—]/i
   // fim do cartao: linha de revisao "CICLOS: R1 ( ) R2 ( )..."
   // titulo de secao: so letras maiusculas ("DIREITO ADMINISTRATIVO", "ESPELHO DA REDACAO — CRITERIOS")
   var RX_TIT_SECAO = /^[\sA-ZÀ-ÖØ-Þ\-–—•/]+$/
@@ -159,7 +159,7 @@
     return titulo(nuc)
   }
   // linha de instrucao da prova (capa / orientacoes): nao e questao
-  var RX_INSTRUCAO = /\b(?:este caderno|caderno de (?:quest|prova|aplica)|folha de respostas?|cart[aã]o[- ]resposta|rascunho|transcrev|dura[cç][aã]o (?:total )?da prova|tempo (?:total|destinado)|caneta|fiscal|sala de prova|candidato|marca[cç][aã]o|desconto por resposta|reda[cç][aã]o vale|nota inferior|crit[eé]rio (?:cebraspe|aocp|idecan|fgv|da banca)|confira (?:a numera|o gabarito)|gabarito comentado|boa prova|n[aã]o h[aá] desconto|cada item (?:correto|errado|incorreto)|anula(?:r[aá]|m) (?:um|uma)|confira a numera)/i
+  var RX_INSTRUCAO = /\b(?:este caderno|caderno de (?:quest|prova|aplica)|folha de respostas?|cart[aã]o[- ]resposta|rascunho|transcrev|dura[cç][aã]o (?:total )?da prova|tempo (?:total|destinado)|caneta|fiscal|sala de prova|marca[cç][aã]o|desconto por resposta|reda[cç][aã]o vale|nota inferior|crit[eé]rio (?:cebraspe|aocp|idecan|fgv|da banca)|confira (?:a numera|o gabarito)|gabarito comentado|boa prova|n[aã]o h[aá] desconto|cada item (?:correto|errado|incorreto)|anula(?:r[aá]|m) (?:um|uma)|confira a numera)/i
 
   function gabNorm (g) {
     g = limpa(g).toUpperCase()
@@ -194,7 +194,12 @@
   function lerSimulado (paragrafos, opts) {
     opts = opts || {}
     var listaDisc = opts.disciplinas && opts.disciplinas.length ? opts.disciplinas : null
-    var ps = paragrafos.map(limpa).filter(function (x) { return x })
+    var ps = []
+    paragrafos.map(limpa).filter(function (x) { return x }).forEach(function (x) {
+      // PDF: a ultima alternativa e a questao seguinte na mesma linha ("(E) ... fisica. 59 As 23h...")
+      var mm = x.match(/^(\(?[A-Ea-e]\)\s.+?[.;!?])\s+(\d{1,3})\s+(?=[A-ZÀ-Ý“"«(])(.+)$/)
+      if (mm && parseInt(mm[2], 10) >= 1 && parseInt(mm[2], 10) <= 200 && mm[3].length >= 20) { ps.push(mm[1]); ps.push(mm[2] + ' ' + mm[3]) } else ps.push(x)
+    })
     var avisos = []
     // 1) separa a secao de gabarito do final (se houver)
     var iGab = -1
@@ -241,6 +246,9 @@
       itens[itens.length - 1].comentario = sb.com; itens[itens.length - 1].bizu = sb.bizu
       cur = null
     }
+    var nAltA = corpo.filter(function (x) { return /^\s*\(?[Aa]\)\s*\S/.test(x) }).length
+    var nMarcCE = corpo.filter(function (x) { return RX_CE.test(x) || RX_CE2.test(x) || RX_CE3.test(x) || RX_MARCAS_CE.test(x) }).length
+    var docMultipla = nAltA >= 2 && nAltA > nMarcCE * 2
     // sequencia principal de itens (ignora instrucoes numeradas, tabelas e folha de respostas)
     var candI = []
     // tudo antes do primeiro titulo de disciplina (capa, instrucoes numeradas) nao e questao
@@ -269,8 +277,8 @@
       }
       // numero sozinho e o enunciado na linha seguinte (comum no PDF)
       else if (w > 0 && corpo[i + 1] && limpa(corpo[i + 1]).length >= 20 && !RX_ALT.test(corpo[i + 1]) && !RX_NUM.test(corpo[i + 1])) w = 3
-      if (txt && RX_INSTRUCAO.test(txt)) w = -3
-      if (iPrimDisc > 0 && i < iPrimDisc) w = -3
+      // instrucoes: antes do primeiro titulo de disciplina; sem titulos, pelo vocabulario
+      if (iPrimDisc > 0 ? i < iPrimDisc : (txt && RX_INSTRUCAO.test(txt) && txt.length < 260)) w = -3
       var dig = (p.match(/\d+/) || [''])[0]
       candI.push({ i: i, n: parseInt((m || mso)[1], 10), w: w, pad: dig.length > 1 && dig.charAt(0) === '0' })
     })
@@ -334,7 +342,8 @@
         if (RX_APOIO.test(p) || p.length > 200) { pend.push(p); return }
         cur.alts[cur.alts.length - 1] += ' ' + p; return
       }
-      if (cur.temItem && !cur.ce && RX_APOIO.test(p)) { pend.push(p); return }
+      // multipla escolha: "Com base na planilha...", "Julgue com V ou F..." antes das alternativas sao da propria questao
+      if (cur.temItem && !cur.ce && !docMultipla && RX_APOIO.test(p)) { pend.push(p); return }
       if (cur.ce) { pend.push(p); return }
       cur.linhas.push(p); if (!RX_APOIO.test(p)) cur.temItem = true
     })
@@ -436,6 +445,18 @@
       if (ic >= 0) com = [ls[ic].match(RX_ROT_COM)[1]].concat(ls.slice(ic + 1, fim))
       else if (ig >= 0) com = [resto].concat(ls.slice(ig + 1, fim))
       else com = ls.slice(0, fim)
+      // ficha na mesma linha: "Assunto X Disciplina: Y • Incidencia: alta • Dificuldade: media • Formato: ..."
+      // (o assunto pode quebrar em ate 3 linhas antes de "Disciplina:")
+      for (var kf = 0; kf < Math.min(com.length, 4); kf++) {
+        var lf = String(com[kf] || '')
+        var mf = lf.match(/^(.*?)\s*Disciplina\s*:\s*([^•|]+?)\s*(?:[•|].*)?$/)
+        if (!mf || !/(?:incid[êe]ncia|dificuldade|formato)\s*:/i.test(lf)) continue
+        var af = limpa(com.slice(0, kf).concat([mf[1]]).join(' '))
+        if (!disc && limpa(mf[2]).length <= 70) disc = limpa(mf[2])
+        if (!ass && af.length >= 3 && af.length <= 220) ass = af
+        com = com.slice(kf + 1)
+        break
+      }
       // tira a ficha tecnica (topico, incidencia...) quando nao ha rotulo de comentario
       if (ic < 0) com = com.filter(function (l) { return !RX_FICHA.test(l) })
       com = com.join('\n').trim().replace(/\n\s*mecanismo\s+da\s+banca\s*[:\-–—]\s*/i, '\n\n🎯 Mecanismo da banca: ')
