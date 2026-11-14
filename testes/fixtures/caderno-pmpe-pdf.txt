@@ -1,0 +1,74 @@
+PATRULHEIROS DE ELITE
+SIMULADO 06
+PMPE 2026 — SOLDADO
+INSTRUÇÕES GERAIS
+1. Este caderno contém 60 questões objetivas de múltipla escolha, com 5 alternativas cada.
+2. A duração total da prova é de 5 horas, incluído o tempo destinado à redação e ao preenchimento.
+3. Marque apenas uma alternativa por questão. Questão com mais de uma marcação será anulada.
+4. ATENÇÃO — CRITÉRIO AOCP/PMPE: não há desconto por resposta errada. Nunca deixe questão em branco.
+5. A dificuldade do treino é o que torna a prova fácil. Marque com técnica, não com intuição.
+6. A redação vale 40 pontos — o maior peso isolado do certame. Nota inferior a 12 pontos elimina.
+DISTRIBUIÇÃO DAS QUESTÕES POR BLOCOS.
+LÍNGUA PORTUGUESA
+QUESTÕES 01 A 02
+Texto I
+O policiamento comunitário aproxima a tropa da população e reduz a sensação de insegurança nos bairros atendidos.
+01
+De acordo com o Texto I, assinale a alternativa
+INCORRETA.
+A) O policiamento comunitário aproxima tropa e população.
+B) O texto trata de sensação de insegurança.
+C) O texto afirma que a insegurança aumenta.
+D) Os bairros atendidos são citados.
+E) A tropa é mencionada.
+02
+No Texto I, o termo "comunitário" exerce a função de
+A) substantivo.
+B) adjetivo.
+C) advérbio.
+D) verbo.
+E) pronome.
+INFORMÁTICA
+QUESTÕES 03 A 04
+03
+Considere a planilha a seguir, elaborada no LibreOffice Calc por um batalhão.
+A B C D
+1 Policial Batalhão Ocorrências Horas extras
+2 Sd. Lucas 13º BPM 6 10
+3 Sd. Caio 6º BPM 8 12
+Assinale a alternativa correta.
+A) A soma das ocorrências é 14.
+B) A soma das ocorrências é 15.
+C) A soma das horas é 20.
+D) A média das horas é 12.
+E) Não há dados numéricos.
+04
+São princípios que regem a República nas relações internacionais, todos os abaixo,
+EXCETO
+A) independência nacional.
+B) prevalência dos direitos humanos.
+C) construir uma sociedade livre, justa e solidária.
+D) não intervenção.
+E) igualdade entre os Estados.
+DIREITOS HUMANOS E LEGISLAÇÃO EXTRAVAGANTE
+QUESTÕES 05 A 06
+05
+Relacione a Coluna 1 à Coluna 2 sobre a Lei de Tortura.
+COLUNA 1 COLUNA 2
+I. Tortura-prova ( ) para obter informação
+II. Tortura-castigo ( ) como forma de aplicar castigo
+Assinale a sequência correta.
+A) I – II.
+B) II – I.
+C) I – I.
+D) II – II.
+E) Nenhuma.
+06
+De acordo com a Lei nº 8.069/1990 (Estatuto da Criança e do Adolescente), assinale a alternativa correta.
+A) Criança é a pessoa até 14 anos.
+B) Adolescente é a pessoa entre 12 e 18 anos.
+C) Criança é a pessoa até 10 anos.
+D) Adolescente é a pessoa até 21 anos.
+E) Não há definição legal.
+FOLHA DE RESPOSTAS
+01 02 03 04 05 06
