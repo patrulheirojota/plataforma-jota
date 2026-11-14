@@ -78,6 +78,7 @@
     <button class="aba-btn ativa" onclick="aba('a-imp')">Importar</button>
     <button class="aba-btn" onclick="aba('a-ger')">Gerenciar</button>
     <button class="aba-btn" onclick="aba('a-dup')">Duplicadas</button>
+    <button class="aba-btn" onclick="aba('a-cor')">🧹 Corrigir importação</button>
     <button class="aba-btn" onclick="aba('a-vin')">Reaproveitar</button>
     <button class="aba-btn" onclick="aba('a-mat')">Materiais</button>
     <button class="aba-btn" onclick="aba('a-map')">🧠 Mapas mentais</button>
@@ -155,7 +156,7 @@
       <p style="color:var(--tx3);font-size:13px;margin-bottom:12px">Cole o JSON gerado no outro chat. Use o prompt padrao para garantir o formato certo.</p>
 
       <label style="color:var(--tx3);font-size:12px;display:block;margin-bottom:4px">Vincular ao concurso (opcional, mas recomendado)</label>
-      <select id="imp-concurso" onchange="if(_lote)mostrarTriagem()"><option value="">Nenhum — questao geral</option></select>
+      <select id="imp-concurso" onchange="if(_lote)validarArray(_loteBruto,_deArqUlt)"><option value="">Nenhum — questao geral</option></select>
 
       <div style="background:linear-gradient(135deg,var(--card2),var(--card2));border:1px solid var(--ok);border-radius:11px;padding:14px;margin-top:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
         <div style="font-size:26px">📄</div>
@@ -225,6 +226,7 @@ Para MULTIPLA ESCOLHA, use o botao Baixar planilha modelo: ela tem a coluna alte
   }
 ]'></textarea>
 
+      <label style="display:flex;gap:8px;align-items:flex-start;margin-top:12px;color:var(--tx2);font-size:12.5px;line-height:1.5;cursor:pointer"><input type="checkbox" id="imp-atualizar" onchange="if(_lote)mostrarTriagem()" style="width:16px;height:16px;margin:2px 0 0;flex-shrink:0"> <span><strong>Corrigir as que ja existem</strong> com os dados destes arquivos (disciplina, assunto, texto de apoio, gabarito, comentario e bizu) e reativar as desativadas. Use ao reenviar um simulado que entrou errado.</span></label>
       <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
         <button onclick="validar()" style="flex:1;min-width:150px;background:var(--hov);color:var(--ouro);border:1px solid var(--ouro)">Validar JSON</button>
         <button onclick="importar()" id="btn-imp" style="flex:1;min-width:150px;display:none;background:var(--card2);color:var(--ok);border:1px solid var(--ok)">Importar questoes</button>
@@ -262,6 +264,26 @@ Para MULTIPLA ESCOLHA, use o botao Baixar planilha modelo: ela tem a coluna alte
         </select>
       </div>
       <div id="lista"></div>
+    </div>
+  </div>
+
+  <!-- CORRIGIR IMPORTACAO -->
+  <div id="a-cor" class="aba-conteudo" style="display:none">
+    <div class="card">
+      <h3>Corrigir uma importação</h3>
+      <p style="color:var(--tx3);font-size:13px;line-height:1.6;margin-bottom:10px">Escolha o concurso. Aqui voce ve cada <strong>lote importado</strong> (por data e hora) e as <strong>disciplinas que nao estao no edital</strong>.<br>
+      Para refazer um lote que entrou errado: <strong>1)</strong> desative o lote abaixo (as questoes saem do banco dos alunos, nada e apagado); <strong>2)</strong> na aba Importar, envie de novo os mesmos arquivos com a opcao <em>"Corrigir as que ja existem"</em> marcada. As que estavam certas voltam corrigidas; as que estavam quebradas ficam desativadas.</p>
+      <select id="cor-concurso" onchange="corCarregar()"><option value="">Escolha o concurso...</option></select>
+      <div id="msg-cor" style="display:none;margin-top:10px;font-size:13px"></div>
+    </div>
+    <div class="card" id="card-cor-lotes" style="display:none">
+      <h3>Lotes importados</h3>
+      <div id="cor-lotes"></div>
+    </div>
+    <div class="card" id="card-cor-disc" style="display:none">
+      <h3>Disciplinas fora do edital</h3>
+      <p style="color:var(--tx3);font-size:12.5px;line-height:1.55;margin-bottom:8px">Escolha para qual disciplina do edital cada grupo vai. Quando o nome e so uma variacao (ex.: "Direito Administrativo (itens 61 a 70)"), a plataforma ja sugere. Nomes como "Incorreta.", "A B C D" ou "Instrucoes" misturam questoes de varias materias: nesses casos, refaca o lote (desativar + importar de novo).</p>
+      <div id="cor-disc"></div>
     </div>
   </div>
 
@@ -514,7 +536,7 @@ async function init(){
     mpd.addEventListener('dragleave',function(){mpd.classList.remove('dentro')})
     mpd.addEventListener('drop',function(e){e.preventDefault();mpd.classList.remove('dentro');if(e.dataTransfer.files[0])mpLerArquivo(e.dataTransfer.files[0])})
   }
-  ;['imp-concurso','g-conc','m-concurso','m-filtro','man-concurso','mp-concurso'].forEach(function(id){
+  ;['imp-concurso','g-conc','m-concurso','m-filtro','man-concurso','mp-concurso','cor-concurso'].forEach(function(id){
     const s=document.getElementById(id); if(!s)return
     _concursos.forEach(function(x){s.innerHTML+='<option value="'+x.id+'">'+x.nome+'</option>'})
   })
@@ -632,13 +654,15 @@ function numeroArq(n){const m=(String(n).replace(/\.[a-z0-9]+$/,'').match(/\d+/g
 const RX_ARQ_GAB=/gabarit|comentad|respost|resolu|corre[cç]/i
 async function lerSimuladosWord(files,prog){
   const cads=[],gabs=[],avisos=[]
+  const lista=await discEdital(document.getElementById('imp-concurso').value)
+  if(!lista.length)avisos.push('<span style="color:var(--alerta)">Dica: escolha o concurso <strong>antes</strong> de enviar os arquivos. Com o edital do concurso, a plataforma so aceita como disciplina os nomes do edital (evita "Instrucoes", "Incorreta." etc.).</span>')
   for(let i=0;i<files.length;i++){
     const f=files[i]
     if(prog)prog('Lendo simulado '+(i+1)+' de '+files.length+': '+esc(f.name)+'...')
     let ps
     try{ps=await lerArquivoParagrafos(f)}catch(e){avisos.push(esc(f.name)+': '+esc(e.message));continue}
     if(RX_ARQ_GAB.test(f.name)){gabs.push({nome:f.name,g:lerGabaritoComentado(ps)});continue}
-    const r=lerSimulado(ps)
+    const r=lerSimulado(ps,{disciplinas:lista})
     if(!r.itens.length){
       const g=lerGabaritoComentado(ps)
       if(g.nGab){gabs.push({nome:f.name,g:g});continue}
@@ -670,11 +694,15 @@ async function lerSimuladosWord(files,prog){
         if(ci.comentario&&!q.comentario)q.comentario=ci.comentario
         if(ci.bizu&&!q.bizu)q.bizu=ci.bizu
         if(ci.assunto&&!q.assunto)q.assunto=ci.assunto
-        if(ci.disciplina&&!q.disciplina)q.disciplina=ci.disciplina
+        if(ci.disciplina){
+          // a disciplina do gabarito comentado vale quando a do caderno nao bate com o edital
+          const dg=lista.length?casarDisciplina(ci.disciplina,lista):ci.disciplina
+          if(dg&&(!q.disciplina||q.disciplina==='Geral'||(lista.length&&!casarDisciplina(q.disciplina,lista))))q.disciplina=dg
+        }
       }
       if(q.anulada){anul++;return}
       if(!q.gabarito){semGab++;return}
-      if(!q.disciplina){q.disciplina='Geral';geral++}
+      if(!q.disciplina||q.disciplina==='Geral'){q.disciplina='Geral';geral++}
       itens.push({disciplina:q.disciplina,assunto:q.assunto||null,tipo:q.tipo,enunciado:q.enunciado,texto_apoio:q.texto_apoio||null,
         alternativas:q.tipo==='multipla'?q.alternativas:null,gabarito:q.gabarito,comentario:q.comentario||null,bizu:q.bizu||null,
         banca:banca.trim()||null,ano:ano,origem:'autoral',_arq:c.nome,_n:q.numero})
@@ -828,10 +856,27 @@ function validar(){
   return validarArray(arr,null)
 }
 
+let _loteBruto=null,_deArqUlt=null,_foraArq=[],_mapDisc={},_listaEd=[]
 async function validarArray(arr,deArq){
-  _lote=null;_tri=null
+  _lote=null;_tri=null;_loteBruto=arr;_deArqUlt=deArq
   document.getElementById('btn-imp').style.display='none'
   arr=arr.map(normalizarQ)
+  // disciplina com o nome do edital do concurso escolhido
+  _listaEd=await discEdital(document.getElementById('imp-concurso').value)
+  if(_listaEd.length)arr.forEach(function(q){const c=q.disciplina&&casarDisciplina(q.disciplina,_listaEd);if(c)q.disciplina=c})
+  // itens que nao sao questoes (instrucoes da prova, questao cortada no PDF)
+  _foraArq=[]
+  const porArq={}
+  arr.forEach(function(q){if(q._arq){porArq[q._arq]=porArq[q._arq]||{m:0,t:0};porArq[q._arq].t++;if(q.tipo==='multipla')porArq[q._arq].m++}})
+  arr=arr.filter(function(q){
+    if(!q._arq)return true
+    const pa=porArq[q._arq]
+    let motivo=''
+    if(q.tipo==='certo_errado'&&pa.m>=pa.t*0.7)motivo='veio sem alternativas num simulado de multipla escolha (questao cortada ou instrucao da prova)'
+    else if(window.RX_INSTRUCAO_SIM&&RX_INSTRUCAO_SIM.test(q.enunciado||'')&&String(q.enunciado||'').length<260)motivo='parece instrucao da prova, nao questao'
+    if(motivo){_foraArq.push(esc(q._arq)+' · questao '+(q._n||'?')+': '+motivo+' — "'+esc(String(q.enunciado||'').slice(0,80))+'..."');return false}
+    return true
+  })
   const erros=[], comErro={}
   arr.forEach(function(q,i){
     const id=q.codigo?' ('+q.codigo+')':''
@@ -873,11 +918,16 @@ async function validarArray(arr,deArq){
 }
 let _errosArq=[],_invalidasArq=0
 
+function loteComMapa(){
+  return (_lote||[]).map(function(q){const d=_mapDisc[q.disciplina];return d?Object.assign({},q,{disciplina:d}):q})
+}
+function mudarMapa(sel){_mapDisc[sel.getAttribute('data-d')]=sel.value;mostrarTriagem()}
 function mostrarTriagem(){
-  const arr=_lote
-  if(!arr)return
+  if(!_lote)return
+  const arr=loteComMapa()
   const concurso_id=document.getElementById('imp-concurso').value
-  _tri=BancoDedup.triar(arr,_indice,concurso_id)
+  const atualizar=document.getElementById('imp-atualizar').checked
+  _tri=BancoDedup.triar(arr,_indice,concurso_id,{atualizar:atualizar})
   const s=BancoDedup.resumo(_tri)
   const novas=_tri.filter(function(t){return t.acao==='nova'}).map(function(t){return t.q})
   const duvida=novas.filter(function(q){return q.em_duvida})
@@ -897,11 +947,15 @@ function mostrarTriagem(){
    +(s.vincular?linha('var(--info)',s.vincular,'destas ja existentes ainda nao estao em '+esc(nomeC)+' — vao ganhar o vinculo'):'')
    +(!concurso_id&&s.existe?linha('var(--tx3)','—','sem concurso escolhido: as ja existentes continuam com os concursos que ja tinham'):'')
    +(s.completar?linha('var(--info)',s.completar,'ja existentes sem comentario/bizu/assunto — vao receber os do arquivo'):'')
+   +(s.atualizar?linha('var(--info)',s.atualizar,'ja existentes serao <strong>corrigidas</strong> com os dados do arquivo'+(s.reativar?' ('+s.reativar+' estavam desativadas e voltam)':'')+(s.gabCorrigido?' · <span style="color:var(--alerta)">'+s.gabCorrigido+' com gabarito trocado pelo do arquivo</span>':'')):'')
+   +(s.inativas?linha('var(--tx3)',s.inativas,'destas ja existentes estao desativadas e continuam assim (marque "Corrigir as que ja existem" para reativar)'):'')
    +(s.repetidas?linha('var(--alerta)',s.repetidas,'repetidas dentro dos arquivos — entra uma so'):'')
    +(conflitos.length?linha('var(--erro)',conflitos.length,'ja existem com <strong>gabarito diferente</strong> — nada sera mudado nelas, confira:'):'')
    +(conflitos.length?'<div style="font-size:12px;color:var(--tx3);line-height:1.6;margin:4px 0 6px 54px">'+conflitos.slice(0,15).map(function(t){return (t.q._arq?esc(t.q._arq)+' · questao '+(t.q._n||'')+': ':'')+'arquivo diz <strong>'+esc(t.q.gabarito)+'</strong>, banco diz <strong>'+esc(t.gabBanco)+'</strong> — "'+esc(String(t.q.enunciado).slice(0,90))+'..."'}).join('<br>')+(conflitos.length>15?'<br>...':'')+'</div>':'')
    +(_invalidasArq?linha('var(--erro)',_invalidasArq,'com problema — ficaram de fora:'):'')
    +(_invalidasArq?'<div style="font-size:12px;color:var(--tx3);line-height:1.6;margin:4px 0 6px 54px">'+_errosArq.slice(0,12).join('<br>')+(_errosArq.length>12?'<br>...':'')+'</div>':'')
+   +(_foraArq.length?linha('var(--erro)',_foraArq.length,'nao parecem questoes — ficaram de fora:')+'<div style="font-size:12px;color:var(--tx3);line-height:1.6;margin:4px 0 6px 54px">'+_foraArq.slice(0,12).join('<br>')+(_foraArq.length>12?'<br>...':'')+'</div>':'')
+   +htmlMapaDisc(arr)
    +(_avisosArq.length?'<details style="margin-top:8px;font-size:12.5px;color:var(--tx3)"'+(_avisosArq.length<=6?' open':'')+'><summary style="cursor:pointer;color:var(--tx2)">Arquivos lidos ('+_avisosArq.length+')</summary><div style="line-height:1.7;margin-top:6px">'+_avisosArq.join('<br>')+'</div></details>':'')
    +(s.novas?'<div style="color:var(--ouro);font-size:13px;font-weight:bold;margin:12px 0 8px">Novas: '+ce+' certo/errado · '+(s.novas-ce)+' multipla escolha</div>':'')
    +(duvida.length?'<div style="background:rgba(232,176,75,.08);border:1px solid var(--alerta);border-radius:8px;padding:10px;margin-bottom:10px;font-size:12.5px;color:var(--alerta);line-height:1.55">'
@@ -913,28 +967,59 @@ function mostrarTriagem(){
    +Object.keys(discs).sort().map(function(d){
       return '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--card);font-size:13px"><span>'+esc(d)+'</span><span style="color:var(--tx3)">'+discs[d]+'</span></div>'
     }).join(''):'')+'</div>'
-  const temAlgo=s.novas||s.vincular||s.completar
+  const temAlgo=s.novas||s.vincular||s.completar||s.atualizar
   const b=document.getElementById('btn-imp')
   b.style.display=temAlgo?'block':'none'
-  b.textContent=s.novas?'Importar '+s.novas+' questoes novas':'Aplicar vinculos e comentarios'
+  b.textContent=s.novas?'Importar '+s.novas+' questoes novas'+(s.atualizar?' e corrigir '+s.atualizar:''):(s.atualizar?'Corrigir '+s.atualizar+' questoes':'Aplicar vinculos e comentarios')
+}
+// disciplinas que nao estao no edital do concurso: escolher o destino antes de importar
+function htmlMapaDisc(arr){
+  if(!_listaEd.length){
+    return document.getElementById('imp-concurso').value?'<div style="font-size:12px;color:var(--alerta);margin-top:8px">Este concurso nao tem edital cadastrado: nao da para conferir as disciplinas.</div>':''
+  }
+  const nomes=_listaEd.map(nomeDisciplina).filter(function(x,i,a){return a.indexOf(x)===i})
+  const fora={}
+  ;(_lote||[]).forEach(function(q){if(nomes.indexOf(q.disciplina)<0)fora[q.disciplina]=(fora[q.disciplina]||0)+1})
+  const ks=Object.keys(fora).sort()
+  if(!ks.length)return '<div style="font-size:12.5px;color:var(--ok);margin-top:8px">✓ Todas as disciplinas batem com o edital.</div>'
+  return '<div style="background:rgba(232,176,75,.08);border:1px solid var(--alerta);border-radius:8px;padding:10px;margin-top:10px">'
+    +'<div style="color:var(--alerta);font-size:13px;font-weight:bold;margin-bottom:6px">'+ks.length+' disciplina(s) fora do edital — escolha o destino</div>'
+    +ks.map(function(d){
+      const v=_mapDisc[d]||''
+      return '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:5px 0;border-bottom:1px solid var(--card)"><span style="flex:1;min-width:150px;font-size:13px">'+esc(d)+' <span style="color:var(--tx3)">('+fora[d]+')</span></span>'
+        +'<select data-d="'+escA(d)+'" onchange="mudarMapa(this)" style="width:auto;max-width:100%;margin:0;font-size:12.5px"><option value="">manter como esta</option>'
+        +nomes.map(function(n){return '<option'+(v===n?' selected':'')+'>'+esc(n)+'</option>'}).join('')+'</select></div>'
+    }).join('')+'</div>'
+}
+const _discEd={}
+async function discEdital(cid){
+  if(!cid)return []
+  if(_discEd[cid])return _discEd[cid]
+  try{
+    const r=await _supabase.from('edital_topicos').select('disciplina').eq('concurso_id',cid).limit(5000)
+    _discEd[cid]=(r.data||[]).map(function(x){return x.disciplina}).filter(function(x,i,a){return x&&a.indexOf(x)===i})
+  }catch(e){_discEd[cid]=[]}
+  return _discEd[cid]
 }
 function deArqTxt(){const a=_lote&&_lote.filter(function(q){return q._arq}).map(function(q){return q._arq}).filter(function(x,i,l){return l.indexOf(x)===i}).length;return a?' de '+a+' arquivo(s)':''}
 
 async function importar(){
   if(!_lote||!_tri){alert('Valide primeiro.');return}
   const concurso_id=document.getElementById('imp-concurso').value
-  _tri=BancoDedup.triar(_lote,_indice,concurso_id)
+  const atualizar=document.getElementById('imp-atualizar').checked
+  _tri=BancoDedup.triar(loteComMapa(),_indice,concurso_id,{atualizar:atualizar})
   const sres=BancoDedup.resumo(_tri)
   const cbD=document.getElementById('imp-duvida')
   const novasT=_tri.filter(function(t){return t.acao==='nova'})
   const lote=novasT.map(function(t){return t.q}).filter(function(q){return !q.em_duvida||(cbD&&cbD.checked)})
   const puladas=novasT.length-lote.length
-  if(!lote.length&&!sres.vincular&&!sres.completar){alert('Nada para importar: as questoes ja estao no banco'+(puladas?' ou estao marcadas como em duvida':'')+'.');return}
+  if(!lote.length&&!sres.vincular&&!sres.completar&&!sres.atualizar){alert('Nada para importar: as questoes ja estao no banco'+(puladas?' ou estao marcadas como em duvida':'')+'.');return}
   if(lote.length&&!concurso_id&&!confirm('Voce nao escolheu um concurso.\n\nTodos os alunos continuam vendo a questao (o banco e aberto), mas ela nao aparece quando o aluno filtra pelo concurso dele.\n\nImportar mesmo assim como questao geral?'))return
   const partes=[]
   if(lote.length)partes.push(lote.length+' questoes novas'+(concurso_id?' vinculadas ao concurso selecionado':''))
   if(sres.vincular&&concurso_id)partes.push(sres.vincular+' ja existentes ganham o vinculo com o concurso')
   if(sres.completar)partes.push(sres.completar+' ja existentes recebem comentario/bizu')
+  if(sres.atualizar)partes.push(sres.atualizar+' ja existentes serao corrigidas com os dados do arquivo'+(sres.reativar?' ('+sres.reativar+' voltam a ficar ativas)':''))
   if(!confirm('Confirmar?\n\n• '+partes.join('\n• ')+(sres.existe?'\n\n'+sres.existe+' ja estao no banco e NAO serao duplicadas.':'')+(puladas?'\n\n'+puladas+' em duvida ficarao de fora.':'')))return
   const btn=document.getElementById('btn-imp'); btn.disabled=true
   try{
@@ -1011,15 +1096,132 @@ async function importar(){
   fim.push(ids.length+' questoes novas importadas')
   if(atualizadas)fim.push(atualizadas+' (pelo codigo) receberam comentario e bizu')
   if(ex.vinculadas)fim.push(ex.vinculadas+' ja existentes vinculadas ao concurso')
-  if(ex.completadas)fim.push(ex.completadas+' ja existentes receberam comentario/bizu')
+  if(ex.atualizadas)fim.push(ex.atualizadas+' ja existentes corrigidas')
+  if(ex.completadas-(ex.atualizadas||0))fim.push((ex.completadas-(ex.atualizadas||0))+' ja existentes receberam comentario/bizu')
   msg('msg-imp','<strong style="color:var(--ok)">'+fim.join(' · ')+'.</strong>'+(sres.existe?' <span style="color:var(--tx2)">'+sres.existe+' ja estavam no banco e nao foram duplicadas.</span>':'')+(puladas?' <span style="color:var(--alerta)">'+puladas+' em duvida ficaram de fora.</span>':''),'var(--ok)')
   document.getElementById('imp-json').value=''
   document.getElementById('prev-imp').innerHTML=''
   btn.style.display='none'
-  _lote=null;_tri=null
+  _lote=null;_tri=null;_loteBruto=null;_mapDisc={}
   }finally{btn.disabled=false}
 }
 
+
+// ================= CORRIGIR IMPORTACAO =================
+let _corQs=[],_corLotes=[]
+async function corCarregar(){
+  const cid=document.getElementById('cor-concurso').value
+  document.getElementById('card-cor-lotes').style.display='none'
+  document.getElementById('card-cor-disc').style.display='none'
+  if(!cid)return
+  msg('msg-cor','Carregando as questoes do concurso...','var(--tx3)')
+  try{
+    const vin=await todasLinhasQA(function(){return _supabase.from('questao_concursos').select('questao_id').eq('concurso_id',cid).order('questao_id')})
+    const ids=vin.map(function(v){return v.questao_id}).filter(function(x,i,a){return a.indexOf(x)===i})
+    let qs=[]
+    for(let i=0;i<ids.length;i+=150){
+      const r=await _supabase.from('questoes').select('id,disciplina,ativo,criado_em').in('id',ids.slice(i,i+150))
+      if(r.error)throw r.error
+      qs=qs.concat(r.data||[])
+      msg('msg-cor','Carregando... '+qs.length+'/'+ids.length,'var(--tx3)')
+    }
+    _corQs=qs
+  }catch(e){msg('msg-cor','Erro: '+esc(e.message),'var(--erro)');return}
+  document.getElementById('msg-cor').style.display='none'
+  await corRender()
+}
+function dtHora(t){const d=new Date(t);return (t==null||isNaN(d))?'sem data':d.toLocaleDateString('pt-BR')+' '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}
+async function corRender(){
+  const cid=document.getElementById('cor-concurso').value
+  const lista=await discEdital(cid)
+  const nomes=lista.map(nomeDisciplina).filter(function(x,i,a){return a.indexOf(x)===i})
+  const noEdital=function(d){return !nomes.length||nomes.indexOf(d)>=0}
+  // lotes: questoes criadas com menos de 10 minutos de diferenca
+  const comData=_corQs.filter(function(q){return !isNaN(new Date(q.criado_em).getTime())})
+  const semData=_corQs.filter(function(q){return isNaN(new Date(q.criado_em).getTime())})
+  const ord=comData.sort(function(a,b){return String(a.criado_em).localeCompare(String(b.criado_em))})
+  _corLotes=[];let ult=null
+  ord.forEach(function(q){
+    const t=new Date(q.criado_em).getTime()
+    if(ult==null||t-ult>10*60*1000)_corLotes.push({ini:q.criado_em,qs:[]})
+    _corLotes[_corLotes.length-1].qs.push(q);ult=t
+  })
+  _corLotes.reverse()
+  if(semData.length)_corLotes.push({ini:null,qs:semData})
+  document.getElementById('card-cor-lotes').style.display='block'
+  document.getElementById('cor-lotes').innerHTML=!_corLotes.length?'<p style="color:var(--tx3);font-size:13px">Nenhuma questao vinculada a este concurso.</p>':_corLotes.map(function(l,i){
+    const at=l.qs.filter(function(q){return q.ativo!==false}).length
+    const ds={};l.qs.forEach(function(q){ds[q.disciplina]=(ds[q.disciplina]||0)+1})
+    const fora=Object.keys(ds).filter(function(d){return !noEdital(d)})
+    return '<div style="border:1px solid var(--bd2);border-left:4px solid '+(fora.length?'var(--alerta)':'var(--ok)')+';border-radius:9px;padding:10px 12px;margin-bottom:8px">'
+      +'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><strong style="color:var(--ouro)">'+dtHora(l.ini)+'</strong>'
+      +'<span style="color:var(--tx2);font-size:13px">'+l.qs.length+' questoes · '+at+' ativas'+(at<l.qs.length?' · <span style="color:var(--tx3)">'+(l.qs.length-at)+' desativadas</span>':'')+'</span>'
+      +(fora.length?'<span class="tag" style="color:var(--alerta);border:1px solid var(--alerta);border-radius:6px;padding:1px 6px;font-size:11.5px">⚠️ '+fora.length+' disciplina(s) fora do edital</span>':'')
+      +'<span style="margin-left:auto;display:flex;gap:6px">'
+      +(at?'<button class="btn-acao btn-excluir" style="padding:6px 10px;font-size:12px" onclick="corLote('+i+',false)">Desativar lote</button>':'')
+      +(at<l.qs.length?'<button class="btn-acao btn-editar" style="padding:6px 10px;font-size:12px" onclick="corLote('+i+',true)">Reativar lote</button>':'')+'</span></div>'
+      +'<div style="font-size:12px;color:var(--tx3);margin-top:6px;line-height:1.6">'+Object.keys(ds).sort().map(function(d){return '<span style="'+(noEdital(d)?'':'color:var(--alerta)')+'">'+esc(d)+' ('+ds[d]+')</span>'}).join(' · ')+'</div></div>'
+  }).join('')
+  // disciplinas fora do edital (questoes ativas)
+  const box=document.getElementById('cor-disc')
+  document.getElementById('card-cor-disc').style.display='block'
+  if(!nomes.length){box.innerHTML='<p style="color:var(--alerta);font-size:13px">Este concurso nao tem edital cadastrado. Cadastre o edital para conferir as disciplinas.</p>';return}
+  const g={}
+  _corQs.forEach(function(q){if(q.ativo===false||noEdital(q.disciplina))return;(g[q.disciplina]=g[q.disciplina]||[]).push(q.id)})
+  const ks=Object.keys(g).sort(function(a,b){return g[b].length-g[a].length})
+  if(!ks.length){box.innerHTML='<p style="color:var(--ok);font-size:13px">✓ Todas as questoes ativas deste concurso estao em disciplinas do edital.</p>';return}
+  box.innerHTML=ks.map(function(d,i){
+    const sug=casarDisciplina(d,lista)
+    return '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:7px 0;border-bottom:1px solid var(--card)">'
+      +'<span style="flex:1;min-width:160px;font-size:13px">'+esc(d)+' <span style="color:var(--tx3)">('+g[d].length+')</span>'+(sug?'':' <span style="color:var(--erro);font-size:11.5px">sem sugestao — provavelmente misturado</span>')+'</span>'
+      +'<select id="cor-d-'+i+'" data-d="'+escA(d)+'" style="width:auto;max-width:100%;margin:0;font-size:12.5px"><option value="">— escolha —</option>'
+      +nomes.map(function(n){return '<option'+(sug===n?' selected':'')+'>'+esc(n)+'</option>'}).join('')+'</select>'
+      +'<button class="btn-acao btn-editar" style="padding:6px 10px;font-size:12px" onclick="corDisc('+i+')">Aplicar</button></div>'
+  }).join('')
+    +(ks.some(function(d){return casarDisciplina(d,lista)})?'<button onclick="corDiscTodas()" style="margin-top:10px;width:auto;padding:9px 14px">Aplicar todas as sugestoes</button>':'')
+}
+async function corAtualizarIds(ids,dados,rot){
+  let n=0
+  for(let i=0;i<ids.length;i+=100){
+    const r=await _supabase.from('questoes').update(dados).in('id',ids.slice(i,i+100))
+    if(r.error){msg('msg-cor','Erro: '+esc(r.error.message),'var(--erro)');return -1}
+    n+=Math.min(100,ids.length-i)
+    msg('msg-cor',rot+'... '+n+'/'+ids.length,'var(--tx3)')
+  }
+  return n
+}
+async function corLote(i,ativar){
+  const l=_corLotes[i]; if(!l)return
+  const ids=l.qs.filter(function(q){return ativar?q.ativo===false:q.ativo!==false}).map(function(q){return q.id})
+  if(!ids.length)return
+  if(!confirm((ativar?'Reativar ':'Desativar ')+ids.length+' questoes do lote de '+dtHora(l.ini)+'?\n\n'+(ativar?'Elas voltam a aparecer para os alunos.':'Elas deixam de aparecer para os alunos. Nada e apagado: da para reativar depois.\nSe alguma questao deste lote tambem estiver em outro concurso, ela sai de la tambem.')))return
+  const n=await corAtualizarIds(ids,{ativo:!!ativar},ativar?'Reativando':'Desativando')
+  if(n<0)return
+  l.qs.forEach(function(q){if(ids.indexOf(q.id)>=0)q.ativo=!!ativar})
+  msg('msg-cor','<strong style="color:var(--ok)">'+n+' questoes '+(ativar?'reativadas':'desativadas')+'.</strong>'+(ativar?'':' Agora envie de novo os arquivos na aba Importar, com "Corrigir as que ja existem" marcado.'),'var(--ok)')
+  _indice=null;resumoTopo();corRender()
+}
+async function corDisc(i,semPerguntar){
+  const sel=document.getElementById('cor-d-'+i); if(!sel)return false
+  const de=sel.getAttribute('data-d'), para=sel.value
+  if(!para){if(!semPerguntar)alert('Escolha a disciplina do edital.');return false}
+  const ids=_corQs.filter(function(q){return q.ativo!==false&&q.disciplina===de}).map(function(q){return q.id})
+  if(!semPerguntar&&!confirm('Mudar '+ids.length+' questoes de "'+de+'" para "'+para+'"?'))return false
+  const n=await corAtualizarIds(ids,{disciplina:para},'Corrigindo disciplina')
+  if(n<0)return false
+  _corQs.forEach(function(q){if(ids.indexOf(q.id)>=0)q.disciplina=para})
+  if(!semPerguntar){msg('msg-cor','<strong style="color:var(--ok)">'+n+' questoes agora em '+esc(para)+'.</strong>','var(--ok)');_indice=null;corRender()}
+  return n
+}
+async function corDiscTodas(){
+  const sels=Array.from(document.querySelectorAll('#cor-disc select')).filter(function(s){return s.value})
+  if(!sels.length)return
+  if(!confirm('Aplicar '+sels.length+' correcao(oes) de disciplina?\n\n'+sels.map(function(s){return s.getAttribute('data-d')+'  →  '+s.value}).join('\n')))return
+  let tot=0
+  for(const s of sels){const n=await corDisc(parseInt(s.id.replace('cor-d-','')),true);if(n===false)return;tot+=n}
+  msg('msg-cor','<strong style="color:var(--ok)">'+tot+' questoes com a disciplina corrigida.</strong>','var(--ok)')
+  _indice=null;corRender()
+}
 
 // ================= ERROS REPORTADOS =================
 const MOTIVOS_REP_ADM={gabarito:'Gabarito errado',enunciado:'Erro no enunciado ou alternativas',desatualizada:'Questao desatualizada (lei mudou)',incompleta:'Texto cortado ou falta imagem',outro:'Outro problema'}

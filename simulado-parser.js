@@ -17,6 +17,7 @@
   var RX_ALT = /^\s*\(?\s*([A-Ea-e])\s*[).\-–]\s*(.+)$/
   var RX_CE = /^\s*(?:\(\s*\)\s*)?(certo|errado)\s*$/i
   var RX_CE2 = /^\s*c\s*\(?\s*\)?\s*e\s*\(?\s*\)?\s*$/i
+  var RX_CE3 = /^\s*\(\s*\)\s*(?:certo|c)\s*\(\s*\)\s*(?:errado|e)\s*$/i
   var RX_GAB = /^\s*gabarito\s*(?:oficial|preliminar|definitivo)?\s*[:\-–]\s*(certo|errado|[A-Ea-e])\b[.)]?\s*(.*)$/i
   var RX_COM = /^\s*coment[aá]rios?\s*(?:do\s+professor|do\s+jota)?\s*[:\-–]?\s*(.*)$/i
   var RX_SEC_GAB = /^\s*(?:gabarito|gabaritos|folha\s+de\s+respostas|respostas)(?:\s+(?:oficial|preliminar|definitivo|comentado))?\s*(?:\(.*\))?\s*[:.]?\s*$/i
@@ -81,12 +82,85 @@
     return l.length >= 4 && l === l.toUpperCase() && s.length <= 90
   }
   function titulo (s) {
-    var peq = ['de', 'da', 'do', 'das', 'dos', 'e', 'a', 'o', 'em', 'na', 'no', 'para', 'com']
+    var peq = ['de', 'da', 'do', 'das', 'dos', 'e', 'a', 'o', 'ao', 'aos', 'à', 'às', 'em', 'na', 'no', 'nas', 'nos', 'para', 'com', 'pelo', 'pela']
     return s.toLowerCase().split(' ').map(function (w, i) {
       if (SIGLAS.indexOf(w.toUpperCase()) >= 0) return w.toUpperCase()
       return (i && peq.indexOf(w) >= 0) ? w : w.charAt(0).toUpperCase() + w.slice(1)
     }).join(' ')
   }
+  /* ---------- DISCIPLINAS ----------
+     Uma linha em MAIUSCULAS so vira disciplina se parecer titulo de disciplina.
+     Com a lista do edital, so vale o que casar com ela (e o nome fica o do edital). */
+  var RX_NAO_DISC = /\b(?:INCORRET|CORRET|EXCETO|CERT[OA]|ERRAD|INSTRU[CÇ]|ORIENTA[CÇ]|CADERNO|BLOCOS?\b|PARTE\b|PROVAS?\b|COLUNA|RASCUNHO|FOLHA|GABARITO|SIMULADO|ATEN[CÇ][AÃ]O|LEIA\b|IDENTIFICA|CANDIDATO|ESTRUTURA|N[AÃ]O\b|SOMENTE|APENAS|VERDADEIR|FALS[OA]|TEXTO|QUADRO|TABELA|FIGURA|GR[AÁ]FICO|ASSINALE|MARQUE|JULGUE|ITENS\b|QUEST[OÕ]ES\b|P[AÁ]GINA|BOA SORTE|REDA[CÇ][AÃ]O|ESPELHO|CRIT[EÉ]RIO|DURA[CÇ][AÃ]O|CONCURSO|CARGO|SOLDADO|EDITAL)/i
+  var RX_BLOCO_PROVA = /^\s*(?:CONHECIMENTOS\s+(?:B[AÁ]SICOS|ESPEC[IÍ]FICOS|GERAIS|COMPLEMENTARES)|BLOCO\s+[IVX\d]+|M[OÓ]DULO\s+[IVX\d]+)\s*$/i
+  var EXPANDE = { pm: 'policial militar', pmal: 'policial militar alagoas', pmpe: 'policial militar pernambuco', pmse: 'policial militar sergipe', pmba: 'policial militar bahia', dir: 'direito', proc: 'processual', adm: 'administrativo', const: 'constitucional', leg: 'legislacao', inf: 'informatica', port: 'portuguesa', mat: 'matematica', rl: 'raciocinio logico', dh: 'direitos humanos', pen: 'penal' }
+  var VAZIAS = ['de', 'da', 'do', 'das', 'dos', 'e', 'a', 'o', 'ao', 'aos', 'em', 'na', 'no', 'nas', 'nos', 'para', 'com', 'nocoes', 'nocao', 'pertinente', 'estado', 'conhecimentos', 'sobre', 'geral', 'gerais']
+  function nDisc (t) {
+    return String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/\(.*?\)/g, ' ').replace(/\b(?:itens|questoes|q)\s*\d+.*$/, ' ').replace(/[^a-z0-9]+/g, ' ').trim()
+  }
+  function tokDisc (t) {
+    var out = []
+    nDisc(t).split(' ').forEach(function (w) {
+      if (!w || /^\d+$/.test(w)) return
+      ;(EXPANDE[w] || w).split(' ').forEach(function (x) { if (x.length >= 2 && VAZIAS.indexOf(x) < 0 && out.indexOf(x) < 0) out.push(x) })
+    })
+    return out
+  }
+  // devolve o nome do edital que corresponde a "t" (ou null)
+  function casarDisciplina (t, lista) {
+    if (!lista || !lista.length) return null
+    var a = tokDisc(t)
+    if (!a.length) return null
+    var melhor = null, nota = 0, empate = false
+    lista.forEach(function (d) {
+      var b = tokDisc(d)
+      if (!b.length) return
+      // "portugues" = "portuguesa", "direito" = "direitos"
+      var inter = a.filter(function (x) { return b.some(function (y) { return y === x || (x.length >= 5 && y.length >= 5 && (y.indexOf(x) === 0 || x.indexOf(y) === 0)) }) }).length
+      if (!inter) return
+      var contem = inter === a.length || inter === b.length
+      var j = inter / (a.length + b.length - inter)
+      if (!contem && j < 0.6) return
+      var sc = j + (contem ? 1 : 0)
+      if (sc > nota + 1e-9) { melhor = d; nota = sc; empate = false } else if (Math.abs(sc - nota) < 1e-9 && d !== melhor) empate = true
+    })
+    if (!melhor || empate) return null
+    return nomeDisc(melhor)
+  }
+  // nome bonito: "NOÇÕES DE DIREITO PENAL MILITAR" -> "Noções de Direito Penal Militar"
+  function nomeDisc (d) { d = limpa(d); return maiusculo(d) || d === d.toUpperCase() ? titulo(d) : d }
+  // tira "(itens 41 a 50)", "— QUESTOES 01 A 15", "(q113–q120)"
+  function nucleoDisc (p) {
+    return limpa(String(p).replace(/\s*[(\[][^)\]]*[)\]]\s*$/, '').replace(/\s*[—–\-:|]\s*(?:quest[õo]es|itens|q)\s*\d+.*$/i, '').replace(/\s+(?:quest[õo]es|itens)\s+\d+\s*(?:a|at[ée]|[-–])\s*\d+\s*$/i, ''))
+  }
+  // a linha e titulo de disciplina? devolve o nome ou null
+  function tituloDisciplina (p, lista) {
+    var nuc = nucleoDisc(p)
+    if (!nuc || nuc.length > 90) return null
+    if (lista && lista.length) {
+      if (maiusculo(nuc) && !/[.;:?!,]$/.test(nuc)) {
+        var cs = casarDisciplina(nuc, lista)
+        if (cs) return cs
+      } else if (!maiusculo(nuc)) {
+        // em minusculas, so se for exatamente o nome do edital
+        var achou = null
+        lista.forEach(function (d) { if (nDisc(d) === nDisc(nuc)) achou = nomeDisc(d) })
+        return achou
+      }
+      // fora do edital: segue a regra geral (o importador mostra para voce escolher o destino)
+    }
+    if (!maiusculo(nuc)) return null
+    if (/[.;:?!,]$/.test(nuc) || /\(\s*\)/.test(nuc) || /\d/.test(nuc)) return null
+    if (RX_NAO_DISC.test(nuc) || RX_BLOCO_PROVA.test(nuc)) return null
+    var pal = nuc.split(/\s+/)
+    if (pal.filter(function (w) { return w.replace(/[^A-Za-zÀ-ÿ]/g, '').length === 1 && !/^[EAOÀ]$/i.test(w) }).length >= 1) return null
+    if (pal.length > 9 || nuc.replace(/[^A-Za-zÀ-ÿ]/g, '').length < 5) return null
+    return titulo(nuc)
+  }
+  // linha de instrucao da prova (capa / orientacoes): nao e questao
+  var RX_INSTRUCAO = /\b(?:este caderno|caderno de (?:quest|prova|aplica)|folha de respostas?|cart[aã]o[- ]resposta|rascunho|transcrev|dura[cç][aã]o (?:total )?da prova|tempo (?:total|destinado)|caneta|fiscal|sala de prova|candidato|marca[cç][aã]o|desconto por resposta|reda[cç][aã]o vale|nota inferior|crit[eé]rio (?:cebraspe|aocp|idecan|fgv|da banca)|confira (?:a numera|o gabarito)|gabarito comentado|boa prova|n[aã]o h[aá] desconto|cada item (?:correto|errado|incorreto)|anula(?:r[aá]|m) (?:um|uma)|confira a numera)/i
+
   function gabNorm (g) {
     g = limpa(g).toUpperCase()
     if (g === 'CERTO' || g === 'C') return 'C'
@@ -117,7 +191,9 @@
     return out
   }
 
-  function lerSimulado (paragrafos) {
+  function lerSimulado (paragrafos, opts) {
+    opts = opts || {}
+    var listaDisc = opts.disciplinas && opts.disciplinas.length ? opts.disciplinas : null
     var ps = paragrafos.map(limpa).filter(function (x) { return x })
     var avisos = []
     // 1) separa a secao de gabarito do final (se houver)
@@ -167,6 +243,20 @@
     }
     // sequencia principal de itens (ignora instrucoes numeradas, tabelas e folha de respostas)
     var candI = []
+    // tudo antes do primeiro titulo de disciplina (capa, instrucoes numeradas) nao e questao
+    // (o primeiro titulo seguido de questao de verdade ou de "QUESTOES 01 A 15"; a tabela "estrutura da prova" nao conta)
+    var iPrimDisc = -1
+    for (var ip = 0; ip < corpo.length && iPrimDisc < 0; ip++) {
+      if (RX_NUM.test(corpo[ip]) || !tituloDisciplina(corpo[ip], listaDisc)) continue
+      for (var jp = ip + 1; jp < Math.min(corpo.length, ip + 9); jp++) {
+        var lj = corpo[jp]
+        if (/quest[õo]es\s+\d+\s*(?:a|at[ée]|[-–])\s*\d+/i.test(lj)) { iPrimDisc = ip; break }
+        var mj = lj.match(RX_NUM)
+        if (mj && limpa(mj[2]).length >= 20 && !RX_INSTRUCAO.test(mj[2])) { iPrimDisc = ip; break }
+        if (!mj && RX_NUM_SO.test(lj) && corpo[jp + 1] && limpa(corpo[jp + 1]).length >= 20 && !RX_INSTRUCAO.test(corpo[jp + 1])) { iPrimDisc = ip; break }
+        if (maiusculo(lj) || tituloDisciplina(lj, listaDisc)) break
+      }
+    }
     corpo.forEach(function (p, i) {
       var m = p.match(RX_NUM), mso = p.match(RX_NUM_SO)
       if (!m && !mso) return
@@ -177,11 +267,22 @@
         var soNum = function (x) { return x != null && RX_NUM_SO.test(x) && !RX_NUM.test(x) }
         if (soNum(corpo[i - 1]) || soNum(corpo[i + 1])) w = -1
       }
-      candI.push({ i: i, n: parseInt((m || mso)[1], 10), w: w })
+      // numero sozinho e o enunciado na linha seguinte (comum no PDF)
+      else if (w > 0 && corpo[i + 1] && limpa(corpo[i + 1]).length >= 20 && !RX_ALT.test(corpo[i + 1]) && !RX_NUM.test(corpo[i + 1])) w = 3
+      if (txt && RX_INSTRUCAO.test(txt)) w = -3
+      if (iPrimDisc > 0 && i < iPrimDisc) w = -3
+      var dig = (p.match(/\d+/) || [''])[0]
+      candI.push({ i: i, n: parseInt((m || mso)[1], 10), w: w, pad: dig.length > 1 && dig.charAt(0) === '0' })
     })
+    // numeracao com zero (01, 02...): linhas "1 ...", "2 ..." no meio (tabela, lista) perdem peso
+    var nPad = candI.filter(function (c) { return c.w > 0 && c.pad }).length
+    var nSem = candI.filter(function (c) { return c.w > 0 && !c.pad && c.n < 10 }).length
+    if (nPad >= 3 && nPad > nSem) candI.forEach(function (c) { if (!c.pad && c.n < 10 && c.w > 0) c.w -= 2.5 })
     var cadeia = escolherCadeia(candI)
     var esperado = 1
     corpo.forEach(function (p, iP) {
+      // faixa "QUESTOES 01 A 15" sozinha na linha: so marcacao do caderno
+      if (/^\s*(?:quest[õo]es|itens)\s+\d+\s*(?:a|at[ée]|[-–])\s*\d+\s*$/i.test(p)) return
       var mt = p.match(RX_TEMA)
       if (mt && p.length < 120) { fecha(); assunto = maiusculo(mt[1]) ? titulo(mt[1]) : mt[1]; pend = []; ativo = []; return }
       var m = p.match(RX_NUM), mso = p.match(RX_NUM_SO)
@@ -203,14 +304,17 @@
         if (RX_MARCAS_CE.test(resto)) { resto = limpa(resto.replace(RX_MARCAS_CE, '')); cur.ce = true }
         var partes = resto.split(/\s+[-–—]\s+/)
         if (resto && partes.length >= 2 && resto.length < 170 && !/[.?:]$/.test(resto)) {
-          cur.disc = partes[0]; cur.ass = partes[1]
+          cur.disc = listaDisc ? (casarDisciplina(partes[0], listaDisc) || partes[0]) : partes[0]; cur.ass = partes[1]
         } else if (resto) { cur.linhas.push(resto); if (!RX_APOIO.test(resto)) cur.temItem = true }
         return
       }
+      if (RX_CE3.test(p)) { if (cur) cur.ce = true; return }
       if (!cur || cur.comMode === false) {
-        if (maiusculo(p) && !RX_CE.test(p) && !RX_ALT.test(p) && !/^GABARITO/i.test(p)) {
-          fecha(); disc = titulo(p); pend = []; ativo = []; return
-        }
+        // "INCORRETA.", "EXCETO", "A B C D" (tabela) etc. nao sao disciplina: seguem no enunciado
+        var td = !RX_CE.test(p) && !RX_ALT.test(p) && !/^GABARITO/i.test(p) ? tituloDisciplina(p, listaDisc) : null
+        if (td) { fecha(); disc = td; pend = []; ativo = []; return }
+        // "PARTE 1 – CONHECIMENTOS BASICOS", "INSTRUCOES GERAIS": fecha a questao anterior e o texto de apoio, sem mudar a disciplina
+        if (maiusculo(p) && (RX_BLOCO_PROVA.test(nucleoDisc(p)) || /^\s*(?:PARTE\s|PROVAS?\s|INSTRU[CÇ]|ORIENTA[CÇ])/i.test(p)) && !(cur && cur.linhas.length && !cur.alts.length && !cur.ce)) { fecha(); pend = []; ativo = []; return }
       }
       if (!cur) { pend.push(p); return }
       var mg = p.match(RX_GAB)
@@ -255,6 +359,7 @@
       if (usarPares && gabPares[q.numero]) q.gabarito = gabPares[q.numero]
       if (q.gabarito === 'X') { q.gabarito = q.tipo === 'multipla' ? 'A' : 'C'; q.anulada = true }
       if (!q.disciplina) q.disciplina = 'Geral'
+      else if (listaDisc) q.disciplina = casarDisciplina(q.disciplina, listaDisc) || q.disciplina
     })
     // 4) avisos
     var semGab = itens.filter(function (q) { return !q.gabarito }).map(function (q) { return q.numero })
@@ -367,6 +472,9 @@
   raiz.lerGabaritoComentado = lerGabaritoComentado
   raiz.separarBizu = separarBizu
   raiz.lerSimulado = lerSimulado
+  raiz.casarDisciplina = casarDisciplina
+  raiz.nomeDisciplina = nomeDisc
+  raiz.RX_INSTRUCAO_SIM = RX_INSTRUCAO
   raiz.lerParesGabarito = lerParesGabarito
-  if (typeof module !== 'undefined') module.exports = { lerSimulado: lerSimulado, lerParesGabarito: lerParesGabarito, lerGabaritoComentado: lerGabaritoComentado, separarBizu: separarBizu }
+  if (typeof module !== 'undefined') module.exports = { casarDisciplina: casarDisciplina, nomeDisciplina: nomeDisc, tituloDisciplina: tituloDisciplina, lerSimulado: lerSimulado, lerParesGabarito: lerParesGabarito, lerGabaritoComentado: lerGabaritoComentado, separarBizu: separarBizu }
 })(typeof window !== 'undefined' ? window : this)
