@@ -29,8 +29,8 @@
   .bl .cr{display:flex;gap:5px;align-items:center;font-size:11.5px;color:var(--tx3);white-space:nowrap;cursor:pointer}
   .bl .cr input{width:16px;height:16px;min-height:0}
   .bl .del{background:transparent;border:1px solid var(--bd2);color:var(--erro);width:34px;height:34px;padding:0;margin:0;min-height:34px;border-radius:8px}
-  .barra{position:sticky;bottom:0;z-index:30;background:var(--bg2);border-top:1px solid var(--bd);padding:10px 12px;margin:0 -12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-  .barra button{width:auto;margin:0;padding:10px 16px}
+  .barra-salvar{position:sticky;bottom:0;z-index:30;background:var(--bg2);border-top:1px solid var(--bd);padding:10px 12px;margin:0 -12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .barra-salvar button{width:auto;margin:0;padding:10px 16px}
   .st{font-size:12px;border-radius:7px;padding:3px 9px;font-weight:700}
   .avisos{font-size:12.5px;line-height:1.6;margin:8px 0}
   @media(max-width:700px){
@@ -157,7 +157,7 @@
     <textarea id="r-rec" rows="6" oninput="sujo()"></textarea>
   </div>
 
-  <div class="barra">
+  <div class="barra-salvar">
     <button class="btn-neutro" onclick="salvar(null)">💾 Salvar rascunho</button>
     <button id="bt-pub" onclick="salvar(true)">📤 Publicar para o aluno</button>
     <button id="bt-ocultar" class="btn-excluir" style="display:none" onclick="salvar(false)">Ocultar do aluno</button>
