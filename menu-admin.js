@@ -21,6 +21,7 @@
     ['📅','Planos','aba-cronograma'],
     ['🔄','Ajustar ao edital','ajustar.html'],
     ['🔁','Migrar de concurso','migrar-concurso.html'],
+    ['🗓️','Rotina do aluno','rotina-admin.html'],
     ['🎯','Controle de Temas','temas.html'],
     ['Conteudo'],
     ['📄','Importar Prova','importador.html'],

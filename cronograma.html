@@ -346,6 +346,7 @@
       <section class="sec on" id="sec-cronograma">
         <div id="diretrizes"></div>
         <div id="pausa-box"></div>
+        <div id="rotina-hoje"></div>
         <div id="hoje-box"></div>
         <div class="strip" id="strip"></div>
         <div class="hero" id="hero"></div>
@@ -489,6 +490,7 @@
 <script src="caderno-revisao.js"></script>
 <script src="pomodoro.js"></script>
 <script src="notificacoes.js"></script>
+<script src="motor-rotina.js"></script>
 <script>
 const WD=['Seg','Ter','Qua','Qui','Sex','Sab','Dom']
 const CURTO=['Dom','Seg','Ter','Qua','Qui','Sex','Sab']
@@ -689,6 +691,7 @@ async function init(){
   carregarMetasDia()
   contarRevisaoCaderno()
   carregarBanco().then(function(){renderHoje()})
+  carregarRotina()
   checarAvisos()
   const qs=new URLSearchParams(location.search)
   if(qs.get('pausa')==='1')setTimeout(abrirPausa,500)
@@ -705,6 +708,52 @@ async function init(){
       verificarRelatorioCiclo(aluno,checarDiaAnterior).then(function(mostrou){if(!mostrou)checarDiaAnterior()})
     },500)
   }
+}
+
+/* ---------- ROTINA DA SEMANA (montada pelo mentor) ----------
+   Mostra o bloco de agora e o proximo, e o item "Minha rotina" no menu. */
+let _rotina=null
+async function carregarRotina(){
+  if(typeof Rotina==='undefined')return
+  try{
+    const { data,error }=await _supabase.from('rotinas').select('blocos,publicada').eq('aluno_id',_alunoId).maybeSingle()
+    if(error)return
+    _rotina=data&&Array.isArray(data.blocos)&&data.blocos.length&&(data.publicada||_mentor)?data:null
+  }catch(e){return}
+  if(_mentor){
+    const bar=document.getElementById('mentor-bar')
+    if(bar&&!document.getElementById('bt-rotina-m')){
+      const b=document.createElement('button');b.id='bt-rotina-m';b.className='btn'
+      b.textContent=_rotina?(_rotina.publicada?'🗓️ Rotina':'🗓️ Rotina (rascunho)'):'🗓️ Montar rotina'
+      b.onclick=function(){location.href='rotina-admin.html?aluno='+_alunoId}
+      if(bar.lastChild)bar.insertBefore(b,bar.lastChild); else bar.appendChild(b)
+    }
+  }
+  if(!_rotina)return
+  if(!document.getElementById('nav-rotina')){
+    const ref=document.querySelector('.side .nav-i[data-s="cronograma"]')
+    if(ref){
+      const n=document.createElement('div');n.className='nav-i';n.id='nav-rotina'
+      n.innerHTML='<span class="nav-ic">🗓️</span>Minha rotina'
+      n.onclick=function(){location.href='rotina.html'+(_mentor?'?aluno='+_alunoId:'')}
+      ref.parentNode.insertBefore(n,ref.nextSibling)
+    }
+  }
+  renderRotinaHoje()
+  setInterval(function(){if(!document.hidden)renderRotinaHoje()},60000)
+}
+function renderRotinaHoje(){
+  const el=document.getElementById('rotina-hoje'); if(!el||!_rotina)return
+  const h=new Date(), m=h.getHours()*60+h.getMinutes()
+  const l=Rotina.doDia(_rotina.blocos,h.getDay()), ap=Rotina.agoraEProximo(l,m)
+  const pt=function(b){const tp=Rotina.TIPOS[b.tipo]||Rotina.TIPOS.outro;return '<span style="display:inline-block;width:9px;height:9px;border-radius:3px;background:'+tp.c+';margin-right:6px"></span><b>'+esc(b.ini)+'–'+esc(b.fim)+'</b> '+esc(Rotina.rotulo(b))}
+  let t=''
+  if(ap.agora)t+='<div><span style="color:var(--ouro);font-weight:800;font-size:11px;letter-spacing:1px">AGORA</span> '+pt(ap.agora)+'</div>'
+  if(ap.prox)t+='<div style="color:var(--tx2)"><span style="color:var(--tx3);font-weight:800;font-size:11px;letter-spacing:1px">A SEGUIR</span> '+pt(ap.prox)+'</div>'
+  if(!t)t='<div style="color:var(--tx2)">Rotina de hoje concluida. Descanse! 💤</div>'
+  el.innerHTML='<div class="hoje-p" style="padding:12px 16px;margin-bottom:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;cursor:pointer" onclick="location.href=\'rotina.html'+(_mentor?'?aluno='+_alunoId:'')+'\'">'
+    +'<div style="font-size:22px">🗓️</div><div style="flex:1;min-width:200px;font-size:13px;line-height:1.7">'+t+'</div>'
+    +'<button class="btn" style="padding:7px 12px" onclick="event.stopPropagation();location.href=\'rotina.html'+(_mentor?'?aluno='+_alunoId:'')+'\'">Minha rotina</button></div>'
 }
 
 /* ---------- MODO MENTOR ---------- */

@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Minha rotina — Patrulheiros de Elite</title>
+<script>document.documentElement.setAttribute("data-tema",localStorage.getItem("tema")||"escuro")</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="style.css">
+<style>
+  body{padding-bottom:30px}
+  .topo{display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:40;background:var(--bg2);border-bottom:1px solid var(--bd);padding:11px 14px;margin:-16px -12px 16px}
+  .topo button.v{width:42px;height:42px;border-radius:11px;flex-shrink:0;margin:0;padding:0;background:var(--card);border:1px solid var(--bd2);color:var(--tx);font-size:19px;display:flex;align-items:center;justify-content:center;min-height:42px}
+  .topo .t1{font-size:16px;font-weight:800;line-height:1.2}
+  .topo .t2{color:var(--tx3);font-size:11.5px}
+  .topo .imp{margin-left:auto;width:auto;padding:8px 12px;margin-top:0;margin-bottom:0}
+  .mentor{background:linear-gradient(90deg,#3a2c08,#1d1a10);border:1px solid var(--ouro);border-radius:12px;padding:10px 14px;margin-bottom:14px;color:#f3e2a8;font-size:13px;line-height:1.5}
+  .agora{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-bottom:16px}
+  .ag{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;border-left:5px solid var(--c,#888)}
+  .ag .k{font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--tx3)}
+  .ag.on .k{color:var(--ouro)}
+  .ag .h{font-size:13px;color:var(--tx2);margin-top:4px;font-weight:700}
+  .ag .n{font-size:16px;font-weight:800;margin-top:2px;line-height:1.3}
+  .tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:12px}
+  .tab{padding:8px 12px;border-radius:9px;border:1px solid var(--bd2);background:var(--card2);color:var(--tx2);font-size:13px;cursor:pointer;white-space:nowrap}
+  .tab.on{border-color:var(--ouro);color:var(--ouro);font-weight:700}
+  .tab.hj::after{content:' •';color:var(--ouro)}
+  .lb{display:flex;gap:12px;padding:11px 12px;border-radius:12px;background:var(--card2);border-left:5px solid var(--c,#888);margin-bottom:8px}
+  .lb.on{outline:2px solid var(--ouro)}
+  .lb.pass{opacity:.55}
+  .lb .hr{width:92px;flex-shrink:0;font-weight:800;font-size:13px;color:var(--tx2);line-height:1.35}
+  .lb .hr small{display:block;font-weight:400;color:var(--tx4);font-size:11px}
+  .lb .tx{flex:1;min-width:0;font-size:14px;line-height:1.45}
+  .lb .tp{font-size:11px;color:var(--tx3);text-transform:uppercase;letter-spacing:.6px;font-weight:700}
+  .ss{margin-top:6px;display:flex;flex-direction:column;gap:4px}
+  .s{font-size:12.5px;color:var(--tx2);background:var(--card);border-radius:8px;padding:6px 9px;display:flex;gap:7px;align-items:baseline}
+  .s.ok{color:var(--ok)}
+  .s b{white-space:nowrap}
+  .rec li{margin:0 0 8px 18px;line-height:1.55;font-size:13.5px;color:var(--tx2)}
+  .vazio{text-align:center;padding:40px 16px;color:var(--tx3);line-height:1.6}
+  @media(max-width:520px){.lb .hr{width:74px;font-size:12px}}
+  @media print{
+    @page{size:A4 landscape;margin:10mm}
+    body{background:#fff!important;color:#111}
+    .topo,.agora,.tabs,#dia,.mentor,.nao-imp{display:none!important}
+    .card{border:none;padding:0;background:#fff}
+    .card h3{color:#111}
+    .imp-tit{display:block!important;font-size:18px;font-weight:800;margin-bottom:8px;color:#111}
+    .rec li{color:#222}
+  }
+</style>
+<style id="rt-css"></style>
+</head>
+<body>
+<div class="container">
+  <div class="topo">
+    <button class="v" onclick="voltar()" aria-label="Voltar">&#8249;</button>
+    <div><div class="t1">Minha rotina</div><div class="t2" id="sub">Montada pelo seu mentor</div></div>
+    <button class="imp btn-neutro" onclick="window.print()" id="bt-imp" style="display:none">🖨️ Imprimir</button>
+  </div>
+  <div id="mentor" class="mentor" style="display:none"></div>
+  <div id="app"><div class="vazio">Carregando...</div></div>
+</div>
+
+<script src="config.js"></script>
+<script src="comum.js"></script>
+<script src="motor-rotina.js"></script>
+<script>
+document.getElementById('rt-css').textContent=Rotina.CSS
+const LABEL={teoria:'Teoria',questoes:'Questoes',revisao:'Revisao'}
+let _rot=null,_sess={},_dia=new Date().getDay(),_alvo=null,_mentor=false,_nome=''
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function ymd(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function dataDoDia(d){ // data deste dia da semana na semana atual (segunda a domingo)
+  const h=new Date();h.setHours(12,0,0,0)
+  const idx=function(x){return x===0?6:x-1}
+  const r=new Date(h);r.setDate(h.getDate()+idx(d)-idx(h.getDay()));return r
+}
+function voltar(){location.href=_mentor?'cronograma.html?aluno='+_alvo:'cronograma.html'}
+function durTxt(m){return m>=60?Math.floor(m/60)+'h'+(m%60?String(m%60).padStart(2,'0'):''):m+' min'}
+
+async function init(){
+  const { data:{user} }=await _supabase.auth.getUser()
+  if(!user){location.href='index.html';return}
+  const qa=new URLSearchParams(location.search).get('aluno')
+  _alvo=user.id
+  if(qa&&qa!==user.id){_mentor=true;_alvo=qa}
+  if(_mentor){
+    const { data:al }=await _supabase.from('alunos').select('nome').eq('id',_alvo).maybeSingle()
+    _nome=al&&al.nome||'aluno'
+    document.getElementById('sub').textContent=_nome
+  }
+  const { data:rot,error }=await _supabase.from('rotinas').select('*').eq('aluno_id',_alvo).maybeSingle()
+  _rot=error?null:rot
+  if(_mentor){
+    const m=document.getElementById('mentor');m.style.display='block'
+    m.innerHTML='👁️ <b>Visao do mentor</b> — e assim que '+esc(_nome)+' ve a rotina.'+(_rot&&!_rot.publicada?' <b style="color:#f0b45a">Ainda e rascunho: o aluno nao ve.</b>':'')+' <a href="rotina-admin.html?aluno='+_alvo+'" style="color:var(--ouro)">Editar rotina</a>'
+  }
+  if(!_rot||!Array.isArray(_rot.blocos)||!_rot.blocos.length||(!_mentor&&!_rot.publicada)){
+    document.getElementById('app').innerHTML='<div class="card vazio"><div style="font-size:34px">🗓️</div><div style="font-weight:700;color:var(--tx);margin:6px 0">Sua rotina ainda nao foi montada</div>Quando o seu mentor montar a sua rotina da semana, ela aparece aqui e no seu cronograma.</div>'
+    return
+  }
+  document.getElementById('bt-imp').style.display='inline-block'
+  // sessoes do cronograma desta semana (para mostrar dentro dos blocos de estudo)
+  const ini=ymd(dataDoDia(1)), fim=ymd(dataDoDia(0))
+  try{
+    const { data }=await _supabase.from('sessoes_estudo').select('id,data,tipo,disciplina,topico,tempo_minutos,concluida,ordem,extra').eq('aluno_id',_alvo).gte('data',ini).lte('data',fim).order('ordem')
+    ;(data||[]).forEach(function(s){(_sess[s.data]=_sess[s.data]||[]).push(s)})
+  }catch(e){}
+  render()
+  setInterval(function(){if(!document.hidden)renderAgora()},60000)
+}
+
+function blocosDia(d){return Rotina.doDia(_rot.blocos,d)}
+function render(){
+  const app=document.getElementById('app')
+  app.innerHTML='<div class="imp-tit" style="display:none">Mapa da Jornada'+(_nome?' — '+esc(_nome):'')+'</div>'
+    +'<div class="agora" id="agora"></div>'
+    +'<div class="card" id="dia"></div>'
+    +'<div class="card"><h3>Semana</h3>'+Rotina.htmlSemana(_rot.blocos,{hoje:new Date().getDay()})+Rotina.htmlLegenda(_rot.blocos)+'</div>'
+    +(_rot.recomendacoes&&_rot.recomendacoes.trim()?'<div class="card"><h3>Recomendacoes do mentor</h3><ol class="rec">'+_rot.recomendacoes.split('\n').map(function(x){return x.trim()}).filter(Boolean).map(function(x){return '<li>'+esc(x.replace(/^\d+[.)]\s*/,''))+'</li>'}).join('')+'</ol></div>':'')
+  renderAgora();renderDia()
+}
+function renderAgora(){
+  const el=document.getElementById('agora'); if(!el)return
+  const h=new Date(), m=h.getHours()*60+h.getMinutes()
+  const l=blocosDia(h.getDay()), ap=Rotina.agoraEProximo(l,m)
+  const card=function(k,b,on){
+    if(!b)return ''
+    const tp=Rotina.TIPOS[b.tipo]||Rotina.TIPOS.outro
+    return '<div class="ag'+(on?' on':'')+'" style="--c:'+tp.c+'"><div class="k">'+k+'</div><div class="h">'+esc(b.ini)+' – '+esc(b.fim)+'</div><div class="n">'+esc(Rotina.rotulo(b))+'</div></div>'
+  }
+  el.innerHTML=card('Agora',ap.agora,true)+card(ap.agora?'A seguir':'Proximo compromisso',ap.prox,false)
+    ||'<div class="ag" style="--c:var(--bd2)"><div class="k">Hoje</div><div class="n">Nada mais na rotina de hoje. Descanse! 💤</div></div>'
+  if(_dia===h.getDay())renderDia()
+}
+function renderDia(){
+  const el=document.getElementById('dia'); if(!el)return
+  const hj=new Date(), dHoje=hj.getDay(), agoraMin=hj.getHours()*60+hj.getMinutes()
+  const l=blocosDia(_dia), data=ymd(dataDoDia(_dia))
+  const sess=(_sess[data]||[]).slice().sort(function(a,b){return (a.ordem||0)-(b.ordem||0)})
+  const dist=Rotina.distribuirSessoes(l,sess)
+  let h='<div class="tabs">'+Rotina.ORDEM_DIAS.map(function(d){return '<div class="tab'+(d===_dia?' on':'')+(d===dHoje?' hj':'')+'" onclick="_dia='+d+';renderDia()">'+Rotina.DIAS_C[d]+'</div>'}).join('')+'</div>'
+  h+='<div style="color:var(--tx3);font-size:12.5px;margin-bottom:10px">'+Rotina.DIAS[_dia]+', '+dataDoDia(_dia).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})+(Rotina.minutosEstudo(l)?' · '+durTxt(Rotina.minutosEstudo(l))+' de estudo':'')+'</div>'
+  if(!l.length)h+='<div class="vazio" style="padding:20px">Sem blocos neste dia.</div>'
+  l.forEach(function(b,i){
+    const tp=Rotina.TIPOS[b.tipo]||Rotina.TIPOS.outro, iv=Rotina.intervalo(b)
+    const on=_dia===dHoje&&iv&&agoraMin>=iv[0]&&agoraMin<iv[1], pass=_dia===dHoje&&iv&&agoraMin>=iv[1]
+    h+='<div class="lb'+(on?' on':'')+(pass?' pass':'')+'" style="--c:'+tp.c+'"><div class="hr">'+esc(b.ini)+'<small>ate '+esc(b.fim)+'</small></div><div class="tx">'
+      +'<div class="tp">'+(on?'⏱️ agora · ':'')+esc(tp.n)+(tp.estudo&&iv?' · '+durTxt(iv[1]-iv[0]):'')+'</div>'
+      +(b.txt&&!(b.cron&&/sessoes do cronograma/i.test(b.txt))?'<div>'+esc(b.txt)+'</div>':'')
+    if(b.cron){
+      const ss=dist.mapa[i]||[]
+      if(ss.length)h+='<div class="ss">'+ss.map(function(s){return '<div class="s'+(s.concluida?' ok':'')+'"><b>'+(s.concluida?'✓':'○')+' '+(LABEL[s.tipo]||s.tipo)+'</b><span>'+esc(s.disciplina||'')+(s.topico?' — '+esc(s.topico):'')+' ('+(s.tempo_minutos||60)+' min)</span></div>'}).join('')+'</div>'
+      else h+='<div style="color:var(--tx3);font-size:12.5px;margin-top:3px">'+(sess.length?'Sessoes do dia ja distribuidas nos blocos anteriores. Use para adiantar ou revisar.':'Sem sessoes no cronograma neste dia: use para revisar o caderno de erros ou fazer questoes.')+'</div>'
+    }
+    h+='</div></div>'
+  })
+  if(dist.sobra.length)h+='<div style="color:var(--alerta);font-size:12.5px;margin-top:6px">⚠️ '+dist.sobra.length+' sessao(oes) do cronograma deste dia nao couberam nos blocos de estudo. Fale com o seu mentor.</div>'
+  h+='<button class="btn-neutro nao-imp" style="margin-top:10px" onclick="voltar()">Abrir o cronograma</button>'
+  el.innerHTML=h
+}
+init()
+</script>
+</body>
+</html>

@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rotina do aluno — Admin</title>
+<script>document.documentElement.setAttribute("data-tema",localStorage.getItem("tema")||"escuro")</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="style.css">
+<style>
+  .lbl{color:var(--tx3);font-size:12px;display:block;margin-bottom:4px}
+  .grade{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+  .grade input,.grade select{margin:0}
+  .sub{color:var(--tx3);font-size:13px;line-height:1.55;margin-bottom:12px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .dia-chip{padding:7px 11px;border-radius:8px;border:1px solid var(--bd2);background:var(--card2);color:var(--tx3);font-size:13px;cursor:pointer;user-select:none}
+  .dia-chip.on{background:var(--ouro);color:var(--card2);border-color:var(--ouro);font-weight:bold}
+  .bloco-q{background:var(--card2);border:1px solid var(--bd);border-radius:12px;padding:12px;margin-bottom:10px}
+  .bloco-q h4{font-size:13px;color:var(--tx);margin-bottom:8px}
+  .hora2{display:flex;gap:6px;align-items:center}
+  .hora2 input{margin:0;flex:1;min-width:0;width:auto}
+  .grade>div{min-width:0}
+  .tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:12px}
+  .tab{padding:8px 12px;border-radius:9px;border:1px solid var(--bd2);background:var(--card2);color:var(--tx2);font-size:13px;cursor:pointer;white-space:nowrap}
+  .tab.on{border-color:var(--ouro);color:var(--ouro);font-weight:700}
+  .tab small{display:block;font-size:10.5px;color:var(--tx4);font-weight:400}
+  .bl{display:grid;grid-template-columns:104px 104px 130px minmax(0,1fr) auto auto;gap:6px;align-items:center;padding:7px 8px;border-radius:10px;background:var(--card2);border-left:4px solid var(--c,#888);margin-bottom:6px}
+  .bl input,.bl select{margin:0;padding:7px 8px;font-size:13px;min-height:36px}
+  .bl .cr{display:flex;gap:5px;align-items:center;font-size:11.5px;color:var(--tx3);white-space:nowrap;cursor:pointer}
+  .bl .cr input{width:16px;height:16px;min-height:0}
+  .bl .del{background:transparent;border:1px solid var(--bd2);color:var(--erro);width:34px;height:34px;padding:0;margin:0;min-height:34px;border-radius:8px}
+  .barra{position:sticky;bottom:0;z-index:30;background:var(--bg2);border-top:1px solid var(--bd);padding:10px 12px;margin:0 -12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .barra button{width:auto;margin:0;padding:10px 16px}
+  .st{font-size:12px;border-radius:7px;padding:3px 9px;font-weight:700}
+  .avisos{font-size:12.5px;line-height:1.6;margin:8px 0}
+  @media(max-width:700px){
+    .bl{grid-template-columns:1fr 1fr;grid-template-areas:"i f" "t t" "x x" "c d"}
+    .bl .i{grid-area:i}.bl .f{grid-area:f}.bl .t{grid-area:t}.bl .x{grid-area:x}.bl .cr{grid-area:c}.bl .del{grid-area:d;justify-self:end}
+  }
+</style>
+<style id="rt-css"></style>
+<style>
+.voltar-mob{display:none}
+@media(max-width:860px){
+  header{display:none}
+  .voltar-mob{display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:40;background:var(--bg2);border-bottom:1px solid var(--bd);padding:11px 14px;margin:-16px -12px 16px}
+  .voltar-mob button{width:42px;height:42px;border-radius:11px;flex-shrink:0;margin:0;padding:0;background:var(--card);border:1px solid var(--bd2);color:var(--tx);font-size:19px;display:flex;align-items:center;justify-content:center;min-height:42px}
+  .voltar-mob .t1{font-size:16px;font-weight:800;line-height:1.2}
+  .voltar-mob .t2{color:var(--tx3);font-size:11.5px}
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="voltar-mob"><button onclick="location.href='admin.html'" aria-label="Voltar">&#8249;</button><div><div class="t1">Rotina do aluno</div><div class="t2">Mapa da Jornada individual</div></div></div>
+  <header>
+    <div>
+      <div class="pag-t">Rotina do aluno</div>
+      <div class="pag-s">Monte o Mapa da Jornada de cada aluno: quando ele estuda, trabalha, treina e descansa</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button onclick="location.href='gerador.html'" class="btn-neutro" style="width:auto;padding:9px 15px">Gerador</button>
+      <button onclick="location.href='admin.html'" style="width:auto;padding:9px 15px">Painel</button>
+    </div>
+  </header>
+
+  <div class="card">
+    <h3>1. Aluno</h3>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <select id="r-aluno" onchange="trocarAluno()" style="flex:1;min-width:220px;margin:0"><option value="">Selecione o aluno</option></select>
+      <span id="r-status"></span>
+      <button id="bt-ver" class="btn-neutro" style="width:auto;padding:9px 14px;margin:0;display:none" onclick="verComoAluno()">👁️ Ver como o aluno</button>
+    </div>
+    <p id="msg-aluno" class="sub" style="margin:10px 0 0;display:none"></p>
+  </div>
+
+  <div id="area" style="display:none">
+  <div class="card">
+    <h3>2. Formulario de ingresso</h3>
+    <p class="sub">Cole aqui as respostas do formulario do aluno (fica guardado so para voce). Depois preencha o resumo abaixo e clique em <strong>Montar rascunho</strong>: a plataforma monta a semana no mesmo modelo do Mapa da Jornada. Voce ajusta o que quiser no passo 3.</p>
+    <textarea id="f-texto" rows="5" placeholder="Cole as respostas do formulario: rotina de trabalho, escala, horario de treino, quanto tempo tem para estudar, dificuldades..." oninput="sujo()"></textarea>
+
+    <div class="bloco-q" style="margin-top:12px">
+      <h4>Sono</h4>
+      <div class="grade">
+        <div><label class="lbl" for="q-acorda">Acorda</label><input type="time" id="q-acorda" value="06:00"></div>
+        <div><label class="lbl" for="q-dorme">Dorme</label><input type="time" id="q-dorme" value="23:00"></div>
+        <div><label class="lbl" for="q-jantar">Janta (inicio)</label><input type="time" id="q-jantar" value="19:00"></div>
+      </div>
+    </div>
+    <div class="bloco-q">
+      <h4>Trabalho</h4>
+      <div class="chips" id="q-trab-dias" style="margin-bottom:10px"></div>
+      <div class="grade">
+        <div><label class="lbl">1º turno</label><div class="hora2"><input type="time" id="q-t1i" value="07:30"><span>as</span><input type="time" id="q-t1f" value="11:30"></div></div>
+        <div><label class="lbl">2º turno (deixe vazio se nao tiver)</label><div class="hora2"><input type="time" id="q-t2i" value="13:30"><span>as</span><input type="time" id="q-t2f" value="16:30"></div></div>
+      </div>
+      <p class="sub" style="margin:8px 0 0;font-size:12px">Trabalha em escala (12x36, 24x72)? Monte a semana mais comum e ajuste os dias no passo 3.</p>
+    </div>
+    <div class="bloco-q">
+      <h4>Treino</h4>
+      <div class="chips" id="q-treino-dias" style="margin-bottom:10px"></div>
+      <div class="grade"><div><label class="lbl">Horario</label><div class="hora2"><input type="time" id="q-tri" value="17:00"><span>as</span><input type="time" id="q-trf" value="19:00"></div></div></div>
+    </div>
+    <div class="bloco-q">
+      <h4>Estudo</h4>
+      <div class="chips" id="q-est-dias" style="margin-bottom:10px"></div>
+      <div class="grade">
+        <div><label class="lbl" for="q-min">Minutos por dia (seg a sex)</label><input type="number" id="q-min" min="30" step="10" value="180"></div>
+        <div><label class="lbl" for="q-sab">Minutos no sabado</label><input type="number" id="q-sab" min="0" step="10" value="240"></div>
+        <div><label class="lbl" for="q-dom">Minutos no domingo</label><input type="number" id="q-dom" min="0" step="10" value="0"></div>
+        <div><label class="lbl" for="q-bloco">Tamanho do bloco (min)</label><input type="number" id="q-bloco" min="30" step="10" value="90"></div>
+        <div><label class="lbl" for="q-int">Intervalo entre blocos (min)</label><input type="number" id="q-int" min="0" step="5" value="10"></div>
+      </div>
+      <p id="q-dica" class="sub" style="margin:8px 0 0;font-size:12px"></p>
+      <div class="grade" style="margin-top:10px">
+        <div><label class="lbl" for="q-modo">O que vai em cada bloco de estudo</label>
+          <select id="q-modo" onchange="document.getElementById('q-fixo').style.display=this.value==='fixo'?'block':'none'">
+            <option value="cronograma">As sessoes do cronograma do dia (recomendado)</option>
+            <option value="fixo">Disciplina fixa por bloco (como no Mapa da Jornada antigo)</option>
+          </select></div>
+      </div>
+      <div id="q-fixo" style="display:none;margin-top:10px">
+        <label class="lbl" for="q-discs">Disciplinas, na ordem da semana (uma por linha; repita para dar mais peso)</label>
+        <textarea id="q-discs" rows="6"></textarea>
+        <label style="display:flex;gap:8px;align-items:center;font-size:13px;color:var(--tx2);margin-top:6px;cursor:pointer"><input type="checkbox" id="q-q15" checked style="width:16px;height:16px;margin:0"> "Questoes nos 15 min finais" em cada bloco</label>
+      </div>
+      <label style="display:flex;gap:8px;align-items:center;font-size:13px;color:var(--tx2);margin-top:8px;cursor:pointer"><input type="checkbox" id="q-revsem" checked style="width:16px;height:16px;margin:0"> No ultimo dia de estudo da semana: questoes + correcao dos erros e revisao</label>
+    </div>
+    <button onclick="montarRascunho()" style="margin-top:4px">⚡ Montar rascunho da rotina</button>
+  </div>
+
+  <div class="card">
+    <h3>3. Rotina da semana</h3>
+    <div class="tabs" id="tabs"></div>
+    <div id="lista"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+      <button class="btn-neutro" style="width:auto;padding:9px 14px;margin:0" onclick="novoBloco()">+ Bloco</button>
+      <button class="btn-neutro" style="width:auto;padding:9px 14px;margin:0" onclick="abrirCopiar()">Copiar este dia para...</button>
+      <button class="btn-excluir" style="width:auto;padding:9px 14px;margin:0" onclick="limparDia()">Limpar o dia</button>
+    </div>
+    <div id="copiar" style="display:none;margin-top:10px" class="bloco-q">
+      <div class="sub" style="margin-bottom:8px">Copiar os blocos de <strong id="cp-de"></strong> para (substitui o que houver nesses dias):</div>
+      <div class="chips" id="cp-dias"></div>
+      <button style="width:auto;padding:8px 14px;margin-top:10px" onclick="aplicarCopia()">Copiar</button>
+    </div>
+    <div class="avisos" id="avisos"></div>
+    <div style="margin-top:14px">
+      <div style="color:var(--ouro);font-size:13px;font-weight:700;margin-bottom:8px">Como o aluno vai ver a semana</div>
+      <div id="semana"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>4. Recomendacoes para o aluno</h3>
+    <p class="sub">Aparecem abaixo da rotina. Uma por linha.</p>
+    <textarea id="r-rec" rows="6" oninput="sujo()"></textarea>
+  </div>
+
+  <div class="barra">
+    <button class="btn-neutro" onclick="salvar(null)">💾 Salvar rascunho</button>
+    <button id="bt-pub" onclick="salvar(true)">📤 Publicar para o aluno</button>
+    <button id="bt-ocultar" class="btn-excluir" style="display:none" onclick="salvar(false)">Ocultar do aluno</button>
+    <span id="msg-salvar" style="font-size:13px;color:var(--tx3)"></span>
+  </div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="motor-rotina.js"></script>
+<script>
+let _alunos=[],_temRotina={},_aluno=null,_blocos=[],_publicada=false,_dia=1,_sujo=false,_cfg=null,_respostas=null
+document.getElementById('rt-css').textContent=Rotina.CSS
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function msg(id,t,c){const m=document.getElementById(id);m.style.display=t?'block':'none';m.style.color=c||'var(--tx3)';m.innerHTML=t||''}
+function sujo(){_sujo=true;document.getElementById('msg-salvar').textContent='Alteracoes nao salvas'}
+window.addEventListener('beforeunload',function(e){if(_sujo){e.preventDefault();e.returnValue=''}})
+
+function chipsDias(id,sel){
+  const el=document.getElementById(id)
+  el.innerHTML=Rotina.ORDEM_DIAS.map(function(d){return '<span class="dia-chip'+(sel.indexOf(d)>=0?' on':'')+'" data-d="'+d+'" onclick="this.classList.toggle(\'on\')">'+Rotina.DIAS_C[d]+'</span>'}).join('')
+}
+function diasDe(id){return Array.from(document.querySelectorAll('#'+id+' .dia-chip.on')).map(function(e){return parseInt(e.dataset.d)})}
+
+async function init(){
+  const { data:{user} }=await _supabase.auth.getUser()
+  if(!user){location.href='index.html';return}
+  const [ra,rr]=await Promise.all([
+    _supabase.from('alunos').select('id,nome,concurso_id').order('nome'),
+    _supabase.from('rotinas').select('aluno_id,publicada')
+  ])
+  if(rr.error&&/rotinas|relation|schema/i.test(rr.error.message||'')){
+    msg('msg-aluno','<strong>Falta rodar o arquivo atualizacao-rotina.sql no Supabase.</strong> Rode e recarregue esta pagina.','var(--erro)')
+  }
+  _alunos=ra.data||[]
+  ;(rr.data||[]).forEach(function(x){_temRotina[x.aluno_id]=x.publicada?'pub':'rasc'})
+  const s=document.getElementById('r-aluno')
+  _alunos.forEach(function(a){s.innerHTML+='<option value="'+a.id+'">'+esc(a.nome)+(_temRotina[a.id]==='pub'?'  ✓ publicada':_temRotina[a.id]?'  · rascunho':'')+'</option>'})
+  const qa=new URLSearchParams(location.search).get('aluno')
+  if(qa&&_alunos.some(function(a){return a.id===qa})){s.value=qa;trocarAluno()}
+}
+
+async function trocarAluno(){
+  if(_sujo&&!confirm('Ha alteracoes nao salvas na rotina deste aluno. Trocar mesmo assim?')){document.getElementById('r-aluno').value=_aluno?_aluno.id:'';return}
+  const id=document.getElementById('r-aluno').value
+  _aluno=_alunos.find(function(a){return a.id===id})||null
+  document.getElementById('area').style.display=_aluno?'block':'none'
+  document.getElementById('bt-ver').style.display=_aluno?'inline-block':'none'
+  if(!_aluno){document.getElementById('r-status').innerHTML='';return}
+  msg('msg-aluno','Carregando...')
+  const [rr,rf,rc]=await Promise.all([
+    _supabase.from('rotinas').select('*').eq('aluno_id',id).maybeSingle(),
+    _supabase.from('rotina_formulario').select('*').eq('aluno_id',id).maybeSingle(),
+    _supabase.from('config_cronograma').select('*').eq('aluno_id',id)
+  ])
+  const cfgs=rc.data||[]
+  _cfg=cfgs.find(function(c){return String(c.concurso_id)===String(_aluno.concurso_id)})||cfgs[0]||null
+  const rot=rr.data||null, form=rf.data||null
+  _blocos=rot&&Array.isArray(rot.blocos)?rot.blocos:[]
+  _publicada=!!(rot&&rot.publicada)
+  document.getElementById('r-rec').value=rot&&rot.recomendacoes!=null?rot.recomendacoes:Rotina.RECOMENDACOES_PADRAO
+  document.getElementById('f-texto').value=form&&form.texto||''
+  _respostas=form&&form.respostas&&Object.keys(form.respostas).length?form.respostas:null
+  await preencherQuestionario(_respostas)
+  _dia=1;_sujo=false
+  msg('msg-aluno','')
+  document.getElementById('msg-salvar').textContent=''
+  status();render()
+}
+function status(){
+  const el=document.getElementById('r-status')
+  el.innerHTML=!_blocos.length&&!_publicada?'<span class="st" style="background:var(--card2);color:var(--tx3)">Sem rotina</span>'
+    :_publicada?'<span class="st" style="background:rgba(109,219,160,.15);color:var(--ok)">✓ Publicada — o aluno ve</span>'
+    :'<span class="st" style="background:rgba(232,176,75,.15);color:var(--alerta)">Rascunho — o aluno ainda nao ve</span>'
+  document.getElementById('bt-pub').textContent=_publicada?'📤 Salvar e manter publicada':'📤 Publicar para o aluno'
+  document.getElementById('bt-ocultar').style.display=_publicada?'inline-block':'none'
+}
+
+async function preencherQuestionario(r){
+  const v=function(id,x){if(x!=null&&x!=='')document.getElementById(id).value=x}
+  const diasCfg=_cfg&&_cfg.dias_semana?String(_cfg.dias_semana).split(',').map(Number):[1,2,3,4,5,6]
+  const minCfg=_cfg?(parseInt(_cfg.sessoes_por_dia)||3)*(parseInt(_cfg.tempo_sessao)||60):180
+  r=r||{}
+  v('q-acorda',r.acorda);v('q-dorme',r.dorme);v('q-jantar',r.jantar)
+  chipsDias('q-trab-dias',r.trabDias||[1,2,3,4,5])
+  chipsDias('q-treino-dias',r.treinoDias||[])
+  chipsDias('q-est-dias',r.estudoDias||diasCfg)
+  if(r.trab1){v('q-t1i',r.trab1.ini);v('q-t1f',r.trab1.fim)}
+  if(r.trab2){v('q-t2i',r.trab2.ini);v('q-t2f',r.trab2.fim)}else if(r.trab1){document.getElementById('q-t2i').value='';document.getElementById('q-t2f').value=''}
+  if(r.treino){v('q-tri',r.treino.ini);v('q-trf',r.treino.fim)}
+  document.getElementById('q-min').value=r.minDia!=null?r.minDia:minCfg
+  document.getElementById('q-sab').value=r.minSab!=null?r.minSab:(diasCfg.indexOf(6)>=0?minCfg:0)
+  document.getElementById('q-dom').value=r.minDom!=null?r.minDom:(diasCfg.indexOf(0)>=0?minCfg:0)
+  v('q-bloco',r.bloco);v('q-int',r.intervalo)
+  document.getElementById('q-modo').value=r.modo||'cronograma'
+  document.getElementById('q-fixo').style.display=(r.modo==='fixo')?'block':'none'
+  document.getElementById('q-q15').checked=r.questoes15!==false
+  document.getElementById('q-revsem').checked=r.revisaoSemanal!==false
+  document.getElementById('q-dica').textContent=_cfg&&_cfg.sessoes_por_dia&&_cfg.tempo_sessao?'No cronograma deste aluno: '+(_cfg.sessoes_por_dia||'?')+' sessoes de '+(_cfg.tempo_sessao||'?')+' min por dia ('+minCfg+' min). A rotina precisa ter pelo menos esse tempo de estudo nos dias de estudo.':'Este aluno ainda nao tem cronograma gerado.'
+  // disciplinas do edital do concurso do aluno (para o modo "disciplina fixa")
+  let discs=r.disciplinas
+  if(!discs||!discs.length){
+    discs=[]
+    if(_aluno.concurso_id){
+      const { data }=await _supabase.from('edital_topicos').select('disciplina').eq('concurso_id',_aluno.concurso_id).limit(3000)
+      ;(data||[]).forEach(function(x){if(x.disciplina&&discs.indexOf(x.disciplina)<0)discs.push(x.disciplina)})
+    }
+    discs=discs.map(function(d){return d===d.toUpperCase()?d.toLowerCase().replace(/(^|\s)(\S)/g,function(m,a,b){return a+b.toUpperCase()}).replace(/\b(De|Da|Do|Das|Dos|E|Ao|Em|Na|No)\b/g,function(x){return x.toLowerCase()}):d})
+  }
+  document.getElementById('q-discs').value=discs.join('\n')
+}
+function lerQuestionario(){
+  const g=function(id){return document.getElementById(id).value}
+  const t2=g('q-t2i')&&g('q-t2f')?{ini:g('q-t2i'),fim:g('q-t2f')}:null
+  return {
+    acorda:g('q-acorda'),dorme:g('q-dorme'),jantar:g('q-jantar'),
+    trabDias:diasDe('q-trab-dias'),trab1:g('q-t1i')&&g('q-t1f')?{ini:g('q-t1i'),fim:g('q-t1f')}:null,trab2:t2,
+    treinoDias:diasDe('q-treino-dias'),treino:g('q-tri')&&g('q-trf')?{ini:g('q-tri'),fim:g('q-trf')}:null,
+    estudoDias:diasDe('q-est-dias'),minDia:parseInt(g('q-min'))||0,minSab:parseInt(g('q-sab'))||0,minDom:parseInt(g('q-dom'))||0,
+    bloco:parseInt(g('q-bloco'))||90,intervalo:parseInt(g('q-int'))||0,modo:g('q-modo'),
+    disciplinas:g('q-discs').split('\n').map(function(x){return x.trim()}).filter(Boolean),
+    questoes15:document.getElementById('q-q15').checked,revisaoSemanal:document.getElementById('q-revsem').checked
+  }
+}
+function montarRascunho(){
+  const r=lerQuestionario()
+  if(!r.estudoDias.length){alert('Marque pelo menos um dia de estudo.');return}
+  if(r.modo==='fixo'&&!r.disciplinas.length){alert('Informe as disciplinas (uma por linha).');return}
+  if(_blocos.length&&!confirm('Montar o rascunho substitui a rotina que esta no passo 3. Continuar?'))return
+  _respostas=r
+  _blocos=Rotina.montarRascunho(r)
+  sujo();render()
+  const falta=r.estudoDias.filter(function(d){const alvo=d===6?r.minSab:d===0?r.minDom:r.minDia;return Rotina.minutosEstudo(_blocos,d)<alvo-29})
+  if(falta.length)alert('Atencao: em '+falta.map(function(d){return Rotina.DIAS[d]}).join(', ')+' nao coube todo o tempo de estudo pedido entre os compromissos. Ajuste os horarios no passo 3.')
+}
+
+// ---------- editor ----------
+function render(){
+  const tabs=document.getElementById('tabs')
+  tabs.innerHTML=Rotina.ORDEM_DIAS.map(function(d){
+    const m=Rotina.minutosEstudo(_blocos,d)
+    return '<div class="tab'+(d===_dia?' on':'')+'" onclick="_dia='+d+';render()">'+Rotina.DIAS[d]+'<small>'+(m?Math.floor(m/60)+'h'+String(m%60).padStart(2,'0')+' estudo':Rotina.doDia(_blocos,d).length?'sem estudo':'vazio')+'</small></div>'
+  }).join('')
+  const lista=document.getElementById('lista')
+  const doDia=_blocos.map(function(b,i){return {b:b,i:i}}).filter(function(x){return x.b.d===_dia})
+    .sort(function(a,b){return (Rotina.min(a.b.ini)||0)-(Rotina.min(b.b.ini)||0)})
+  lista.innerHTML=doDia.length?doDia.map(function(x){
+    const b=x.b,tp=Rotina.TIPOS[b.tipo]||Rotina.TIPOS.outro
+    return '<div class="bl" style="--c:'+tp.c+'">'
+      +'<input class="i" type="time" value="'+esc(b.ini)+'" onchange="mudar('+x.i+',\'ini\',this.value)" aria-label="Inicio">'
+      +'<input class="f" type="time" value="'+esc(b.fim)+'" onchange="mudar('+x.i+',\'fim\',this.value)" aria-label="Fim">'
+      +'<select class="t" onchange="mudar('+x.i+',\'tipo\',this.value)">'+Object.keys(Rotina.TIPOS).map(function(t){return '<option value="'+t+'"'+(t===b.tipo?' selected':'')+'>'+Rotina.TIPOS[t].n+'</option>'}).join('')+'</select>'
+      +'<input class="x" type="text" value="'+esc(b.txt||'')+'" placeholder="'+esc(tp.n)+(tp.estudo?' (ex.: Portugues. Questoes nos 15 min finais.)':'')+'" onchange="mudar('+x.i+',\'txt\',this.value)">'
+      +(tp.estudo?'<label class="cr" title="Mostra para o aluno as sessoes do cronograma do dia dentro deste bloco"><input type="checkbox"'+(b.cron?' checked':'')+' onchange="mudar('+x.i+',\'cron\',this.checked)"> cronograma</label>':'<span class="cr"></span>')
+      +'<button class="del" onclick="remover('+x.i+')" aria-label="Remover bloco">🗑</button></div>'
+  }).join(''):'<p class="sub" style="margin:4px 0 10px">Nenhum bloco em '+Rotina.DIAS[_dia]+'. Use <strong>+ Bloco</strong> ou copie de outro dia.</p>'
+  // avisos
+  const av=[],erros=Rotina.validar(_blocos)
+  erros.forEach(function(e){av.push('<span style="color:var(--erro)">⚠️ '+esc(e)+'</span>')})
+  if(_cfg){
+    const alvo=(parseInt(_cfg.sessoes_por_dia)||0)*(parseInt(_cfg.tempo_sessao)||0)
+    const dias=String(_cfg.dias_semana||'').split(',').filter(Boolean).map(Number)
+    const curtos=dias.filter(function(d){return Rotina.minutosEstudo(_blocos,d)<alvo})
+    if(_blocos.length&&alvo&&curtos.length)av.push('<span style="color:var(--alerta)">⏱️ O cronograma pede '+alvo+' min por dia. Com menos tempo de estudo na rotina: '+curtos.map(function(d){return Rotina.DIAS[d]+' ('+Rotina.minutosEstudo(_blocos,d)+' min)'}).join(', ')+'.</span>')
+    const sem=Rotina.ORDEM_DIAS.filter(function(d){return Rotina.minutosEstudo(_blocos,d)>0&&dias.indexOf(d)<0})
+    if(sem.length&&dias.length)av.push('<span style="color:var(--tx3)">ℹ️ Tem estudo na rotina em '+sem.map(function(d){return Rotina.DIAS[d]}).join(', ')+', mas o cronograma nao tem sessoes nesse dia (dias do cronograma: '+dias.map(function(d){return Rotina.DIAS_C[d]}).join(', ')+'). Nesses blocos o aluno pode adiantar sessoes ou revisar.</span>')
+  }
+  const tot=Rotina.minutosEstudo(_blocos)
+  if(tot)av.push('<span style="color:var(--tx2)">📚 Estudo na semana: <strong>'+Math.floor(tot/60)+'h'+String(tot%60).padStart(2,'0')+'</strong></span>')
+  document.getElementById('avisos').innerHTML=av.join('<br>')
+  const hj=new Date().getDay()
+  document.getElementById('semana').innerHTML=Rotina.htmlSemana(_blocos,{hoje:hj})+Rotina.htmlLegenda(_blocos)
+}
+function mudar(i,campo,v){
+  const b=_blocos[i]; if(!b)return
+  b[campo]=v
+  // escreveu uma disciplina no bloco: deixa de mostrar as sessoes do cronograma (pode marcar de novo)
+  if(campo==='txt'&&b.cron&&v&&!/cronograma/i.test(v))b.cron=false
+  if(campo==='tipo'){
+    if(!Rotina.TIPOS[v].estudo)delete b.cron
+    if(!b.txt||Object.keys(Rotina.TIPOS).some(function(t){return Rotina.TIPOS[t].n===b.txt}))b.txt=''
+  }
+  sujo();render()
+}
+function remover(i){_blocos.splice(i,1);sujo();render()}
+function novoBloco(){
+  const l=Rotina.doDia(_blocos,_dia), ult=l.length?Rotina.intervalo(l[l.length-1]):null
+  const ini=ult?ult[1]+10:19*60, fim=ini+60
+  _blocos.push({d:_dia,ini:Rotina.hm(ini),fim:Rotina.hm(Math.min(fim,24*60-1)),tipo:'estudo',txt:'',cron:true})
+  sujo();render()
+}
+function limparDia(){
+  if(!Rotina.doDia(_blocos,_dia).length)return
+  if(!confirm('Remover todos os blocos de '+Rotina.DIAS[_dia]+'?'))return
+  _blocos=_blocos.filter(function(b){return b.d!==_dia});sujo();render()
+}
+function abrirCopiar(){
+  if(!Rotina.doDia(_blocos,_dia).length){alert('Este dia ainda nao tem blocos.');return}
+  document.getElementById('copiar').style.display='block'
+  document.getElementById('cp-de').textContent=Rotina.DIAS[_dia]
+  chipsDias('cp-dias',[])
+  document.querySelectorAll('#cp-dias .dia-chip').forEach(function(c){if(parseInt(c.dataset.d)===_dia)c.remove()})
+}
+function aplicarCopia(){
+  const alvo=diasDe('cp-dias')
+  if(!alvo.length){alert('Escolha os dias.');return}
+  const base=Rotina.doDia(_blocos,_dia)
+  _blocos=_blocos.filter(function(b){return alvo.indexOf(b.d)<0})
+  alvo.forEach(function(d){base.forEach(function(b){_blocos.push(Object.assign({},b,{d:d}))})})
+  document.getElementById('copiar').style.display='none'
+  sujo();render()
+}
+
+// ---------- salvar ----------
+async function salvar(publicar){
+  if(!_aluno)return
+  const erros=Rotina.validar(_blocos)
+  if(erros.length&&!confirm('A rotina tem '+erros.length+' problema(s):\n\n'+erros.slice(0,6).join('\n')+'\n\nSalvar mesmo assim?'))return
+  if(publicar===true&&!_blocos.length){alert('Monte a rotina antes de publicar.');return}
+  const pub=publicar===null?_publicada:publicar
+  if(publicar===false&&!confirm('Ocultar a rotina do aluno? Ela continua salva aqui.'))return
+  const m=document.getElementById('msg-salvar');m.style.color='var(--tx3)';m.textContent='Salvando...'
+  const lin={aluno_id:_aluno.id,blocos:Rotina.ordenar(_blocos),recomendacoes:document.getElementById('r-rec').value,publicada:pub,atualizado_em:new Date().toISOString()}
+  if(pub&&!_publicada)lin.publicada_em=new Date().toISOString()
+  const r1=await _supabase.from('rotinas').upsert(lin,{onConflict:'aluno_id'})
+  if(r1.error){m.style.color='var(--erro)';m.textContent='Erro: '+r1.error.message+(/rotinas|relation/i.test(r1.error.message)?' — rode o atualizacao-rotina.sql':'');return}
+  const r2=await _supabase.from('rotina_formulario').upsert({aluno_id:_aluno.id,texto:document.getElementById('f-texto').value,respostas:lerQuestionario(),atualizado_em:new Date().toISOString()},{onConflict:'aluno_id'})
+  _publicada=pub;_sujo=false;_temRotina[_aluno.id]=pub?'pub':'rasc'
+  const op=document.querySelector('#r-aluno option[value="'+_aluno.id+'"]'); if(op)op.textContent=_aluno.nome+(pub?'  ✓ publicada':'  · rascunho')
+  status()
+  m.style.color='var(--ok)'
+  m.textContent=(pub?(publicar===true?'Publicada! O aluno ja ve a rotina no cronograma dele.':'Salva (publicada).'):publicar===false?'Rotina oculta do aluno.':'Rascunho salvo.')+(r2.error?' (o formulario nao foi salvo: '+r2.error.message+')':'')
+}
+function verComoAluno(){
+  if(_sujo&&!confirm('Salve antes para ver as ultimas mudancas. Abrir mesmo assim?'))return
+  window.open('rotina.html?aluno='+_aluno.id,'_blank')
+}
+init()
+</script>
+<script src="menu-admin.js"></script>
+</body>
+</html>
