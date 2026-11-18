@@ -10,9 +10,9 @@ const FALSO = fs.readFileSync(path.join(__dirname, 'mock', 'supabase-falso.js'),
 const TIPOS = { '.html': 'text/html', '.js': 'application/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png' }
 
 const ALUNO = ['cronograma.html', 'questoes.html', 'questoes.html#simulados', 'flashcards.html', 'edital.html', 'lei-seca.html', 'ranking.html', 'cronograma.html#desempenho', 'cronograma.html#perfil']
-const MENTOR = ['banco-cobertura.html', 'migrar-concurso.html', 'notificacoes-admin.html', 'admin.html', 'questoes-admin.html', 'questoes-admin.html#estatisticas', 'simulados-admin.html', 'leis-admin.html', 'vendas-admin.html', 'gerador.html', 'ajustar.html', 'overview.html', 'flashcards-admin.html', 'cronograma.html?aluno=al1']
+const MENTOR = ['rotina-admin.html', 'rotina-admin.html?aluno=al1', 'rotina.html?aluno=al1', 'banco-cobertura.html', 'migrar-concurso.html', 'notificacoes-admin.html', 'admin.html', 'questoes-admin.html', 'questoes-admin.html#estatisticas', 'simulados-admin.html', 'leis-admin.html', 'vendas-admin.html', 'gerador.html', 'ajustar.html', 'overview.html', 'flashcards-admin.html', 'cronograma.html?aluno=al1']
 const PUBLICAS = ['index.html', 'primeiro-acesso.html', 'privacidade.html', 'assinatura.html', 'nova-senha.html']
-ALUNO.push('meu-cronograma.html')
+ALUNO.push('meu-cronograma.html', 'rotina.html')
 
 const srv = http.createServer((req, res) => {
   let f = decodeURIComponent(req.url.split('?')[0].split('#')[0]); if (f === '/') f = '/index.html'

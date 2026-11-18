@@ -42,7 +42,7 @@ htmls.forEach(f => {
 
 // 3) arquivos que nao podem ser trocados por engano
 const assinaturas = {
-  'menu-admin.js': 'window.MenuAdmin', 'comum.js': 'VERSAO_PLATAFORMA', 'motor-cronograma.js': 'function montarPlano', 'motor-migracao.js': 'function migMontarProposta', 'motor-banco.js': 'function bancoCobertura', 'senha-visivel.js': '__senhaVisivel', 'banco-dedup.js': 'function triar', 'central.js': 'function carregarCentral',
+  'menu-admin.js': 'window.MenuAdmin', 'comum.js': 'VERSAO_PLATAFORMA', 'motor-cronograma.js': 'function montarPlano', 'motor-migracao.js': 'function migMontarProposta', 'motor-banco.js': 'function bancoCobertura', 'senha-visivel.js': '__senhaVisivel', 'banco-dedup.js': 'function triar', 'motor-rotina.js': 'function montarRascunho', 'central.js': 'function carregarCentral',
   'desempenho.js': 'buscarDesempenhoAssuntos', 'relatorio-ciclo.js': 'verificarRelatorioCiclo', 'pomodoro.js': 'pomoAbrir',
   'explicacao.js': 'htmlExplicacao', 'lei-parser.js': 'lerLei', 'simulado-parser.js': 'lerSimulado',
   'leitor-arquivos.js': 'lerArquivoParagrafos', 'caderno-revisao.js': 'renderRevisaoCaderno', 'admin.js': 'function carregarAlunos',
@@ -130,6 +130,28 @@ if (SP) {
     ok(['Direito Administrativo (itens 61 a 70)', 'Legislação PMAL', 'Noções de Dir. Proc. Penal Militar (q113–q120)', 'Direitos Humanos', 'Direito Processual Penal'].map(x => casarDisciplina(x, AL)).join('|') === 'Noções de Direito Administrativo|Legislação Pertinente ao Policial Militar de Alagoas|Noções de Direito Processual Penal Militar|Noções de Direitos Humanos|Noções de Direito Processual Penal' && ['Incorreta.', 'A B C D', 'Parte 1 – Conhecimentos Básicos', 'Instruções Gerais'].every(x => !casarDisciplina(x, AL)), 'disciplina: variacoes casam com o edital; lixo nao casa')
   } else ok(false, 'simulado-parser.js sem o leitor de gabarito comentado')
 }
+// rotina individual (Mapa da Jornada)
+const RT = existe('motor-rotina.js') && carregar('motor-rotina.js')
+if (RT) {
+  // o mesmo aluno do modelo antigo: trabalho 7:30-11:30 e 13:30-16:30 (seg a sab), treino 17-19, estudo a noite, domingo livre
+  const r = { acorda: '06:00', dorme: '23:00', trabDias: [1, 2, 3, 4, 5, 6], trab1: { ini: '07:30', fim: '11:30' }, trab2: { ini: '13:30', fim: '16:30' }, treinoDias: [1, 2, 3, 4, 5, 6], treino: { ini: '17:00', fim: '19:00' }, jantar: '19:00', estudoDias: [1, 2, 3, 4, 5, 6], minDia: 170, minSab: 170, bloco: 90, intervalo: 10, modo: 'fixo', disciplinas: ['Direito Administrativo', 'Portugues'], questoes15: true, revisaoSemanal: true }
+  const b = RT.montarRascunho(r)
+  const seg = RT.doDia(b, 1).map(x => x.ini + '-' + x.fim + ' ' + x.tipo).join(' | ')
+  ok(seg === '06:00-07:30 preparo | 07:30-11:30 trabalho | 11:30-13:30 refeicao | 13:30-16:30 trabalho | 17:00-19:00 treino | 19:00-20:00 refeicao | 20:00-21:30 estudo | 21:40-23:00 estudo', 'rotina: rascunho igual ao Mapa da Jornada (segunda)', seg)
+  ok(RT.doDia(b, 1)[6].txt === 'Direito Administrativo. Questoes nos 15 min finais.' && RT.doDia(b, 1)[7].txt === 'Portugues. Questoes nos 15 min finais.', 'rotina: disciplina fixa por bloco com "questoes nos 15 min finais"')
+  ok(RT.doDia(b, 6).slice(-2).map(x => x.tipo).join() === 'questoes,revisao' && RT.doDia(b, 0).length === 1 && RT.doDia(b, 0)[0].tipo === 'livre', 'rotina: sabado com questoes + revisao da semana; domingo livre')
+  ok(RT.validar(b).length === 0, 'rotina: rascunho sem sobreposicao', RT.validar(b).join('; '))
+  // modo cronograma, expediente corrido: almoco depois do trabalho e nenhum bloco de estudo menor que 30 min
+  const b2 = RT.montarRascunho({ acorda: '06:00', dorme: '23:00', trabDias: [1, 2, 3, 4, 5], trab1: { ini: '08:00', fim: '14:00' }, treinoDias: [1, 3, 5], treino: { ini: '17:00', fim: '18:30' }, estudoDias: [1, 2, 3, 4, 5, 6], minDia: 240, minSab: 300, bloco: 90, intervalo: 10, modo: 'cronograma' })
+  ok(RT.doDia(b2, 1).some(x => x.ini === '14:00' && x.tipo === 'refeicao') && b2.filter(x => RT.TIPOS[x.tipo].estudo).every(x => RT.duracao(x) >= 30) && b2.filter(x => x.tipo === 'estudo').every(x => x.cron) && RT.validar(b2).length === 0, 'rotina: modo cronograma, almoco apos o expediente e blocos de no minimo 30 min')
+  ok(RT.validar([{ d: 1, ini: '20:00', fim: '21:30', tipo: 'estudo' }, { d: 1, ini: '21:00', fim: '22:00', tipo: 'estudo' }]).length === 1, 'rotina: acusa blocos sobrepostos')
+  const dist = RT.distribuirSessoes([{ ini: '20:00', fim: '21:30', cron: true }, { ini: '21:40', fim: '23:00', cron: true }], [{ id: 1, tempo_minutos: 60 }, { id: 2, tempo_minutos: 30 }, { id: 3, tempo_minutos: 60 }, { id: 4, tempo_minutos: 60 }])
+  ok((dist.mapa[0] || []).map(x => x.id).join() === '1,2' && (dist.mapa[1] || []).map(x => x.id).join() === '3' && dist.sobra.length === 1, 'rotina: sessoes do cronograma distribuidas nos blocos de estudo (sobra avisada)', JSON.stringify(dist))
+  const ap = RT.agoraEProximo(RT.doDia(b, 1), 20 * 60 + 15)
+  ok(ap.agora && ap.agora.ini === '20:00' && ap.prox && ap.prox.ini === '21:40', 'rotina: bloco de agora e o proximo')
+  ok(RT.duracao({ ini: '23:00', fim: '00:30' }) === 90, 'rotina: bloco que passa da meia-noite')
+}
+
 // cronograma: encaixe minimo (so encurta o necessario, so no comeco; o resto volta ao tempo cheio)
 if (existe('motor-cronograma.js')) {
   const vm = require('vm'), ctxM = {}
