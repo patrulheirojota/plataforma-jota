@@ -148,6 +148,12 @@ R.migrar_avanco=function(a){if(!window.ADMIN)throw new Error('apenas o mentor');
  const AC=T('aluno_concursos');if(!AC.some(x=>x.aluno_id===a.p_aluno&&x.concurso_id===a.p_destino))AC.push({aluno_id:a.p_aluno,concurso_id:a.p_destino})
  T('cronograma_log').push({id:'lg'+Date.now(),aluno_id:a.p_aluno,acao:'migrou_concurso',detalhe:'[Mentor] '+m+' temas ('+(a.p_resumo||'')+')',criado_em:new Date().toISOString(),visto:true,por_mentor:true})
  save();return {marcados:m,ja_tinha:j,ignorados:0,destino:(T('concursos').find(c=>c.id===a.p_destino)||{}).nome}}
+R.reiniciar_disciplina=function(a){if(window.UID!==a.p_aluno&&!window.ADMIN)throw new Error('sem permissao para alterar o cronograma deste aluno')
+ const S=T('sessoes_estudo');const fora=x=>x.aluno_id===a.p_aluno&&String(x.concurso_id)===String(a.p_concurso)&&!x.concluida&&!x.extra&&a.p_disciplinas.indexOf(x.disciplina)>=0
+ const ap=S.filter(fora).length;db()['sessoes_estudo']=S.filter(x=>!fora(x));const S2=T('sessoes_estudo')
+ a.p_novas.forEach((x,i)=>S2.push(Object.assign({id:'rd'+Date.now()+'_'+i,aluno_id:a.p_aluno,concurso_id:a.p_concurso,concluida:false,extra:false},x)))
+ let mv=0;a.p_mover.forEach(x=>{const s=S2.find(y=>y.id===x.id&&y.aluno_id===a.p_aluno&&!y.concluida);if(s){s.data=x.data;s.ordem=x.ordem;s.tempo_minutos=x.tempo_minutos;mv++}})
+ save();return {apagadas:ap,inseridas:a.p_novas.length,movidas:mv}}
 R.auto_cronograma_salvar=function(a){const uid=window.UID;const S=T('sessoes_estudo');const ant=S.filter(x=>x.aluno_id===uid&&!x.concluida&&!x.extra).length
  db()['sessoes_estudo']=S.filter(x=>!(x.aluno_id===uid&&!x.concluida&&!x.extra))
  a.p_sessoes.forEach((x,i)=>T('sessoes_estudo').push(Object.assign({id:'as'+i,aluno_id:uid,concluida:false},x)))
