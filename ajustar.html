@@ -325,7 +325,10 @@ async function aplicar(){
         while((idx<novos.length||pend.length)&&guarda<900){
           const k=ymd(d)
           if(dias.indexOf(d.getDay())>=0){
-            let livres=Math.max(0,cap-(ocup[k]||0))
+            // carga por dia da semana (Gerador), quando houver
+            const cd=cfg&&cfg.carga_dias&&typeof cfg.carga_dias==='object'?cfg.carga_dias:null
+            const capK=cd&&cd[d.getDay()]!=null?Math.max(0,Math.round(Number(cd[d.getDay()])/tempo)):cap
+            let livres=Math.max(0,capK-(ocup[k]||0))
             let ord=(ordMax[k]||0)+1
             const due=pend.filter(function(p){return p.due<=d})
             while(livres>0&&due.length){

@@ -1745,14 +1745,22 @@ function capacidadeDia(){
   Object.keys(_porData).forEach(function(k){m=Math.max(m,_porData[k].length)})
   return m||3
 }
+// carga do dia (minutos): carga por dia da semana definida no Gerador (config_cronograma.carga_dias) ou sessoes x tempo
+function temCargaPorDia(){const cd=_cfg&&_cfg.carga_dias;return !!(cd&&typeof cd==='object'&&Object.keys(cd).length)}
+function cargaDiaMin(k){
+  const cd=temCargaPorDia()?_cfg.carga_dias:null, dw=parseD(k).getDay()
+  if(cd&&cd[dw]!=null&&cd[dw]!==''&&!isNaN(cd[dw]))return Math.max(0,Number(cd[dw]))
+  return capacidadeDia()*tempoBase()
+}
+function capDia(k){return temCargaPorDia()?Math.max(0,Math.round(cargaDiaMin(k)/tempoBase())):capacidadeDia()}
 function ocupacao(k){ return (_porData[k]||[]).length }
 function vagasFuturas(apartir,quantas){
-  const dias=diasEstudo(), cap=capacidadeDia(), out=[]
+  const dias=diasEstudo(), out=[]
   let d=parseD(apartir), guarda=0
   while(out.length<quantas&&guarda<800){
     const k=ymd(d)
     if(dias.indexOf(d.getDay())>=0){
-      const livres=Math.max(0,cap-ocupacao(k))
+      const livres=Math.max(0,capDia(k)-ocupacao(k))
       for(let i=0;i<livres&&out.length<quantas;i++)out.push(k)
     }
     d=addDays(d,1);guarda++
@@ -1989,11 +1997,12 @@ function alocarReplan(fila,inicio,nivel,orc,dias,lim,fixo,ate,maxS){
     if(lim&&k>lim)break
     if(dias.indexOf(d.getDay())>=0){
       let usado=fixo[k]||0,colocou=0
-      const nv=(ate&&k>=ate)?0:nivel
+      const nv=(ate&&k>=ate)?0:nivel, oK=typeof orc==='function'?orc(k):orc, mK=typeof maxS==='function'?maxS(k):maxS
+      if(oK<=0){carga[k]=usado;d=addDays(d,1);guarda++;continue}
       while(i<fila.length){
         const m=minNoNivel(fila[i],nv)
-        if(usado+m>orc&&!(colocou===0&&usado===0))break
-        if(maxS&&colocou>=maxS)break
+        if(usado+m>oK&&!(colocou===0&&usado===0))break
+        if(mK&&colocou>=mK)break
         itens.push({s:fila[i],data:k,min:m,idx:i});usado+=m;i++;colocou++
       }
       carga[k]=usado
@@ -2014,7 +2023,8 @@ function alocarComDatas(fila,inicio,nivel,orc,dias,lim,fixo,ate,maxS){
     if(lim&&k>lim)break
     if(dias.indexOf(d.getDay())>=0){
       let usado=fixo[k]||0,colocou=0
-      const nv=(ate&&k>=ate)?0:nivel, bloq={}
+      const nv=(ate&&k>=ate)?0:nivel, bloq={}, oK=typeof orc==='function'?orc(k):orc, mK=typeof maxS==='function'?maxS(k):maxS
+      if(oK<=0){carga[k]=usado;d=addDays(d,1);guarda++;continue}
       for(let i=prim;i<fila.length&&i<prim+600;i++){
         if(feito[i])continue
         const x=fila[i], ch=chaveTema(x)
@@ -2023,8 +2033,8 @@ function alocarComDatas(fila,inicio,nivel,orc,dias,lim,fixo,ate,maxS){
         if(pode&&x._gap&&ultima[ch]&&k<ymd(addDays(parseD(ultima[ch]),x._gap)))pode=false
         if(!pode){bloq[ch]=1;continue}
         const m=minNoNivel(x,nv)
-        if(usado+m>orc&&!(colocou===0&&usado===0))break
-        if(maxS&&colocou>=maxS)break
+        if(usado+m>oK&&!(colocou===0&&usado===0))break
+        if(mK&&colocou>=mK)break
         itens.push({s:x,data:k,min:m,idx:i});feito[i]=true;restam--;usado+=m;colocou++
         if(x._novo)ultima[ch]=k
       }
@@ -2137,29 +2147,32 @@ function simularReplan(inicio,primeiro,opts){
   const fila=dep.fila
   let dias=diasEstudo(); if(!dias.length)dias=[0,1,2,3,4,5,6]
   const orc=capacidadeDia()*tempoBase()
+  // carga por dia da semana (Gerador): cada dia com o seu limite de minutos e de sessoes
+  const porDiaSem=temCargaPorDia()
+  const orcF=porDiaSem?cargaDiaMin:orc
   const lim=limitePlano(inicio)
   const fixo={}
   _sessoes.forEach(function(x){if(x.concluida&&x.data>=inicio)fixo[x.data]=(fixo[x.data]||0)+(x.tempo_minutos||0)})
 
   const fimAntes=_sessoes.filter(function(x){return !x.concluida}).map(function(x){return x.data}).sort().pop()||inicio
   // 1) tudo no tempo cheio (as que estavam encurtadas voltam ao normal se couber)
-  let r=alocarReplan(fila,inicio,0,orc,dias,lim,fixo)
+  let r=alocarReplan(fila,inicio,0,orcF,dias,lim,fixo)
   // 2) se nao cabe: encurta o minimo (3/4 antes de 1/2), so no comeco do periodo (o resto volta ao tempo cheio)
   //    e, se der, sem passar de "sessoes por dia + metade" num dia
   if(r.faltam.length){
-    const cap=capacidadeDia(), maxS=cap+Math.ceil(cap/2)
+    const cap=capacidadeDia(), maxS=porDiaSem?function(k){const c=capDia(k);return c+Math.ceil(c/2)}:cap+Math.ceil(cap/2)
     const datas=[]
     for(let dd=parseD(inicio),g=0;g<1500&&(!lim||ymd(dd)<=lim);dd=addDays(dd,1),g++)if(dias.indexOf(dd.getDay())>=0)datas.push(ymd(dd))
     let achou=null
     ;[maxS,0].forEach(function(ms){
       if(achou)return
       for(let n=1;n<=5&&!achou;n++){
-        const tudo=alocarReplan(fila,inicio,n,orc,dias,lim,fixo,null,ms)
+        const tudo=alocarReplan(fila,inicio,n,orcF,dias,lim,fixo,null,ms)
         if(tudo.faltam.length)continue
         let lo=1,hi=datas.length,ok=tudo
         while(lo<hi){
           const mid=(lo+hi)>>1
-          const t=alocarReplan(fila,inicio,n,orc,dias,lim,fixo,datas[mid],ms)
+          const t=alocarReplan(fila,inicio,n,orcF,dias,lim,fixo,datas[mid],ms)
           if(!t.faltam.length){hi=mid;ok=t}else lo=mid+1
         }
         ok.ate=hi<datas.length?datas[hi]:null
@@ -2167,15 +2180,16 @@ function simularReplan(inicio,primeiro,opts){
       }
     })
     if(achou)r=achou
-    else{ for(let n=1;n<=5&&r.faltam.length;n++)r=alocarReplan(fila,inicio,n,orc,dias,lim,fixo) }
+    else{ for(let n=1;n<=5&&r.faltam.length;n++)r=alocarReplan(fila,inicio,n,orcF,dias,lim,fixo) }
   }
 
   // ultimo recurso: nada se perde e a ordem teoria -> questoes -> revisao se mantem.
   // Aumenta a carga de TODOS os dias por igual (de 15 em 15 min) ate tudo caber antes da prova.
   let sobrecarga=0, orcUsado=orc
   if(r.faltam.length){
-    for(let B=orc+15;B<=orc*4&&r.faltam.length;B+=15){
-      r=alocarReplan(fila,inicio,5,B,dias,lim,fixo); orcUsado=B
+    for(let e=15;e<=orc*3&&r.faltam.length;e+=15){
+      const ee=e
+      r=alocarReplan(fila,inicio,5,porDiaSem?function(k){const c=cargaDiaMin(k);return c>0?c+ee:0}:orc+ee,dias,lim,fixo); orcUsado=orc+e
     }
     if(r.faltam.length){
       // periodo realmente impossivel: coloca o restante no ultimo dia util, em ordem
@@ -2184,7 +2198,7 @@ function simularReplan(inicio,primeiro,opts){
       r.faltam.forEach(function(x,j){r.itens.push({s:x,data:k,min:minNoNivel(x,r.nivel),idx:r.iniFalta+j})})
       r.faltam=[]
     }
-    Object.keys(r.carga).forEach(function(k){if(r.carga[k]>orc)sobrecarga++})
+    Object.keys(r.carga).forEach(function(k){if(r.carga[k]>(porDiaSem?cargaDiaMin(k):orc))sobrecarga++})
   }
 
   // ordem dentro de cada dia: primeiro as ja concluidas, depois a fila
@@ -2379,14 +2393,15 @@ function simularCarga(sess,tempo){
   const pend=_sessoes.filter(function(x){return !x.concluida&&x.data>=hj})
   const backupT=pend.map(function(x){return x.tempo_minutos})
   const temCfg=!!_cfg; if(!_cfg)_cfg={}
-  const backupCfg={s:_cfg.sessoes_por_dia,t:_cfg.tempo_sessao}
+  const backupCfg={s:_cfg.sessoes_por_dia,t:_cfg.tempo_sessao,cd:_cfg.carga_dias}
   _cfg.sessoes_por_dia=sess; _cfg.tempo_sessao=tempo
+  if(backupCfg.cd)_cfg.carga_dias=cargaDiasDeslocada(sess,tempo)
   if(tempo!==_cgOrig.tempo)pend.forEach(function(x){x.tempo_minutos=tempo})
   let p
   try{ p=simularReplan(hj,[]) }
   finally{
     pend.forEach(function(x,i){x.tempo_minutos=backupT[i]})
-    if(temCfg){_cfg.sessoes_por_dia=backupCfg.s;_cfg.tempo_sessao=backupCfg.t}else _cfg=null
+    if(temCfg){_cfg.sessoes_por_dia=backupCfg.s;_cfg.tempo_sessao=backupCfg.t;_cfg.carga_dias=backupCfg.cd}else _cfg=null
   }
   // recalcula o que muda comparando com o plano real (dia, ordem e tempo)
   p.mudancas=p.itens.filter(function(it){
@@ -2435,7 +2450,9 @@ function renderCarga(){
    +ctl('Sessoes por dia',_cgSess,'sess',1,'antes: '+_cgOrig.sess)
    +ctl('Min. por sessao',_cgTempo,'tempo',15,'antes: '+_cgOrig.tempo)
    +'</div>'
-   +'<div style="text-align:center;margin-top:12px;font-size:14px">Por dia: <strong>'+dur(antes)+'</strong> → <strong style="color:'+corD+'">'+dur(depois)+'</strong></div>'
+   +(temCargaPorDia()
+      ?'<div style="text-align:center;margin-top:12px;font-size:12.5px;line-height:1.6;color:var(--tx2)">Este plano tem <strong>carga diferente em cada dia</strong>.'+(_cgSess!==_cgOrig.sess?' Cada dia '+(_cgSess>_cgOrig.sess?'ganha':'perde')+' '+dur(Math.abs(_cgSess-_cgOrig.sess)*_cgTempo)+':':'')+'<br><span style="color:var(--tx3)">'+textoCargaDias(_cgSess!==_cgOrig.sess||_cgTempo!==_cgOrig.tempo?cargaDiasDeslocada(_cgSess,_cgTempo):_cfg.carga_dias)+'</span></div>'
+      :'<div style="text-align:center;margin-top:12px;font-size:14px">Por dia: <strong>'+dur(antes)+'</strong> → <strong style="color:'+corD+'">'+dur(depois)+'</strong></div>')
    +prev
    +(mudou?'<button class="btn btn-ouro" style="width:100%;padding:12px;margin-top:14px" onclick="confirmarCarga()">Confirmar nova carga</button>'
           :'<div style="color:var(--tx3);font-size:12.5px;text-align:center;margin-top:14px">Use os botoes − e + para mudar.</div>')
@@ -2448,7 +2465,10 @@ async function confirmarCarga(){
   m.style.color='var(--tx3)';m.textContent='Salvando a nova carga...'
   let r
   if(_cfg&&_cfg.aluno_id){
-    r=await _supabase.from('config_cronograma').update({sessoes_por_dia:_cgSess,tempo_sessao:_cgTempo}).eq('aluno_id',_alunoId).eq('concurso_id',_concursoId)
+    const upd={sessoes_por_dia:_cgSess,tempo_sessao:_cgTempo}
+    if(temCargaPorDia())upd.carga_dias=cargaDiasDeslocada(_cgSess,_cgTempo)
+    r=await _supabase.from('config_cronograma').update(upd).eq('aluno_id',_alunoId).eq('concurso_id',_concursoId)
+    if(!r.error&&upd.carga_dias)_cfg.carga_dias=upd.carga_dias
   }else{
     r=await _supabase.from('config_cronograma').insert({aluno_id:_alunoId,concurso_id:_concursoId,sessoes_por_dia:_cgSess,tempo_sessao:_cgTempo,dias_semana:diasEstudo().join(',')})
   }
@@ -2463,6 +2483,18 @@ async function confirmarCarga(){
   fecharModal()
   irData(hojeStr())
   toast('⏱️ Carga atualizada! Seu progresso foi mantido.')
+}
+
+// com carga por dia: + ou - sessoes vale para todos os dias (cada dia ganha/perde o mesmo tempo)
+function cargaDiasDeslocada(sess,tempo){
+  if(!temCargaPorDia())return null
+  const delta=(sess-_cgOrig.sess)*tempo, out={}
+  Object.keys(_cfg.carga_dias).forEach(function(d){const v=Number(_cfg.carga_dias[d])||0;out[d]=v>0?Math.max(15,v+delta):0})
+  return out
+}
+function textoCargaDias(cd){
+  const NOM=['Dom','Seg','Ter','Qua','Qui','Sex','Sab']
+  return [1,2,3,4,5,6,0].filter(function(d){return cd[d]!=null}).map(function(d){return NOM[d]+' '+dur(Number(cd[d])||0)}).join(' · ')
 }
 
 /* ---------- REINICIAR DISCIPLINA (do zero, com teoria, sem reiniciar o plano) ----------

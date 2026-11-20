@@ -320,8 +320,10 @@ function render(){
   if(_cfg){
     const alvo=(parseInt(_cfg.sessoes_por_dia)||0)*(parseInt(_cfg.tempo_sessao)||0)
     const dias=String(_cfg.dias_semana||'').split(',').filter(Boolean).map(Number)
-    const curtos=dias.filter(function(d){return Rotina.minutosEstudo(_blocos,d)<alvo})
-    if(_blocos.length&&alvo&&curtos.length)av.push('<span style="color:var(--alerta)">⏱️ O cronograma pede '+alvo+' min por dia. Com menos tempo de estudo na rotina: '+curtos.map(function(d){return Rotina.DIAS[d]+' ('+Rotina.minutosEstudo(_blocos,d)+' min)'}).join(', ')+'.</span>')
+    const cd=_cfg.carga_dias&&typeof _cfg.carga_dias==='object'?_cfg.carga_dias:null
+    const alvoDe=function(d){return cd&&cd[d]!=null?Number(cd[d])||0:alvo}
+    const curtos=dias.filter(function(d){return Rotina.minutosEstudo(_blocos,d)<alvoDe(d)})
+    if(_blocos.length&&(alvo||cd)&&curtos.length)av.push('<span style="color:var(--alerta)">⏱️ Com menos tempo de estudo na rotina do que o cronograma pede: '+curtos.map(function(d){return Rotina.DIAS[d]+' ('+Rotina.minutosEstudo(_blocos,d)+' de '+alvoDe(d)+' min)'}).join(', ')+'.</span>')
     const sem=Rotina.ORDEM_DIAS.filter(function(d){return Rotina.minutosEstudo(_blocos,d)>0&&dias.indexOf(d)<0})
     if(sem.length&&dias.length)av.push('<span style="color:var(--tx3)">ℹ️ Tem estudo na rotina em '+sem.map(function(d){return Rotina.DIAS[d]}).join(', ')+', mas o cronograma nao tem sessoes nesse dia (dias do cronograma: '+dias.map(function(d){return Rotina.DIAS_C[d]}).join(', ')+'). Nesses blocos o aluno pode adiantar sessoes ou revisar.</span>')
   }

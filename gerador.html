@@ -126,6 +126,14 @@
       <div class="dias-row" id="g-dias"></div>
     </div>
 
+    <div style="margin-top:12px;background:var(--card2);border-radius:8px;padding:12px">
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;color:var(--tx)">
+        <input type="checkbox" id="g-carga-var" onchange="renderCargaDias();atualizarCapacidade()" style="width:18px;height:18px;margin:0;accent-color:var(--ouro)">
+        <span><strong>Carga horaria diferente em cada dia</strong> <span style="color:var(--tx3)">— ex.: 4h na segunda, 2h na quarta, 5h no sabado</span></span>
+      </label>
+      <div id="g-carga-dias"></div>
+    </div>
+
     <label id="box-semteo" style="display:flex;gap:12px;align-items:flex-start;margin-top:14px;padding:14px;border-radius:10px;border:2px solid var(--bd2);background:var(--card2);cursor:pointer">
       <input type="checkbox" id="g-semteo" onchange="alternarSemTeoria(this.checked)" style="width:22px;height:22px;margin:2px 0 0;accent-color:var(--ouro);flex-shrink:0">
       <span style="flex:1">
@@ -303,8 +311,47 @@ function montarDias(){
   box.innerHTML = ''
   for (let i=0;i<7;i++){
     const on = (i>=1 && i<=6) ? 'on' : ''
-    box.innerHTML += '<div class="dia-chip '+on+'" data-d="'+i+'" onclick="this.classList.toggle(\'on\')">'+CURTO_DIA[i]+'</div>'
+    box.innerHTML += '<div class="dia-chip '+on+'" data-d="'+i+'" onclick="this.classList.toggle(\'on\');renderCargaDias()">'+CURTO_DIA[i]+'</div>'
   }
+}
+
+// ---------- carga horaria por dia da semana ----------
+// _cargaDias = { 1:180, 3:120, 6:300 } em minutos. Sem a opcao marcada, todos os dias usam sessoes x tempo.
+let _cargaDias = {}
+const ORDEM_SEMANA = [1,2,3,4,5,6,0]
+function cargaPadrao(){ return (parseInt(document.getElementById('g-sessoes').value)||3) * (parseInt(document.getElementById('g-tempo').value)||60) }
+function fmtH(m){ m = Math.round(m); const h = Math.floor(m/60), r = m%60; return h ? h+'h'+(r ? String(r).padStart(2,'0') : '') : r+'min' }
+function cargaAtual(){
+  const cb = document.getElementById('g-carga-var')
+  if (!cb || !cb.checked) return null
+  const out = {}
+  diasSelecionados().forEach(function(d){ out[d] = _cargaDias[d] != null ? _cargaDias[d] : cargaPadrao() })
+  return out
+}
+function renderCargaDias(){
+  const box = document.getElementById('g-carga-dias'); if (!box) return
+  const cb = document.getElementById('g-carga-var')
+  if (!cb.checked) { box.innerHTML = ''; return }
+  const tempo = parseInt(document.getElementById('g-tempo').value)||60
+  const sel = diasSelecionados()
+  const dias = ORDEM_SEMANA.filter(function(d){ return sel.indexOf(d) >= 0 })
+  if (!dias.length) { box.innerHTML = '<p style="color:var(--tx3);font-size:12px;margin-top:8px">Marque os dias de estudo acima.</p>'; return }
+  let tot = 0
+  box.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:10px">'
+    + dias.map(function(d){
+        const m = _cargaDias[d] != null ? _cargaDias[d] : cargaPadrao(); tot += m
+        return '<div style="background:var(--card);border:1px solid var(--bd2);border-radius:10px;padding:8px 10px">'
+          + '<div style="color:var(--ouro);font-size:12px;font-weight:800">'+CURTO_DIA[d]+'</div>'
+          + '<div style="display:flex;align-items:center;gap:6px;margin-top:4px"><input type="number" min="0" max="16" step="0.5" value="'+(m/60)+'" onchange="mudarCargaDia('+d+',this.value)" style="margin:0;padding:7px 8px;width:72px"><span style="color:var(--tx3);font-size:12px">horas</span></div>'
+          + '<div style="color:var(--tx4);font-size:11px;margin-top:4px">'+(m ? '≈ '+Math.max(1, Math.round(m/tempo))+' sessao(oes) de '+tempo+' min' : 'sem estudo neste dia')+'</div></div>'
+      }).join('')
+    + '</div>'
+    + '<p style="color:var(--tx3);font-size:12px;margin-top:8px">Total na semana: <strong style="color:var(--tx)">'+fmtH(tot)+'</strong> · media de '+fmtH(tot/dias.length)+' por dia de estudo. O campo "Sessoes por dia" vira o valor padrao para dias novos.</p>'
+}
+function mudarCargaDia(d, v){
+  const h = Math.max(0, Math.min(16, parseFloat(String(v).replace(',','.'))||0))
+  _cargaDias[d] = Math.round(h*60/15)*15
+  renderCargaDias(); atualizarCapacidade()
 }
 
 function diasSelecionados(){
@@ -394,7 +441,12 @@ function atualizarCapacidade(){
   const nRev = inc.filter(function(t){ return t.status==='so_revisao' }).length
   const nNormais = inc.length - nRev
   const nDatas = contarDatas(inicio, prova, dias)
-  const slots = nDatas * porDia
+  const carga = cargaAtual(), tempoC = parseInt(document.getElementById('g-tempo').value)||60
+  let slots = nDatas * porDia
+  if (carga) {
+    slots = 0
+    for (let d = parseD(inicio), g = 0; d <= parseD(prova) && g < 4000; d = addDays(d,1), g++) if (dias.indexOf(d.getDay()) >= 0) slots += Math.floor((carga[d.getDay()]||0) / tempoC)
+  }
   const necessarios = nNormais * nEtapas + nRev
   const cabe = nNormais>0 ? Math.floor(Math.max(0,(slots - nRev)) / nEtapas) + nRev : Math.min(nRev, slots)
   const sobra = nTemas - cabe
@@ -426,6 +478,7 @@ function ligarListeners(){
   ;['g-inicio','g-prova','g-sessoes','g-tempo','g-dq','g-dr','g-mq','g-encaixe'].forEach(function(id){
     const el = document.getElementById(id)
     if (el) { el.addEventListener('input', atualizarCapacidade); el.addEventListener('change', atualizarCapacidade) }
+    if (el && (id==='g-sessoes'||id==='g-tempo')) el.addEventListener('change', renderCargaDias)
   })
   document.querySelectorAll('#g-dias .dia-chip').forEach(function(el){
     el.addEventListener('click', function(){ setTimeout(atualizarCapacidade, 10) })
@@ -477,6 +530,11 @@ async function carregarTemas(){
     document.querySelectorAll('#g-dias .dia-chip').forEach(el => {
       if (dias.indexOf(parseInt(el.dataset.d)) >= 0) el.classList.add('on'); else el.classList.remove('on')
     })
+    _cargaDias = {}
+    const cd = cfg.carga_dias && typeof cfg.carga_dias === 'object' ? cfg.carga_dias : null
+    if (cd) Object.keys(cd).forEach(function(k){ _cargaDias[parseInt(k)] = Number(cd[k]) })
+    document.getElementById('g-carga-var').checked = !!(cd && Object.keys(cd).length)
+    renderCargaDias()
   }
 
   checarOutrosConcursos()
@@ -642,7 +700,7 @@ function gerarPreview(){
   const encaixe = document.getElementById('g-encaixe') ? document.getElementById('g-encaixe').checked : true
   _soRevisao = selecionados.filter(function(t){ return t.status==='so_revisao' }).length
 
-  const base = { inicio:inicio, prova:prova, dias:dias, porDia:porDia, dq:dq, dr:dr, etapas:etapasPadrao, tempo:tempo }
+  const base = { inicio:inicio, prova:prova, dias:dias, porDia:porDia, dq:dq, dr:dr, etapas:etapasPadrao, tempo:tempo, cargaDias:cargaAtual() }
   // encaixe minimo: so encurta o necessario, so no comeco, e o resto volta ao tempo cheio
   const plano = melhorPlano(selecionados, base, encaixe)
   _plano = plano
@@ -867,7 +925,7 @@ async function salvarCronograma(){
   }
 
   // salva a config
-  await _supabase.from('config_cronograma').upsert({
+  const linhaCfg = {
     aluno_id: aluno_id,
     concurso_id: concurso_id,
     data_inicio: document.getElementById('g-inicio').value,
@@ -881,8 +939,17 @@ async function salvarCronograma(){
     modo_teoria: modosAtivos().indexOf('teoria')>=0,
     modo_questoes: modosAtivos().indexOf('questoes')>=0,
     modo_revisao: modosAtivos().indexOf('revisao')>=0,
+    carga_dias: cargaAtual(),
     atualizado_em: new Date().toISOString()
-  }, { onConflict: 'aluno_id,concurso_id' })
+  }
+  let rCfg = await _supabase.from('config_cronograma').upsert(linhaCfg, { onConflict: 'aluno_id,concurso_id' })
+  let avisoCarga = ''
+  if (rCfg.error && /carga_dias/i.test(rCfg.error.message||'')) {
+    // banco ainda sem a coluna: salva o resto e avisa
+    delete linhaCfg.carga_dias
+    rCfg = await _supabase.from('config_cronograma').upsert(linhaCfg, { onConflict: 'aluno_id,concurso_id' })
+    if (cargaAtual()) avisoCarga = ' Atencao: rode o arquivo atualizacao-carga-por-dia.sql no Supabase para a carga de cada dia ficar salva (o cronograma ja foi gerado com ela).'
+  }
 
   // foco do aluno = este concurso (a area do aluno e o edital passam a mostrar este)
   await _supabase.from('alunos').update({ concurso_id: concurso_id }).eq('id', aluno_id)
@@ -890,7 +957,7 @@ async function salvarCronograma(){
   if (!vinc) { try { await _supabase.from('aluno_concursos').insert({ aluno_id: aluno_id, concurso_id: concurso_id }) } catch(e) {} }
 
   msg.style.color='var(--ok)'
-  msg.textContent='Cronograma salvo! '+inseridos+' sessoes distribuidas em '+_plano.calendario.length+' dias.'+(idsOutros.length?' O plano antigo ('+idsOutros.length+' sessoes pendentes) foi removido.':'')
+  msg.textContent='Cronograma salvo! '+inseridos+' sessoes distribuidas em '+_plano.calendario.length+' dias.'+(idsOutros.length?' O plano antigo ('+idsOutros.length+' sessoes pendentes) foi removido.':'')+avisoCarga
   checarOutrosConcursos()
   document.getElementById('msg-existente').style.display='none'
 }
