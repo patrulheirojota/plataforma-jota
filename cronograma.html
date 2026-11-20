@@ -357,6 +357,7 @@
             <button class="btn" id="bt-pausa" onclick="abrirPausa()" title="Congelar o cronograma por um tempo (o prazo da mentoria continua contando)">⏸️ Pausar plano</button>
             <button class="btn pz-esc" onclick="abrirDias()" title="Trocar os dias da semana em que voce estuda, sem reiniciar o plano">📅 Dias de estudo</button>
             <button class="btn pz-esc" onclick="abrirCarga()" title="Aumentar ou reduzir o tempo de estudo por dia, sem reiniciar o plano">⏱️ Carga horaria</button>
+            <button class="btn pz-esc" onclick="abrirReiniciar()" title="Recomecar uma ou mais disciplinas do zero (com teoria), sem mexer no progresso das outras">♻️ Reiniciar disciplina</button>
             <button class="btn btn-ouro pz-esc" onclick="replanejarAtrasadas(true)" title="Coloca atrasadas em dia, arruma a ordem dos temas e encaixa tudo ate a prova">🔄 Replanejar plano</button>
           </div>
         </div>
@@ -1980,6 +1981,7 @@ function limitePlano(inicio){
 
 // ate: a partir desta data (inclusive) nao encurta nada; maxS: limite de sessoes no dia (0 = sem limite)
 function alocarReplan(fila,inicio,nivel,orc,dias,lim,fixo,ate,maxS){
+  if(fila.some(function(x){return x._minData||x._gap}))return alocarComDatas(fila,inicio,nivel,orc,dias,lim,fixo,ate,maxS)
   const itens=[],carga={}
   let d=parseD(inicio),i=0,guarda=0
   while(i<fila.length&&guarda<2000){
@@ -1999,6 +2001,39 @@ function alocarReplan(fila,inicio,nivel,orc,dias,lim,fixo,ate,maxS){
     d=addDays(d,1);guarda++
   }
   return {itens:itens,faltam:fila.slice(i),iniFalta:i,nivel:nivel,carga:carga}
+}
+
+// variante usada ao reiniciar disciplina: cada sessao nova tem um "nao antes de" (_minData) e um
+// intervalo minimo depois da etapa anterior do mesmo tema (_gap, em dias). Se uma sessao ainda nao pode
+// entrar no dia, as seguintes da fila (de outros temas) podem; as etapas do mesmo tema nunca se invertem.
+function alocarComDatas(fila,inicio,nivel,orc,dias,lim,fixo,ate,maxS){
+  const itens=[],carga={},feito=fila.map(function(){return false}),ultima={}
+  let d=parseD(inicio),guarda=0,restam=fila.length,prim=0
+  while(restam>0&&guarda<2000){
+    const k=ymd(d)
+    if(lim&&k>lim)break
+    if(dias.indexOf(d.getDay())>=0){
+      let usado=fixo[k]||0,colocou=0
+      const nv=(ate&&k>=ate)?0:nivel, bloq={}
+      for(let i=prim;i<fila.length&&i<prim+600;i++){
+        if(feito[i])continue
+        const x=fila[i], ch=chaveTema(x)
+        if(bloq[ch])continue
+        let pode=!(x._minData&&k<x._minData)
+        if(pode&&x._gap&&ultima[ch]&&k<ymd(addDays(parseD(ultima[ch]),x._gap)))pode=false
+        if(!pode){bloq[ch]=1;continue}
+        const m=minNoNivel(x,nv)
+        if(usado+m>orc&&!(colocou===0&&usado===0))break
+        if(maxS&&colocou>=maxS)break
+        itens.push({s:x,data:k,min:m,idx:i});feito[i]=true;restam--;usado+=m;colocou++
+        if(x._novo)ultima[ch]=k
+      }
+      while(prim<fila.length&&feito[prim])prim++
+      carga[k]=usado
+    }
+    d=addDays(d,1);guarda++
+  }
+  return {itens:itens,faltam:fila.filter(function(x,i){return !feito[i]}),iniFalta:prim,nivel:nivel,carga:carga}
 }
 
 /* Sequencia obrigatoria de cada tema: teoria -> questoes -> revisao.
@@ -2082,8 +2117,10 @@ function simularReplan(inicio,primeiro,opts){
   opts=opts||{}
   const ids={}
   primeiro.forEach(function(x){ids[x.id]=1})
+  // opts.excluir: sessoes que vao sair do plano (ex.: disciplina reiniciada); opts.base: fila ja montada
+  ;(opts.excluir||[]).forEach(function(x){ids[x.id]=1})
   const resto=_sessoes.filter(function(x){return !x.concluida&&x.data>=inicio&&!ids[x.id]}).sort(ordenarSess)
-  let base=primeiro.slice().sort(ordenarSess).concat(resto)
+  let base=opts.base?opts.base.slice():primeiro.slice().sort(ordenarSess).concat(resto)
   // recria a teoria que sumiu, logo antes das primeiras questoes do tema
   let recriadas=0
   if(opts.recriar){
@@ -2426,6 +2463,174 @@ async function confirmarCarga(){
   fecharModal()
   irData(hojeStr())
   toast('⏱️ Carga atualizada! Seu progresso foi mantido.')
+}
+
+/* ---------- REINICIAR DISCIPLINA (do zero, com teoria, sem reiniciar o plano) ----------
+   Tira as sessoes PENDENTES das disciplinas escolhidas (as concluidas ficam como
+   historico) e coloca de novo todos os temas delas: teoria -> questoes -> revisao,
+   nos intervalos do aluno, no ritmo escolhido. As outras disciplinas continuam de
+   onde estao; o plano so e redistribuido ate a prova (mesmo motor do replanejamento).
+   Grava tudo de uma vez pela funcao reiniciar_disciplina (atualizacao-reiniciar-disciplina.sql). */
+let _rdSel={}, _rdRitmo=1, _rdInicio=null, _rdDesmarcar=false, _rdTemas=null, _rdPrevia=null, _rdStatus={}
+
+async function abrirReiniciar(){
+  if(planoPausado()){toast('Retome o plano antes de reiniciar uma disciplina.');return}
+  _rdSel={};_rdRitmo=1;_rdInicio=hojeStr();_rdDesmarcar=false;_rdPrevia=null
+  document.getElementById('modal-c').innerHTML='<div style="padding:30px;text-align:center;color:var(--tx3)">Carregando as disciplinas...</div>'
+  document.getElementById('modal').classList.add('on')
+  // temas do edital do concurso (na ordem do edital); sem edital, os temas do proprio plano
+  _rdTemas={}
+  try{
+    const r=await _supabase.from('edital_topicos').select('id,disciplina,topico,ordem,prioridade').eq('concurso_id',_concursoId).order('disciplina').order('ordem').limit(5000)
+    ;(r.data||[]).forEach(function(t){(_rdTemas[t.disciplina]=_rdTemas[t.disciplina]||[]).push({disciplina:t.disciplina,topico:t.topico,topico_id:t.id})})
+  }catch(e){}
+  try{
+    const r=await _supabase.from('tema_aluno_status').select('topico_id,status').eq('aluno_id',_alunoId)
+    _rdStatus={};(r.data||[]).forEach(function(x){_rdStatus[x.topico_id]=x.status})
+  }catch(e){_rdStatus={}}
+  renderReiniciar()
+}
+// disciplinas do plano (nomes como estao nas sessoes) ligadas aos temas do edital
+function rdDisciplinas(){
+  const out={}
+  _sessoes.forEach(function(x){
+    const d=x.disciplina||'Sem disciplina'
+    const o=out[d]=out[d]||{nome:d,feitas:0,pend:0,temasPlano:[],vistos:{}}
+    if(x.concluida)o.feitas++; else o.pend++
+    const k=chaveTema(x)
+    if(!o.vistos[k]){o.vistos[k]=1;o.temasPlano.push({disciplina:d,topico:String(x.topico||'').replace(/\s*\((continua[cç]ao|cont\.?)[^)]*\)\s*$/i,''),topico_id:x.topico_id||null})}
+  })
+  Object.keys(out).forEach(function(d){
+    const ed=Object.keys(_rdTemas||{}).find(function(e){return normTxt(e)===normTxt(d)})
+    const temas=(ed?_rdTemas[ed]:out[d].temasPlano).filter(function(t){return !t.topico_id||_rdStatus[t.topico_id]!=='removido'})
+    out[d].temas=temas
+  })
+  return Object.keys(out).sort().map(function(d){return out[d]})
+}
+// sessoes novas das disciplinas escolhidas, com a data-alvo de cada uma
+function rdNovas(discs,inicio,ritmo){
+  const cfg=_cfg||{}
+  const dq=parseInt(cfg.dias_questoes)||5, dr=parseInt(cfg.dias_revisao)||15
+  const comQ=cfg.modo_questoes!==false, comR=cfg.modo_revisao!==false
+  const meta=parseInt(cfg.meta_questoes_sessao)||0
+  let dias=diasEstudo(); if(!dias.length)dias=[0,1,2,3,4,5,6]
+  const datas=[]
+  for(let d=parseD(inicio),g=0;g<1200&&datas.length<800;d=addDays(d,1),g++)if(dias.indexOf(d.getDay())>=0)datas.push(ymd(d))
+  const proxEstudo=function(k){for(let i=0;i<datas.length;i++)if(datas[i]>=k)return datas[i];return datas[datas.length-1]}
+  // intercala as disciplinas escolhidas (Port, Mat, Port, Mat...)
+  const filas=discs.map(function(d){return d.temas.slice()}), temas=[]
+  let mais=true
+  while(mais){mais=false;filas.forEach(function(f){if(f.length){temas.push(f.shift());mais=true}})}
+  const novas=[]
+  temas.forEach(function(t,i){
+    const k=datas[Math.min(datas.length-1,Math.floor(i/ritmo))]
+    const base={id:null,_novo:true,aluno_id:_alunoId,concurso_id:_concursoId,disciplina:t.disciplina,topico:t.topico,topico_id:t.topico_id||null,concluida:false}
+    const kq=proxEstudo(ymd(addDays(parseD(k),dq))), kr=proxEstudo(ymd(addDays(parseD(k),dr)))
+    novas.push(Object.assign({},base,{tipo:'teoria',data:k,_minData:k,_sub:2,_seq:i,tempo_minutos:tempoBase(),meta_questoes:0}))
+    if(comQ)novas.push(Object.assign({},base,{tipo:'questoes',data:kq,_minData:kq,_gap:dq,_sub:1,_seq:i,tempo_minutos:tempoBase(),meta_questoes:meta}))
+    if(comR)novas.push(Object.assign({},base,{tipo:'revisao',data:kr,_minData:kr,_gap:comQ?Math.max(1,dr-dq):dr,_sub:1,_seq:i,tempo_minutos:tempoBase(),meta_questoes:0}))
+  })
+  return {novas:novas,nTemas:temas.length}
+}
+function simularReiniciar(){
+  const todas=rdDisciplinas(), discs=todas.filter(function(d){return _rdSel[d.nome]})
+  if(!discs.length)return null
+  const inicio=_rdInicio<hojeStr()?hojeStr():_rdInicio
+  const nomes={};discs.forEach(function(d){nomes[d.nome]=1})
+  const sair=_sessoes.filter(function(x){return !x.concluida&&nomes[x.disciplina||'Sem disciplina']})
+  const outras=_sessoes.filter(function(x){return !x.concluida&&x.data>=inicio&&!nomes[x.disciplina||'Sem disciplina']}).map(function(x){return Object.assign(x,{_sub:0})})
+  const rn=rdNovas(discs,inicio,_rdRitmo)
+  // num mesmo dia: o que ja estava no plano, depois questoes/revisao novas, depois a teoria nova
+  const base=outras.concat(rn.novas).sort(function(a,b){return a.data.localeCompare(b.data)||(a._sub-b._sub)||((a._sub?a._seq:a.ordem||0)-(b._sub?b._seq:b.ordem||0))})
+  const p=simularReplan(inicio,[],{base:base,excluir:sair})
+  p.discs=discs;p.sair=sair;p.nTemas=rn.nTemas;p.novas=rn.novas;p.inicio=inicio
+  p.nNovas={teoria:0,questoes:0,revisao:0};rn.novas.forEach(function(x){p.nNovas[x.tipo]++})
+  outras.forEach(function(x){delete x._sub})
+  return p
+}
+function rdTogg(i){const d=rdDisciplinas()[i];if(!d)return;if(_rdSel[d.nome])delete _rdSel[d.nome];else _rdSel[d.nome]=1;renderReiniciar()}
+function renderReiniciar(){
+  const br=function(k){return parseD(k).toLocaleDateString('pt-BR')}
+  const lista=rdDisciplinas()
+  let prev=''
+  _rdPrevia=null
+  if(Object.keys(_rdSel).length){
+    const p=simularReiniciar()
+    _rdPrevia=p
+    if(p){
+      const cor=p.sobrecarga?'#f07171':(p.encurtadas||p.curtasDepois)?'#e8b04b':'#6ddba0'
+      prev='<div class="bloco" style="margin-top:12px">'
+        +'<div style="font-size:13px;line-height:1.6;color:var(--tx2)">♻️ <strong>'+p.nTemas+' temas</strong> recomecam do zero: '+p.nNovas.teoria+' de teoria'+(p.nNovas.questoes?', '+p.nNovas.questoes+' de questoes':'')+(p.nNovas.revisao?', '+p.nNovas.revisao+' de revisao':'')+'.<br>'
+        +'🗑️ '+p.sair.length+' sessoes pendentes dessas disciplinas saem do plano. <strong>As ja concluidas ficam no historico.</strong></div>'
+        +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;text-align:center;margin-top:10px">'
+        +'<div><div style="color:var(--tx3);font-size:11px">Plano terminava</div><div style="font-weight:800;font-size:15px">'+br(p.fimAntes)+'</div></div>'
+        +'<div><div style="color:var(--tx3);font-size:11px">Passa a terminar</div><div style="font-weight:800;font-size:15px;color:'+cor+'">'+br(p.fimDepois)+'</div></div></div>'
+        +(p.lim?'<div style="color:var(--tx4);font-size:11.5px;text-align:center;margin-top:6px">Data da prova: '+br(p.lim)+'</div>':'')
+        +'</div>'
+        +((p.encurtadas||p.curtasDepois)&&!p.sobrecarga?'<div style="background:rgba(232,176,75,.08);border:1px solid #e8b04b;border-radius:10px;padding:10px 12px;margin-top:10px;color:#e8b04b;font-size:12.5px;line-height:1.55">Para caber ate a prova, algumas sessoes de questoes/revisao ficam mais curtas'+(p.ateEncaixe?' ate '+br(p.ateEncaixe)+' (depois, tempo cheio)':'')+'. A teoria fica com o tempo cheio.</div>':'')
+        +(p.sobrecarga?'<div style="background:rgba(240,113,113,.08);border:1px solid #d9566a;border-radius:10px;padding:10px 12px;margin-top:10px;color:#f07171;font-size:12.5px;line-height:1.55">Nao cabe tudo ate a prova: em '+p.sobrecarga+' dia(s) o estudo precisaria subir para ate <strong>'+dur(p.orcUsado)+'</strong>. Escolha um ritmo menor, menos disciplinas ou aumente a carga horaria.</div>':'')
+    }
+  }
+  const pct=function(d){const t=d.feitas+d.pend;return t?Math.round(d.feitas*100/t):0}
+  const chip=function(v,rot){return '<button class="btn" style="flex:1;min-width:0;padding:9px 6px;font-size:12.5px;'+(_rdRitmo===v?'border-color:var(--ouro);color:var(--ouro);font-weight:800':'')+'" onclick="_rdRitmo='+v+';renderReiniciar()">'+rot+'</button>'}
+  document.getElementById('modal-c').innerHTML=
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:6px">'
+   +'<div><div style="color:var(--ouro);font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase">Reiniciar disciplina</div>'
+   +'<div style="font-size:18px;font-weight:800;margin-top:2px">Recomecar do zero, com teoria</div></div>'
+   +'<button class="btn" onclick="fecharModal()" style="padding:5px 11px">✕</button></div>'
+   +'<div style="color:var(--tx3);font-size:12.5px;line-height:1.55;margin-bottom:12px">Para reforcar a base. As disciplinas escolhidas voltam ao primeiro tema; <strong>as outras continuam de onde estao</strong> e o que ja foi estudado fica no historico.</div>'
+   +'<div style="display:flex;flex-direction:column;gap:6px;max-height:300px;overflow:auto">'
+   +lista.map(function(d,i){
+      const on=!!_rdSel[d.nome]
+      return '<label style="display:flex;gap:10px;align-items:center;padding:9px 11px;border-radius:10px;border:1px solid '+(on?'var(--ouro)':'var(--bd2)')+';background:var(--bg);cursor:pointer">'
+        +'<input type="checkbox" '+(on?'checked':'')+' onchange="rdTogg('+i+')" style="width:18px;height:18px;margin:0;accent-color:var(--ouro);flex-shrink:0">'
+        +'<span style="flex:1;min-width:0"><span style="font-weight:700;font-size:13.5px">'+esc(d.nome)+'</span><br><span style="color:var(--tx3);font-size:11.5px">'+d.temas.length+' temas · '+pct(d)+'% do plano feito · '+d.pend+' sessoes pendentes</span></span></label>'
+    }).join('')+'</div>'
+   +'<div style="color:var(--tx3);font-size:12px;font-weight:700;margin:14px 0 6px">Ritmo dos temas novos</div>'
+   +'<div style="display:flex;gap:6px">'+chip(0.5,'1 a cada 2 dias')+chip(1,'1 por dia')+chip(2,'2 por dia')+'</div>'
+   +'<div style="display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap"><span style="color:var(--tx3);font-size:12px;font-weight:700">Comecar em</span>'
+   +'<input type="date" value="'+_rdInicio+'" min="'+hojeStr()+'" onchange="_rdInicio=this.value||hojeStr();renderReiniciar()" style="width:auto;margin:0;padding:7px 10px"></div>'
+   +'<label style="display:flex;gap:10px;align-items:flex-start;margin-top:12px;cursor:pointer;font-size:12.5px;line-height:1.5;color:var(--tx2)">'
+   +'<input type="checkbox" '+(_rdDesmarcar?'checked':'')+' onchange="_rdDesmarcar=this.checked" style="width:18px;height:18px;margin:2px 0 0;flex-shrink:0;accent-color:var(--ouro)">'
+   +'<span>Desmarcar estes temas no <strong>Edital verticalizado</strong> (para '+(_mentor?'o aluno':'voce')+' marcar de novo conforme for revendo)</span></label>'
+   +prev
+   +(_rdPrevia?'<button class="btn btn-ouro" style="width:100%;padding:12px;margin-top:14px" onclick="confirmarReiniciar()">♻️ Reiniciar '+Object.keys(_rdSel).length+' disciplina(s)</button>'
+     :'<div style="color:var(--tx3);font-size:12.5px;text-align:center;margin-top:14px">Escolha a(s) disciplina(s) para ver como fica o plano.</div>')
+   +'<div id="rd-msg" style="font-size:12px;margin-top:10px;text-align:center"></div>'
+}
+async function confirmarReiniciar(){
+  const p=_rdPrevia; if(!p)return
+  const nomes=p.discs.map(function(d){return d.nome})
+  if(!confirm('Reiniciar do zero: '+nomes.join(', ')+'?\n\n'+p.sair.length+' sessoes pendentes saem e '+p.novas.length+' novas entram (teoria, questoes e revisao).\nO que ja foi concluido continua no historico.'))return
+  const m=document.getElementById('rd-msg')
+  m.style.color='var(--tx3)';m.textContent='Reiniciando...'
+  const novas=[],mover=[]
+  p.itens.forEach(function(it){
+    if(it.s._novo)novas.push({data:it.data,ordem:it.ordem,tipo:it.s.tipo,disciplina:it.s.disciplina,topico:it.s.topico,topico_id:it.s.topico_id||null,tempo_minutos:it.min,meta_questoes:it.s.meta_questoes||0})
+    else if(it.data!==it.s.data||it.ordem!==(it.s.ordem||0)||it.min!==(it.s.tempo_minutos||0))mover.push({id:it.s.id,data:it.data,ordem:it.ordem,tempo_minutos:it.min})
+  })
+  const r=await _supabase.rpc('reiniciar_disciplina',{p_aluno:_alunoId,p_concurso:String(_concursoId),p_disciplinas:nomes,p_novas:novas,p_mover:mover})
+  if(r.error){
+    m.style.color='#f07171'
+    m.textContent=/reiniciar_disciplina|function|does not exist|schema cache/i.test(r.error.message)?('Ainda nao liberado no banco de dados.'+(_mentor?' Rode o arquivo atualizacao-reiniciar-disciplina.sql no Supabase.':' Avise o seu mentor.')):('Nao foi possivel reiniciar: '+r.error.message)
+    return
+  }
+  // temas que estavam como "so revisao" voltam a ter teoria nos proximos cronogramas
+  const ids=[]
+  p.discs.forEach(function(d){d.temas.forEach(function(t){if(t.topico_id)ids.push(t.topico_id)})})
+  if(_mentor){
+    const lin=ids.filter(function(id){return _rdStatus[id]==='so_revisao'}).map(function(id){return {aluno_id:_alunoId,topico_id:id,status:'ativo',atualizado_em:new Date().toISOString()}})
+    for(let i=0;i<lin.length;i+=100){try{await _supabase.from('tema_aluno_status').upsert(lin.slice(i,i+100),{onConflict:'aluno_id,topico_id'})}catch(e){}}
+  }
+  if(_rdDesmarcar&&ids.length){
+    for(let i=0;i<ids.length;i+=100){try{await _supabase.from('edital_progresso').update({concluido:false,atualizado_em:new Date().toISOString()}).eq('aluno_id',_alunoId).in('topico_id',ids.slice(i,i+100))}catch(e){}}
+    ids.forEach(function(id){delete _editalFeito[id]})
+  }
+  logar('reiniciou_disciplina','Reiniciou do zero: '+nomes.join(', ')+' ('+p.nTemas+' temas, ritmo '+(_rdRitmo===0.5?'1 a cada 2 dias':_rdRitmo+' por dia')+', a partir de '+parseD(p.inicio).toLocaleDateString('pt-BR')+'): '+textoReplan(p))
+  await recarregar()
+  fecharModal()
+  irData(p.inicio)
+  toast('♻️ '+nomes.join(', ')+' recomeca(m) do zero. O resto do plano foi mantido.')
 }
 
 /* ---------- PAUSAR PLANO ----------
