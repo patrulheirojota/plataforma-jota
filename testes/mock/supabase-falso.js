@@ -84,7 +84,7 @@ Q.prototype.run=function(){
   return {data:r,count:r.length,error:null}
 }
 const PQ=t=>new Proxy(new Q(t),{get(o,k){if(k in o)return o[k];if(typeof k==='symbol')return undefined;return function(){return this}}});
-window._supabase={from:t=>PQ(t),storage:{from:()=>({upload:async()=>({data:{},error:null}),getPublicUrl:n=>({data:{publicUrl:'https://exemplo/'+n}})})},rpc:async(n,a)=>(window.RPC&&window.RPC[n]?{data:window.RPC[n](a),error:null}:{data:!!window.ADMIN,error:null}),
+window._supabase={from:t=>PQ(t),storage:{from:()=>({upload:async()=>({data:{},error:null}),getPublicUrl:n=>({data:{publicUrl:'https://exemplo/'+n}}),createSignedUrl:async(n,t)=>({data:{signedUrl:'https://exemplo/assinado/'+n+'?token=t'},error:null})})},rpc:async(n,a)=>(window.RPC&&window.RPC[n]?{data:window.RPC[n](a),error:null}:{data:!!window.ADMIN,error:null}),
  auth:{signUp:async(o)=>window.AUTH.signUp(o),signInWithPassword:async(o)=>window.AUTH.signIn(o),resetPasswordForEmail:async()=>({error:null}),getSession:async()=>({data:{session:window.UID?{user:{id:window.UID}}:null}}),onAuthStateChange:()=>({data:{subscription:{unsubscribe(){}}}}),getUser:async()=>({data:{user:window.UID?{id:window.UID,email:(window.EMAIL||'a@a'),user_metadata:{}}:null}}),signOut:async()=>{window.UID=null;try{sessionStorage.removeItem('uid')}catch(e){};return {}},updateUser:async()=>({})}}
 window.Chart=function(){return {destroy(){}}};window.jspdf={}
 })();
