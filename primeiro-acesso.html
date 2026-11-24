@@ -90,11 +90,15 @@ async function criar(){
   if(!$('f-lgpd').checked)return msg('Marque que aceita os termos para continuar.','var(--erro)')
   $('bt').disabled=true;msg('Criando seu acesso...')
   try{localStorage.setItem('pa_dados',JSON.stringify({nome:nome,tel:tel,lgpd:new Date().toISOString()}))}catch(e){}
-  const r=await _supabase.auth.signUp({email:email,password:s1,options:{data:{nome:nome,telefone:tel,aceite_privacidade:new Date().toISOString()}}})
+  const r=await _supabase.auth.signUp({email:email,password:s1,options:{emailRedirectTo:location.origin+'/primeiro-acesso.html',data:{nome:nome,telefone:tel,aceite_privacidade:new Date().toISOString()}}})
   if(r.error){
     $('bt').disabled=false
     if(/already|registered|exist/i.test(r.error.message)){_modo='entrar';telaCadastro();$('f-email').value=email;return msg('Este e-mail ja tem login. Entre com a sua senha (ou toque em "Esqueci minha senha").','var(--alerta)')}
     return msg('Nao foi possivel criar: '+esc(r.error.message),'var(--erro)')
+  }
+  if(r.data&&r.data.user&&Array.isArray(r.data.user.identities)&&r.data.user.identities.length===0){
+    $('bt').disabled=false;_modo='entrar';telaCadastro();$('f-email').value=email
+    return msg('Este e-mail ja tem login. Entre com a sua senha (ou toque em "Esqueci minha senha").','var(--alerta)')
   }
   if(!r.data.session){
     const s=await _supabase.auth.signInWithPassword({email:email,password:s1})

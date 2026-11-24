@@ -9,12 +9,17 @@
   function esc (s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;') }
   function tipo (url) {
     var u = String(url || '').trim(), m
-    if (!u) return null
+    if (!u || !/^https?:\/\//i.test(u)) return null
     if ((m = u.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|live\/))([A-Za-z0-9_-]{6,})/))) return { t: 'yt', id: m[1] }
     if ((m = u.match(/drive\.google\.com\/(?:file\/d\/|open\?id=)([A-Za-z0-9_-]{10,})/))) return { t: 'drive', id: m[1] }
     if (/\.(webm|mp3|m4a|ogg|oga|wav|aac)(\?|$)/i.test(u) || /\/explicacoes\/.*audio/i.test(u)) return { t: 'audio', u: u }
     if (/\.(mp4|mov|m4v)(\?|$)/i.test(u)) return { t: 'video', u: u }
     return { t: 'link', u: u }
+  }
+  // link salvo da pasta "explicacoes" do Supabase -> caminho do arquivo dentro da pasta
+  function caminhoPrivado (u) {
+    var m = String(u || '').match(/\/storage\/v1\/object\/(?:public|sign|authenticated)\/explicacoes\/([^?#]+)/)
+    return m ? decodeURIComponent(m[1]) : null
   }
   var cont = 0
   window.htmlExplicacao = function (url) {
@@ -33,7 +38,20 @@
     var quadro = function (src) { return '<div style="position:relative;padding-top:56.25%;border-radius:12px;overflow:hidden;background:#000"><iframe src="' + esc(src) + '" style="position:absolute;inset:0;width:100%;height:100%;border:0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>' }
     if (x.t === 'yt') h = quadro('https://www.youtube-nocookie.com/embed/' + x.id + '?rel=0&modestbranding=1')
     else if (x.t === 'drive') h = quadro('https://drive.google.com/file/d/' + x.id + '/preview')
-    else if (x.t === 'audio') h = '<audio controls preload="none" src="' + esc(x.u) + '" style="width:100%"></audio>'
+    else if (x.t === 'audio') {
+      // audio gravado na plataforma: a pasta e privada, entao gera um link temporario (1 hora)
+      var cam = caminhoPrivado(x.u)
+      if (cam && typeof _supabase !== 'undefined' && _supabase.storage && typeof _supabase.storage.from('explicacoes').createSignedUrl === 'function') {
+        box.innerHTML = '<div style="font-size:12.5px;color:var(--tx3,#63809e);padding:6px 0">Carregando o audio...</div>'; box.style.display = 'block'
+        _supabase.storage.from('explicacoes').createSignedUrl(cam, 3600).then(function (r) {
+          var su = r && r.data && (r.data.signedUrl || r.data.signedURL)
+          box.innerHTML = su ? '<audio controls autoplay src="' + esc(su) + '" style="width:100%"></audio>'
+            : '<div style="font-size:12.5px;color:#f07171;padding:6px 0">Nao foi possivel abrir o audio agora. Confira se o seu acesso esta ativo.</div>'
+        }, function () { box.innerHTML = '<div style="font-size:12.5px;color:#f07171;padding:6px 0">Falha de conexao. Tente de novo.</div>' })
+        return
+      }
+      h = '<audio controls preload="none" src="' + esc(x.u) + '" style="width:100%"></audio>'
+    }
     else if (x.t === 'video') h = '<video controls preload="metadata" src="' + esc(x.u) + '" style="width:100%;border-radius:12px;background:#000"></video>'
     box.innerHTML = h; box.style.display = 'block'
   }
@@ -109,7 +127,7 @@
     var ext = /mp4/.test(blobAtual.type) ? 'm4a' : /ogg/.test(blobAtual.type) ? 'ogg' : 'webm'
     var nome = 'audio/' + new Date().toISOString().slice(0, 10) + '-' + Math.random().toString(36).slice(2, 10) + '.' + ext
     try {
-      var r = await _supabase.storage.from('explicacoes').upload(nome, blobAtual, { contentType: blobAtual.type || 'audio/webm', upsert: false })
+      var r = await _supabase.storage.from('explicacoes').upload(nome, blobAtual, { contentType: String(blobAtual.type || 'audio/webm').split(';')[0], upsert: false })
       if (r.error) throw r.error
       var pub = _supabase.storage.from('explicacoes').getPublicUrl(nome)
       var url = pub && pub.data && pub.data.publicUrl

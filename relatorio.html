@@ -44,7 +44,9 @@
       .preview-box { padding: 16px; }
     }
   </style>
-<script>document.documentElement.setAttribute("data-tema",localStorage.getItem("tema")||"escuro")</script>
+<script>
+function escT(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
+document.documentElement.setAttribute("data-tema",localStorage.getItem("tema")||"escuro")</script>
 <style>
 .voltar-mob{display:none}
 @media(max-width:860px){
@@ -145,7 +147,7 @@ async function init() {
 async function carregarAlunos() {
   const { data: alunos } = await _supabase.from('alunos').select('id, nome, email, concurso_id, concursos(nome)').order('nome')
   const sel = document.getElementById('sel-aluno')
-  alunos?.forEach(a => { sel.innerHTML += `<option value="${a.id}" data-nome="${a.nome}" data-email="${a.email}" data-concurso="${a.concursos?.nome||''}">${a.nome}</option>` })
+  alunos?.forEach(a => { sel.innerHTML += `<option value="${a.id}" data-nome="${escT(a.nome)}" data-email="${escT(a.email)}" data-concurso="${escT(a.concursos?.nome||'')}">${escT(a.nome)}</option>` })
 }
 
 async function carregarDadosAluno() {

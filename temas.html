@@ -36,7 +36,9 @@
   .p-baixa{background:rgba(91,179,240,.13);color:var(--info);border:1px solid var(--info)}
   .chip-feito{font-size:9px;padding:2px 7px;border-radius:9px;background:rgba(109,219,160,.13);color:var(--ok);border:1px solid var(--ok);font-weight:bold;flex-shrink:0}
 </style>
-<script>document.documentElement.setAttribute("data-tema",localStorage.getItem("tema")||"escuro")</script>
+<script>
+function escT(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
+document.documentElement.setAttribute("data-tema",localStorage.getItem("tema")||"escuro")</script>
 <style>
 .voltar-mob{display:none}
 @media(max-width:860px){
@@ -131,7 +133,7 @@ async function init(){
   if(!user){location.href='index.html';return}
   const { data:alunos }=await _supabase.from('alunos').select('id,nome').order('nome')
   const s=document.getElementById('t-aluno')
-  if(alunos)alunos.forEach(function(a){s.innerHTML+='<option value="'+a.id+'">'+a.nome+'</option>'})
+  if(alunos)alunos.forEach(function(a){s.innerHTML+='<option value="'+a.id+'">'+escT(a.nome)+'</option>'})
 }
 
 async function aoTrocarAluno(){

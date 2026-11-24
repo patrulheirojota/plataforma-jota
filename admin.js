@@ -1,3 +1,8 @@
+// texto vindo do aluno (nome, e-mail...) sempre passa por aqui antes de ir para a tela
+function escH(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
+// dentro de onclick="funcao('...')"
+function escJ(s){return escH(String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\r?\n/g,' '))}
+
 const diasOrdem = { segunda:1, terca:2, quarta:3, quinta:4, sexta:5, sabado:6, domingo:7 }
 const nomeDias = { segunda:'Segunda', terca:'Terca', quarta:'Quarta', quinta:'Quinta', sexta:'Sexta', sabado:'Sabado', domingo:'Domingo' }
 
@@ -250,7 +255,12 @@ async function criarAluno() {
 
   let novoId = null
   let reaproveitado = false
-  const { data, error } = await _supabase.auth.signUp({ email, password: senha })
+  let { data, error } = await _supabase.auth.signUp({ email, password: senha })
+  // com a confirmacao de e-mail ligada, o Supabase nao avisa "ja existe": devolve um login sem identidade
+  if (!error && data && data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+    await restaurarAdmin()
+    error = { message: 'already registered' }
+  }
 
   if (error) {
     // E-mail ja tem login: normalmente e um cadastro que falhou no meio do caminho.
@@ -292,6 +302,8 @@ async function criarAluno() {
   if (reaproveitado) msg.textContent = 'Cadastro recuperado e concluido.'
 
   try { await _supabase.from('aluno_concursos').insert({ aluno_id: novoId, concurso_id }) } catch(e) {}
+  // aluno cadastrado pelo mentor ja entra com o e-mail confirmado
+  try { await _supabase.rpc('confirmar_email_aluno', { p_aluno: novoId }) } catch(e) {}
 
   msg.style.color='var(--ok)'
   const acessoTexto = data_expiracao ? ' Acesso ate ' + new Date(data_expiracao+'T00:00:00').toLocaleDateString('pt-BR') + '.' : ' Sem prazo de expiracao definido.'
@@ -503,7 +515,7 @@ function renderizarListaAlunos(alunos, total) {
 
     const bloq = alunoBloqueado(a)
     // nome/e-mail seguros dentro do onclick (nomes com apostrofo, ex.: D'Avila, quebravam os botoes)
-    const jsTxt = function(v){ return String(v==null?'':v).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;') }
+    const jsTxt = escJ
     const nomeJs = jsTxt(a.nome), emailJs = jsTxt(a.email)
     const ci = (window._ciclos||{})[a.id]
     const corEstudo = !al.estudo ? 'var(--erro)'
@@ -511,9 +523,9 @@ function renderizarListaAlunos(alunos, total) {
 
     div.innerHTML += `<div class="item-lista" style="flex-wrap:wrap;gap:8px" id="card-aluno-${a.id}">
       <div style="flex:1;min-width:190px">
-        <strong>${a.nome}</strong>
-        <div style="color:var(--tx3);font-size:12px">${a.email}</div>
-        <div style="color:var(--tx3);font-size:12px">${a.concursos?.nome||'Sem concurso'}</div>
+        <strong>${escH(a.nome)}</strong>
+        <div style="color:var(--tx3);font-size:12px">${escH(a.email)}</div>
+        <div style="color:var(--tx3);font-size:12px">${escH(a.concursos?.nome||'Sem concurso')}</div>
         <div style="color:${status.cor};font-size:11px;margin-top:2px;font-weight:bold">${status.texto}</div>
         ${(ci&&ci.vencido) ? `<div style="margin-top:6px;padding:7px 10px;border-radius:8px;background:rgba(232,176,75,.10);border:1px solid var(--alerta);color:var(--alerta);font-size:11.5px;font-weight:700">
           🗓️ Relatorio de 21 dias (ciclo ${ci.ciclo}) ${ci.atraso>0?('vencido ha '+ci.atraso+' dia(s)'):'fecha hoje'} — periodo ${ci.iniBR} a ${ci.fimBR}</div>` : ''}
@@ -541,13 +553,13 @@ function renderizarListaAlunos(alunos, total) {
         <button class="btn-acao btn-editar" onclick="location.href='cronograma.html?aluno=${a.id}&dias=1'" title="Trocar os dias da semana sem reiniciar o plano"><span class="ic">📅</span><span class="lb">Dias de estudo</span></button>
         <button class="btn-acao btn-editar" onclick="location.href='cronograma.html?aluno=${a.id}&carga=1'" title="Aumentar ou reduzir a carga horaria sem reiniciar o plano"><span class="ic">⏱️</span><span class="lb">Carga horaria</span></button>
         <button class="btn-acao btn-editar" onclick="location.href='cronograma.html?aluno=${a.id}&pausa=1'" title="Pausar ou retomar o cronograma (o prazo da mentoria continua contando)"${al.pausa?' style="background:var(--alerta);color:#0a1420;border:1px solid var(--alerta);font-weight:700"':''}><span class="ic">${al.pausa?'▶️':'⏸️'}</span><span class="lb">${al.pausa?'Retomar plano':'Pausar plano'}</span></button>
-        ${bloq ? `<button class="btn-acao" onclick="reativarAluno('${a.id}','${String(a.nome).replace(/'/g,"\\'")}')" style="background:var(--ok);color:#0a1420;border:1px solid var(--ok);font-weight:700"><span class="ic">🔓</span><span class="lb">Reativar</span></button>` : ''}
+        ${bloq ? `<button class="btn-acao" onclick="reativarAluno('${a.id}','${escJ(a.nome)}')" style="background:var(--ok);color:#0a1420;border:1px solid var(--ok);font-weight:700"><span class="ic">🔓</span><span class="lb">Reativar</span></button>` : ''}
         <button class="btn-acao btn-editar" onclick="abrirEditarAluno('${a.id}','${nomeJs}','${emailJs}','${a.concurso_id||''}')"><span class="ic">✏️</span><span class="lb">Editar</span></button>
         <button class="btn-acao btn-editar" onclick="gerenciarConcursosAluno('${a.id}','${nomeJs}')"><span class="ic">🏆</span><span class="lb">Concursos</span></button>
         <button class="btn-acao btn-editar" onclick="irParaCronogramaAluno('${a.id}','${nomeJs}')" style="background:var(--hov);color:var(--info);border:1px solid var(--info)"><span class="ic">📅</span><span class="lb">Cronograma</span></button>
         <button class="btn-acao" onclick="abrirRelatorioCiclo('${a.id}')" style="background:${(ci&&ci.vencido)?'var(--alerta)':'var(--card2)'};color:${(ci&&ci.vencido)?'#0a1420':'var(--alerta)'};border:1px solid var(--alerta);font-weight:700"><span class="ic">🗓️</span><span class="lb">Relatorio 21d</span></button>
-        <button class="btn-acao btn-editar" onclick="anotarAluno('${a.id}','${String(a.nome).replace(/'/g,"\\'")}')"><span class="ic">📝</span><span class="lb">Anotar</span></button>
-        <button class="btn-acao btn-info" onclick="avisoParaAluno('${a.id}','${String(a.nome).replace(/'/g,"\\'")}')"><span class="ic">🔔</span><span class="lb">Aviso</span></button>
+        <button class="btn-acao btn-editar" onclick="anotarAluno('${a.id}','${escJ(a.nome)}')"><span class="ic">📝</span><span class="lb">Anotar</span></button>
+        <button class="btn-acao btn-info" onclick="avisoParaAluno('${a.id}','${escJ(a.nome)}')"><span class="ic">🔔</span><span class="lb">Aviso</span></button>
         <button class="btn-acao btn-excluir" onclick="confirmarExcluirAluno('${a.id}','${nomeJs}')"><span class="ic">🗑️</span><span class="lb">Excluir</span></button>
       </div>
     </div>`
@@ -851,7 +863,7 @@ async function salvarEdicaoAluno() {
     const r = await _supabase.rpc('definir_senha_aluno', { p_aluno: id, p_senha: novaSenha })
     if (!r.error) {
       msg.style.color='var(--ok)'
-      msg.innerHTML='Dados salvos e <strong>senha trocada!</strong> Passe ao aluno: login <strong>'+email+'</strong> / senha <strong>'+novaSenha.replace(/</g,'&lt;')+'</strong>'
+      msg.innerHTML='Dados salvos e <strong>senha trocada!</strong> Passe ao aluno: login <strong>'+escH(email)+'</strong> / senha <strong>'+novaSenha.replace(/</g,'&lt;')+'</strong>'
       document.getElementById('editar-aluno-senha').value=''
     } else {
       // plano B: link por e-mail (so funciona com o SMTP proprio configurado no Supabase)
@@ -958,7 +970,7 @@ async function carregarAlunosParaCronograma() {
     if (!s) return
     const val = s.value
     s.innerHTML = '<option value="">Selecione o aluno</option>'
-    alunos.forEach(a => { s.innerHTML += `<option value="${a.id}">${a.nome}</option>` })
+    alunos.forEach(a => { s.innerHTML += `<option value="${a.id}">${escH(a.nome)}</option>` })
     if (val) s.value = val
   })
 }
@@ -987,7 +999,7 @@ async function visualizarCronogramaConcurso() {
     const itens = porAluno[v.aluno_id]||[]
     const nome = v.alunos?v.alunos.nome:''
     if (!itens.length) {
-      div.innerHTML += '<div class="bloco-viz"><strong style="color:var(--ouro)">'+nome+'</strong>'
+      div.innerHTML += '<div class="bloco-viz"><strong style="color:var(--ouro)">'+escH(nome)+'</strong>'
         +'<span style="color:var(--erro);font-size:13px;float:right">Sem plano</span></div>'
       return
     }
@@ -996,14 +1008,14 @@ async function visualizarCronogramaConcurso() {
     const pers=itens.filter(function(i){return i.tempo_personalizado}).length
     div.innerHTML += '<div class="bloco-viz">'
       +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px">'
-      +'<strong style="color:var(--ouro)">'+nome+'</strong>'
+      +'<strong style="color:var(--ouro)">'+escH(nome)+'</strong>'
       +'<div style="display:flex;gap:8px;align-items:center">'
       +(pers>0?'<span style="color:var(--ouro);font-size:11px;padding:2px 8px;border:1px solid var(--ouro);border-radius:10px">'+pers+' personalizado(s)</span>':'')
       +'<span style="color:var(--tx3);font-size:12px">'+itens.length+' disc · '+(Math.floor(totalMin/60)>0?Math.floor(totalMin/60)+'h ':'')+(totalMin%60>0?totalMin%60+'min':'')+'/sem</span></div></div>'
       +itens.map(function(i){
         return '<div style="display:flex;gap:10px;padding:4px 0;border-bottom:1px solid var(--bd);font-size:13px;flex-wrap:wrap">'
           +'<span style="color:var(--tx3);min-width:70px">'+nomeDias[i.dia_semana]+'</span>'
-          +'<span style="flex:1">'+i.disciplina+'</span>'
+          +'<span style="flex:1">'+escH(i.disciplina)+'</span>'
           +'<span style="color:'+(i.tempo_personalizado?'var(--ouro)':'var(--tx3)')+'">'+i.tempo_minutos+'min'+(i.tempo_personalizado?' *':'')+'</span>'
           +'<span style="color:var(--tx3)">'+i.meta_questoes+'q</span></div>'
       }).join('')
@@ -1306,9 +1318,9 @@ async function verificarInatividade() {
     const cor = x.diasSem>7?'var(--erro)':'var(--alerta)'
     const msg = x.ultimaData ? 'Ha '+x.diasSem+' dias' : 'Nunca registrou'
     div.innerHTML += '<div class="item-lista" style="border-left:4px solid '+cor+'">'
-      +'<div><strong>'+x.aluno.nome+'</strong><div style="color:var(--tx3);font-size:12px">'+x.aluno.email+'</div></div>'
+      +'<div><strong>'+escH(x.aluno.nome)+'</strong><div style="color:var(--tx3);font-size:12px">'+escH(x.aluno.email)+'</div></div>'
       +'<span style="color:'+cor+';font-size:13px">'+msg+'</span>'
-      +'<button class="btn-acao btn-editar" onclick="verRelatorioIndividual(\''+x.aluno.id+'\',\''+String(x.aluno.nome).replace(/'/g,"\\'")+'\')">Ver historico</button></div>'
+      +'<button class="btn-acao btn-editar" onclick="verRelatorioIndividual(\''+x.aluno.id+'\',\''+escJ(x.aluno.nome)+'\')">Ver historico</button></div>'
   })
 }
 
@@ -1350,10 +1362,10 @@ async function carregarDesempenho() {
   linhas.sort(function(a,b){return a.pctC-b.pctC})
   div.innerHTML=linhas.map(function(l){
     return '<div class="item-lista" style="border-left:4px solid '+l.cor+'">'
-      +'<strong>'+l.aluno.nome+'</strong>'
+      +'<strong>'+escH(l.aluno.nome)+'</strong>'
       +'<span>'+l.diasC+'/'+l.totalDias+' dias ('+l.pctC+'%)</span>'
       +'<span>'+l.totalQ+' questoes</span><span>'+l.pctA+'% acerto</span>'
-      +'<button class="btn-acao btn-editar" onclick="verRelatorioIndividual(\''+l.aluno.id+'\',\''+String(l.aluno.nome).replace(/'/g,"\\'")+'\')">Detalhar</button></div>'
+      +'<button class="btn-acao btn-editar" onclick="verRelatorioIndividual(\''+l.aluno.id+'\',\''+escJ(l.aluno.nome)+'\')">Detalhar</button></div>'
   }).join('')
 }
 
@@ -1389,10 +1401,10 @@ async function verRelatorioIndividual(aluno_id, nome) {
         <span style="color:var(--tx3);font-size:12px">${tD} questoes · ${pD}%</span>
       </div>
       ${itens.map(r=>`<div style="display:flex;gap:8px;padding:4px 0;border-bottom:1px solid var(--bd);flex-wrap:wrap;align-items:center" id="reg-${r.id}">
-        <span>${r.cumpriu?'OK':'X'}</span><span style="flex:1;font-size:13px">${r.disciplina}</span>
+        <span>${r.cumpriu?'OK':'X'}</span><span style="flex:1;font-size:13px">${escH(r.disciplina)}</span>
         <span style="color:var(--tx3);font-size:12px">${r.questoes_feitas||0} · ${r.questoes_certas||0} certas</span>
         <button class="btn-acao btn-editar" onclick="editarRegistro('${r.id}',${r.questoes_feitas||0},${r.questoes_certas||0},${r.cumpriu})" style="font-size:11px;padding:3px 8px">Editar</button>
-        <button class="btn-acao btn-excluir" onclick="excluirRegistro('${r.id}','${aluno_id}','${nome}')" style="font-size:11px;padding:3px 8px">X</button>
+        <button class="btn-acao btn-excluir" onclick="excluirRegistro('${r.id}','${aluno_id}','${escJ(nome)}')" style="font-size:11px;padding:3px 8px">X</button>
       </div>`).join('')}
     </div>`
   })
@@ -1442,7 +1454,7 @@ async function carregarSelectAnotacoes() {
   const atual = s.value
   const { data: alunos } = await _supabase.from('alunos').select('id,nome').order('nome')
   s.innerHTML = '<option value="">Selecione o aluno</option>'
-  ;(alunos||[]).forEach(function(a){ s.innerHTML += '<option value="'+a.id+'">'+a.nome+'</option>' })
+  ;(alunos||[]).forEach(function(a){ s.innerHTML += '<option value="'+a.id+'">'+escH(a.nome)+'</option>' })
   if (atual) s.value = atual
   if (s.value) carregarAnotacoes()
 }
@@ -1580,7 +1592,7 @@ async function carregarCiclos() {
       ? (c.atraso>0 ? 'Vencido ha '+c.atraso+' dia(s)' : 'Fecha hoje')
       : 'Faltam '+c.faltam+' dia(s)'
     return '<div class="item-lista" style="border-left:4px solid '+cor+'">'
-      +'<div style="flex:1;min-width:170px"><strong>'+a.nome+'</strong>'
+      +'<div style="flex:1;min-width:170px"><strong>'+escH(a.nome)+'</strong>'
       +'<div style="color:var(--tx3);font-size:12px">'+(a.concursos?a.concursos.nome:'sem concurso')+'</div>'
       +'<div style="color:var(--tx4);font-size:11.5px;margin-top:3px">Ciclo '+c.ciclo+' · '+c.iniBR+' a '+c.fimBR+'</div></div>'
       +'<span style="color:'+(c.vencido?'var(--alerta)':'var(--tx3)')+';font-size:12.5px;font-weight:700">'+txt+'</span>'
@@ -1677,7 +1689,7 @@ async function abrirRelatorioCiclo(aluno_id) {
             +'<p style="color:var(--tx2);font-size:13px;margin:0;line-height:1.55;white-space:pre-wrap">'+String(n.texto).replace(/</g,'&lt;')+'</p></div>'
         }).join('')+'</div>'
       : '<p style="color:var(--tx3);font-size:13px;margin-bottom:8px">Nenhuma anotacao neste ciclo.</p>')
-   +'<button class="btn-acao btn-editar" onclick="anotarAluno(\''+aluno_id+'\',\''+String(aluno.nome).replace(/'/g,"\\'")+'\')" style="margin-bottom:16px">📝 Nova anotacao</button>'
+   +'<button class="btn-acao btn-editar" onclick="anotarAluno(\''+aluno_id+'\',\''+escJ(aluno.nome)+'\')" style="margin-bottom:16px">📝 Nova anotacao</button>'
 
    +(logs.length?'<h3 style="font-size:15px;margin:10px 0 8px">O que o aluno mexeu no cronograma</h3><div style="margin-bottom:16px">'
      +logs.slice(0,8).map(function(l){
@@ -1799,7 +1811,7 @@ async function carregarAlunosAviso() {
   const { data: alunos } = await _supabase.from('alunos').select('id,nome,concursos(nome)').order('nome')
   s.innerHTML = '<option value="">Selecione o aluno</option>'
   ;(alunos||[]).forEach(function(a){
-    s.innerHTML += '<option value="'+a.id+'">'+a.nome+(a.concursos?' — '+a.concursos.nome:'')+'</option>'
+    s.innerHTML += '<option value="'+a.id+'">'+escH(a.nome+(a.concursos?' — '+a.concursos.nome:''))+'</option>'
   })
 }
 

@@ -281,7 +281,7 @@ function montarUrl(){const s=document.getElementById('c-seg').value;document.get
 function copiar(id){const e=document.getElementById(id);e.select();try{navigator.clipboard.writeText(e.value)}catch(x){document.execCommand('copy')};e.blur()}
 async function testarApi(){
   const s=document.getElementById('c-api');s.textContent='testando...';s.style.color='var(--tx3)'
-  try{const r=await fetch('/api/kiwify');const j=await r.json();s.textContent=j.configurado?'✓ Pronta e configurada':'⚠️ A funcao existe, mas faltam as variaveis (passo 2) ou o Redeploy';s.style.color=j.configurado?'var(--ok)':'var(--alerta)'}
+  try{const r=await fetch('/api/kiwify');const j=await r.json();s.textContent=j.configurado?('✓ Pronta e configurada'+(j.assinatura?' · assinatura da Kiwify conferida':' · falta o KIWIFY_TOKEN (assinatura)')):'⚠️ A funcao existe, mas faltam as variaveis (passo 2) ou o Redeploy';s.style.color=j.configurado?'var(--ok)':'var(--alerta)'}
   catch(e){s.textContent='✗ Nao encontrei a funcao. Confira se o arquivo api/kiwify.js esta no GitHub (dentro da pasta api).';s.style.color='var(--erro)'}
 }
 

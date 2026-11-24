@@ -6,7 +6,7 @@
    A cada atualizacao, troque a VERSAO abaixo.
    ===================================================================== */
 (function () {
-  var VERSAO = '2026.11.20-a'
+  var VERSAO = '2026.11.24-a'
   window.VERSAO_PLATAFORMA = VERSAO
 
   var pagina = (location.pathname.split('/').pop() || 'index.html').toLowerCase()
@@ -223,7 +223,21 @@
     var sc = document.createElement('script'); sc.src = 'senha-visivel.js'; document.head.appendChild(sc)
   }
 
+  /* ---------------- paginas do mentor: aluno logado volta para a area dele ----------------
+     (a protecao de verdade e o banco; isto so evita o aluno ver a tela vazia do painel) */
+  function guardaMentor () {
+    if (PAGINAS_MENTOR.indexOf(pagina) < 0 || pagina === 'admin.html') return
+    if (typeof _supabase === 'undefined' || !_supabase.auth) return
+    _supabase.auth.getSession().then(function (r) {
+      if (!(r && r.data && r.data.session)) return
+      return _supabase.rpc('eh_admin').then(function (x) {
+        if (x && !x.error && x.data === false) location.replace('cronograma.html')
+      })
+    }).then(null, function () {})
+  }
+
   function iniciar () {
+    guardaMentor()
     senhaVisivel()
     rodape()
     faixaTeste()

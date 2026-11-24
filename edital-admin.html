@@ -26,7 +26,9 @@
     .barra-prog { flex:1;height:8px;border-radius:4px;background:var(--card);overflow:hidden; }
     .barra-prog-fill { height:100%;border-radius:4px; }
   </style>
-<script>document.documentElement.setAttribute("data-tema",localStorage.getItem("tema")||"escuro")</script>
+<script>
+function escT(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
+document.documentElement.setAttribute("data-tema",localStorage.getItem("tema")||"escuro")</script>
 <style>
 .voltar-mob{display:none}
 @media(max-width:860px){
@@ -563,7 +565,7 @@ async function carregarProgressoAlunos() {
     div.innerHTML += `
       <div style="background:var(--card);border-radius:10px;padding:14px;margin-bottom:10px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:6px">
-          <strong>${aluno.nome}</strong>
+          <strong>${escT(aluno.nome)}</strong>
           <div style="display:flex;align-items:center;gap:10px">
             <span style="color:${corGeral};font-size:18px;font-weight:bold">${pctGeral}%</span>
             <span style="color:var(--tx3);font-size:12px">${concluidos.size}/${topicos.length} topicos</span>

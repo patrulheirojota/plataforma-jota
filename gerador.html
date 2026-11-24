@@ -294,7 +294,7 @@ async function init(){
   document.getElementById('g-inicio').value = ymd(hoje)
   const { data: alunos } = await _supabase.from('alunos').select('id,nome').order('nome')
   const sa = document.getElementById('g-aluno')
-  if (alunos) alunos.forEach(a => { sa.innerHTML += '<option value="'+a.id+'">'+a.nome+'</option>' })
+  if (alunos) alunos.forEach(a => { sa.innerHTML += '<option value="'+a.id+'">'+esc(a.nome)+'</option>' })
   // aberto a partir de outra tela: ?aluno=...&concurso=...  (#extras rola ate o card de extras)
   const qs = new URLSearchParams(location.search), qa = qs.get('aluno'), qc = qs.get('concurso')
   if (qa && Array.from(sa.options).some(function(o){ return o.value === qa })) {
