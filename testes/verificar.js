@@ -245,6 +245,17 @@ if (LP) {
     ok(r.c === 401 && !chamou, 'kiwify: recusa senha errada')
     r = resp(); await h({ method: 'POST', query: { segredo: 'teste123' }, body: { order_status: 'paid', Customer: { email: 'a@b.com' } } }, r)
     ok(r.c === 200 && chamou && /kiwify_registrar/.test(chamou.u) && JSON.parse(chamou.o.body).p.Customer.email === 'a@b.com', 'kiwify: repassa a venda para o banco')
+    // com o token da Kiwify: so aceita aviso com assinatura correta
+    process.env.KIWIFY_TOKEN = 'tok123'
+    const corpoK = { order_status: 'paid', Customer: { email: 'c@d.com' } }
+    const sigK = require('crypto').createHmac('sha1', 'tok123').update(JSON.stringify(corpoK)).digest('hex')
+    chamou = null; r = resp(); await h({ method: 'POST', query: { segredo: 'teste123', signature: 'abc' }, body: corpoK }, r)
+    ok(r.c === 401 && !chamou, 'kiwify: recusa assinatura falsa')
+    chamou = null; r = resp(); await h({ method: 'POST', query: { segredo: 'teste123' }, body: corpoK }, r)
+    ok(r.c === 401 && !chamou, 'kiwify: recusa aviso sem assinatura quando o token esta configurado')
+    chamou = null; r = resp(); await h({ method: 'POST', query: { segredo: 'teste123', signature: sigK }, body: corpoK }, r)
+    ok(r.c === 200 && chamou, 'kiwify: aceita assinatura correta')
+    delete process.env.KIWIFY_TOKEN
   }
   console.log('\n' + (falhas ? '❌ ' + falhas + ' problema(s) encontrado(s)' : '✅ Tudo certo') + ' · ' + oks + ' verificacoes ok')
   process.exit(falhas ? 1 : 0)
