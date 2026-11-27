@@ -87,6 +87,12 @@
     <div class="passo"><div class="passo-n">3</div><h3 style="margin:0">Temas que vao como ja estudados</h3></div>
     <p style="color:var(--tx3);font-size:13px;line-height:1.55;margin-bottom:12px">Cada tema do edital novo foi comparado com os temas que o aluno ja estudou. Desmarque o que nao for equivalente de verdade.</p>
     <div id="temas"></div>
+    <label class="tema" style="margin-top:10px;border:1px solid var(--borda,#2a3d55);border-radius:10px;padding:10px">
+      <input type="checkbox" id="m-sorev" checked onchange="atualizarContagem()">
+      <span><b>Temas em que ele ja fez teoria E questoes entram so com revisao</b>
+      <small>Desmarque se quiser que ele refaca questoes desses temas na banca nova. Os demais temas estudados entram com questoes e revisao (sem teoria).</small>
+      <small id="m-sorev-n"></small></span>
+    </label>
     <button onclick="aplicar()" id="btn-aplicar" class="btn-ok" style="width:100%;padding:13px;margin-top:12px">Levar o avanco</button>
     <p id="msg-ap" style="display:none;margin-top:10px;font-size:13px;line-height:1.6"></p>
   </div>
@@ -101,7 +107,7 @@
 <script src="config.js"></script>
 <script src="motor-migracao.js"></script>
 <script>
-let _alunos=[],_concNomes={},_sess=[],_progresso={},_temasDe=[],_temasPara=[],_origem=[],_mapa={},_proposta=[],_fora={},_extrasFeitas=[],_jaMarcados=0
+let _statusPara={},_alunos=[],_concNomes={},_sess=[],_progresso={},_temasDe=[],_temasPara=[],_origem=[],_mapa={},_proposta=[],_fora={},_extrasFeitas=[],_jaMarcados=0
 
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function msg(id,t,c){const m=document.getElementById(id);m.style.display=t?'block':'none';m.style.color=c||'var(--tx3)';m.innerHTML=t||''}
@@ -180,20 +186,22 @@ async function aoTrocarConcursos(){
   if(!_temasPara.length){msg('msg-1','O concurso novo nao tem edital cadastrado.','var(--erro)');return}
 
   // temas do concurso antigo: os do edital + os que estao nas sessoes (concurso sem edital tambem funciona)
-  const feitoNome={},feitoId={},vistos={}
+  const feitoNome={},feitoId={},vistos={},questNome={},questId={}
   _origem=[]
   _sess.forEach(function(s){
     if(s.extra||String(s.concurso_id)!==de)return
     if(s.tipo==='teoria'&&s.concluida){feitoNome[chave(s.disciplina,s.topico)]=1;if(s.topico_id)feitoId[String(s.topico_id)]=1}
+    if(s.tipo==='questoes'&&s.concluida){questNome[chave(s.disciplina,s.topico)]=1;if(s.topico_id)questId[String(s.topico_id)]=1}
   })
   _temasDe.forEach(function(t){
     const k=chave(t.disciplina,t.topico); if(vistos[k])return; vistos[k]=1
-    _origem.push({disciplina:t.disciplina,topico:t.topico,feito:!!(_progresso[String(t.id)]||feitoId[String(t.id)]||feitoNome[k])})
+    const feito=!!(_progresso[String(t.id)]||feitoId[String(t.id)]||feitoNome[k])
+    _origem.push({disciplina:t.disciplina,topico:t.topico,feito:feito,questoes:feito&&!!(questId[String(t.id)]||questNome[k])})
   })
   _sess.forEach(function(s){
     if(s.extra||String(s.concurso_id)!==de||!s.disciplina||!s.topico)return
     const k=chave(s.disciplina,s.topico); if(vistos[k])return; vistos[k]=1
-    _origem.push({disciplina:s.disciplina,topico:s.topico,feito:!!feitoNome[k]})
+    _origem.push({disciplina:s.disciplina,topico:s.topico,feito:!!feitoNome[k],questoes:!!feitoNome[k]&&!!questNome[k]})
   })
   // extras ja feitas DO concurso novo (o aluno ja estudava disciplinas dele como extra)
   const idsPara={};_temasPara.forEach(function(t){idsPara[String(t.id)]=t})
@@ -201,6 +209,12 @@ async function aoTrocarConcursos(){
   _sess.forEach(function(s){if(s.extra&&String(s.concurso_extra)===para&&s.tipo==='teoria'&&s.concluida&&s.topico_id&&idsPara[String(s.topico_id)])ex[String(s.topico_id)]=idsPara[String(s.topico_id)]})
   _extrasFeitas=Object.keys(ex).map(function(k){return ex[k]})
   _jaMarcados=_temasPara.filter(function(t){return _progresso[String(t.id)]}).length
+  _statusPara={}
+  try{
+    const al=document.getElementById('m-aluno').value
+    const st=await todas(function(){return _supabase.from('tema_aluno_status').select('topico_id,status').eq('aluno_id',al)})
+    st.forEach(function(x){if(idsPara[String(x.topico_id)])_statusPara[String(x.topico_id)]=x.status})
+  }catch(e){}
 
   const discsDe=[];_origem.forEach(function(t){if(discsDe.indexOf(t.disciplina)<0)discsDe.push(t.disciplina)})
   const discsPara=[];_temasPara.forEach(function(t){if(discsPara.indexOf(t.disciplina)<0)discsPara.push(t.disciplina)})
@@ -266,39 +280,64 @@ function renderTemas(){
     h+='</div>'
   })
   document.getElementById('temas').innerHTML=h
-  atualizarContagem()
   document.getElementById('card-temas').style.display='block'
+  atualizarContagem()
 }
 function linhaTema(t){
   const ja=!!_progresso[String(t.id)]
   return '<label class="tema"><input type="checkbox" '+(ja?'checked disabled':(_fora[t.id]?'':'checked'))+' onchange="marcarTema(\''+esc(String(t.id))+'\',this.checked)">'
-    +'<span>'+esc(t.topico)+(t.de?'<small>← '+esc(t.de)+(t.nota<100?' · '+t.nota+'% parecido':'')+'</small>':'')+(ja?'<small style="color:var(--ok)">ja estava marcado</small>':'')+'</span></label>'
+    +'<span>'+esc(t.topico)+(t.de?'<small>← '+esc(t.de)+(t.nota<100?' · '+t.nota+'% parecido':'')+(t.questoes?' · <b style="color:var(--ok)">teoria + questoes</b>':'')+'</small>':'')+(ja?'<small style="color:var(--ok)">ja estava marcado</small>':'')+'</span></label>'
 }
 function marcarTema(id,on){if(on)delete _fora[id];else _fora[id]=1;atualizarContagem()}
+function idsSoRevisao(){
+  const cb=document.getElementById('m-sorev'); if(!cb||!cb.checked)return []
+  const ids={}
+  _proposta.forEach(function(g){g.marcar.forEach(function(t){if(t.questoes&&!_fora[t.id]&&_statusPara[String(t.id)]!=='so_revisao'&&_statusPara[String(t.id)]!=='excluido')ids[t.id]=1})})
+  return Object.keys(ids)
+}
 function atualizarContagem(){
   const n=idsMarcados().length, r=document.getElementById('rs-levar'); if(r)r.textContent=n
+  const nr=idsSoRevisao().length, sn=document.getElementById('m-sorev-n')
+  if(sn)sn.innerHTML=nr?'<b style="color:var(--ok)">'+nr+' tema(s) vao entrar so com revisao.</b>':'Nenhum tema com teoria e questoes feitas.'
+  if(!n&&!nr&&document.getElementById('card-temas').style.display==='block'){
+    document.getElementById('fim-txt').innerHTML='Nao ha tema novo para levar como estudado. Para trocar o concurso do aluno, monte o cronograma do novo concurso no Gerador: ao salvar, o concurso do aluno passa a ser o novo e so as sessoes <strong>pendentes</strong> do antigo saem. O que ele ja fez fica no historico.'
+    document.getElementById('card-fim').style.display='block'
+  }
   const b=document.getElementById('btn-aplicar')
-  b.disabled=!n;b.textContent=n?'Levar o avanco: '+n+' tema(s) como estudados':'Nenhum tema novo para levar'
-  b.style.opacity=n?'1':'.5'
+  b.disabled=!(n||nr);b.textContent=n?'Levar o avanco: '+n+' tema(s) como estudados':(nr?'Marcar '+nr+' tema(s) como so revisao':'Nenhum tema novo para levar')
+  b.style.opacity=(n||nr)?'1':'.5'
 }
 
 async function aplicar(){
   const aluno=document.getElementById('m-aluno').value, de=document.getElementById('m-de').value, para=document.getElementById('m-para').value
-  const ids=idsMarcados()
-  if(!ids.length)return
+  const ids=idsMarcados(), rev=idsSoRevisao()
+  if(!ids.length&&!rev.length)return
   const nome=(_alunos.find(function(a){return a.id===aluno})||{}).nome||'o aluno'
-  if(!confirm('Marcar '+ids.length+' tema(s) como estudados no edital do '+(_concNomes[para]||'novo concurso')+' para '+nome+'?\n\nNada e apagado. O cronograma muda so quando voce salvar no Gerador.'))return
+  if(!confirm('Marcar '+ids.length+' tema(s) como estudados no edital do '+(_concNomes[para]||'novo concurso')+' para '+nome+'?'+(rev.length?'\n'+rev.length+' deles (teoria e questoes feitas) vao entrar so com revisao.':'')+'\n\nNada e apagado. O cronograma muda so quando voce salvar no Gerador.'))return
   const pares=Object.keys(_mapa).filter(function(d){return _mapa[d]}).map(function(d){return d===_mapa[d]?d:d+' → '+_mapa[d]}).join('; ')
   msg('msg-ap','Salvando...')
   document.getElementById('btn-aplicar').disabled=true
-  const r=await _supabase.rpc('migrar_avanco',{p_aluno:aluno,p_origem:de,p_destino:para,p_topicos:ids,p_resumo:pares})
+  const r=ids.length?await _supabase.rpc('migrar_avanco',{p_aluno:aluno,p_origem:de,p_destino:para,p_topicos:ids,p_resumo:pares}):{data:{marcados:0}}
   if(r.error){
     document.getElementById('btn-aplicar').disabled=false
     msg('msg-ap',/migrar_avanco|function/i.test(r.error.message)?'Rode primeiro o arquivo <strong>atualizacao-migrar-concurso.sql</strong> no Supabase (SQL Editor).':'Erro: '+esc(r.error.message),'var(--erro)');return
   }
   const d=r.data||{}
   ids.forEach(function(id){_progresso[String(id)]=1})
-  msg('msg-ap','✓ '+(d.marcados||0)+' tema(s) marcados como estudados no '+esc(d.destino||_concNomes[para])+'.','var(--ok)')
+  // teoria + questoes ja feitas: o tema entra so com revisao no novo plano
+  let nRev=0,erroRev=''
+  if(rev.length){
+    const agora=new Date().toISOString(), lin=rev.map(function(id){return {aluno_id:aluno,topico_id:id,concurso_id:para,status:'so_revisao',atualizado_em:agora}})
+    for(let i=0;i<lin.length;i+=100){
+      const u=await _supabase.from('tema_aluno_status').upsert(lin.slice(i,i+100),{onConflict:'aluno_id,topico_id'})
+      if(u.error){erroRev=u.error.message;break}
+      nRev+=Math.min(100,lin.length-i)
+    }
+    lin.slice(0,nRev).forEach(function(x){_statusPara[String(x.topico_id)]='so_revisao'})
+  }
+  msg('msg-ap','✓ '+(d.marcados||0)+' tema(s) marcados como estudados no '+esc(d.destino||_concNomes[para])+'.'
+    +(nRev?'<br>✓ '+nRev+' tema(s) com teoria e questoes feitas vao entrar so com revisao.':'')
+    +(erroRev?'<br><span style="color:var(--erro)">Nao consegui marcar os temas "so revisao": '+esc(erroRev)+'</span>':''),erroRev?'var(--alerta)':'var(--ok)')
   renderTemas()
   document.getElementById('fim-txt').innerHTML='<strong>Ultimo passo:</strong> monte o cronograma do '+esc(_concNomes[para])+' no Gerador. Deixe ligada a opcao <strong>"Tirar a teoria dos temas que o aluno marcou como estudados no Edital"</strong>: esses temas entram so com questoes e revisao.'
     +'<br><br>Ao salvar, o Gerador avisa que o aluno tem cronograma do '+esc(_concNomes[de]||'concurso antigo')+' e remove so as sessoes <strong>pendentes</strong> dele. O que o aluno ja fez fica no historico.'

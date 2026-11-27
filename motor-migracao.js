@@ -69,7 +69,8 @@ function migSugerirDisciplinas (discsOrigem, discsDestino) {
 }
 
 /* Monta a proposta.
-   origem:  [{ disciplina, topico, feito }]   (temas do concurso antigo; feito = teoria ja estudada)
+   origem:  [{ disciplina, topico, feito, questoes }]   (temas do concurso antigo; feito = teoria ja estudada;
+            questoes = tambem fez sessao de questoes concluida)
    destino: [{ id, disciplina, topico }]      (temas do edital novo)
    mapa:    { 'disciplina antiga': 'disciplina nova' | '' }
    Devolve, por disciplina NOVA, os temas que entram como ja estudados:
@@ -95,7 +96,7 @@ function migMontarProposta (origem, destino, mapa) {
         if (n > nota || (n === nota && n > 0 && to.feito && melhor && !melhor.feito)) { nota = n; melhor = to }
       })
       if (melhor && melhor.feito && nota >= MIG_CORTE_TEMA) {
-        marcar.push({ id: td.id, topico: td.topico, de: melhor.topico, nota: Math.round(nota * 100) })
+        marcar.push({ id: td.id, topico: td.topico, de: melhor.topico, nota: Math.round(nota * 100), questoes: !!melhor.questoes })
         usados[melhor.disciplina + '|' + melhor.topico] = true
       }
     })
